@@ -18,13 +18,7 @@
 
 use crate::Balance;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{
-	ensure,
-	traits::{
-		tokens::{Fortitude, Precision, Preservation},
-		Get,
-	},
-};
+use frame_support::{ensure, traits::Get};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::de::{Error, MapAccess, Unexpected, Visitor};
@@ -35,105 +29,6 @@ use serde::{Deserialize, Serialize, Serializer};
 use sp_core::RuntimeDebug;
 use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::fmt::{Display, Formatter};
-
-/// Resolver trait for handling different types of assets for deposit and withdrawal operations
-pub trait Resolver<
-	AccountId,
-	Native: frame_support::traits::tokens::fungible::Mutate<AccountId>
-		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
-	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
-		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>
-		+ frame_support::traits::tokens::fungibles::Create<AccountId>,
-	AssetId: Into<Others::AssetId> + sp_std::cmp::PartialEq + Copy,
-	NativeAssetId: Get<AssetId>,
->
-{
-	/// Deposit will mint new tokens if asset is non native and in case of native, will transfer
-	/// native tokens from `NativeLockingAccount` to `who`
-	fn resolver_deposit(
-		asset: AssetId,
-		amount: Balance,
-		who: &AccountId,
-		admin: AccountId,
-		min_balance: Balance,
-		locking_account: AccountId,
-	) -> Result<(), DispatchError> {
-		if asset == NativeAssetId::get() {
-			Native::transfer(
-				&locking_account,
-				who,
-				amount.saturated_into(),
-				Preservation::Preserve,
-			)?;
-		} else {
-			if !Others::asset_exists(asset.into()) {
-				Others::create(asset.into(), admin, true, min_balance.saturated_into())?;
-			}
-			Others::mint_into(asset.into(), who, amount.saturated_into())?;
-		}
-		Ok(())
-	}
-
-	/// Deposit will burn tokens if asset is non native and in case of native, will transfer
-	/// native tokens from `who` to `NativeLockingAccount`
-	fn resolver_withdraw(
-		asset: AssetId,
-		amount: Balance,
-		who: &AccountId,
-		locking_account: AccountId,
-	) -> Result<(), DispatchError> {
-		if asset == NativeAssetId::get() {
-			Native::transfer(
-				who,
-				&locking_account,
-				amount.saturated_into(),
-				Preservation::Preserve,
-			)?;
-		} else {
-			Others::burn_from(
-				asset.into(),
-				who,
-				amount.saturated_into(),
-				Precision::Exact,
-				Fortitude::Polite,
-			)?;
-		}
-		Ok(())
-	}
-
-	/// Create New Asset
-	fn resolve_create(
-		asset: AssetId,
-		admin: AccountId,
-		min_balance: Balance,
-	) -> Result<(), DispatchError> {
-		ensure!(asset != NativeAssetId::get(), DispatchError::Other("Cannot create Native Asset"));
-		ensure!(!Others::asset_exists(asset.into()), DispatchError::Other("Asset already exists"));
-		Others::create(asset.into(), admin, true, min_balance.saturated_into())?;
-		Ok(())
-	}
-
-	///Transfer Asset
-	fn resolve_transfer(
-		asset: AssetId,
-		from: &AccountId,
-		to: &AccountId,
-		amount: Balance,
-	) -> Result<(), DispatchError> {
-		if asset == NativeAssetId::get() {
-			Native::transfer(from, to, amount.saturated_into(), Preservation::Preserve)?;
-		} else {
-			Others::transfer(
-				asset.into(),
-				from,
-				to,
-				amount.saturated_into(),
-				Preservation::Preserve,
-			)?;
-		}
-		Ok(())
-	}
-}
 
 /// Enumerated asset on chain
 #[derive(

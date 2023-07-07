@@ -7,9 +7,9 @@ edition = "2021"
 primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
-sp-core = { workspace = true }
-sp-runtime = { workspace = true }
-sp-std = { workspace = true }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33" }
 polkadex-primitives = { workspace = true }
 chrono = { version = "0.4.23", optional = true }
 rand = { version = "0.8.5", optional = true }
@@ -20,7 +20,7 @@ anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
 ], default-features = false }
-sc-network = { workspace = true, optional = true }
+sc-network = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.33", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0.94"
