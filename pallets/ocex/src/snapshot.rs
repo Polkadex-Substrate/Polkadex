@@ -25,5 +25,5 @@ use sp_std::collections::btree_map::BTreeMap;
 #[derive(Encode, Decode, PartialEq, Debug, Clone, Default)]
 pub struct AccountsMap {
 	/// Snapshots map.
-	pub map: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
+	pub balances: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
 }
