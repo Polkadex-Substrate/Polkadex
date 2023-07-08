@@ -184,8 +184,8 @@ pub struct ObMessage {
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub actions: Vec<UserActions<AccountId>>,
-	pub worker_nonce: u64,
 	pub stid: u64,
+	pub snapshot_id: u64,
 }
 
 #[cfg(feature = "std")]
@@ -237,18 +237,13 @@ pub struct WithdrawalRequest<AccountId: Codec + Clone + TypeInfo> {
 }
 
 impl<AccountId: Clone + Codec + TypeInfo> WithdrawalRequest<AccountId> {
-	pub fn convert(
-		&self,
-		stid: u64,
-		worker_nonce: u64,
-	) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
+	pub fn convert(&self, stid: u64) -> Result<Withdrawal<AccountId>, rust_decimal::Error> {
 		Ok(Withdrawal {
 			main_account: self.main.clone(),
 			amount: self.amount()?,
 			asset: self.payload.asset_id,
 			fees: Default::default(),
 			stid,
-			worker_nonce,
 		})
 	}
 }

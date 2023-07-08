@@ -36,15 +36,13 @@ use frame_support::{
 };
 use sp_application_crypto::RuntimePublic;
 
-use frame_system::{ensure_signed};
+use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
 use polkadex_primitives::assets::AssetId;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{crypto::KeyTypeId, H256};
-use sp_runtime::{
-	traits::{AccountIdConversion, UniqueSaturatedInto},
-};
+use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -60,7 +58,7 @@ use orderbook_primitives::{
 	types::{TradingPair, UserActionBatch},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-use polkadex_primitives::{ocex::TradingPairConfig};
+use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
@@ -130,11 +128,11 @@ pub trait OcexWeightInfo {
 #[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
-	
+
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use crate::validator::WORKER_STATUS;
+	use crate::validator::{BATCH, WORKER_STATUS};
 	use frame_support::{
 		pallet_prelude::*,
 		storage::Key,
@@ -146,10 +144,7 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{
-		types::{UserActionBatch},
-		Fees, SnapshotSummary,
-	};
+	use orderbook_primitives::{types::UserActionBatch, Fees, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -157,12 +152,11 @@ pub mod pallet {
 		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_application_crypto::{RuntimeAppPublic};
-	
+	use sp_application_crypto::RuntimeAppPublic;
+
 	use sp_runtime::{
-		offchain::storage::StorageValueRef,
-		traits::{BlockNumberProvider},
-		BoundedBTreeSet, SaturatedConversion,
+		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet,
+		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
 
@@ -411,6 +405,7 @@ pub mod pallet {
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			// TODO: Avoid duplicate Proxy accounts
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
 			if let Some(mut account_info) = <Accounts<T>>::get(&main_account) {
 				ensure!(
@@ -1132,8 +1127,13 @@ pub mod pallet {
 			_signature: sp_core::ecdsa::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			let snapshot_id = <SnapshotNonce<T>>::get().saturating_add(1);
-			<UserActionsBatches<T>>::insert(snapshot_id, batch);
+			let snapshot_id = batch.snapshot_id;
+			<SnapshotNonce<T>>::set(snapshot_id);
+
+			let mut key = BATCH.to_vec();
+			key.append(&mut snapshot_id.encode());
+
+			sp_io::offchain_index::set(key.as_slice(), batch.encode().as_slice());
 			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
 			Ok(())
 		}
@@ -1565,6 +1565,11 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		signer: &sp_core::ecdsa::Public,
 		signature: &sp_core::ecdsa::Signature,
 	) -> TransactionValidity {
+		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
+		if batch.snapshot_id != next_nonce {
+			return InvalidTransaction::Call.into()
+		}
+
 		let operator = match <OrderbookOperatorPublicKey<T>>::get() {
 			None => return InvalidTransaction::Call.into(),
 			Some(op) => op,
