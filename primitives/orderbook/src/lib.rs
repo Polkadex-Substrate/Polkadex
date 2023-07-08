@@ -25,9 +25,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{
-	withdrawal::Withdrawal, AssetId, BlockNumber,
-};
+use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
@@ -108,8 +106,6 @@ pub struct SnapshotSummary<AccountId: Clone + Codec, AuthorityId: Clone + Codec>
 	pub snapshot_id: u64,
 	/// Working state root.
 	pub state_hash: H256,
-	/// Worker nonce.
-	pub worker_nonce: u64,
 	/// State change identifier.
 	pub state_change_id: u64,
 	/// Latest processed block number.

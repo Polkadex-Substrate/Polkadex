@@ -1602,7 +1602,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 
 fn get_dummy_snapshot(
 	withdrawals_len: usize,
-) -> (SnapshotSummary<AccountId,AuthorityId>, bls_primitives::Public) {
+) -> (SnapshotSummary<AccountId, AuthorityId>, bls_primitives::Public) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1787,8 +1787,8 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 	});
 }
 
-use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 use crate::sr25519::AuthorityId;
+use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
 #[test]
 fn test_set_balances_with_bad_origin() {

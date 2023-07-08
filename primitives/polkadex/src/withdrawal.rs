@@ -41,8 +41,6 @@ pub struct Withdrawal<AccountId> {
 	pub fees: Decimal,
 	/// State change identifier.
 	pub stid: u64,
-	/// Worker nonce.
-	pub worker_nonce: u64,
 }
 
 /// Defines payload item structure collected in `Withdrawals` structure.

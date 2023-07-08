@@ -4,7 +4,7 @@ use crate::{
 	snapshot::AccountsMap,
 	Call, Config, Pallet,
 };
-use frame_system::offchain::{SubmitTransaction};
+use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
 	types::{Trade, UserActions, WithdrawalRequest},
 	SnapshotSummary,
@@ -18,6 +18,7 @@ use sp_std::vec::Vec;
 
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const ACCOUNTS: [u8; 23] = *b"offchain-ocex::accounts";
+pub const BATCH: [u8; 20] = *b"offchain-ocex::batch";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
@@ -64,7 +65,7 @@ impl<T: Config> Pallet<T> {
 			Some(batch) => batch,
 		};
 
-		// Load the trie to memory
+		// Load the state to memory
 		let s_info = StorageValueRef::persistent(&ACCOUNTS);
 		let mut accounts =
 			match s_info.get::<AccountsMap>().map_err(|_err| "Unable to get accounts map")? {
@@ -76,18 +77,13 @@ impl<T: Config> Pallet<T> {
 			return Err("Invalid stid")
 		}
 
-		if accounts.worker_nonce >= batch.worker_nonce {
-			return Err("Invalid worker nonce")
-		}
-
 		let mut withdrawals = Vec::new();
 		// Process Ob messages
 		for action in batch.actions {
 			match action {
 				UserActions::Trade(trades) => Self::trades(trades, &mut accounts)?,
 				UserActions::Withdraw(request) => {
-					let withdrawal =
-						Self::withdraw(request, &mut accounts, batch.stid, batch.worker_nonce)?;
+					let withdrawal = Self::withdraw(request, &mut accounts, batch.stid)?;
 					withdrawals.push(withdrawal);
 				},
 				UserActions::BlockImport(blk) =>
@@ -105,7 +101,6 @@ impl<T: Config> Pallet<T> {
 					validator_set_id: <ValidatorSetId<T>>::get(),
 					snapshot_id: next_nonce,
 					state_hash,
-					worker_nonce: batch.worker_nonce,
 					state_change_id: batch.stid,
 					last_processed_blk: accounts.last_block.saturated_into(),
 					withdrawals,
@@ -124,6 +119,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn import_blk(blk: T::BlockNumber, state: &mut AccountsMap) -> Result<(), &'static str> {
+		log::info!(target:"offchain::ocex","Importing block: {:?}",blk);
 		if blk <= state.last_block.saturated_into() {
 			return Err("BlockOutofSequence")
 		}
@@ -156,6 +152,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn trades(trades: Vec<Trade>, state: &mut AccountsMap) -> Result<(), &'static str> {
+		log::info!(target:"offchain::ocex","Settling trades...");
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
 				.ok_or("TradingPairNotFound")?;
@@ -169,8 +166,8 @@ impl<T: Config> Pallet<T> {
 		request: WithdrawalRequest<T::AccountId>,
 		state: &mut AccountsMap,
 		stid: u64,
-		worker_nonce: u64,
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
+		log::info!(target:"offchain::ocex","Settling withdraw request...");
 		let amount = request.amount().map_err(|_| "decimal conversion error")?;
 		let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
 
@@ -195,8 +192,7 @@ impl<T: Config> Pallet<T> {
 
 		*total = total.saturating_sub(amount);
 
-		let withdrawal =
-			request.convert(stid, worker_nonce).map_err(|_| "Withdrawal conversion error")?;
+		let withdrawal = request.convert(stid).map_err(|_| "Withdrawal conversion error")?;
 
 		Ok(withdrawal)
 	}

@@ -21,9 +21,7 @@
 //! Service implementation. Specialized wrapper over substrate service.
 use crate::rpc as node_rpc;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-use futures::{
-	prelude::*,
-};
+use futures::prelude::*;
 use node_polkadex_runtime::RuntimeApi;
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
