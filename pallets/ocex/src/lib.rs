@@ -378,14 +378,14 @@ pub mod pallet {
 		}
 
 		fn offchain_worker(block_number: T::BlockNumber) {
-			log::error!(target:"ocex","Worker started!");
+			sp_runtime::print("Worker started!");
 			if let Err(err) = Self::run_on_chain_validation(block_number) {
 				log::error!(target:"ocex","OCEX worker error: {}",err)
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 			s_info.set(&false);
-			log::error!(target:"ocex","OCEX worker exiting...")
+			sp_runtime::print("OCEX worker exiting...");
 		}
 	}
 
@@ -1049,6 +1049,12 @@ pub mod pallet {
 			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+
+			let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
+			if next_nonce != summary.snapshot_id {
+				return Err(Error::<T>::SnapshotNonceError.into())
+			}
+
 			let withdrawal_map = Self::create_withdrawal_tree(summary.withdrawals.clone());
 			if !summary.withdrawals.is_empty() {
 				<OnChainEvents<T>>::mutate(|onchain_events| {
@@ -1063,13 +1069,14 @@ pub mod pallet {
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
 
 			// get closing block number for this snapshot
-			let interval = <DisputeInterval<T>>::get().unwrap_or(24 * 60 * 5);
+			let interval = <DisputeInterval<T>>::get().unwrap_or((24u32 * 60 * 5).saturated_into());
 			let close_block = <frame_system::Pallet<T>>::block_number() + interval;
 			// Update the snapshot nonce and move the summary to snapshots storage
 			<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);
 
 			let id = summary.snapshot_id;
 			<ProcessedSnapshotNonce<T>>::put(id);
+			<TriggerRebroadcast<T>>::put(false);
 			// <UserActionsBatches<T>>::remove(id);
 			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
 			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
@@ -1121,6 +1128,17 @@ pub mod pallet {
 			<UserActionsBatches<T>>::insert(snapshot_id, batch);
 			<SnapshotNonce<T>>::set(snapshot_id);
 			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
+			Ok(())
+		}
+
+		/// This extrinsic will trigger the offchain worker to rebroadcast the previous snapshot
+		/// summary TODO: update weights
+		#[pallet::call_index(21)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
+		pub fn trigger_summary_rebroadcast(origin: OriginFor<T>) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<TriggerRebroadcast<T>>::put(true);
+			Self::deposit_event(Event::RebroadcastTriggered);
 			Ok(())
 		}
 	}
@@ -1323,6 +1341,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		RebroadcastTriggered,
 		SnapshotProcessed(u64),
 		UserActionsBatchSubmitted(u64),
 		FeesClaims {
@@ -1458,6 +1477,11 @@ pub mod pallet {
 	pub(super) type DisputeInterval<T: Config> =
 		StorageValue<_, <T as frame_system::Config>::BlockNumber, OptionQuery>;
 
+	// Flag to trigger rebroadacast
+	#[pallet::storage]
+	#[pallet::getter(fn trigger_rebroadcast)]
+	pub(super) type TriggerRebroadcast<T: Config> = StorageValue<_, bool, ValueQuery>;
+
 	// Fees collected
 	#[pallet::storage]
 	#[pallet::getter(fn fees_collected)]
@@ -1583,7 +1607,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		sp_runtime::print("Validating submit_snapshot....");
 
 		// Verify if snapshot is already processed
-		if <Snapshots<T>>::contains_key(snapshot_summary.snapshot_id) {
+		if <ProcessedSnapshotNonce<T>>::get().saturating_add(1) != snapshot_summary.snapshot_id {
 			return InvalidTransaction::Custom(10).into()
 		}
 
@@ -1603,7 +1627,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		sp_runtime::print("submit_snapshot validated!");
 		ValidTransaction::with_tag_prefix("orderbook")
-			.and_provides([&"snapshot"])
+			.and_provides([&snapshot_summary.snapshot_id])
 			.longevity(10)
 			.propagate(true)
 			.build()

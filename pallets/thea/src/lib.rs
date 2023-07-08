@@ -336,7 +336,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides([signature])
+			.and_provides(["thea"])
 			.longevity(3)
 			.propagate(true)
 			.build()
