@@ -41,7 +41,7 @@ use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
 use polkadex_primitives::assets::AssetId;
 use sp_application_crypto::RuntimeAppPublic;
-use sp_core::{crypto::KeyTypeId};
+use sp_core::crypto::KeyTypeId;
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
