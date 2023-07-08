@@ -5577,7 +5577,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex",
  "liquidity",
  "log",
  "orderbook-primitives",

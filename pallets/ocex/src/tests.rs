@@ -33,7 +33,7 @@ use frame_system::EventRecord;
 
 use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
-use sp_core::{bounded::BoundedBTreeSet, ByteArray, Pair};
+use sp_core::{bounded::BoundedBTreeSet, ByteArray, Pair, H256};
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 
@@ -57,64 +57,45 @@ fn get_alice_accounts() -> (AccountId32, AccountId32) {
 
 #[test]
 fn test_ocex_submit_snapshot() {
+	let auth1 = sp_core::sr25519::Pair::generate().0;
+	let auth2 = sp_core::sr25519::Pair::generate().0;
+	let auth3 = sp_core::sr25519::Pair::generate().0;
 	let authorities = vec![
-		AuthorityId::from_slice(&hex::decode("a2cb69bc369821987a80f3441eb868e5d34ba02ef437e1eb9d5fb019994bff99b5a\
-		43afecbdffb18412d80d12ed411901178c52ec8a7ad5d2a1cd40cd346af4dc92617b72b2577634b44700691ee322bf012e4795041c80117de530433c4966d").unwrap()).unwrap(),
-		AuthorityId::from_slice(&hex::decode("b335a9cc86c14bb3befa2337b43000f8291c06c196c9003b24b25de75a6369f1c9df\
-		67e65a0da38a3339779a2825c6871506c86fe0250316cceff08b119d559312533be83ba62093908744f4e6c4bd37c71c30719e1aaf0428de966e61847d23").unwrap()).unwrap(),
-		AuthorityId::from_slice(&hex::decode("aee672d32bf85ef55c5fecedc0cc4c17ab828e4e30cada4a565fc0136c4adc1cdad5\
-		6efb96d52ac19d84b43f289ad456127ea3d09af51cef4ff0776375c1ea0d2b6c42dd095119ff371e8d3d56f44eca23811d19298755dba7627fd61a3f0c9e").unwrap()).unwrap()
+		AuthorityId::from(auth1.public()),
+		AuthorityId::from(auth2.public()),
+		AuthorityId::from(auth3.public()),
 	];
 
-	let signature: [u8; 48] = hex::decode(
-		"927d\
-		5700dfe641117ffa23fd553926a20b603d947200160f1f43b892cf007aa62bf4a9a8aaf067fdaa431b44ddaed596",
-	)
-	.unwrap()
-	.try_into()
-	.unwrap();
 	let snapshot1 = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
-		state_hash: H256::from_slice(
-			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
-				.unwrap(),
-		),
-		worker_nonce: 1104,
+		state_hash: H256::random(),
 		state_change_id: 1104,
 		last_processed_blk: 1103,
 		withdrawals: vec![],
-		public: (),
+		public: authorities[0].clone(),
 	};
 
-	let signature: [u8; 48] = hex::decode(
-		"a92ba\
-		a06af18d2b96713ef62951562c9585af5fadb041ef1ff3279f2d75910fefd74f96dfed112f0c99354eea23a184e",
-	)
-	.unwrap()
-	.try_into()
-	.unwrap();
+	let signature1 = auth1.sign(&snapshot1.encode());
+
 	let snapshot2 = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
-		state_hash: H256::from_slice(
-			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
-				.unwrap(),
-		),
-		worker_nonce: 1104,
+		state_hash: H256::random(),
 		state_change_id: 1104,
 		last_processed_blk: 1103,
 		withdrawals: vec![],
-		public: (),
+		public: authorities[1].clone(),
 	};
+	let signature2 = auth2.sign(&snapshot2.encode());
 
 	new_test_ext().execute_with(|| {
 		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
 		<SnapshotNonce<Test>>::put(113);
-		OCEX::validate_snapshot(&snapshot1).unwrap();
-		OCEX::validate_snapshot(&snapshot2).unwrap();
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot1));
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot2));
+		OCEX::validate_snapshot(&snapshot1, &signature1.clone().into()).unwrap();
+		OCEX::validate_snapshot(&snapshot2, &signature2.clone().into()).unwrap();
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot1, signature1.into()));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot2, signature2.into()));
 		assert_eq!(<SnapshotNonce<Test>>::get(), 114);
 	});
 }
@@ -1381,11 +1362,15 @@ fn collect_fees() {
 			initial_balance
 		);
 
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
+		let (mut snapshot, _public, signature) = get_dummy_snapshot(1);
 
 		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(
+			RuntimeOrigin::none(),
+			snapshot.clone(),
+			signature.into()
+		));
 
 		assert_ok!(OCEX::claim_withdraw(
 			RuntimeOrigin::signed(account_id.clone().into()),
@@ -1589,10 +1574,10 @@ fn collect_fees_ddos() {
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
-		let (mut snapshot, _public) = get_dummy_snapshot(0);
+		let (mut snapshot, _public, signature) = get_dummy_snapshot(0);
 		snapshot.snapshot_id = 2; // Wrong nonce
 		assert_noop!(
-			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot),
+			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot, signature.into()),
 			Error::<Test>::SnapshotNonceError
 		);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
@@ -1602,7 +1587,11 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 
 fn get_dummy_snapshot(
 	withdrawals_len: usize,
-) -> (SnapshotSummary<AccountId, AuthorityId>, bls_primitives::Public) {
+) -> (
+	SnapshotSummary<AccountId32, AuthorityId>,
+	sp_core::sr25519::Public,
+	sp_core::sr25519::Signature,
+) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1613,31 +1602,33 @@ fn get_dummy_snapshot(
 			asset: AssetId::Polkadex,
 			fees: Default::default(),
 			stid: 0,
-			worker_nonce: 0,
 		})
 	}
 
+	let pair = sp_core::sr25519::Pair::generate().0;
 	let mut snapshot = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 1,
 		state_hash: Default::default(),
-		worker_nonce: 1,
 		state_change_id: 1,
 		last_processed_blk: 1,
 		withdrawals,
-		public: None,
+		public: AuthorityId::from(pair.public()),
 	};
-	let (pair, _seed) = bls_primitives::Pair::generate();
-	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
 
-	(snapshot, pair.public())
+	let signature = pair.sign(&snapshot.encode());
+
+	(snapshot, pair.public(), signature)
 }
 
 #[test]
 fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
-		let (snapshot, _public) = get_dummy_snapshot(1);
-		assert_noop!(OCEX::validate_snapshot(&snapshot), InvalidTransaction::Custom(11));
+		let (snapshot, _public, signature) = get_dummy_snapshot(1);
+		assert_noop!(
+			OCEX::validate_snapshot(&snapshot, &signature.into()),
+			InvalidTransaction::Custom(11)
+		);
 	});
 }
 
@@ -1646,7 +1637,7 @@ fn test_submit_snapshot() {
 	let _account_id = create_account_id();
 	let mut t = new_test_ext();
 	t.execute_with(|| {
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
+		let (mut snapshot, _public, signature) = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
 		let mut withdrawal_map = BTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
@@ -1660,13 +1651,17 @@ fn test_submit_snapshot() {
 				},
 			}
 		}
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(
+			RuntimeOrigin::none(),
+			snapshot.clone(),
+			signature.into()
+		));
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
 		assert_eq!(FeesCollected::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
-		assert_eq!(Snapshots::<Test>::get(1), snapshot.clone());
+		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
 		let onchain_events =
 			vec![polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
@@ -1675,7 +1670,7 @@ fn test_submit_snapshot() {
 			)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
-		assert_eq!(Snapshots::<Test>::get(1).withdrawals, snapshot.withdrawals);
+		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, snapshot.withdrawals);
 	})
 }
 
@@ -1714,9 +1709,13 @@ fn test_withdrawal() {
 			initial_balance
 		);
 
-		let (snapshot, _public) = get_dummy_snapshot(1);
+		let (snapshot, _public, signature) = get_dummy_snapshot(1);
 
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(
+			RuntimeOrigin::none(),
+			snapshot.clone(),
+			signature.into()
+		));
 
 		assert_ok!(OCEX::claim_withdraw(
 			RuntimeOrigin::signed(account_id.clone().into()),
@@ -1958,23 +1957,6 @@ fn test_set_snapshot_full() {
 		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::signed(b), 1), BadOrigin);
 		// proper cases
 		assert_ok!(OCEX::set_snapshot(RuntimeOrigin::root(), 1));
-	})
-}
-
-#[test]
-fn test_change_pending_withdrawal_limit_full() {
-	new_test_ext().execute_with(|| {
-		let (a, b) = get_alice_accounts();
-		// bad origins
-		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::none(), 1), BadOrigin);
-		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::signed(a), 1), BadOrigin);
-		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::signed(b), 1), BadOrigin);
-		// proper cases
-		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), 1));
-		// half max
-		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), u32::MAX.into()));
-		// max
-		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), u64::MAX));
 	})
 }
 

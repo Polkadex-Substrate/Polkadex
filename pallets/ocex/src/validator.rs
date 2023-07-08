@@ -61,7 +61,7 @@ impl<T: Config> Pallet<T> {
 			Some(false) => {},
 		}
 		s_info.set(&true); // Set WORKER_STATUS to true
-							// Check the next ObMessages to process
+				   // Check the next ObMessages to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 
 		let batch_key = Self::derive_batch_key(next_nonce);
