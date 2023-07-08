@@ -80,7 +80,7 @@ fn test_ocex_submit_snapshot() {
 
 	let snapshot2 = SnapshotSummary {
 		validator_set_id: 0,
-		snapshot_id: 114,
+		snapshot_id: 115,
 		state_hash: H256::random(),
 		state_change_id: 1104,
 		last_processed_blk: 1103,
@@ -93,10 +93,11 @@ fn test_ocex_submit_snapshot() {
 		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
 		<SnapshotNonce<Test>>::put(113);
 		OCEX::validate_snapshot(&snapshot1, &signature1.clone().into()).unwrap();
-		OCEX::validate_snapshot(&snapshot2, &signature2.clone().into()).unwrap();
+		assert!(OCEX::validate_snapshot(&snapshot2, &signature2.clone().into()).is_err());
 		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot1, signature1.into()));
+		OCEX::validate_snapshot(&snapshot2, &signature2.clone().into()).unwrap();
 		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot2, signature2.into()));
-		assert_eq!(<SnapshotNonce<Test>>::get(), 114);
+		assert_eq!(<SnapshotNonce<Test>>::get(), 115);
 	});
 }
 
@@ -1372,6 +1373,10 @@ fn collect_fees() {
 			signature.into()
 		));
 
+		// Complete dispute period
+		new_block();
+		new_block();
+
 		assert_ok!(OCEX::claim_withdraw(
 			RuntimeOrigin::signed(account_id.clone().into()),
 			1,
@@ -1674,6 +1679,14 @@ fn test_submit_snapshot() {
 	})
 }
 
+fn new_block() {
+	let number = frame_system::Pallet::<Test>::block_number() + 1;
+	let hash = H256::repeat_byte(number as u8);
+
+	frame_system::Pallet::<Test>::reset_events();
+	frame_system::Pallet::<Test>::initialize(&number, &hash, &Default::default())
+}
+
 #[test]
 fn test_withdrawal_invalid_withdrawal_index() {
 	let account_id = create_account_id();
@@ -1717,6 +1730,10 @@ fn test_withdrawal() {
 			signature.into()
 		));
 
+		// Complete dispute period
+		new_block();
+		new_block();
+
 		assert_ok!(OCEX::claim_withdraw(
 			RuntimeOrigin::signed(account_id.clone().into()),
 			1,
@@ -1740,7 +1757,7 @@ fn test_withdrawal() {
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
-use orderbook_primitives::{Fees};
+use orderbook_primitives::Fees;
 use sp_runtime::traits::{BlockNumberProvider, One};
 
 #[test]
