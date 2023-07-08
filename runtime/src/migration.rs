@@ -38,7 +38,7 @@ pub mod session_keys {
 					Some(key) => {
 						key_long_enough = key;
 						cursor = Some(key_long_enough.as_ref())
-					}
+					},
 				}
 			}
 
