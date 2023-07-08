@@ -24,22 +24,14 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::crypto::AuthorityId;
-use bls_primitives::{Public, Signature};
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
-	ocex::TradingPairConfig,
-	utils::{return_set_bits, set_bit_field},
-	withdrawal::Withdrawal,
-	AccountId, AssetId, BlockNumber,
+	withdrawal::Withdrawal, AssetId, BlockNumber,
 };
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use sp_core::ByteArray;
 use sp_core::H256;
-use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::vec::Vec;
 
 pub mod constants;
@@ -47,54 +39,6 @@ pub mod types;
 
 #[cfg(feature = "std")]
 pub mod recovery;
-
-pub const ORDERBOOK_WORKER_NONCE_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
-pub const ORDERBOOK_SNAPSHOT_SUMMARY_PREFIX: &[u8; 24] = b"OrderbookSnapshotSummary";
-pub const ORDERBOOK_STATE_CHUNK_PREFIX: &[u8; 27] = b"OrderbookSnapshotStateChunk";
-
-/// Key type for Orderbook module.
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"orbk");
-
-/// Orderbook cryptographic types
-///
-/// This module basically introduces three crypto types:
-/// - `crypto::Pair`
-/// - `crypto::Public`
-/// - `crypto::Signature`
-///
-/// Your code should use the above types as concrete types for all crypto related
-/// functionality.
-///
-/// The current underlying crypto scheme used is BLS. This can be changed,
-/// without affecting code restricted against the above listed crypto types.
-pub mod crypto {
-	use sp_application_crypto::app_crypto;
-
-	use bls_primitives as BLS;
-
-	app_crypto!(BLS, crate::KEY_TYPE);
-
-	/// Identity of a Orderbook authority using BLS as its crypto.
-	pub type AuthorityId = Public;
-
-	/// Signature for a Orderbook authority using BLS as its crypto.
-	pub type AuthoritySignature = Signature;
-}
-
-impl IdentifyAccount for AuthorityId {
-	type AccountId = Self;
-	fn into_account(self) -> Self {
-		self
-	}
-}
-
-#[cfg(feature = "std")]
-impl TryFrom<[u8; 96]> for crypto::AuthorityId {
-	type Error = ();
-	fn try_from(value: [u8; 96]) -> Result<Self, Self::Error> {
-		crypto::AuthorityId::from_slice(&value)
-	}
-}
 
 /// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;

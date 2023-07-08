@@ -17,9 +17,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::AccountInfo, AccountId, AssetId, BlockNumber};
+use polkadex_primitives::{AccountId, AssetId, BlockNumber};
 use rust_decimal::Decimal;
-use sp_runtime::traits::Zero;
+
 use sp_std::collections::btree_map::BTreeMap;
 
 // Accounts storage

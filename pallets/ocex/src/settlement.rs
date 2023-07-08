@@ -21,10 +21,9 @@
 use crate::snapshot::AccountsMap;
 use log::{error, info};
 use orderbook_primitives::types::Trade;
-use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId, BlockNumber};
+
+use polkadex_primitives::{ocex::TradingPairConfig, AssetId};
 use rust_decimal::Decimal;
-use sp_runtime::{traits::Zero, Saturating};
 use sp_std::collections::btree_map::BTreeMap;
 
 /// Updates provided trie db with a new entrance balance if it is not contains item for specific

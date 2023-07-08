@@ -22,11 +22,9 @@
 use crate::rpc as node_rpc;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use futures::{
-	channel::mpsc::{unbounded, UnboundedReceiver},
 	prelude::*,
 };
 use node_polkadex_runtime::RuntimeApi;
-use parking_lot::RwLock;
 use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
 use sc_client_api::BlockBackend;
@@ -248,7 +246,6 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.keystore();
 		let chain_spec = config.chain_spec.cloned_box();
-		let backend_cloned = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),

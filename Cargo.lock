@@ -5115,7 +5115,6 @@ name = "orderbook-primitives"
 version = "1.1.0"
 dependencies = [
  "anyhow",
- "bls-primitives",
  "chrono",
  "log",
  "parity-scale-codec",
@@ -5123,7 +5122,6 @@ dependencies = [
  "primitive-types",
  "rand 0.8.5",
  "rust_decimal",
- "sc-network",
  "scale-info",
  "serde",
  "serde_json",
@@ -5575,7 +5573,6 @@ dependencies = [
 name = "pallet-ocex-lmp"
 version = "5.1.0"
 dependencies = [
- "bls-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -6263,7 +6260,6 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "parking_lot 0.12.1",
  "polkadex-client",
  "polkadex-primitives",
  "rpc-assets",
