@@ -33,7 +33,7 @@ use frame_system::EventRecord;
 
 use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
-use sp_core::{bounded::BoundedBTreeSet, ByteArray, Pair, H256};
+use sp_core::{bounded::BoundedBTreeSet, Pair, H256};
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 
@@ -1606,7 +1606,7 @@ fn get_dummy_snapshot(
 	}
 
 	let pair = sp_core::sr25519::Pair::generate().0;
-	let mut snapshot = SnapshotSummary {
+	let snapshot = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 1,
 		state_hash: Default::default(),
@@ -1740,7 +1740,7 @@ fn test_withdrawal() {
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
-use orderbook_primitives::{Fees, H128};
+use orderbook_primitives::{Fees};
 use sp_runtime::traits::{BlockNumberProvider, One};
 
 #[test]
