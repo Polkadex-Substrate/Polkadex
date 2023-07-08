@@ -324,6 +324,8 @@ pub mod pallet {
 		SnapshotDisputeCloseBlockStorageQueryError,
 		///Cannot find close block for snapshot
 		CannotFindCloseBlockForSnapshot,
+		/// Dispute Interval not set
+		DisputeIntervalNotSet,
 	}
 
 	#[pallet::hooks]
@@ -960,7 +962,7 @@ pub mod pallet {
 
 			// Check if Snapshot is disputed
 			let is_disputed = <SnapshotValidates<T>>::get(snapshot_id);
-			ensure!(is_disputed, Error::<T>::WithdrawBelongsToDisputedSnapshot);
+			ensure!(!is_disputed, Error::<T>::WithdrawBelongsToDisputedSnapshot);
 
 			// This entire block of code is put inside ensure as some of the nested functions will
 			// return Err
@@ -1053,14 +1055,24 @@ pub mod pallet {
 				Error::<T>::SnapshotNonceError
 			);
 			let withdrawal_map = Self::create_withdrawal_tree(summary.withdrawals.clone());
+			if !summary.withdrawals.is_empty() {
+				<OnChainEvents<T>>::mutate(|onchain_events| {
+					onchain_events.push(
+						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+							summary.snapshot_id,
+							summary.withdrawals.clone(),
+						),
+					);
+				});
+			}
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
 			// get closing block number for this snapshot
-			if let Some(interval) = <SnapshotIntervalBlock<T>>::get() {
+			if let Some(interval) = <DisputeInterval<T>>::get() {
 				let close_block = <frame_system::Pallet<T>>::block_number() + interval;
 				// Update the snapshot nonce and move the summary to snapshots storage
 				<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);
 			} else {
-				return Err(Error::<T>::SnapshotDisputeCloseBlockStorageQueryError.into())
+				return Err(Error::<T>::DisputeIntervalNotSet.into())
 			}
 
 			<SnapshotNonce<T>>::put(summary.snapshot_id);
@@ -1573,13 +1585,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			return InvalidTransaction::Custom(10).into()
 		}
 		// Check if this validator was part of that authority set
-		match <Authorities<T>>::get(snapshot_summary.validator_set_id)
+		if !<Authorities<T>>::get(snapshot_summary.validator_set_id)
 			.validators()
-			.binary_search(&snapshot_summary.public)
+			.contains(&snapshot_summary.public)
 		{
-			Ok(auth) => auth,
-			Err(_) => return InvalidTransaction::Custom(11).into(),
-		};
+			return InvalidTransaction::Custom(11).into()
+		}
 
 		let public_key = snapshot_summary.public.clone();
 		// Verify Signature
