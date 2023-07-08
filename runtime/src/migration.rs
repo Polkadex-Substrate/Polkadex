@@ -26,22 +26,6 @@ pub mod session_keys {
 			// Clear Snapshot Nonce
 			pallet_ocex_lmp::SnapshotNonce::<Runtime>::kill();
 
-			// Clear Snapshots Storage
-			let mut cursor = None;
-			#[allow(unused_assignments)]
-			let mut key_long_enough = Vec::new();
-			loop {
-				let results = pallet_ocex_lmp::Snapshots::<Runtime>::clear(50, cursor);
-
-				match results.maybe_cursor {
-					None => break,
-					Some(key) => {
-						key_long_enough = key;
-						cursor = Some(key_long_enough.as_ref())
-					},
-				}
-			}
-
 			let translate_fn = |keys: Option<Vec<(AccountId, SessionKeysV5)>>| {
 				let mut new_keys: Vec<(AccountId, SessionKeys)> = Vec::new();
 				if let Some(keys) = keys {
