@@ -50,7 +50,7 @@ impl<T: Config> Pallet<T> {
 		// Check if another worker is already running or not
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 		match s_info.get::<bool>().map_err(|err| {
-			log::error!(target:"ocex","Error while loading worker status storage: {:?}",err);
+			log::error!(target:"ocex","Error while loading worker status: {:?}",err);
 			"Unable to load worker status"
 		})? {
 			Some(true) => {
@@ -60,7 +60,7 @@ impl<T: Config> Pallet<T> {
 			None => {},
 			Some(false) => {},
 		}
-		s_info.set(&true.encode()); // Set WORKER_STATUS to true
+		s_info.set(&true); // Set WORKER_STATUS to true
 							// Check the next ObMessages to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 
@@ -127,6 +127,7 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 
+		s_info.set(&accounts);
 		Ok(())
 	}
 

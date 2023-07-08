@@ -382,7 +382,8 @@ pub mod pallet {
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-			s_info.set(&false.encode());
+			s_info.set(&false);
+			log::debug!(target:"ocex","OCEX worker exiting...")
 		}
 	}
 
