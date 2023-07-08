@@ -1,8 +1,8 @@
 use crate::{
-	pallet::{Accounts, SnapshotNonce, ValidatorSetId},
+	pallet::{Accounts, UserActionsBatches, ValidatorSetId},
 	settlement::process_trade,
 	snapshot::AccountsMap,
-	Call, Config, Pallet,
+	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
@@ -24,7 +24,7 @@ impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
 		// Check if we are a validator
 		if !sp_io::offchain::is_validator() {
-			log::warn!(target:"ocex","worker exiting, not a validator");
+			log::error!(target:"ocex","worker exiting, not a validator");
 			// This is not a validator
 			return Ok(())
 		}
@@ -62,19 +62,15 @@ impl<T: Config> Pallet<T> {
 		}
 		s_info.set(&true); // Set WORKER_STATUS to true
 				   // Check the next ObMessages to process
-		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
-
-		let batch_key = Self::derive_batch_key(next_nonce);
-		// Load the state to memory
-		let b_info = StorageValueRef::persistent(&batch_key);
+		let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
+		// TODO: Don't execute the same batch if it's summary is waiting hte txn pool
 		// Load the next ObMessages
-		let batch = match b_info.get::<UserActionBatch<T::AccountId>>() {
-			Err(err) => {
-				log::error!(target:"ocex","error while fetching user actions batch: {:?}",err);
-				return Err("StorageRetrivalError")
+		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
+			None => {
+				log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
+				return Ok(())
 			},
-			Ok(None) => return Ok(()),
-			Ok(Some(batch)) => batch,
+			Some(batch) => batch,
 		};
 
 		// Load the state to memory
@@ -118,7 +114,7 @@ impl<T: Config> Pallet<T> {
 					withdrawals,
 					public: key.clone(),
 				};
-
+				log::error!(target:"ocex","Summary created: {:?}",summary);
 				let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
 
 				let call = Call::submit_snapshot { summary, signature };

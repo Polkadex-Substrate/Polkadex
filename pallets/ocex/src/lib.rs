@@ -34,7 +34,6 @@ use frame_support::{
 	},
 	BoundedVec,
 };
-use sp_application_crypto::RuntimePublic;
 
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
@@ -175,15 +174,15 @@ pub mod pallet {
 	impl<T: Config> frame_support::unsigned::ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			sp_runtime::print("Entering validate unsigned....");
-			match (call, source) {
-				(Call::submit_snapshot { summary, signature }, TransactionSource::Local) =>
+		fn validate_unsigned(_: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			sp_runtime::print("Validating unsigned transactions...");
+			match call {
+				Call::submit_snapshot { summary, signature } =>
 					Self::validate_snapshot(summary, signature),
 
-				(Call::submit_user_actions_batch { batch, signer, signature }, _) =>
+				Call::submit_user_actions_batch { batch, signer, signature } =>
 					Self::validate_user_actions_batch(batch, signer, signature),
-				(_, _) => InvalidTransaction::Call.into(),
+				_ => InvalidTransaction::Call.into(),
 			}
 		}
 	}
@@ -379,13 +378,14 @@ pub mod pallet {
 		}
 
 		fn offchain_worker(block_number: T::BlockNumber) {
+			log::error!(target:"ocex","Worker started!");
 			if let Err(err) = Self::run_on_chain_validation(block_number) {
 				log::error!(target:"ocex","OCEX worker error: {}",err)
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 			s_info.set(&false);
-			log::debug!(target:"ocex","OCEX worker exiting...")
+			log::error!(target:"ocex","OCEX worker exiting...")
 		}
 	}
 
@@ -1049,11 +1049,6 @@ pub mod pallet {
 			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
-			ensure!(
-				summary.snapshot_id.eq(&(last_snapshot_serial_number + 1)),
-				Error::<T>::SnapshotNonceError
-			);
 			let withdrawal_map = Self::create_withdrawal_tree(summary.withdrawals.clone());
 			if !summary.withdrawals.is_empty() {
 				<OnChainEvents<T>>::mutate(|onchain_events| {
@@ -1066,19 +1061,20 @@ pub mod pallet {
 				});
 			}
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
-			// get closing block number for this snapshot
-			if let Some(interval) = <DisputeInterval<T>>::get() {
-				let close_block = <frame_system::Pallet<T>>::block_number() + interval;
-				// Update the snapshot nonce and move the summary to snapshots storage
-				<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);
-			} else {
-				return Err(Error::<T>::DisputeIntervalNotSet.into())
-			}
 
-			<SnapshotNonce<T>>::put(summary.snapshot_id);
+			// get closing block number for this snapshot
+			let interval = <DisputeInterval<T>>::get().unwrap_or(24 * 60 * 5);
+			let close_block = <frame_system::Pallet<T>>::block_number() + interval;
+			// Update the snapshot nonce and move the summary to snapshots storage
+			<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);
+
+			let id = summary.snapshot_id;
+			<ProcessedSnapshotNonce<T>>::put(id);
+			// <UserActionsBatches<T>>::remove(id);
 			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
 			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
 			<Snapshots<T>>::insert(summary.snapshot_id, summary);
+			Self::deposit_event(Event::<T>::SnapshotProcessed(id));
 			log::debug!(target:"ocex", "Snapshot stored successfully");
 			Ok(())
 		}
@@ -1121,11 +1117,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let snapshot_id = batch.snapshot_id;
+			// Load the state to memory
+			<UserActionsBatches<T>>::insert(snapshot_id, batch);
 			<SnapshotNonce<T>>::set(snapshot_id);
-
-			let key = Self::derive_batch_key(snapshot_id);
-
-			sp_io::offchain_index::set(key.as_slice(), batch.encode().as_slice());
 			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
 			Ok(())
 		}
@@ -1329,6 +1323,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		SnapshotProcessed(u64),
 		UserActionsBatchSubmitted(u64),
 		FeesClaims {
 			beneficiary: T::AccountId,
@@ -1442,6 +1437,11 @@ pub mod pallet {
 	#[pallet::getter(fn snapshot_nonce)]
 	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
+	// Processed Snapshots Nonce
+	#[pallet::storage]
+	#[pallet::getter(fn processed_snapshot_nonce)]
+	pub type ProcessedSnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
+
 	// Snapshot will be produced after snapshot interval block
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_interval_block)]
@@ -1542,22 +1542,33 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		signer: &sp_core::ecdsa::Public,
 		signature: &sp_core::ecdsa::Signature,
 	) -> TransactionValidity {
+		sp_runtime::print("Validating submit_user_actions_batch....");
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 		if batch.snapshot_id != next_nonce {
-			return InvalidTransaction::Call.into()
+			sp_runtime::print("nonce failure");
+			sp_runtime::print(next_nonce);
+			sp_runtime::print(batch.snapshot_id);
+			return InvalidTransaction::Custom(1).into()
 		}
 
 		let operator = match <OrderbookOperatorPublicKey<T>>::get() {
-			None => return InvalidTransaction::Call.into(),
+			None => return InvalidTransaction::Custom(2).into(),
 			Some(op) => op,
 		};
 		if operator != *signer {
-			return InvalidTransaction::Call.into()
+			sp_runtime::print("signer diff.");
+			sp_runtime::print(operator.0);
+			sp_runtime::print(signer.0);
+			return InvalidTransaction::Custom(3).into()
 		}
-		if !operator.verify(&batch.encode(), &signature) {
-			return InvalidTransaction::Call.into()
+		let msg_hash = sp_io::hashing::keccak_256(&batch.encode());
+
+		if !sp_io::crypto::ecdsa_verify_prehashed(&signature, &msg_hash, &operator) {
+			sp_runtime::print("signature verification failed");
+			return InvalidTransaction::Custom(4).into()
 		}
 
+		sp_runtime::print("submit_user_action validated!");
 		ValidTransaction::with_tag_prefix("orderbook")
 			.and_provides([&"batch"])
 			.longevity(3)
@@ -1569,21 +1580,13 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		snapshot_summary: &SnapshotSummary<T::AccountId, T::AuthorityId>,
 		signature: &<T::AuthorityId as RuntimeAppPublic>::Signature,
 	) -> TransactionValidity {
-		let valid_tx = |provide| {
-			ValidTransaction::with_tag_prefix("orderbook")
-				.and_provides([&provide])
-				.longevity(3)
-				.propagate(false)
-				.build()
-		};
-		// Verify Nonce/state_change_id
-		let last_snapshot_serial_number = <SnapshotNonce<T>>::get();
-		if !snapshot_summary
-			.snapshot_id
-			.eq(&(last_snapshot_serial_number.saturating_add(1)))
-		{
+		sp_runtime::print("Validating submit_snapshot....");
+
+		// Verify if snapshot is already processed
+		if <Snapshots<T>>::contains_key(snapshot_summary.snapshot_id) {
 			return InvalidTransaction::Custom(10).into()
 		}
+
 		// Check if this validator was part of that authority set
 		if !<Authorities<T>>::get(snapshot_summary.validator_set_id)
 			.validators()
@@ -1598,8 +1601,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			return InvalidTransaction::Custom(13).into()
 		}
 
-		sp_runtime::print("Signature successfull");
-		valid_tx(snapshot_summary.clone())
+		sp_runtime::print("submit_snapshot validated!");
+		ValidTransaction::with_tag_prefix("orderbook")
+			.and_provides([&"snapshot"])
+			.longevity(10)
+			.propagate(true)
+			.build()
 	}
 
 	pub fn validator_set() -> ValidatorSet<T::AuthorityId> {
