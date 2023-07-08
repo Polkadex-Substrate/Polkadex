@@ -1,12 +1,12 @@
 use crate::{
-	pallet::{Accounts, SnapshotNonce, UserActionsBatches, ValidatorSetId},
+	pallet::{Accounts, SnapshotNonce, ValidatorSetId},
 	settlement::process_trade,
 	snapshot::AccountsMap,
 	Call, Config, Pallet,
 };
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
-	types::{Trade, UserActions, WithdrawalRequest},
+	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
@@ -24,6 +24,7 @@ impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
 		// Check if we are a validator
 		if !sp_io::offchain::is_validator() {
+			log::warn!(target:"ocex","worker exiting, not a validator");
 			// This is not a validator
 			return Ok(())
 		}
@@ -48,7 +49,10 @@ impl<T: Config> Pallet<T> {
 
 		// Check if another worker is already running or not
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info.get::<bool>().map_err(|_err| "Unable to load worker status")? {
+		match s_info.get::<bool>().map_err(|err| {
+			log::error!(target:"ocex","Error while loading worker status storage: {:?}",err);
+			"Unable to load worker status"
+		})? {
 			Some(true) => {
 				// Another worker is online, so exit
 				return Ok(())
@@ -59,10 +63,18 @@ impl<T: Config> Pallet<T> {
 		s_info.set(&true.encode()); // Set WORKER_STATUS to true
 							// Check the next ObMessages to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
+
+		let batch_key = Self::derive_batch_key(next_nonce);
+		// Load the state to memory
+		let b_info = StorageValueRef::persistent(&batch_key);
 		// Load the next ObMessages
-		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
-			None => return Ok(()),
-			Some(batch) => batch,
+		let batch = match b_info.get::<UserActionBatch<T::AccountId>>() {
+			Err(err) => {
+				log::error!(target:"ocex","error while fetching user actions batch: {:?}",err);
+				return Err("StorageRetrivalError")
+			},
+			Ok(None) => return Ok(()),
+			Ok(Some(batch)) => batch,
 		};
 
 		// Load the state to memory
@@ -119,7 +131,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn import_blk(blk: T::BlockNumber, state: &mut AccountsMap) -> Result<(), &'static str> {
-		log::info!(target:"offchain::ocex","Importing block: {:?}",blk);
+		log::info!(target:"ocex","Importing block: {:?}",blk);
 		if blk <= state.last_block.saturated_into() {
 			return Err("BlockOutofSequence")
 		}
@@ -152,7 +164,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn trades(trades: Vec<Trade>, state: &mut AccountsMap) -> Result<(), &'static str> {
-		log::info!(target:"offchain::ocex","Settling trades...");
+		log::info!(target:"ocex","Settling trades...");
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
 				.ok_or("TradingPairNotFound")?;
@@ -167,7 +179,7 @@ impl<T: Config> Pallet<T> {
 		state: &mut AccountsMap,
 		stid: u64,
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
-		log::info!(target:"offchain::ocex","Settling withdraw request...");
+		log::info!(target:"ocex","Settling withdraw request...");
 		let amount = request.amount().map_err(|_| "decimal conversion error")?;
 		let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
 
