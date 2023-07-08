@@ -1,12 +1,12 @@
 use crate::{
-	pallet::{Accounts, UserActionsBatches, ValidatorSetId},
+	pallet::{Accounts, TriggerRebroadcast, UserActionsBatches, ValidatorSetId},
 	settlement::process_trade,
 	snapshot::AccountsMap,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
-	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
+	types::{Trade, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
@@ -19,6 +19,7 @@ use sp_std::vec::Vec;
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const ACCOUNTS: [u8; 23] = *b"offchain-ocex::accounts";
 pub const BATCH: [u8; 20] = *b"offchain-ocex::batch";
+const TXN: [u8; 26] = *b"offchain-ocex::transaction";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
@@ -45,6 +46,17 @@ impl<T: Config> Pallet<T> {
 
 		if available_keys.is_empty() {
 			return Err("No active keys available")
+		}
+
+		if <TriggerRebroadcast<T>>::get() {
+			let c_info = StorageValueRef::persistent(&TXN);
+			match c_info.get::<Call<T>>().map_err(|_| "Unable to decode call")? {
+				None => {},
+				Some(call) => {
+					SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+						.map_err(|_| "Error sending unsigned txn")?;
+				},
+			}
 		}
 
 		// Check if another worker is already running or not
@@ -114,10 +126,14 @@ impl<T: Config> Pallet<T> {
 					withdrawals,
 					public: key.clone(),
 				};
-				log::error!(target:"ocex","Summary created: {:?}",summary);
+				sp_runtime::print("Summary created!");
 				let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
 
 				let call = Call::submit_snapshot { summary, signature };
+
+				let s_info = StorageValueRef::persistent(&TXN);
+				s_info.set(&call); // Store the call for future use
+
 				SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
 					.map_err(|_| "Error sending unsigned txn")?;
 			},
