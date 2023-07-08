@@ -23,7 +23,6 @@ serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.4.1"
 clap = { version = "4.0.9", features = ["derive"] }
-parking_lot = "0.12.1"
 itertools = "0.10.1"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies

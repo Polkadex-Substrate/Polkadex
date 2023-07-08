@@ -36,7 +36,7 @@ use frame_support::{
 };
 use sp_application_crypto::RuntimePublic;
 
-use frame_system::{ensure_signed, offchain::SubmitTransaction};
+use frame_system::{ensure_signed};
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
 use polkadex_primitives::assets::AssetId;
@@ -44,7 +44,6 @@ use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{crypto::KeyTypeId, H256};
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	Percent, SaturatedConversion,
 };
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -58,11 +57,10 @@ mod tests;
 pub mod weights;
 
 use orderbook_primitives::{
-	crypto::AuthorityId,
 	types::{TradingPair, UserActionBatch},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-use polkadex_primitives::{ocex::TradingPairConfig, utils::return_set_bits};
+use polkadex_primitives::{ocex::TradingPairConfig};
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
@@ -132,7 +130,7 @@ pub trait OcexWeightInfo {
 #[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
-	use core::fmt::Debug;
+	
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
@@ -149,8 +147,7 @@ pub mod pallet {
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
 	use orderbook_primitives::{
-		crypto::AuthorityId,
-		types::{UserActionBatch, UserActions},
+		types::{UserActionBatch},
 		Fees, SnapshotSummary,
 	};
 	use polkadex_primitives::{
@@ -160,11 +157,11 @@ pub mod pallet {
 		ProxyLimit, UNIT_BALANCE,
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
-	use sp_application_crypto::{RuntimeAppPublic, RuntimePublic};
-	use sp_core::ecdsa::Public;
+	use sp_application_crypto::{RuntimeAppPublic};
+	
 	use sp_runtime::{
 		offchain::storage::StorageValueRef,
-		traits::{BlockNumberProvider, IdentifyAccount, Verify},
+		traits::{BlockNumberProvider},
 		BoundedBTreeSet, SaturatedConversion,
 	};
 	use sp_std::vec::Vec;

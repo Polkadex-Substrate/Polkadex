@@ -130,8 +130,6 @@ impl Trade {
 #[cfg(feature = "std")]
 use chrono::Utc;
 use rust_decimal::prelude::FromPrimitive;
-#[cfg(feature = "std")]
-use sc_network::PeerId;
 use scale_info::TypeInfo;
 
 impl Trade {
@@ -162,28 +160,6 @@ impl Trade {
             self.maker.verify_config(&config) &
             self.taker.verify_config(&config)
 	}
-}
-
-/// Representation of gossip message possible variants.
-#[cfg(feature = "std")]
-#[derive(Clone, Debug, Encode, Decode, serde::Serialize, serde::Deserialize)]
-pub enum GossipMessage {
-	/// (From, to, state_version)
-	WantWorkerNonce(u64, u64, u16),
-	/// Collection of WorkerNonces
-	WorkerNonces(Box<Vec<ObMessage>>),
-	/// Single ObMessage
-	ObMessage(Box<ObMessage>),
-	/// Snapshot id, bitmap, remote peer
-	Want(u64, Vec<u128>),
-	/// Snapshot id, bitmap, remote peer
-	Have(u64, Vec<u128>),
-	/// Request
-	/// (snapshot id, chunk indexes requested as bitmap)
-	RequestChunk(u64, Vec<u128>),
-	/// Chunks of snapshot data
-	/// ( snapshot id, index of chunk, data )
-	Chunk(u64, u16, Vec<u8>),
 }
 
 /// Defines "Orderbook" message structure DTO.
@@ -232,20 +208,6 @@ impl ObMessage {
 		cloned_self.signature = sp_core::ecdsa::Signature::default();
 		sp_core::hashing::keccak_256(&cloned_self.encode())
 	}
-}
-
-/// Definition of the synchronization statuse variants.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg(feature = "std")]
-pub enum StateSyncStatus {
-	/// Peer is not responding.
-	Unavailable,
-	/// Synchronization is in progress and the chunk is not received yet.
-	/// Peer was requested for this chunk and currently in pending mode.
-	/// (Who is supposed to send us, when we requested)
-	InProgress(PeerId, i64),
-	/// This chunk already present.
-	Available,
 }
 
 /// Defines user specific operations variants.

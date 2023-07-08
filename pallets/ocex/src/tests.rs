@@ -76,20 +76,15 @@ fn test_ocex_submit_snapshot() {
 	let snapshot1 = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
-		state_root: H256::from_slice(
+		state_hash: H256::from_slice(
 			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
 				.unwrap(),
 		),
 		worker_nonce: 1104,
 		state_change_id: 1104,
 		last_processed_blk: 1103,
-		state_chunk_hashes: vec![H128::from_slice(
-			&hex::decode("41320ec41a1f860d45685400b7060b01").unwrap(),
-		)],
-		bitflags: vec![42535295865117307932921825928971026432],
 		withdrawals: vec![],
-		aggregate_signature: Some(bls_primitives::Signature(signature)),
-		state_version: 0,
+		public: (),
 	};
 
 	let signature: [u8; 48] = hex::decode(
@@ -102,20 +97,15 @@ fn test_ocex_submit_snapshot() {
 	let snapshot2 = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
-		state_root: H256::from_slice(
+		state_hash: H256::from_slice(
 			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
 				.unwrap(),
 		),
 		worker_nonce: 1104,
 		state_change_id: 1104,
 		last_processed_blk: 1103,
-		state_chunk_hashes: vec![H128::from_slice(
-			&hex::decode("41320ec41a1f860d45685400b7060b01").unwrap(),
-		)],
-		bitflags: vec![85070591730234615865843651857942052864],
 		withdrawals: vec![],
-		aggregate_signature: Some(bls_primitives::Signature(signature)),
-		state_version: 0,
+		public: (),
 	};
 
 	new_test_ext().execute_with(|| {
@@ -1612,7 +1602,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 
 fn get_dummy_snapshot(
 	withdrawals_len: usize,
-) -> (SnapshotSummary<AccountId>, bls_primitives::Public) {
+) -> (SnapshotSummary<AccountId,AuthorityId>, bls_primitives::Public) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1630,15 +1620,12 @@ fn get_dummy_snapshot(
 	let mut snapshot = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 1,
-		state_root: Default::default(),
+		state_hash: Default::default(),
 		worker_nonce: 1,
 		state_change_id: 1,
 		last_processed_blk: 1,
-		state_chunk_hashes: vec![],
-		bitflags: vec![1, 2],
 		withdrawals,
-		aggregate_signature: None,
-		state_version: 0,
+		public: None,
 	};
 	let (pair, _seed) = bls_primitives::Pair::generate();
 	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
@@ -1801,6 +1788,7 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 }
 
 use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
+use crate::sr25519::AuthorityId;
 
 #[test]
 fn test_set_balances_with_bad_origin() {

@@ -2,15 +2,15 @@ use crate::{
 	pallet::{Accounts, SnapshotNonce, UserActionsBatches, ValidatorSetId},
 	settlement::process_trade,
 	snapshot::AccountsMap,
-	Call, Config, Error, Pallet,
+	Call, Config, Pallet,
 };
-use frame_system::offchain::{SendUnsignedTransaction, SignMessage, Signer, SubmitTransaction};
+use frame_system::offchain::{SubmitTransaction};
 use orderbook_primitives::{
 	types::{Trade, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, BlockNumber};
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::H256;
 use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
@@ -20,7 +20,7 @@ pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const ACCOUNTS: [u8; 23] = *b"offchain-ocex::accounts";
 
 impl<T: Config> Pallet<T> {
-	pub fn run_on_chain_validation(block_num: T::BlockNumber) -> Result<(), &'static str> {
+	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
 		// Check if we are a validator
 		if !sp_io::offchain::is_validator() {
 			// This is not a validator
@@ -32,7 +32,7 @@ impl<T: Config> Pallet<T> {
 		let mut available_keys = authorities
 			.into_iter()
 			.enumerate()
-			.filter_map(move |(index, authority)| {
+			.filter_map(move |(_index, authority)| {
 				local_keys
 					.binary_search(&authority)
 					.ok()
@@ -47,7 +47,7 @@ impl<T: Config> Pallet<T> {
 
 		// Check if another worker is already running or not
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info.get::<bool>().map_err(|err| "Unable to load worker status")? {
+		match s_info.get::<bool>().map_err(|_err| "Unable to load worker status")? {
 			Some(true) => {
 				// Another worker is online, so exit
 				return Ok(())
@@ -67,7 +67,7 @@ impl<T: Config> Pallet<T> {
 		// Load the trie to memory
 		let s_info = StorageValueRef::persistent(&ACCOUNTS);
 		let mut accounts =
-			match s_info.get::<AccountsMap>().map_err(|err| "Unable to get accounts map")? {
+			match s_info.get::<AccountsMap>().map_err(|_err| "Unable to get accounts map")? {
 				None => AccountsMap::default(),
 				Some(acounts) => acounts,
 			};
