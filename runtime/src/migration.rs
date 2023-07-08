@@ -3,16 +3,19 @@ pub mod session_keys {
 	use sp_runtime::impl_opaque_keys;
 	use sp_std::vec::Vec;
 
+	use crate::{AuthorityDiscovery, Babe, Grandpa, ImOnline, Runtime, SessionKeys, Thea};
+	use bls_primitives::application_crypto::app::Public as BLSPublic;
+	use pallet_ocex_lmp::sr25519::AuthorityId as OCEXId;
 	use polkadex_primitives::AccountId;
 
-	use crate::{AuthorityDiscovery, Babe, Grandpa, ImOnline, Runtime, SessionKeys};
-
 	impl_opaque_keys! {
-		pub struct SessionKeysV4 {
+		pub struct SessionKeysV5 {
 			pub grandpa: Grandpa,
 			pub babe: Babe,
 			pub im_online: ImOnline,
 			pub authority_discovery: AuthorityDiscovery,
+			pub orderbook: BLSPublic,
+			pub thea: Thea,
 		}
 	}
 
@@ -20,7 +23,26 @@ pub mod session_keys {
 
 	impl MigrateToV5 {
 		fn run() -> Weight {
-			let translate_fn = |keys: Option<Vec<(AccountId, SessionKeysV4)>>| {
+			// Clear Snapshot Nonce
+			pallet_ocex_lmp::SnapshotNonce::<Runtime>::kill();
+
+			// Clear Snapshots Storage
+			let mut cursor = None;
+			#[allow(unused_assignments)]
+			let mut key_long_enough = Vec::new();
+			loop {
+				let results = pallet_ocex_lmp::Snapshots::<Runtime>::clear(50, cursor);
+
+				match results.maybe_cursor {
+					None => break,
+					Some(key) => {
+						key_long_enough = key;
+						cursor = Some(key_long_enough.as_ref())
+					}
+				}
+			}
+
+			let translate_fn = |keys: Option<Vec<(AccountId, SessionKeysV5)>>| {
 				let mut new_keys: Vec<(AccountId, SessionKeys)> = Vec::new();
 				if let Some(keys) = keys {
 					for (validator, keys) in keys {
@@ -31,14 +53,10 @@ pub mod session_keys {
 								babe: keys.babe,
 								im_online: keys.im_online,
 								authority_discovery: keys.authority_discovery,
-								orderbook: match [0u8; 96].as_ref().try_into() {
-									Ok(ob) => ob,
-									Err(_) => return None,
-								}, // Set empty public key
-								thea: match [0u8; 96].as_ref().try_into() {
-									Ok(thea) => thea,
-									Err(_) => return None,
-								},
+								orderbook: OCEXId::from(sp_core::sr25519::Public::from_raw(
+									[0u8; 32],
+								)),
+								thea: keys.thea,
 							},
 						);
 						log::info!(target:"migration","Migrated session key: {:?}",new_key);
@@ -49,26 +67,20 @@ pub mod session_keys {
 			};
 
 			if pallet_session::QueuedKeys::<Runtime>::translate::<
-				Vec<(AccountId, SessionKeysV4)>,
+				Vec<(AccountId, SessionKeysV5)>,
 				_,
 			>(translate_fn).is_err() {
 				log::error!(target:"migration","Storage type cannot be interpreted as the Vec<(AccountId, SessionKeysV4)>")
 			}
 
-			pallet_session::NextKeys::<Runtime>::translate::<SessionKeysV4, _>(|_, old_keys| {
+			pallet_session::NextKeys::<Runtime>::translate::<SessionKeysV5, _>(|_, old_keys| {
 				Some(SessionKeys {
 					grandpa: old_keys.grandpa,
 					babe: old_keys.babe,
 					im_online: old_keys.im_online,
 					authority_discovery: old_keys.authority_discovery,
-					orderbook: match [0u8; 96].as_ref().try_into() {
-						Ok(ob) => ob,
-						Err(_) => return None,
-					}, // Set empty public key
-					thea: match [0u8; 96].as_ref().try_into() {
-						Ok(thea) => thea,
-						Err(_) => return None,
-					},
+					orderbook: OCEXId::from(sp_core::sr25519::Public::from_raw([0u8; 32])),
+					thea: old_keys.thea,
 				})
 			});
 			Weight::zero()

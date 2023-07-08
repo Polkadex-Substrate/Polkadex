@@ -41,7 +41,7 @@ use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
 use polkadex_primitives::assets::AssetId;
 use sp_application_crypto::RuntimeAppPublic;
-use sp_core::{crypto::KeyTypeId, H256};
+use sp_core::{crypto::KeyTypeId};
 use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -135,7 +135,6 @@ pub mod pallet {
 	use crate::validator::{BATCH, WORKER_STATUS};
 	use frame_support::{
 		pallet_prelude::*,
-		storage::Key,
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
 			Currency, ReservableCurrency,
@@ -153,7 +152,6 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
-
 	use sp_runtime::{
 		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet,
 		SaturatedConversion,
@@ -380,7 +378,7 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: T::BlockNumber) {
 			if let Err(err) = Self::run_on_chain_validation(block_number) {
-				log::error!(target:"offchain-ocex","Error while validating trade: {}",err)
+				log::error!(target:"ocex","OCEX worker error: {}",err)
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
@@ -810,24 +808,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// The extrinsic will be used to change pending withdrawals limit.
-		///
-		/// # Parameters
-		///
-		/// * `origin`: Orderbook governance.
-		/// * `new_pending_withdrawals_limit`: The new pending withdrawals limit governance wants to
-		///   set.
-		#[pallet::call_index(9)]
-		#[pallet::weight(< T as Config >::WeightInfo::change_pending_withdrawal_limit())]
-		pub fn change_pending_withdrawal_limit(
-			origin: OriginFor<T>,
-			new_pending_withdrawals_limit: u64,
-		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<PendingWithdrawalsAllowedPerSnapshot<T>>::put(new_pending_withdrawals_limit);
-			Ok(())
-		}
-
 		/// The extrinsic will be used to change snapshot interval based on block number.
 		///
 		/// # Parameters
@@ -1130,8 +1110,7 @@ pub mod pallet {
 			let snapshot_id = batch.snapshot_id;
 			<SnapshotNonce<T>>::set(snapshot_id);
 
-			let mut key = BATCH.to_vec();
-			key.append(&mut snapshot_id.encode());
+			let key = Self::derive_batch_key(snapshot_id);
 
 			sp_io::offchain_index::set(key.as_slice(), batch.encode().as_slice());
 			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
@@ -1201,6 +1180,12 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		pub fn derive_batch_key(snapshot_id: u64) -> Vec<u8> {
+			let mut key = BATCH.to_vec();
+			key.append(&mut snapshot_id.encode());
+			key
+		}
+
 		pub fn do_deposit(
 			user: T::AccountId,
 			asset: AssetId,
@@ -1421,25 +1406,10 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	// Unprocessed Snapshots storage ( snapshot id, summary_hash ) => SnapshotSummary
-	#[pallet::storage]
-	#[pallet::getter(fn unprocessed_snapshots)]
-	pub(super) type UnprocessedSnapshots<T: Config> = StorageNMap<
-		_,
-		// Snapshot id, snapshot hash, validator set id
-		(
-			Key<Blake2_128Concat, u64>,
-			Key<Blake2_128Concat, orderbook_primitives::ValidatorSetId>,
-			Key<Identity, H256>,
-		),
-		SnapshotSummary<T::AccountId, T::AuthorityId>,
-		OptionQuery,
-	>;
-
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
-	pub(super) type Snapshots<T: Config> = StorageMap<
+	pub type Snapshots<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		u64,
@@ -1457,18 +1427,12 @@ pub mod pallet {
 	// Snapshots Nonce
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_nonce)]
-	pub(super) type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
+	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
 	// Snapshot will be produced after snapshot interval block
 	#[pallet::storage]
 	#[pallet::getter(fn snapshot_interval_block)]
 	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, OptionQuery>;
-
-	// Snapshot will be produced after reaching pending withdrawals limit
-	#[pallet::storage]
-	#[pallet::getter(fn pending_withdrawals_allowed_per_snapshot)]
-	pub(super) type PendingWithdrawalsAllowedPerSnapshot<T: Config> =
-		StorageValue<_, u64, OptionQuery>;
 
 	// Exchange Operation State
 	#[pallet::storage]
