@@ -21,11 +21,10 @@
 use log::{error, info};
 use orderbook_primitives::types::Trade;
 use parity_scale_codec::{Decode, Encode};
-
+use sp_core::crypto::ByteArray;
 use crate::validator::map_trie_error;
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
 use rust_decimal::Decimal;
-use sp_core::ByteArray;
 use sp_runtime::traits::BlakeTwo256;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_trie::LayoutV1;

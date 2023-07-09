@@ -3,7 +3,7 @@ use sp_core::{Hasher, H256};
 use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256};
 use sp_trie::{trie_types::TrieDBMutBuilderV1, LayoutV1};
 use trie_db::{DBValue, TrieDBMut};
-
+use sp_std::vec::Vec;
 pub struct State;
 
 pub const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
