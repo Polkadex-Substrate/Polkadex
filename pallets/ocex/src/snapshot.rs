@@ -38,16 +38,14 @@ pub struct AccountsMap {
 	pub balances: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
 }
 
-
-
 #[cfg(test)]
 mod tests {
-	use parity_scale_codec::Encode;
 	use crate::snapshot::AccountsMap;
+	use parity_scale_codec::Encode;
 
 	#[test]
 	pub fn test_state_encode() {
-		let mut state = AccountsMap::default();
-		println!("{:?}",hex::encode(state.encode()))
+		let state = AccountsMap::default();
+		println!("{:?}", hex::encode(state.encode()))
 	}
 }
