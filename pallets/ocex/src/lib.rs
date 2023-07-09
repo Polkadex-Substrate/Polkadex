@@ -1123,9 +1123,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let snapshot_id = batch.snapshot_id;
-			// Load the state to memory
-			let key = Self::derive_batch_key(snapshot_id);
-			sp_io::offchain_index::set(key.as_slice(), batch.encode().as_slice());
+			<UserActionsBatches<T>>::insert(snapshot_id, batch);
 			<SnapshotNonce<T>>::set(snapshot_id);
 			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
 			Ok(())

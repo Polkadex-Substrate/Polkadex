@@ -312,6 +312,9 @@ pub fn new_full_base(
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
+	// Ensure all nodes implement offchain indexing and workers
+	config.offchain_worker.enabled = true;
+	config.offchain_worker.indexing_enabled = true;
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
 			let _ = std::fs::create_dir_all(database_path);
@@ -379,9 +382,7 @@ pub fn new_full_base(
 			block_announce_validator_builder: None,
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 		})?;
-	// Ensure all nodes implement offchain indexing and workers
-	config.offchain_worker.enabled = true;
-	config.offchain_worker.indexing_enabled = true;
+	// Enable offchain indexing
 	sc_service::build_offchain_workers(
 		&config,
 		task_manager.spawn_handle(),
