@@ -1,5 +1,5 @@
 use crate::{
-	pallet::{Accounts, TriggerRebroadcast, ValidatorSetId},
+	pallet::{Accounts, TriggerRebroadcast, UserActionsBatches, ValidatorSetId},
 	settlement::process_trade,
 	snapshot::AccountsMap,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
@@ -96,13 +96,8 @@ impl<T: Config> Pallet<T> {
 		if next_nonce.saturating_sub(last_processed_nonce) > 1 {
 			// We need to sync our offchain state
 			for nonce in last_processed_nonce..next_nonce {
-				let batch_key = Self::derive_batch_key(next_nonce);
-				let b_info = StorageValueRef::persistent(&batch_key);
 				// Load the next ObMessages
-				let batch = match b_info
-					.get::<UserActionBatch<T::AccountId>>()
-					.map_err(|_| "Unable to decode batch")?
-				{
+				let batch = match <UserActionsBatches<T>>::get(nonce) {
 					None => {
 						log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
 						return Ok(())
@@ -115,15 +110,11 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let batch_key = Self::derive_batch_key(next_nonce);
-		let b_info = StorageValueRef::persistent(&batch_key);
+		sp_runtime::print("Fetching user actions batch...");
 		// Load the next ObMessages
-		let batch = match b_info
-			.get::<UserActionBatch<T::AccountId>>()
-			.map_err(|_| "Unable to decode batch")?
-		{
+		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
 			None => {
-				log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
+				log::error!(target:"ocex","No user actions found for nonce: {:?}",next_nonce);
 				return Ok(())
 			},
 			Some(batch) => batch,
