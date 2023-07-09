@@ -79,7 +79,7 @@ impl<T: Config> Pallet<T> {
 
 		let mut state_info = Self::load_state_info(&state);
 
-		let snapshot_id_info = StorageValueRef::persistent(&LAST_PROCESSED_SNAPSHOT);
+		let _snapshot_id_info = StorageValueRef::persistent(&LAST_PROCESSED_SNAPSHOT);
 		let last_processed_nonce = state_info.snapshot_id;
 
 		// Check if we already processed this snapshot and updated our offchain state.

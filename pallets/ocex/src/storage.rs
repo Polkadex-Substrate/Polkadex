@@ -1,9 +1,6 @@
 use hash_db::{AsHashDB, HashDB, Prefix};
 use sp_core::{Hasher, H256};
-use sp_runtime::{
-	offchain::storage::{StorageRetrievalError, StorageValueRef},
-	traits::BlakeTwo256,
-};
+use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256};
 use sp_trie::{trie_types::TrieDBMutBuilderV1, LayoutV1};
 use trie_db::{DBValue, TrieDBMut};
 

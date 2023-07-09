@@ -29,7 +29,7 @@ use sp_core::ByteArray;
 use sp_runtime::traits::BlakeTwo256;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_trie::LayoutV1;
-use trie_db::{DBValue, TrieDBMut, TrieMut};
+use trie_db::{TrieDBMut, TrieMut};
 
 /// Updates provided trie db with a new entrance balance if it is not contains item for specific
 /// account asset yet, or increments existed item balance.
