@@ -37,3 +37,17 @@ pub struct AccountsMap {
 	/// 100,000 * 3232 B = 323,200,000 B = 323 MB
 	pub balances: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
 }
+
+
+
+#[cfg(test)]
+mod tests {
+	use parity_scale_codec::Encode;
+	use crate::snapshot::AccountsMap;
+
+	#[test]
+	pub fn test_state_encode() {
+		let mut state = AccountsMap::default();
+		println!("{:?}",hex::encode(state.encode()))
+	}
+}

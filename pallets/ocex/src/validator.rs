@@ -76,7 +76,7 @@ impl<T: Config> Pallet<T> {
 			.get::<u64>()
 			.map_err(|_| "Unable to decode last processed snapshot id")?
 		{
-			None => 0,
+			None => 1,
 			Some(id) => id,
 		};
 
@@ -93,13 +93,15 @@ impl<T: Config> Pallet<T> {
 				Some(acounts) => acounts,
 			};
 
+		log::debug!(target:"ocex","next_nonce: {:?}, last_processed_nonce: {:?}"
+			,next_nonce,last_processed_nonce);
 		if next_nonce.saturating_sub(last_processed_nonce) > 1 {
 			// We need to sync our offchain state
 			for nonce in last_processed_nonce..next_nonce {
 				// Load the next ObMessages
 				let batch = match <UserActionsBatches<T>>::get(nonce) {
 					None => {
-						log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
+						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
 						return Ok(())
 					},
 					Some(batch) => batch,
@@ -110,7 +112,6 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		sp_runtime::print("Fetching user actions batch...");
 		// Load the next ObMessages
 		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
 			None => {
