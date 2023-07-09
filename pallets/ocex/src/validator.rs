@@ -125,6 +125,17 @@ impl<T: Config> Pallet<T> {
 			Some(batch) => batch,
 		};
 
+		//check for duplicates in batch actions vector
+		//TODO: optimize this with map or set instead of nested loop
+		let mut actions = batch.actions.clone();
+		for i in 0..actions.len() {
+			for j in i + 1..actions.len() {
+				if actions[i].encode() == actions[j].encode() {
+					return Err("Duplicate actions found in batch")
+				}
+			}
+		}
+
 		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
 
 		if sp_io::offchain::is_validator() {
