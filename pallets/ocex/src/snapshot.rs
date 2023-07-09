@@ -24,18 +24,15 @@ use sp_std::collections::btree_map::BTreeMap;
 
 // Accounts storage
 #[derive(Encode, Decode, PartialEq, Debug, Clone, Default)]
-pub struct AccountsMap {
+pub struct StateInfo {
 	/// Last block processed
 	pub last_block: BlockNumber,
 	/// Last processed worker nonce
 	pub worker_nonce: u64,
 	/// Last processed stid
 	pub stid: u64,
-	/// Snapshots map.
-	/// 32 B + ( 100 assets* (16 + 16)) per user on worst case
-	/// for 100 K users
-	/// 100,000 * 3232 B = 323,200,000 B = 323 MB
-	pub balances: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
+	/// Last processed snapshot id
+	pub snapshot_id: u64,
 }
 
 #[cfg(test)]

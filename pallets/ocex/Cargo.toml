@@ -34,7 +34,7 @@ sp-application-crypto = { workspace = true }
 hash-db = { version = "0.16.0", default-features = false }
 trie-db = { version = "0.27.0", default-features = false }
 #trie-root = { version = "0.18.0", default-features = false }
-#sp-trie = { workspace = true, default-features = false }
+sp-trie = { workspace = true, default-features = false }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -57,7 +57,7 @@ std = [
   "sp-runtime/std",
   "sp-std/std",
   "sp-io/std",
-#  "sp-trie/std",
+  "sp-trie/std",
   "hash-db/std",
   "trie-db/std",
 #  "trie-root/std",

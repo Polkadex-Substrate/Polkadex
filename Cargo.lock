@@ -5595,6 +5595,7 @@ dependencies = [
  "sp-keystore 0.13.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
+ "sp-trie 7.0.0",
  "trie-db",
 ]
 
