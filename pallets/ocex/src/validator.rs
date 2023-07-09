@@ -53,8 +53,11 @@ impl<T: Config> Pallet<T> {
 			match c_info.get::<Call<T>>().map_err(|_| "Unable to decode call")? {
 				None => {},
 				Some(call) => {
-					SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-						.map_err(|_| "Error sending unsigned txn")?;
+					{
+						SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+							.map_err(|_| "Error sending unsigned txn")?;
+						return Ok(())
+					}
 				},
 			}
 		}
@@ -93,6 +96,8 @@ impl<T: Config> Pallet<T> {
 				Some(acounts) => acounts,
 			};
 
+		// TODO: Check if the offchain state is valid
+		// TODO: if not, call AWS, authenticate with signature and download the state and continue
 		if accounts.stid >= batch.stid {
 			return Err("Invalid stid")
 		}

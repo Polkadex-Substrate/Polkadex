@@ -1069,7 +1069,8 @@ pub mod pallet {
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
 
 			// get closing block number for this snapshot
-			let interval = <DisputeInterval<T>>::get().unwrap_or((24u32 * 60 * 5).saturated_into());
+			let interval = <DisputeInterval<T>>::get()
+				.unwrap_or((24u32 * 60 * 5).saturated_into());
 			let close_block = <frame_system::Pallet<T>>::block_number() + interval;
 			// Update the snapshot nonce and move the summary to snapshots storage
 			<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);
@@ -1077,7 +1078,7 @@ pub mod pallet {
 			let id = summary.snapshot_id;
 			<ProcessedSnapshotNonce<T>>::put(id);
 			<TriggerRebroadcast<T>>::put(false);
-			// <UserActionsBatches<T>>::remove(id);
+			<UserActionsBatches<T>>::remove(id);
 			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
 			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
 			<Snapshots<T>>::insert(summary.snapshot_id, summary);
@@ -1627,7 +1628,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		sp_runtime::print("submit_snapshot validated!");
 		ValidTransaction::with_tag_prefix("orderbook")
-			.and_provides([&snapshot_summary.snapshot_id])
+			.and_provides([&snapshot_summary.state_hash])
 			.longevity(10)
 			.propagate(true)
 			.build()

@@ -32,5 +32,8 @@ pub struct AccountsMap {
 	/// Last processed stid
 	pub stid: u64,
 	/// Snapshots map.
+	/// 32 B + ( 100 assets* (16 + 16)) per user on worst case
+	/// for 100 K users
+	/// 100,000 * 3232 B = 323,200,000 B = 323 MB
 	pub balances: BTreeMap<AccountId, BTreeMap<AssetId, Decimal>>,
 }
