@@ -1,9 +1,10 @@
 use hash_db::{AsHashDB, HashDB, Prefix};
 use sp_core::{Hasher, H256};
-use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256};
+use sp_runtime::{offchain::storage::StorageValueRef, sp_std, traits::BlakeTwo256};
+use sp_std::vec::Vec;
 use sp_trie::{trie_types::TrieDBMutBuilderV1, LayoutV1};
 use trie_db::{DBValue, TrieDBMut};
-use sp_std::vec::Vec;
+
 pub struct State;
 
 pub const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
@@ -16,8 +17,14 @@ impl State {
 		let s_r = StorageValueRef::persistent(&HASHED_NULL_NODE);
 		match s_r.get::<<BlakeTwo256 as Hasher>::Out>() {
 			Ok(Some(x)) => x,
-			Ok(None) => BlakeTwo256::hash(&[0u8]),
-			Err(_) => BlakeTwo256::hash(&[0u8]),
+			Ok(None) => {
+				log::trace!(target:"ocex","hashed_null_node not found");
+				BlakeTwo256::hash(&[0u8])
+			},
+			Err(_) => {
+				log::trace!(target:"ocex","hashed_null_node get error");
+				BlakeTwo256::hash(&[0u8])
+			},
 		}
 	}
 
@@ -25,8 +32,14 @@ impl State {
 		let s_r = StorageValueRef::persistent(&NULL_NODE_DATA);
 		match s_r.get::<Vec<u8>>() {
 			Ok(Some(x)) => x,
-			Ok(None) => [0u8].to_vec(),
-			Err(_) => [0u8].to_vec(),
+			Ok(None) => {
+				log::trace!(target:"ocex","null_node_data is default");
+				[0u8].to_vec()
+			},
+			Err(_) => {
+				log::trace!(target:"ocex","null_node_data is default");
+				[0u8].to_vec()
+			},
 		}
 	}
 
@@ -140,6 +153,11 @@ pub(crate) fn load_trie_root() -> <BlakeTwo256 as Hasher>::Out {
 	}
 }
 
+pub(crate) fn store_trie_root(root: <BlakeTwo256 as Hasher>::Out) {
+	let root_ref = StorageValueRef::persistent(&TRIE_ROOT);
+	root_ref.set(&root);
+}
+
 pub(crate) fn get_state_trie<'a>(
 	state: &'a mut State,
 	root: &'a mut H256,
@@ -148,5 +166,50 @@ pub(crate) fn get_state_trie<'a>(
 		TrieDBMutBuilderV1::new(state, root).build()
 	} else {
 		TrieDBMutBuilderV1::from_existing(state, root).build()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use trie_db::TrieMut;
+
+	use crate::{
+		mock::new_test_ext,
+		storage::{get_state_trie, load_trie_root, store_trie_root, State},
+		tests::register_offchain_ext,
+	};
+
+	#[test]
+	pub fn test_trie_storage() {
+		let mut ext = new_test_ext();
+		register_offchain_ext(&mut ext);
+		env_logger::init();
+		log::trace!(target:"ocex","test_trie_storage test starting..");
+		ext.execute_with(|| {
+			let mut root = load_trie_root();
+			{
+				let mut storage = State;
+
+				let mut state = get_state_trie(&mut storage, &mut root);
+
+				state.insert(b"1", b"a").unwrap();
+				state.insert(b"2", b"b").unwrap();
+				state.insert(b"3", b"c").unwrap();
+
+				state.commit();
+			}
+
+			store_trie_root(root);
+
+			{
+				let mut root = load_trie_root();
+				let mut storage = State;
+
+				let state = get_state_trie(&mut storage, &mut root);
+				assert_eq!(state.get(b"1").unwrap().unwrap(), b"a");
+				assert_eq!(state.get(b"2").unwrap().unwrap(), b"b");
+				assert_eq!(state.get(b"3").unwrap().unwrap(), b"c");
+			}
+		})
 	}
 }

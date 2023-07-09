@@ -31,15 +31,3 @@ pub struct StateInfo {
 	/// Last processed snapshot id
 	pub snapshot_id: u64,
 }
-
-#[cfg(test)]
-mod tests {
-	use crate::snapshot::AccountsMap;
-	use parity_scale_codec::Encode;
-
-	#[test]
-	pub fn test_state_encode() {
-		let state = AccountsMap::default();
-		println!("{:?}", hex::encode(state.encode()))
-	}
-}

@@ -33,9 +33,19 @@ use frame_system::EventRecord;
 
 use polkadex_primitives::{AccountId, AssetsLimit};
 use rust_decimal::Decimal;
-use sp_core::{bounded::BoundedBTreeSet, Pair, H256};
+use sp_core::{
+	bounded::BoundedBTreeSet,
+	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
+	Pair, H256,
+};
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
+
+pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
+	let (offchain, _offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
+	ext.register_extension(OffchainDbExt::new(offchain.clone()));
+	ext.register_extension(OffchainWorkerExt::new(offchain));
+}
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
