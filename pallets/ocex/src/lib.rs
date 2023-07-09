@@ -25,6 +25,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
+extern crate core;
+
 use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},

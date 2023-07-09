@@ -7,6 +7,7 @@ pub struct State;
 
 pub const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
 pub const NULL_NODE_DATA: [u8; 29] = *b"offchain-ocex::null_node_data";
+pub const KEY_PREFIX: [u8; 15] = *b"offchain-ocex::";
 
 impl State {
 	pub fn hashed_null_node(&self) -> <BlakeTwo256 as Hasher>::Out {
@@ -28,7 +29,8 @@ impl State {
 	}
 
 	pub fn db_get(&self, key: &<BlakeTwo256 as Hasher>::Out) -> Option<(DBValue, i32)> {
-		let s_ref = StorageValueRef::persistent(key.as_bytes());
+		let derive_key = self.derive_storage_key(*key);
+		let s_ref = StorageValueRef::persistent(derive_key.as_slice());
 		match s_ref.get::<(DBValue, i32)>() {
 			Ok(d) => d,
 			Err(_) => None,
@@ -36,8 +38,15 @@ impl State {
 	}
 
 	pub fn db_insert(&self, key: <BlakeTwo256 as Hasher>::Out, value: (DBValue, i32)) {
-		let s_ref = StorageValueRef::persistent(key.as_bytes());
+		let derive_key = self.derive_storage_key(key);
+		let s_ref = StorageValueRef::persistent(derive_key.as_slice());
 		s_ref.set(&value);
+	}
+
+	pub fn derive_storage_key(&self, key: <BlakeTwo256 as Hasher>::Out) -> Vec<u8> {
+		let mut derived = KEY_PREFIX.to_vec();
+		derived.append(&mut key.0.to_vec());
+		derived
 	}
 }
 
