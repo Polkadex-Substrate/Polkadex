@@ -1,12 +1,12 @@
 use crate::{
-	pallet::{Accounts, TriggerRebroadcast, UserActionsBatches, ValidatorSetId},
+	pallet::{Accounts, TriggerRebroadcast, ValidatorSetId},
 	settlement::process_trade,
 	snapshot::AccountsMap,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
-	types::{Trade, UserActions, WithdrawalRequest},
+	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
@@ -20,16 +20,10 @@ pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const ACCOUNTS: [u8; 23] = *b"offchain-ocex::accounts";
 pub const BATCH: [u8; 20] = *b"offchain-ocex::batch";
 const TXN: [u8; 26] = *b"offchain-ocex::transaction";
+const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
-		// Check if we are a validator
-		if !sp_io::offchain::is_validator() {
-			log::error!(target:"ocex","worker exiting, not a validator");
-			// This is not a validator
-			return Ok(())
-		}
-
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
@@ -44,7 +38,7 @@ impl<T: Config> Pallet<T> {
 			.collect::<Vec<T::AuthorityId>>();
 		available_keys.sort();
 
-		if available_keys.is_empty() {
+		if available_keys.is_empty() && sp_io::offchain::is_validator() {
 			return Err("No active keys available")
 		}
 
@@ -76,15 +70,20 @@ impl<T: Config> Pallet<T> {
 		s_info.set(&true); // Set WORKER_STATUS to true
 				   // Check the next ObMessages to process
 		let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
-		// TODO: Don't execute the same batch if it's summary is waiting hte txn pool
-		// Load the next ObMessages
-		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
-			None => {
-				log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
-				return Ok(())
-			},
-			Some(batch) => batch,
+
+		let snapshot_id_info = StorageValueRef::persistent(&LAST_PROCESSED_SNAPSHOT);
+		let last_processed_nonce = match snapshot_id_info
+			.get::<u64>()
+			.map_err(|_| "Unable to decode last processed snapshot id")?
+		{
+			None => 0,
+			Some(id) => id,
 		};
+
+		// Check if we already processed this snapshot and updated our offchain state.
+		if last_processed_nonce == next_nonce {
+			return Ok(())
+		}
 
 		// Load the state to memory
 		let s_info = StorageValueRef::persistent(&ACCOUNTS);
@@ -94,55 +93,77 @@ impl<T: Config> Pallet<T> {
 				Some(acounts) => acounts,
 			};
 
-		// TODO: Check if the offchain state is valid
-		// TODO: if not, call AWS, authenticate with signature and download the state and continue
-		if accounts.stid >= batch.stid {
-			return Err("Invalid stid")
-		}
-
-		let mut withdrawals = Vec::new();
-		// Process Ob messages
-		for action in batch.actions {
-			match action {
-				UserActions::Trade(trades) => Self::trades(trades, &mut accounts)?,
-				UserActions::Withdraw(request) => {
-					let withdrawal = Self::withdraw(request, &mut accounts, batch.stid)?;
-					withdrawals.push(withdrawal);
-				},
-				UserActions::BlockImport(blk) =>
-					Self::import_blk(blk.saturated_into(), &mut accounts)?,
+		if next_nonce.saturating_sub(last_processed_nonce) > 1 {
+			// We need to sync our offchain state
+			for nonce in last_processed_nonce..next_nonce {
+				let batch_key = Self::derive_batch_key(next_nonce);
+				let b_info = StorageValueRef::persistent(&batch_key);
+				// Load the next ObMessages
+				let batch = match b_info
+					.get::<UserActionBatch<T::AccountId>>()
+					.map_err(|_| "Unable to decode batch")?
+				{
+					None => {
+						log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
+						return Ok(())
+					},
+					Some(batch) => batch,
+				};
+				sp_runtime::print("Processing nonce");
+				sp_runtime::print(nonce);
+				Self::process_batch(&mut accounts, &batch)?;
 			}
 		}
-		// Create state hash.
-		let state_hash: H256 = H256::from(sp_io::hashing::blake2_256(&accounts.encode()));
 
-		match available_keys.get(0) {
-			None => return Err("No active keys found"),
-			Some(key) => {
-				// Prepare summary
-				let summary = SnapshotSummary {
-					validator_set_id: <ValidatorSetId<T>>::get(),
-					snapshot_id: next_nonce,
-					state_hash,
-					state_change_id: batch.stid,
-					last_processed_blk: accounts.last_block.saturated_into(),
-					withdrawals,
-					public: key.clone(),
-				};
-				sp_runtime::print("Summary created!");
-				let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
-
-				let call = Call::submit_snapshot { summary, signature };
-
-				let s_info = StorageValueRef::persistent(&TXN);
-				s_info.set(&call); // Store the call for future use
-
-				SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-					.map_err(|_| "Error sending unsigned txn")?;
+		let batch_key = Self::derive_batch_key(next_nonce);
+		let b_info = StorageValueRef::persistent(&batch_key);
+		// Load the next ObMessages
+		let batch = match b_info
+			.get::<UserActionBatch<T::AccountId>>()
+			.map_err(|_| "Unable to decode batch")?
+		{
+			None => {
+				log::error!(target:"ocex","Not user actions found for nonce: {:?}",next_nonce);
+				return Ok(())
 			},
+			Some(batch) => batch,
+		};
+
+		let withdrawals = Self::process_batch(&mut accounts, &batch)?;
+
+		if sp_io::offchain::is_validator() {
+			// Create state hash.
+			let state_hash: H256 = H256::from(sp_io::hashing::blake2_256(&accounts.encode()));
+			match available_keys.get(0) {
+				None => return Err("No active keys found"),
+				Some(key) => {
+					// Prepare summary
+					let summary = SnapshotSummary {
+						validator_set_id: <ValidatorSetId<T>>::get(),
+						snapshot_id: next_nonce,
+						state_hash,
+						state_change_id: batch.stid,
+						last_processed_blk: accounts.last_block.saturated_into(),
+						withdrawals,
+						public: key.clone(),
+					};
+					sp_runtime::print("Summary created!");
+					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
+
+					let call = Call::submit_snapshot { summary, signature };
+
+					let s_info = StorageValueRef::persistent(&TXN);
+					s_info.set(&call); // Store the call for future use
+
+					SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+						.map_err(|_| "Error sending unsigned txn")?;
+				},
+			}
 		}
 
 		s_info.set(&accounts);
+		snapshot_id_info.set(&batch.snapshot_id); // Store the processed nonce
+
 		Ok(())
 	}
 
@@ -179,7 +200,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn trades(trades: Vec<Trade>, state: &mut AccountsMap) -> Result<(), &'static str> {
+	fn trades(trades: &Vec<Trade>, state: &mut AccountsMap) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Settling trades...");
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
@@ -191,7 +212,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn withdraw(
-		request: WithdrawalRequest<T::AccountId>,
+		request: &WithdrawalRequest<T::AccountId>,
 		state: &mut AccountsMap,
 		stid: u64,
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
@@ -223,5 +244,31 @@ impl<T: Config> Pallet<T> {
 		let withdrawal = request.convert(stid).map_err(|_| "Withdrawal conversion error")?;
 
 		Ok(withdrawal)
+	}
+
+	fn process_batch(
+		accounts: &mut AccountsMap,
+		batch: &UserActionBatch<T::AccountId>,
+	) -> Result<Vec<Withdrawal<T::AccountId>>, &'static str> {
+		if accounts.stid >= batch.stid {
+			return Err("Invalid stid")
+		}
+
+		let mut withdrawals = Vec::new();
+		// Process Ob messages
+		for action in &batch.actions {
+			match action {
+				UserActions::Trade(trades) => Self::trades(trades, accounts)?,
+				UserActions::Withdraw(request) => {
+					let withdrawal = Self::withdraw(request, accounts, batch.stid)?;
+					withdrawals.push(withdrawal);
+				},
+				UserActions::BlockImport(blk) =>
+					Self::import_blk((*blk).saturated_into(), accounts)?,
+				UserActions::Reset => {}, // Not for offchain worker
+			}
+		}
+
+		Ok(withdrawals)
 	}
 }

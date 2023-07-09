@@ -1077,7 +1077,6 @@ pub mod pallet {
 			let id = summary.snapshot_id;
 			<ProcessedSnapshotNonce<T>>::put(id);
 			<TriggerRebroadcast<T>>::put(false);
-			<UserActionsBatches<T>>::remove(id);
 			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
 			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
 			<Snapshots<T>>::insert(summary.snapshot_id, summary);
@@ -1125,7 +1124,8 @@ pub mod pallet {
 			ensure_none(origin)?;
 			let snapshot_id = batch.snapshot_id;
 			// Load the state to memory
-			<UserActionsBatches<T>>::insert(snapshot_id, batch);
+			let key = Self::derive_batch_key(snapshot_id);
+			sp_io::offchain_index::set(key.as_slice(), batch.encode().as_slice());
 			<SnapshotNonce<T>>::set(snapshot_id);
 			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
 			Ok(())

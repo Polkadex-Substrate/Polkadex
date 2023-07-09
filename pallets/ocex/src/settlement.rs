@@ -88,7 +88,7 @@ pub fn sub_balance(
 /// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
 pub fn process_trade(
 	accounts: &mut AccountsMap,
-	trade: Trade,
+	trade: &Trade,
 	config: TradingPairConfig,
 ) -> Result<(), &'static str> {
 	info!(target: "orderbook", "📒 Processing trade: {:?}", trade);
