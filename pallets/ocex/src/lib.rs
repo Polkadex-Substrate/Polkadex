@@ -91,7 +91,7 @@ mod benchmarking;
 pub(crate) mod fixtures;
 mod settlement;
 mod snapshot;
-mod storage;
+pub mod storage;
 mod validator;
 
 /// A type alias for the balance type from this pallet's point of view.
@@ -134,7 +134,7 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
-	use crate::validator::{BATCH, WORKER_STATUS};
+	use crate::validator::WORKER_STATUS;
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
@@ -1206,12 +1206,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn derive_batch_key(snapshot_id: u64) -> Vec<u8> {
-			let mut key = BATCH.to_vec();
-			key.append(&mut snapshot_id.encode());
-			key
-		}
-
 		pub fn do_deposit(
 			user: T::AccountId,
 			asset: AssetId,

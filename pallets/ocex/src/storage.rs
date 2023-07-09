@@ -1,13 +1,18 @@
 use hash_db::{AsHashDB, HashDB, Prefix};
-use sp_core::Hasher;
-use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256};
-use trie_db::DBValue;
+use sp_core::{Hasher, H256};
+use sp_runtime::{
+	offchain::storage::{StorageRetrievalError, StorageValueRef},
+	traits::BlakeTwo256,
+};
+use sp_trie::{trie_types::TrieDBMutBuilderV1, LayoutV1};
+use trie_db::{DBValue, TrieDBMut};
 
 pub struct State;
 
 pub const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
 pub const NULL_NODE_DATA: [u8; 29] = *b"offchain-ocex::null_node_data";
 pub const KEY_PREFIX: [u8; 15] = *b"offchain-ocex::";
+pub const TRIE_ROOT: [u8; 24] = *b"offchain-ocex::trie_root";
 
 impl State {
 	pub fn hashed_null_node(&self) -> <BlakeTwo256 as Hasher>::Out {
@@ -126,5 +131,25 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 				self.db_insert(*key, (value, -1));
 			},
 		}
+	}
+}
+
+pub(crate) fn load_trie_root() -> <BlakeTwo256 as Hasher>::Out {
+	let root_ref = StorageValueRef::persistent(&TRIE_ROOT);
+	match root_ref.get::<<BlakeTwo256 as Hasher>::Out>() {
+		Ok(Some(root)) => root,
+		Ok(None) => Default::default(),
+		Err(_) => Default::default(),
+	}
+}
+
+pub(crate) fn get_state_trie<'a>(
+	state: &'a mut State,
+	root: &'a mut H256,
+) -> TrieDBMut<'a, LayoutV1<BlakeTwo256>> {
+	if *root == H256::zero() {
+		TrieDBMutBuilderV1::new(state, root).build()
+	} else {
+		TrieDBMutBuilderV1::from_existing(state, root).build()
 	}
 }

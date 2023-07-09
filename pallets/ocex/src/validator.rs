@@ -1,7 +1,7 @@
 use crate::{
 	pallet::{Accounts, TriggerRebroadcast, UserActionsBatches, ValidatorSetId},
-	settlement::process_trade,
-	snapshot::AccountsMap,
+	settlement::{add_balance, process_trade, sub_balance},
+	snapshot::StateInfo,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
 use frame_system::offchain::SubmitTransaction;
@@ -13,12 +13,13 @@ use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::H256;
-use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
+use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256, SaturatedConversion};
 use sp_std::vec::Vec;
+use sp_trie::{LayoutV1, TrieDBMut};
+use trie_db::{TrieError, TrieMut};
 
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
-const ACCOUNTS: [u8; 23] = *b"offchain-ocex::accounts";
-pub const BATCH: [u8; 20] = *b"offchain-ocex::batch";
+const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
 const TXN: [u8; 26] = *b"offchain-ocex::transaction";
 const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 
@@ -71,27 +72,20 @@ impl<T: Config> Pallet<T> {
 				   // Check the next ObMessages to process
 		let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
 
+		// Load the state to memory
+		let mut root = crate::storage::load_trie_root();
+		let mut storage = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut storage, &mut root);
+
+		let mut state_info = Self::load_state_info(&state);
+
 		let snapshot_id_info = StorageValueRef::persistent(&LAST_PROCESSED_SNAPSHOT);
-		let last_processed_nonce = match snapshot_id_info
-			.get::<u64>()
-			.map_err(|_| "Unable to decode last processed snapshot id")?
-		{
-			None => 0,
-			Some(id) => id,
-		};
+		let last_processed_nonce = state_info.snapshot_id;
 
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
 			return Ok(())
 		}
-
-		// Load the state to memory
-		let s_info = StorageValueRef::persistent(&ACCOUNTS);
-		let mut accounts =
-			match s_info.get::<AccountsMap>().map_err(|_err| "Unable to get accounts map")? {
-				None => AccountsMap::default(),
-				Some(acounts) => acounts,
-			};
 
 		sp_runtime::print("next_nonce");
 		sp_runtime::print(next_nonce);
@@ -111,7 +105,7 @@ impl<T: Config> Pallet<T> {
 				};
 				sp_runtime::print("Processing nonce");
 				sp_runtime::print(nonce);
-				Self::process_batch(&mut accounts, &batch)?;
+				Self::process_batch(&mut state, &batch, &mut state_info)?;
 			}
 		}
 
@@ -119,20 +113,21 @@ impl<T: Config> Pallet<T> {
 		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
 			None => {
 				log::debug!(target:"ocex","No user actions found for nonce: {:?}",next_nonce);
-				s_info.set(&accounts);
 				// Store the last processed nonce
 				// We need to -1 from next_nonce, as it is not yet processed
-				snapshot_id_info.set(&next_nonce.saturating_sub(1));
+				state_info.snapshot_id = next_nonce.saturating_sub(1);
+				Self::store_state_info(state_info, &mut state)?;
+				state.commit();
 				return Ok(())
 			},
 			Some(batch) => batch,
 		};
 
-		let withdrawals = Self::process_batch(&mut accounts, &batch)?;
+		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
 
 		if sp_io::offchain::is_validator() {
 			// Create state hash.
-			let state_hash: H256 = H256::from(sp_io::hashing::blake2_256(&accounts.encode()));
+			let state_hash: H256 = *state.root();
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
@@ -142,7 +137,7 @@ impl<T: Config> Pallet<T> {
 						snapshot_id: next_nonce,
 						state_hash,
 						state_change_id: batch.stid,
-						last_processed_blk: accounts.last_block.saturated_into(),
+						last_processed_blk: state_info.last_block.saturated_into(),
 						withdrawals,
 						public: key.clone(),
 					};
@@ -160,15 +155,20 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		s_info.set(&accounts);
-		snapshot_id_info.set(&batch.snapshot_id); // Store the processed nonce
-
+		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
+		Self::store_state_info(state_info, &mut state)?;
+		state.commit();
 		Ok(())
 	}
 
-	fn import_blk(blk: T::BlockNumber, state: &mut AccountsMap) -> Result<(), &'static str> {
+	fn import_blk(
+		blk: T::BlockNumber,
+		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state_info: &mut StateInfo,
+	) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Importing block: {:?}",blk);
-		if blk <= state.last_block.saturated_into() {
+
+		if blk <= state_info.last_block.saturated_into() {
 			return Err("BlockOutofSequence")
 		}
 
@@ -177,29 +177,26 @@ impl<T: Config> Pallet<T> {
 		for message in messages {
 			// We don't care about any other message
 			match message {
-				IngressMessages::Deposit(main, asset, amt) => {
-					let balances = state
-						.balances
-						.get_mut(&Decode::decode(&mut &main.encode()[..]).unwrap()) // this conversion will not fail
-						.ok_or("Main account not found")?;
-
-					balances
-						.entry(asset)
-						.and_modify(|total| {
-							*total = total.saturating_add(amt);
-						})
-						.or_insert(amt);
-				},
+				IngressMessages::Deposit(main, asset, amt) => add_balance(
+					state,
+					&Decode::decode(&mut &main.encode()[..])
+						.map_err(|_| "account id decode error")?,
+					asset,
+					amt,
+				)?,
 				_ => {},
 			}
 		}
 
-		state.last_block = blk.saturated_into();
+		state_info.last_block = blk.saturated_into();
 
 		Ok(())
 	}
 
-	fn trades(trades: &Vec<Trade>, state: &mut AccountsMap) -> Result<(), &'static str> {
+	fn trades(
+		trades: &Vec<Trade>,
+		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Settling trades...");
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
@@ -212,7 +209,7 @@ impl<T: Config> Pallet<T> {
 
 	fn withdraw(
 		request: &WithdrawalRequest<T::AccountId>,
-		state: &mut AccountsMap,
+		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 		stid: u64,
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
 		log::info!(target:"ocex","Settling withdraw request...");
@@ -226,30 +223,24 @@ impl<T: Config> Pallet<T> {
 		if !request.verify() {
 			return Err("SignatureVerificationFailed")
 		}
-
-		let balances = state
-			.balances
-			.get_mut(&Decode::decode(&mut &request.main.encode()[..]).unwrap()) // This conversion will not fail
-			.ok_or("Main account not found")?;
-
-		let total = balances.get_mut(&request.asset()).ok_or("Asset Not found")?;
-
-		if *total < amount {
-			return Err("Insufficient Balance")
-		}
-
-		*total = total.saturating_sub(amount);
-
+		sub_balance(
+			state,
+			&Decode::decode(&mut &request.main.encode()[..])
+				.map_err(|_| "account id decode error")?,
+			request.asset(),
+			amount,
+		)?;
 		let withdrawal = request.convert(stid).map_err(|_| "Withdrawal conversion error")?;
 
 		Ok(withdrawal)
 	}
 
 	fn process_batch(
-		accounts: &mut AccountsMap,
+		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 		batch: &UserActionBatch<T::AccountId>,
+		state_info: &mut StateInfo,
 	) -> Result<Vec<Withdrawal<T::AccountId>>, &'static str> {
-		if accounts.stid >= batch.stid {
+		if state_info.stid >= batch.stid {
 			return Err("Invalid stid")
 		}
 
@@ -257,17 +248,45 @@ impl<T: Config> Pallet<T> {
 		// Process Ob messages
 		for action in &batch.actions {
 			match action {
-				UserActions::Trade(trades) => Self::trades(trades, accounts)?,
+				UserActions::Trade(trades) => Self::trades(trades, state)?,
 				UserActions::Withdraw(request) => {
-					let withdrawal = Self::withdraw(request, accounts, batch.stid)?;
+					let withdrawal = Self::withdraw(request, state, batch.stid)?;
 					withdrawals.push(withdrawal);
 				},
 				UserActions::BlockImport(blk) =>
-					Self::import_blk((*blk).saturated_into(), accounts)?,
+					Self::import_blk((*blk).saturated_into(), state, state_info)?,
 				UserActions::Reset => {}, // Not for offchain worker
 			}
 		}
 
 		Ok(withdrawals)
+	}
+
+	fn load_state_info(state: &TrieDBMut<LayoutV1<BlakeTwo256>>) -> StateInfo {
+		match state.get(&STATE_INFO) {
+			Ok(Some(data)) => StateInfo::decode(&mut &data[..]).unwrap_or_default(),
+			Ok(None) => StateInfo::default(),
+			Err(_) => StateInfo::default(),
+		}
+	}
+
+	fn store_state_info(
+		state_info: StateInfo,
+		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	) -> Result<(), &'static str> {
+		let _ = state
+			.insert(&STATE_INFO, &state_info.encode())
+			.map_err(|err| map_trie_error(err))?;
+		Ok(())
+	}
+}
+
+pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
+	match *err {
+		TrieError::InvalidStateRoot(_) => "Invalid State Root",
+		TrieError::IncompleteDatabase(_) => "Incomplete Database",
+		TrieError::ValueAtIncompleteKey(_, _) => "ValueAtIncompleteKey",
+		TrieError::DecoderError(_, _) => "DecoderError",
+		TrieError::InvalidHash(_, _) => "InvalidHash",
 	}
 }

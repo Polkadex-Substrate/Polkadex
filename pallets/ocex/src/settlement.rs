@@ -18,13 +18,18 @@
 
 //! Contains common/reusable functionality.
 
-use crate::snapshot::AccountsMap;
 use log::{error, info};
 use orderbook_primitives::types::Trade;
+use parity_scale_codec::{Decode, Encode};
 
-use polkadex_primitives::{ocex::TradingPairConfig, AssetId};
+use crate::validator::map_trie_error;
+use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
 use rust_decimal::Decimal;
+use sp_core::ByteArray;
+use sp_runtime::traits::BlakeTwo256;
 use sp_std::collections::btree_map::BTreeMap;
+use sp_trie::LayoutV1;
+use trie_db::{DBValue, TrieDBMut, TrieMut};
 
 /// Updates provided trie db with a new entrance balance if it is not contains item for specific
 /// account asset yet, or increments existed item balance.
@@ -35,15 +40,26 @@ use sp_std::collections::btree_map::BTreeMap;
 /// * `account_asset`: Account asset to look for in the db for update.
 /// * `balance`: Amount on which account asset balance should be incremented.
 pub fn add_balance(
-	account: &mut BTreeMap<AssetId, Decimal>,
+	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	account: &AccountId,
 	asset: AssetId,
 	balance: Decimal,
 ) -> Result<(), &'static str> {
-	account
+	let mut balances: BTreeMap<AssetId, Decimal> =
+		match state.get(account.as_slice()).map_err(|err| map_trie_error(err))? {
+			None => BTreeMap::new(),
+			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+				.map_err(|_| "Unable to decode balances for account")?,
+		};
+
+	balances
 		.entry(asset)
 		.and_modify(|total| *total = total.saturating_add(balance))
 		.or_insert(balance);
 
+	state
+		.insert(account.as_slice(), &balances.encode())
+		.map_err(|err| map_trie_error(err))?;
 	Ok(())
 }
 
@@ -58,18 +74,30 @@ pub fn add_balance(
 /// * `account_asset`: Account asset to look for in the db for update.
 /// * `balance`: Amount on which account asset balance should be reduced.
 pub fn sub_balance(
-	account: &mut BTreeMap<AssetId, Decimal>,
+	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	account: &AccountId,
 	asset: AssetId,
 	balance: Decimal,
 ) -> Result<(), &'static str> {
 	info!(target:"orderbook","📒 Subtracting balance from account");
 
-	let account_balance = account.get_mut(&asset).ok_or("NotEnoughBalance")?;
+	let mut balances: BTreeMap<AssetId, Decimal> =
+		match state.get(account.as_slice()).map_err(|err| map_trie_error(err))? {
+			None => return Err("Account not found in trie"),
+			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+				.map_err(|_| "Unable to decode balances for account")?,
+		};
+
+	let account_balance = balances.get_mut(&asset).ok_or("NotEnoughBalance")?;
 
 	if *account_balance < balance {
 		return Err("NotEnoughBalance")
 	}
 	*account_balance = account_balance.saturating_sub(balance);
+
+	state
+		.insert(account.as_slice(), &balances.encode())
+		.map_err(|err| map_trie_error(err))?;
 
 	Ok(())
 }
@@ -87,7 +115,7 @@ pub fn sub_balance(
 ///
 /// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
 pub fn process_trade(
-	accounts: &mut AccountsMap,
+	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 	trade: &Trade,
 	config: TradingPairConfig,
 ) -> Result<(), &'static str> {
@@ -100,25 +128,17 @@ pub fn process_trade(
 	// Update balances
 	{
 		let (maker_asset, maker_credit) = trade.credit(true);
-		let account_info = accounts
-			.balances
-			.get_mut(&maker_asset.main.clone().into())
-			.ok_or("MainAccountNotFound")?;
-		add_balance(account_info, maker_asset.asset, maker_credit)?;
+		add_balance(state, &maker_asset.main, maker_asset.asset, maker_credit)?;
 
 		let (maker_asset, maker_debit) = trade.debit(true);
-		sub_balance(account_info, maker_asset.asset, maker_debit)?;
+		sub_balance(state, &maker_asset.main, maker_asset.asset, maker_debit)?;
 	}
 	{
 		let (taker_asset, taker_credit) = trade.credit(false);
-		let account_info = accounts
-			.balances
-			.get_mut(&taker_asset.main.clone().into())
-			.ok_or("MainAccountNotFound")?;
-		add_balance(account_info, taker_asset.asset, taker_credit)?;
+		add_balance(state, &taker_asset.main, taker_asset.asset, taker_credit)?;
 
 		let (taker_asset, taker_debit) = trade.debit(false);
-		sub_balance(account_info, taker_asset.asset, taker_debit)?;
+		sub_balance(state, &taker_asset.main, taker_asset.asset, taker_debit)?;
 	}
 	Ok(())
 }
