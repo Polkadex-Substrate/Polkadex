@@ -2,9 +2,9 @@ use crate::{
 	pallet::{Accounts, TriggerRebroadcast, UserActionsBatches, ValidatorSetId},
 	settlement::{add_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
+	storage::store_trie_root,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
-use sp_std::boxed::Box;
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
@@ -15,7 +15,7 @@ use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::H256;
 use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256, SaturatedConversion};
-use sp_std::vec::Vec;
+use sp_std::{boxed::Box, vec::Vec};
 use sp_trie::{LayoutV1, TrieDBMut};
 use trie_db::{TrieError, TrieMut};
 
@@ -119,6 +119,7 @@ impl<T: Config> Pallet<T> {
 				state_info.snapshot_id = next_nonce.saturating_sub(1);
 				Self::store_state_info(state_info, &mut state)?;
 				state.commit();
+				store_trie_root(*state.root());
 				return Ok(())
 			},
 			Some(batch) => batch,
@@ -159,6 +160,7 @@ impl<T: Config> Pallet<T> {
 		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
 		Self::store_state_info(state_info, &mut state)?;
 		state.commit();
+		store_trie_root(*state.root());
 		Ok(())
 	}
 
