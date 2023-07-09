@@ -30,6 +30,12 @@ liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
 
+
+hash-db = { version = "0.16.0", default-features = false }
+trie-db = { version = "0.27.0", default-features = false }
+#trie-root = { version = "0.18.0", default-features = false }
+#sp-trie = { workspace = true, default-features = false }
+
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
@@ -51,6 +57,10 @@ std = [
   "sp-runtime/std",
   "sp-std/std",
   "sp-io/std",
+#  "sp-trie/std",
+  "hash-db/std",
+  "trie-db/std",
+#  "trie-root/std",
   "polkadex-primitives/std",
   "rust_decimal/std",
   "pallet-timestamp/std",

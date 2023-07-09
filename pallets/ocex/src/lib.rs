@@ -89,6 +89,7 @@ mod benchmarking;
 pub(crate) mod fixtures;
 mod settlement;
 mod snapshot;
+mod storage;
 mod validator;
 
 /// A type alias for the balance type from this pallet's point of view.

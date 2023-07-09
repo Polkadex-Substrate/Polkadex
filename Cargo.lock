@@ -5577,6 +5577,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hash-db",
  "hex",
  "liquidity",
  "log",
@@ -5594,6 +5595,7 @@ dependencies = [
  "sp-keystore 0.13.0",
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
+ "trie-db",
 ]
 
 [[package]]
