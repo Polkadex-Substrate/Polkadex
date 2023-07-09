@@ -4,6 +4,7 @@ use crate::{
 	snapshot::StateInfo,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
+use sp_std::boxed::Box;
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
