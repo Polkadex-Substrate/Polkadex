@@ -221,7 +221,7 @@ pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	/// Block import requested.
 	BlockImport(u32),
 	/// Reset Flag
-	Reset
+	Reset,
 }
 
 /// Defines withdraw request DTO.
