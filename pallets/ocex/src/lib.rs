@@ -1069,8 +1069,7 @@ pub mod pallet {
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
 
 			// get closing block number for this snapshot
-			let interval = <DisputeInterval<T>>::get()
-				.unwrap_or((24u32 * 60 * 5).saturated_into());
+			let interval = <DisputeInterval<T>>::get().unwrap_or((24u32 * 60 * 5).saturated_into());
 			let close_block = <frame_system::Pallet<T>>::block_number() + interval;
 			// Update the snapshot nonce and move the summary to snapshots storage
 			<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);

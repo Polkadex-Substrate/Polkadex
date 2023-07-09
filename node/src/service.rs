@@ -303,7 +303,7 @@ pub struct NewFullBase {
 
 /// Creates a full service from the configuration.
 pub fn new_full_base(
-	config: Configuration,
+	mut config: Configuration,
 	foreign_chain_url: String,
 	thea_dummy_mode: bool,
 	disable_hardware_benchmarks: bool,
@@ -379,15 +379,15 @@ pub fn new_full_base(
 			block_announce_validator_builder: None,
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 		})?;
-
-	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&config,
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
-	}
+	// Ensure all nodes implement offchain indexing and workers
+	config.offchain_worker.enabled = true;
+	config.offchain_worker.indexing_enabled = true;
+	sc_service::build_offchain_workers(
+		&config,
+		task_manager.spawn_handle(),
+		client.clone(),
+		network.clone(),
+	);
 
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;

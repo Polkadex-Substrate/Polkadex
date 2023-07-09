@@ -53,11 +53,9 @@ impl<T: Config> Pallet<T> {
 			match c_info.get::<Call<T>>().map_err(|_| "Unable to decode call")? {
 				None => {},
 				Some(call) => {
-					{
-						SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-							.map_err(|_| "Error sending unsigned txn")?;
-						return Ok(())
-					}
+					SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+						.map_err(|_| "Error sending unsigned txn")?;
+					return Ok(())
 				},
 			}
 		}
