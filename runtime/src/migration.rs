@@ -3,7 +3,7 @@ pub mod session_keys {
 	use sp_runtime::impl_opaque_keys;
 	use sp_std::vec::Vec;
 
-	use crate::{AuthorityDiscovery, Babe, Grandpa, ImOnline, Runtime, SessionKeys, Thea};
+	use crate::{AuthorityDiscovery, Babe, Grandpa, ImOnline, Runtime, SessionKeys};
 	use bls_primitives::application_crypto::app::Public as BLSPublic;
 	use pallet_ocex_lmp::sr25519::AuthorityId as OCEXId;
 	use polkadex_primitives::AccountId;
@@ -15,7 +15,7 @@ pub mod session_keys {
 			pub im_online: ImOnline,
 			pub authority_discovery: AuthorityDiscovery,
 			pub orderbook: BLSPublic,
-			pub thea: Thea,
+			pub thea: BLSPublic,
 		}
 	}
 
@@ -40,7 +40,6 @@ pub mod session_keys {
 								orderbook: OCEXId::from(sp_core::sr25519::Public::from_raw(
 									[0u8; 32],
 								)),
-								thea: keys.thea,
 							},
 						);
 						log::info!(target:"migration","Migrated session key: {:?}",new_key);
@@ -64,7 +63,6 @@ pub mod session_keys {
 					im_online: old_keys.im_online,
 					authority_discovery: old_keys.authority_discovery,
 					orderbook: OCEXId::from(sp_core::sr25519::Public::from_raw([0u8; 32])),
-					thea: old_keys.thea,
 				})
 			});
 			Weight::zero()

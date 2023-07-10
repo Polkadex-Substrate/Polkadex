@@ -1045,7 +1045,7 @@ pub mod pallet {
 
 		/// Submit Snapshot Summary
 		#[pallet::call_index(17)]
-		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())] // TODO: benchmark
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			summary: SnapshotSummary<T::AccountId, T::AuthorityId>,
@@ -1104,7 +1104,7 @@ pub mod pallet {
 		/// This extrinsic will set the dispute period for snapshots
 		/// TODO: update weights
 		#[pallet::call_index(19)]
-		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))] // TODO: benchmark
 		pub fn set_disputation_period(
 			origin: OriginFor<T>,
 			period: T::BlockNumber,
@@ -1135,7 +1135,7 @@ pub mod pallet {
 		/// This extrinsic will trigger the offchain worker to rebroadcast the previous snapshot
 		/// summary TODO: update weights
 		#[pallet::call_index(21)]
-		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))] // TODO: benchmark
 		pub fn trigger_summary_rebroadcast(origin: OriginFor<T>) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<TriggerRebroadcast<T>>::put(true);

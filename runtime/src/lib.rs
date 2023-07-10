@@ -92,6 +92,7 @@ use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee}
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
 
+mod bridge;
 /// Constant values used within the runtime.
 pub mod constants;
 pub mod migration;
@@ -478,7 +479,6 @@ impl_opaque_keys! {
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
 		pub orderbook: OCEX,
-		pub thea: Thea,
 	}
 }
 
@@ -1318,23 +1318,10 @@ impl liquidity::Config for Runtime {
 use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
 
 parameter_types! {
-	pub const PolkadexAssetId: u128 = POLKADEX_NATIVE_ASSET_ID;
-	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
-}
-
-impl thea::pallet::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
-	type MaxAuthorities = MaxAuthorities;
-	type Executor = TheaExecutor;
-	type WeightInfo = thea::weights::WeightInfo<Runtime>;
-}
-
-parameter_types! {
 	pub const TheaPalletAccount: PalletId = PalletId(*b"th/accnt");
 	pub const WithdrawalSize: u32 = 10;
 	pub const ParaId: u32 = 2040;
+	pub const PolkadexAssetId: u128 = POLKADEX_NATIVE_ASSET_ID;
 }
 
 impl thea_executor::Config for Runtime {
@@ -1343,7 +1330,7 @@ impl thea_executor::Config for Runtime {
 	type Assets = Assets;
 	type AssetId = u128;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
-	type Executor = Thea;
+	type Executor = SubMessages;
 	type NativeAssetId = PolkadexAssetId;
 	type TheaPalletId = TheaPalletAccount;
 	type WithdrawalSize = WithdrawalSize;
@@ -1361,7 +1348,6 @@ impl thea_message_handler::Config for Runtime {
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
 }
 
-#[cfg(feature = "runtime-benchmarks")]
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1405,62 +1391,14 @@ construct_runtime!(
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 35,
 		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
-		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
 		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44,
-		TheaMH: thea_message_handler::pallet::{Pallet, Call, Storage, Event<T>} = 45
-	}
-);
 
-#[cfg(not(feature = "runtime-benchmarks"))]
-construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = polkadex_primitives::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
-		Utility: pallet_utility::{Pallet, Call, Event} = 1,
-		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 2,
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
-		Authorship: pallet_authorship::{Pallet, Storage} = 4,
-		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 7,
-		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 8,
-		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 9,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 11,
-		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
-		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 13,
-		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
-		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 15,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 16,
-		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 17,
-		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 18,
-		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 19,
-		Offences: pallet_offences::{Pallet, Storage, Event} = 20,
-		Historical: pallet_session_historical::{Pallet} = 21,
-		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 22,
-		Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 23,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 24,
-		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 25,
-		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
-		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 27,
-		OrmlVesting: orml_vesting::{Pallet, Storage, Call, Event<T>, Config<T>} = 28,
-		PDEXMigration: pdex_migration::pallet::{Pallet, Storage, Call, Event<T>, Config<T>} = 29,
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
-		//RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 32,
-		ChildBounties: pallet_child_bounties = 33,
-		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
-		OCEX: pallet_ocex_lmp::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 35,
-		OrderbookCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>} = 36,
-		Thea: thea::pallet::{Pallet, Call, Storage, Event<T>,ValidateUnsigned} = 39,
-		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
-		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
-		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44,
+
+		PolkadotGrandpa: pallet_bridge_grandpa::{Pallet, Call, Storage, Event<T>} = 46,
+		BridgePolkadexParachains: pallet_bridge_parachains::{Pallet, Call, Storage, Event<T>} = 47,
+		SubMessages: pallet_bridge_messages::{Pallet, Call, Storage, Event<T>} = 48,
 	}
 );
 /// Digest item type.
@@ -1551,33 +1489,6 @@ impl_runtime_apis! {
 
 		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
 			data.check_extrinsics(&block)
-		}
-	}
-
-	impl thea_primitives::TheaApi<Block> for Runtime {
-		/// Return the current active Thea validator set for all networks
-		fn full_validator_set() -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
-			Thea::full_validator_set()
-		}
-		/// Return the current active Thea validator set
-		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
-			Thea::validator_set(network)
-		}
-		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(network: thea_primitives::Network, nonce: u64) -> Option<thea_primitives::Message>{
-			Thea::get_outgoing_messages(network, nonce)
-		}
-		/// Get Thea network associated with Validator
-		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{
-			Thea::network(auth)
-		}
-		/// Incoming messages
-		fn incoming_message(message: thea_primitives::Message, bitmap: Vec<u128>, signature: thea_primitives::AuthoritySignature) -> Result<(),()>{
-			Thea::submit_incoming_message(message,bitmap,signature)
-		}
-		/// Get last processed nonce for a given network
-		fn get_last_processed_nonce(network: thea_primitives::Network) -> u64{
-			Thea::get_last_processed_nonce(network)
 		}
 	}
 

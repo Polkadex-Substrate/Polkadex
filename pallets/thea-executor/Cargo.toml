@@ -19,6 +19,7 @@ sp-io = { workspace = true, default-features = false }
 bls-primitives = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 xcm = { workspace = true, default-features = false }
+bp-messages = {git= "https://github.com/Polkadex-Substrate/parity-bridges-common.git", branch ="polkadot-v0.9.43", default-features = false}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -30,6 +31,7 @@ thea = { path = "../thea" }
 [features]
 default = ["std"]
 std = [
+  "bp-messages/std",
   "sp-application-crypto/std",
   "bls-primitives/std",
   "thea-primitives/std",

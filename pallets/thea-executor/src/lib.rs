@@ -47,6 +47,7 @@ pub trait WeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use bp_messages::{source_chain::MessagesBridge, LaneId};
 	use frame_support::{
 		log,
 		pallet_prelude::*,
@@ -90,7 +91,7 @@ pub mod pallet {
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
-		type Executor: thea_primitives::TheaOutgoingExecutor;
+		type Executor: bp_messages::source_chain::MessagesBridge<Vec<u8>>;
 		/// Native Asset Id
 		type NativeAssetId: Get<Self::AssetId>;
 		/// Thea PalletId
@@ -163,6 +164,8 @@ pub mod pallet {
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
+		/// Thea Executor Error
+		TheaExecutorError,
 	}
 
 	// Errors inform users that something went wrong.
@@ -206,10 +209,11 @@ pub mod pallet {
 			let pending_withdrawals = <ReadyWithdrawals<T>>::iter_prefix(
 				block_no.saturating_sub(T::BlockNumber::from(1u8)),
 			);
-			for (network_id, withdrawal) in pending_withdrawals {
-				// This is fine as this trait is not supposed to fail
-				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
-					log::error!("Error while executing withdrawals...");
+			for (network_id, withdrawals) in pending_withdrawals {
+				// TODO: Check if the lane creation is correct
+				let lane_id = LaneId::new("main", "para");
+				if let Err(err) = T::Executor::send_message(lane_id, withdrawals.encode()) {
+					Self::deposit_event(Event::TheaExecutorError)
 				}
 			}
 			//TODO: Clean Storage
@@ -431,9 +435,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
-			let deposits: Vec<Deposit<T::AccountId>> =
-				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+		pub fn do_deposit(network: Network, deposits: Vec<Deposit<T::AccountId>>) {
 			for deposit in deposits {
 				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
 					pending_deposits.push(deposit.clone())
@@ -446,7 +448,6 @@ pub mod pallet {
 					deposit.id,
 				))
 			}
-			Ok(())
 		}
 
 		pub fn execute_deposit(
@@ -475,14 +476,6 @@ pub mod pallet {
 				deposit.id,
 			));
 			Ok(())
-		}
-	}
-
-	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
-		fn execute_deposits(network: Network, deposits: Vec<u8>) {
-			if let Err(error) = Self::do_deposit(network, deposits) {
-				log::error!(target:"thea","Deposit Failed : {:?}", error);
-			}
 		}
 	}
 

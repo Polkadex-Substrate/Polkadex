@@ -87,7 +87,7 @@ impl<AccountId> Deposit<AccountId> {
 /// Defines the structure of the withdraw.
 ///
 /// Withdraw is relative to solochain
-#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
+#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug, Eq)]
 pub struct Withdraw {
 	/// Identifier of the withdrawal.
 	pub id: Vec<u8>,
