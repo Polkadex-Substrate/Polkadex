@@ -230,6 +230,39 @@ fn test_sub_balance_existing_account_with_balance() {
 	});
 }
 
+
+#[test]
+// check if more than available balance can be subtracted from existing account
+fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
+    let (offchain, state) = testing::TestOffchainExt::new();
+    let mut t = TestExternalities::default();
+    t.register_extension(OffchainWorkerExt::new(offchain.clone()));
+    t.register_extension(OffchainDbExt::new(offchain.clone()));
+    t.execute_with(|| {
+        let account_id = create_account_id();
+        let asset_id = AssetId::Polkadex;
+        let amount = 3000000;
+        assert_eq!(asset_id, AssetId::Polkadex);
+        let mut root = crate::storage::load_trie_root();
+        let mut trie_state = crate::storage::State;
+        let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+        let result = add_balance(&mut state, &account_id, asset_id, amount.into());
+        assert_eq!(result, Ok(()));
+        let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+        let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+
+        //sub balance
+        let amount2 = 4000000;
+        let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
+        match result {
+            Ok(_) => assert!(false),
+            Err(e) => assert_eq!(e, "NotEnoughBalance"),
+        }
+    });
+}
+
+
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_without_balance() {
@@ -401,35 +434,43 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 	});
 }
 
-#[test]
-// check if more than available balance can be subtracted from existing account
-fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
-		let account_id = create_account_id();
-		let asset_id = AssetId::Polkadex;
-		let amount = 3000000;
-		assert_eq!(asset_id, AssetId::Polkadex);
-		let mut root = crate::storage::load_trie_root();
-		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
-		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
-		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
-		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
-		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
-		//sub balance
-		let amount2 = 4000000;
-		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
-		match result {
-			Ok(_) => assert!(false),
-			Err(e) => assert_eq!(e, "NotEnoughBalance"),
-		}
-	});
+#[test]
+// check if balance is added to new account
+fn test_trade_between_two_accounts_invalid_signature() {
+    let (offchain, state) = testing::TestOffchainExt::new();
+    let mut t = TestExternalities::default();
+    t.register_extension(OffchainWorkerExt::new(offchain.clone()));
+    t.register_extension(OffchainDbExt::new(offchain.clone()));
+    t.execute_with(|| {
+        let mut root = crate::storage::load_trie_root();
+        let mut trie_state = crate::storage::State;
+        let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+        // add balance to alice
+        let alice_account_id = get_alice_key_pair().public();
+        assert_ok!(add_balance(&mut state, &alice_account_id.into(), AssetId::Asset(1), 40.into()));
+
+        //add balance to bob
+        let bob_account_id = get_bob_key_pair().public();
+        assert_ok!(add_balance(&mut state, &bob_account_id.into(), AssetId::Polkadex, 20.into()));
+
+        //market PDEX-1
+        let config = get_trading_pair_config();
+        let amount = Decimal::from_str("20").unwrap();
+        let price = Decimal::from_str("2").unwrap();
+
+        //alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
+        let mut trade = create_trade_between_alice_and_bob(price, amount);
+        //swap alice and bob's signature
+        trade.maker.signature = trade.taker.signature.clone();
+
+        let result = process_trade(&mut state, &trade, config);
+        match result {
+            Ok(_) => assert!(false),
+            Err(e) => assert_eq!(e, "InvalidTrade"),
+        }
+    });
 }
 
 #[test]
