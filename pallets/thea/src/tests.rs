@@ -66,6 +66,38 @@ fn message_for_nonce(nonce: u64) -> Message {
 	}
 }
 
+use frame_support::traits::OneSessionHandler;
+
+#[test]
+fn test_session_change() {
+	new_test_ext().execute_with(|| {
+		let mut validators = Vec::with_capacity(200);
+		for i in 0..200 {
+			validators.push(
+				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str())).0,
+			);
+		}
+
+		let mut authorities = Vec::new();
+		validators
+			.clone()
+			.into_iter()
+			.for_each(|bls| authorities.push((&1, bls.public().into())));
+
+		assert!(Thea::validator_set_id() == 0);
+		assert!(Thea::outgoing_nonce(1) == 0);
+		let authorities_cloned: Vec<(&u64, <Test as Config>::TheaId)> = authorities.clone();
+		let auth_len = authorities_cloned.len();
+		Thea::on_new_session(false, authorities.into_iter(), authorities_cloned.into_iter());
+		assert!(Thea::validator_set_id() == 1);
+		assert!(Thea::outgoing_nonce(1) == 1);
+		let message = Thea::get_outgoing_messages(1, 1).unwrap();
+		let bounded_vec: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
+			BoundedVec::decode(&mut &message.data[..]).unwrap();
+		assert_eq!(bounded_vec.to_vec().len(), auth_len);
+	})
+}
+
 #[test]
 fn test_update_network_pref_bad_origin() {
 	new_test_ext().execute_with(|| {

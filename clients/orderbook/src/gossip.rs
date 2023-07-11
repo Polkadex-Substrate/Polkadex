@@ -111,7 +111,7 @@ where
 		message: &GossipMessage,
 		peerid: PeerId,
 	) -> ValidationResult<B::Hash> {
-		return ValidationResult::Discard;
+		return ValidationResult::Discard
 		// let msg_hash = sp_core::hashing::blake2_128(&message.encode());
 		// // Discard if we already know this message
 		// match message {
@@ -218,24 +218,24 @@ where
 	/// * `message`: Gossip message to check if it is expired.
 	pub fn message_expired_check(&self, message: &GossipMessage) -> bool {
 		return true // to fix temporary problem
-		// match message {
-		// 	GossipMessage::ObMessage(msg) if msg.reset =>
-		// 		msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-		// 			msg.version.saturating_add(1) != *self.state_version.read(),
-		// 	GossipMessage::ObMessage(msg) if !msg.reset =>
-		// 		msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
-		// 			(msg.version < *self.state_version.read()),
-		//
-		// 	GossipMessage::WantWorkerNonce(from, _, version) => {
-		// 		// Validators only process it if the request is for nonces after
-		// 		(*from < self.last_snapshot.read().worker_nonce) ||
-		// 			(*version < *self.state_version.read())
-		// 	},
-		//
-		// 	GossipMessage::Want(snapshot_id, _) =>
-		// 		*snapshot_id != self.last_snapshot.read().snapshot_id,
-		// 	_ => false,
-		// }
+		    // match message {
+		    // 	GossipMessage::ObMessage(msg) if msg.reset =>
+		    // 		msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+		    // 			msg.version.saturating_add(1) != *self.state_version.read(),
+		    // 	GossipMessage::ObMessage(msg) if !msg.reset =>
+		    // 		msg.worker_nonce < self.last_snapshot.read().worker_nonce ||
+		    // 			(msg.version < *self.state_version.read()),
+		    //
+		    // 	GossipMessage::WantWorkerNonce(from, _, version) => {
+		    // 		// Validators only process it if the request is for nonces after
+		    // 		(*from < self.last_snapshot.read().worker_nonce) ||
+		    // 			(*version < *self.state_version.read())
+		    // 	},
+		    //
+		    // 	GossipMessage::Want(snapshot_id, _) =>
+		    // 		*snapshot_id != self.last_snapshot.read().snapshot_id,
+		    // 	_ => false,
+		    // }
 	}
 }
 

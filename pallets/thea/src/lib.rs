@@ -336,7 +336,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides([signature])
+			.and_provides("incoming")
 			.longevity(3)
 			.propagate(true)
 			.build()
@@ -404,7 +404,7 @@ impl<T: Config> Pallet<T> {
 				block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 				nonce: nonce.saturating_add(1),
 				data: list.encode(),
-				network: NATIVE_NETWORK,
+				network: *network,
 				is_key_change: true,
 				validator_set_id: id,
 				validator_set_len: Self::authorities(network, id).len().saturated_into(),
