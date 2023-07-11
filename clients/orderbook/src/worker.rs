@@ -540,7 +540,7 @@ where
 		self.latest_state_change_id = action.stid;
 		// Multicast the message to other peers
 		let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
-		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
+		self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), false);
 		info!(target:"orderbook","📒Message with stid: {:?} gossiped to others",self.latest_worker_nonce.read());
 		Ok(())
 	}
@@ -568,7 +568,7 @@ where
 						*self.state_version.read(),
 					);
 
-					self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
+					self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
 					metric_inc!(self, ob_messages_sent);
 					metric_add!(self, ob_data_sent, message.encoded_size() as u64);
 				} else {
@@ -659,7 +659,7 @@ where
 			self.known_messages.insert(action.worker_nonce, action.clone());
 			// Multicast the message to other peers
 			let gossip_message = GossipMessage::ObMessage(Box::new(action.clone()));
-			self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), true);
+			self.gossip_engine.gossip_message(topic::<B>(), gossip_message.encode(), false);
 		}
 		self.check_state_sync().await?;
 		self.check_worker_nonce_gap_fill().await?;
@@ -1321,7 +1321,7 @@ where
 						.expect("📒 Expected to create bitmap"),
 				);
 				info!(target:"orderbook","📒 Sending sync requests to neighbours...");
-				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), true);
+				self.gossip_engine.gossip_message(topic::<B>(), message.encode(), false);
 			} else {
 				// We have all the data, state is synced,
 				// so load snapshot shouldn't have any problem now
@@ -1420,14 +1420,14 @@ where
 			if to.saturating_sub(from) > 1 {
 				let want_request =
 					GossipMessage::WantWorkerNonce(from, **to, *self.state_version.read());
-				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), true);
+				self.gossip_engine.gossip_message(topic::<B>(), want_request.encode(), false);
 				info!(target:"orderbook","📒 Sending periodic sync request for nonces between: from:{from:?} to: {to:?}");
 			} else if to.saturating_sub(from) == 1 && !self.is_validator {
 				// If we are a fullnode and we know all the stids
 				// then broadcast the next best nonce periodically
 				if let Some(msg) = self.known_messages.get(to).cloned() {
 					let best_msg = GossipMessage::ObMessage(Box::new(msg));
-					self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), true);
+					self.gossip_engine.gossip_message(topic::<B>(), best_msg.encode(), false);
 					self.gossip_engine.broadcast_topic(topic::<B>(), true);
 					info!(target:"orderbook","📒 Sending periodic best message broadcast, nonce: {to:?}");
 				}
