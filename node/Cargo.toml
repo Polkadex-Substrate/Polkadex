@@ -33,7 +33,7 @@ polkadex-client = { path = "../client" }
 thea-client = { path = "../clients/thea" }
 thea-primitives = { path = "../primitives/thea" }
 
-pallet-ocex-lmp = {path = "../pallets/ocex"}
+pallet-ocex-lmp = { path = "../pallets/ocex" }
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
