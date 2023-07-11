@@ -78,10 +78,10 @@ impl AsHashDB<BlakeTwo256, DBValue> for State {
 impl HashDB<BlakeTwo256, DBValue> for State {
 	fn get(&self, key: &<BlakeTwo256 as Hasher>::Out, _: Prefix) -> Option<DBValue> {
 		if key == &self.hashed_null_node() {
-			return Some(self.null_node_data().clone())
+			return Some(self.null_node_data())
 		}
 
-		match self.db_get(&key) {
+		match self.db_get(key) {
 			Some((ref d, rc)) if rc > 0 => Some(d.clone()),
 			_ => None,
 		}
@@ -92,14 +92,11 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 			return true
 		}
 
-		match self.db_get(&key) {
-			Some((_, x)) if x > 0 => true,
-			_ => false,
-		}
+		matches!(self.db_get(key), Some((_, x)) if x > 0)
 	}
 
 	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> <BlakeTwo256 as Hasher>::Out {
-		if DBValue::from(value) == self.null_node_data() {
+		if *value == self.null_node_data() {
 			return self.hashed_null_node()
 		}
 		let key = BlakeTwo256::hash(value);
