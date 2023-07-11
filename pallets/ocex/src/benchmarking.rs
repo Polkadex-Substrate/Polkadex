@@ -276,7 +276,9 @@ benchmarks! {
 	submit_snapshot {
 		<ExchangeState<T>>::put(true);
 		let snapshot = SnapshotSummary::decode(&mut SNAPSHOT.as_ref()).unwrap();
-		let call = Call::<T>::submit_snapshot { summary: snapshot };
+		let signature: sp_core::sr25519::Signature = sp_core::sr25519::Signature([0u8;64]);
+		let signature: <<T as pallet::Config>::AuthorityId as RuntimeAppPublic>::Signature = Decode::decode(&mut &signature.encode()[..]).unwrap();
+		let call = Call::<T>::submit_snapshot { summary: snapshot, signature };
 	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
 	verify {
 		assert!(<Snapshots<T>>::contains_key(1));
@@ -342,7 +344,6 @@ benchmarks! {
 		vec_withdrawals.push(Withdrawal {
 			amount: Decimal::new(x.into(), 0),
 			stid:0,
-			worker_nonce:0,
 			asset,
 			main_account: main.clone(),
 			fees,
@@ -400,11 +401,6 @@ benchmarks! {
 	set_snapshot {
 		let call = Call::<T>::set_snapshot{ new_snapshot_id: u64::MAX };
 	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
-
-	change_pending_withdrawal_limit {
-		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
-		let call = Call::<T>::change_pending_withdrawal_limit { new_pending_withdrawals_limit: u64::MAX };
-	}: { call.dispatch_bypass_filter(origin)? }
 
 	change_snapshot_interval_block {
 		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
