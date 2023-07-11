@@ -23,7 +23,6 @@ serde = { version = "1.0.136", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.4.1"
 clap = { version = "4.0.9", features = ["derive"] }
-parking_lot = "0.12.1"
 itertools = "0.10.1"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
@@ -31,13 +30,8 @@ node-polkadex-runtime = { path = "../runtime" }
 rpc-assets = { path = "../rpc/assets" }
 pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
 polkadex-client = { path = "../client" }
-orderbook = { path = "../clients/orderbook" }
-thea-client = { path = "../clients/thea" }
 orderbook-primitives = { path = "../primitives/orderbook" }
 thea-primitives = { path = "../primitives/thea" }
-orderbook-rpc = { path = "../clients/orderbook/rpc" }
-memory-db = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
-reference-trie = { git = "https://github.com/Polkadex-Substrate/trie.git", branch = "master" }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
