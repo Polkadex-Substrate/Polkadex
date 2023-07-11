@@ -386,7 +386,7 @@ pub fn new_full_base(
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend: backend.clone(),
+		backend,
 		client: client.clone(),
 		keystore: keystore_container.keystore(),
 		network: network.clone(),
@@ -519,7 +519,7 @@ pub fn new_full_base(
 		observer_enabled: false,
 		keystore,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		local_role: role.clone(),
+		local_role: role,
 		protocol_name: grandpa_protocol_name,
 	};
 
@@ -536,7 +536,7 @@ pub fn new_full_base(
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry: prometheus_registry.clone(),
+			prometheus_registry,
 			shared_voter_state,
 			sync: sync_service.clone(),
 		};
@@ -644,8 +644,6 @@ mod tests {
 				let NewFullBase { task_manager, client, network, sync, transaction_pool, .. } =
 					new_full_base(
 						config,
-						"blah".to_string(),
-						true,
 						true,
 						|block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
 						 babe_link: &sc_consensus_babe::BabeLink<Block>| {
@@ -819,7 +817,7 @@ mod tests {
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, sync, .. } =
-					new_full_base(config, "blah".to_string(), true, true, |_, _| ())?;
+					new_full_base(config, true, |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
 					client,
