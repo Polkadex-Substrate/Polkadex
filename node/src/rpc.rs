@@ -34,7 +34,6 @@ use std::sync::Arc;
 
 use jsonrpsee::RpcModule;
 use orderbook_primitives::ObApi;
-use orderbook_rpc::{OrderbookApiServer, OrderbookRpc};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
@@ -93,8 +92,6 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
-	/// Orderbook specific dependencies
-	pub orderbook: orderbook_rpc::OrderbookDeps<B, C, C>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -133,8 +130,7 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, orderbook } =
-		deps;
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa } = deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
 	let GrandpaDeps {
@@ -171,8 +167,5 @@ where
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
-	// Create Orderbook RPC
-	io.merge(OrderbookRpc::new(orderbook).into_rpc())?;
-
 	Ok(io)
 }
