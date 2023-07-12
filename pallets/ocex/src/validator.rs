@@ -5,14 +5,14 @@ use crate::{
 	storage::store_trie_root,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
-use rust_decimal::prelude::ToPrimitive;
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
-use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
+use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AccountId};
+use rust_decimal::prelude::ToPrimitive;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::H256;
 use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256, SaturatedConversion};
@@ -186,7 +186,7 @@ impl<T: Config> Pallet<T> {
 			// We don't care about any other message
 			match message {
 				IngressMessages::Deposit(main, asset, amt) => {
-					log::info!(target:"ocex","processing a deposit {:?}, {:?}, {:?}", main, asset, amt.to_f64());
+					log::info!(target:"ocex","processing a deposit {:?}, {:?}, {:?}", main, asset.to_string(), amt.to_f64().unwrap());
 					add_balance(
 						state,
 						&Decode::decode(&mut &main.encode()[..])

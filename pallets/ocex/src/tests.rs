@@ -317,6 +317,39 @@ fn test_sub_balance_existing_account_with_balance() {
 }
 
 #[test]
+// check if balance can be subtracted from existing account
+fn test_balance_update_depost_first_then_trade() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let amount = 20;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		let result = add_balance(
+			&mut state,
+			&&Decode::decode(&mut &account_id.encode()[..]).unwrap(),
+			AssetId::Polkadex,
+			amount.into(),
+		);
+		assert_eq!(result, Ok(()));
+
+		//add balance for another asset
+		let amount2 = Decimal::from_f64_retain(4.2).unwrap();
+		let result = add_balance(&mut state, &account_id, AssetId::Asset(1), amount2.into());
+		assert_eq!(result, Ok(()));
+
+		//sub balance till 0
+		let amount3 = Decimal::from_f64_retain(2.0).unwrap();
+		let result = sub_balance(&mut state, &account_id, AssetId::Polkadex, amount3.into());
+		assert_eq!(result, Ok(()));
+	});
+}
+
+#[test]
 // check if more than available balance can be subtracted from existing account
 fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
 	let mut ext = new_test_ext();
