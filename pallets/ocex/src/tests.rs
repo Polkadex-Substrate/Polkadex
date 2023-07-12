@@ -33,15 +33,19 @@ use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
-	offchain::{testing, testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
+	offchain::{
+		testing,
+		testing::{TestOffchainExt, TestTransactionPoolExt},
+		OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
+	},
 	ByteArray, Pair, H256,
 };
-use sp_core::offchain::testing::TestTransactionPoolExt;
-use sp_core::offchain::TransactionPoolExt;
 use sp_io::TestExternalities;
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
-use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
-use sp_runtime::offchain::storage::StorageValueRef;
+use sp_runtime::{
+	offchain::storage::StorageValueRef, AccountId32, DispatchError::BadOrigin, SaturatedConversion,
+	TokenError,
+};
 use sp_std::default::Default;
 
 pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
@@ -121,7 +125,7 @@ fn test_ocex_submit_snapshot() {
 	});
 }
 
-fn finish_on_chain_validation(){
+fn finish_on_chain_validation() {
 	let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 	s_info.set(&false);
 }
@@ -140,8 +144,8 @@ fn test_run_on_chain_validation_deposit_once() {
 		.insert(crate::OCEX, seed1.as_str(), auth1.public().to_vec().as_slice())
 		.unwrap();
 	ext.register_extension(KeystoreExt::new(memory_store));
-    let (pool, state) = TestTransactionPoolExt::new();
-    ext.register_extension(TransactionPoolExt::new(pool));
+	let (pool, state) = TestTransactionPoolExt::new();
+	ext.register_extension(TransactionPoolExt::new(pool));
 	let authorities = vec![
 		AuthorityId::from(auth1.public()),
 		AuthorityId::from(auth2.public()),
@@ -168,11 +172,7 @@ fn test_run_on_chain_validation_deposit_once() {
 		//check if block number is 0
 		let mut curr_blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(curr_blk, 1_u64);
-		let mut batch = UserActionBatch{
-            actions: vec![BlockImport(1)],
-            snapshot_id: 1,
-            stid: 1,
-        };
+		let mut batch = UserActionBatch { actions: vec![BlockImport(1)], snapshot_id: 1, stid: 1 };
 		<UserActionsBatches<Test>>::insert(1, batch);
 		assert_ok!(OCEX::run_on_chain_validation(1));
 		<ProcessedSnapshotNonce<Test>>::put(1 as u64);
@@ -191,7 +191,7 @@ fn test_run_on_chain_validation_deposit_once() {
 		assert_eq!(curr_blk, 4_u64);
 
 		for i in 2..=4 {
-			batch = UserActionBatch{
+			batch = UserActionBatch {
 				actions: vec![BlockImport(i)],
 				snapshot_id: i as u64,
 				stid: i as u64,
@@ -2213,15 +2213,13 @@ fn test_withdrawal() {
 
 use orderbook_primitives::{
 	types::{
-		Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade, WithdrawPayloadCallByUser,
-		WithdrawalRequest,
+		Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade, UserActions,
+		UserActions::BlockImport, WithdrawPayloadCallByUser, WithdrawalRequest,
 	},
 	Fees,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
 use trie_db::TrieMut;
-use orderbook_primitives::types::UserActions;
-use orderbook_primitives::types::UserActions::BlockImport;
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -2269,9 +2267,9 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 use crate::{
 	settlement::{add_balance, process_trade, sub_balance},
 	sr25519::AuthorityId,
+	validator::WORKER_STATUS,
 };
 use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit, IngressMessages::Deposit};
-use crate::validator::WORKER_STATUS;
 
 #[test]
 fn test_set_balances_with_bad_origin() {

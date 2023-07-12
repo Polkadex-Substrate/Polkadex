@@ -187,12 +187,12 @@ impl<T: Config> Pallet<T> {
 				IngressMessages::Deposit(main, asset, amt) => {
 					log::debug!("processing a deposit");
 					add_balance(
-					state,
-					&Decode::decode(&mut &main.encode()[..])
-						.map_err(|_| "account id decode error")?,
-					asset,
-					amt,
-				)?
+						state,
+						&Decode::decode(&mut &main.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						asset,
+						amt,
+					)?
 				},
 				_ => {},
 			}
