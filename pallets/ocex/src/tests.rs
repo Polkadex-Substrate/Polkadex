@@ -39,7 +39,7 @@ use sp_core::{
 	ByteArray, Pair, H256,
 };
 use sp_io::TestExternalities;
-use sp_keystore::{testing::MemoryKeystore, Keystore};
+use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
 
@@ -47,6 +47,7 @@ pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
 	let (offchain, _offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
 	ext.register_extension(OffchainDbExt::new(offchain.clone()));
 	ext.register_extension(OffchainWorkerExt::new(offchain));
+	ext.register_extension(KeystoreExt::new(MemoryKeystore::new()));
 }
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
@@ -114,13 +115,37 @@ fn test_ocex_submit_snapshot() {
 }
 
 #[test]
+fn test_run_on_chain_validation_deposit_once(){
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+
+	let auth1 = sp_core::sr25519::Pair::generate().0;
+	let auth2 = sp_core::sr25519::Pair::generate().0;
+	let auth3 = sp_core::sr25519::Pair::generate().0;
+	let authorities = vec![
+		AuthorityId::from(auth1.public()),
+		AuthorityId::from(auth2.public()),
+		AuthorityId::from(auth3.public()),
+	];
+	ext.execute_with(|| {
+		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
+	});
+
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let asset_id = AssetId::Polkadex;
+		let amount = 1000000;
+		assert_ok!(OCEX::run_on_chain_validation(1));
+	});
+}
+#[test]
 // check if balance is added to new account
 fn test_add_balance_new_account() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
@@ -139,11 +164,10 @@ fn test_add_balance_new_account() {
 #[test]
 // check if balance is added to existing account with balance
 fn test_add_balance_existing_account_with_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
@@ -170,11 +194,10 @@ fn test_add_balance_existing_account_with_balance() {
 #[test]
 // check if balance can be subtracted from a new account
 fn test_sub_balance_new_account() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
@@ -193,11 +216,10 @@ fn test_sub_balance_new_account() {
 #[test]
 // check if balance can be subtracted from existing account
 fn test_sub_balance_existing_account_with_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 3000000;
@@ -234,11 +256,10 @@ fn test_sub_balance_existing_account_with_balance() {
 #[test]
 // check if more than available balance can be subtracted from existing account
 fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
-    let (offchain, state) = testing::TestOffchainExt::new();
-    let mut t = TestExternalities::default();
-    t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-    t.register_extension(OffchainDbExt::new(offchain.clone()));
-    t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+    ext.execute_with(|| {
         let account_id = create_account_id();
         let asset_id = AssetId::Polkadex;
         let amount = 3000000;
@@ -266,11 +287,10 @@ fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_without_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -289,11 +309,10 @@ fn test_trade_between_two_accounts_without_balance() {
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_with_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -367,11 +386,10 @@ fn test_trade_between_two_accounts_with_balance() {
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_insuffient_bidder_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -402,11 +420,10 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_insuffient_asker_balance() {
-	let (offchain, state) = testing::TestOffchainExt::new();
-	let mut t = TestExternalities::default();
-	t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-	t.register_extension(OffchainDbExt::new(offchain.clone()));
-	t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -438,11 +455,10 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_invalid_signature() {
-    let (offchain, state) = testing::TestOffchainExt::new();
-    let mut t = TestExternalities::default();
-    t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-    t.register_extension(OffchainDbExt::new(offchain.clone()));
-    t.execute_with(|| {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+    ext.execute_with(|| {
         let mut root = crate::storage::load_trie_root();
         let mut trie_state = crate::storage::State;
         let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
