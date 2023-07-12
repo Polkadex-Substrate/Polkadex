@@ -44,17 +44,6 @@ pub struct Message {
 	pub is_key_change: bool,
 	/// Validator set id at which this message was executed.
 	pub validator_set_id: ValidatorSetId,
-	/// Validators authorities set length.
-	pub validator_set_len: u64,
-}
-
-impl Message {
-	/// Calculates message validators threshold percentage.
-	pub fn threshold(&self) -> u64 {
-		const MAJORITY: u8 = 67;
-		let p = Percent::from_percent(MAJORITY);
-		p * self.validator_set_len
-	}
 }
 
 /// Defines structure of the deposit.
