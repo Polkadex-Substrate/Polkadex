@@ -381,14 +381,12 @@ pub mod pallet {
 		}
 
 		fn offchain_worker(block_number: T::BlockNumber) {
-			sp_runtime::print("Worker started!");
+			log::info!(target:"ocex", "offchain worker started");
 			if let Err(err) = Self::run_on_chain_validation(block_number) {
 				log::error!(target:"ocex","OCEX worker error: {}",err)
 			}
-			// Set worker status to false
-			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-			s_info.set(&false);
-			sp_runtime::print("OCEX worker exiting...");
+
+			log::info!(target:"ocex", "OCEX worker exiting...");
 		}
 	}
 
