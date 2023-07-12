@@ -64,6 +64,7 @@ impl<T: Config> Pallet<T> {
 		})? {
 			Some(true) => {
 				// Another worker is online, so exit
+				log::info!(target:"ocex", "Another worker is online, so exit");
 				return Ok(())
 			},
 			None => {},
@@ -75,6 +76,7 @@ impl<T: Config> Pallet<T> {
 
 		// Load the state to memory
 		let mut root = crate::storage::load_trie_root();
+		log::info!(target:"ocex","block: {:?}, state_root {:?}", _block_num, root);
 		let mut storage = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut storage, &mut root);
 
@@ -88,10 +90,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(())
 		}
 
-		sp_runtime::print("next_nonce");
-		sp_runtime::print(next_nonce);
-		sp_runtime::print("last_processed_nonce");
-		sp_runtime::print(last_processed_nonce);
+		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
 		if next_nonce.saturating_sub(last_processed_nonce) > 2 {
 			// We need to sync our offchain state
@@ -111,6 +110,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Load the next ObMessages
+		log::info!(target:"ocex","Loading user actions for nonce: {:?}",next_nonce);
 		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
 			None => {
 				log::debug!(target:"ocex","No user actions found for nonce: {:?}",next_nonce);
@@ -120,11 +120,13 @@ impl<T: Config> Pallet<T> {
 				Self::store_state_info(state_info, &mut state)?;
 				state.commit();
 				store_trie_root(*state.root());
+				log::debug!(target:"ocex","Stored state root: {:?}",state.root());
 				return Ok(())
 			},
 			Some(batch) => batch,
 		};
 
+		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
 
 		if sp_io::offchain::is_validator() {
@@ -161,6 +163,8 @@ impl<T: Config> Pallet<T> {
 		Self::store_state_info(state_info, &mut state)?;
 		state.commit();
 		store_trie_root(*state.root());
+		log::info!(target:"ocex","updated trie root: {:?}", state.root());
+
 		Ok(())
 	}
 
@@ -180,13 +184,16 @@ impl<T: Config> Pallet<T> {
 		for message in messages {
 			// We don't care about any other message
 			match message {
-				IngressMessages::Deposit(main, asset, amt) => add_balance(
+				IngressMessages::Deposit(main, asset, amt) => {
+					log::debug!("processing a deposit");
+					add_balance(
 					state,
 					&Decode::decode(&mut &main.encode()[..])
 						.map_err(|_| "account id decode error")?,
 					asset,
 					amt,
-				)?,
+				)?
+				},
 				_ => {},
 			}
 		}
