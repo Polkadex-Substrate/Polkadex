@@ -89,7 +89,6 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-thea-primitives = { workspace = true, default-features = false }
 bls-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 
@@ -183,7 +182,6 @@ std = [
   "liquidity/std",
   "pallet-rewards/std",
   "thea-executor/std",
-  "thea-primitives/std",
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
 ]

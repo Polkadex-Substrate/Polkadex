@@ -26,14 +26,10 @@
 
 pub mod types;
 
-pub use crate::{
-	crypto::{AuthorityId, AuthoritySignature},
-	types::Message,
-};
+pub use crate::types::Message;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_application_crypto::ByteArray;
-use sp_runtime::{traits::IdentifyAccount, DispatchResult};
+use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
 
 /// Authority set id starts with zero at genesis.

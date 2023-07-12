@@ -32,6 +32,7 @@ use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
 pub use pallet::*;
 use parity_scale_codec::{Encode, MaxEncodedLen};
 use polkadex_primitives::utils::return_set_bits;
+use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
@@ -52,8 +53,30 @@ mod session;
 #[cfg(test)]
 mod tests;
 
+pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
+
+pub const THEA: KeyTypeId = KeyTypeId(*b"thea");
+
+pub mod ecdsa {
+	mod app_ecdsa {
+		use super::super::THEA;
+		use sp_application_crypto::{app_crypto, ecdsa};
+		app_crypto!(ecdsa, THEA);
+	}
+
+	sp_application_crypto::with_pair! {
+		/// An THEA keypair using ecdsa as its crypto.
+		pub type AuthorityPair = app_ecdsa::Pair;
+	}
+
+	/// An THEA signature using ecdsa as its crypto.
+	pub type AuthoritySignature = app_ecdsa::Signature;
+
+	/// An THEA identifier using ecdsa as its crypto.
+	pub type AuthorityId = app_ecdsa::Public;
+}
 
 pub trait TheaWeightInfo {
 	fn update_network_pref(b: u32) -> Weight;
@@ -77,18 +100,10 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ Into<bls_primitives::Public>;
+		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
-			+ Member
-			+ Parameter
-			+ Into<bls_primitives::Signature>;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -179,6 +194,15 @@ pub mod pallet {
 		NoValidatorsFound(Network),
 		/// Cannot update with older nonce
 		NonceIsAlreadyProcessed,
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn offchain_worker(blk: T::BlockNumber) {
+			if let Err(err) = Self::run_thea_validation(blk) {
+				log::error!(target:"thea","Error while running thea: {:?}",err);
+			}
+		}
 	}
 
 	#[pallet::validate_unsigned]
@@ -305,35 +329,7 @@ impl<T: Config> Pallet<T> {
 		signature: &T::Signature,
 	) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
-		let nonce = <IncomingNonce<T>>::get(payload.network);
-		if payload.nonce != nonce.saturating_add(1) {
-			return Err(InvalidTransaction::Custom(1).into())
-		}
-
-		// Find who all signed this payload
-		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-
-		// Create a vector of public keys of everyone who signed
-		let auths: Vec<T::TheaId> =
-			<Authorities<T>>::get(payload.network, payload.validator_set_id).to_vec();
-		// CHeck if 2/3rd authorities signed on this.
-		if (signed_auths_indexes.len() as u64) < payload.threshold() {
-			// Reject there is not super majority.
-			return Err(InvalidTransaction::Custom(2).into())
-		}
-
-		let mut signatories: Vec<bls_primitives::Public> = vec![];
-		for index in signed_auths_indexes {
-			match auths.get(index) {
-				None => return Err(InvalidTransaction::Custom(3).into()),
-				Some(auth) => signatories.push(auth.clone().into()),
-			}
-		}
-		// Verify the aggregate signature.
-		let bls_signature: bls_primitives::Signature = signature.clone().into();
-		if !bls_signature.verify(&signatories, payload.encode().as_ref()) {
-			return Err(InvalidTransaction::BadSigner.into())
-		}
+		todo!();
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides("incoming")
