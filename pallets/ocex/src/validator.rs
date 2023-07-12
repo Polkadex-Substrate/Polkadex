@@ -5,6 +5,7 @@ use crate::{
 	storage::store_trie_root,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
+use rust_decimal::prelude::ToPrimitive;
 use frame_system::offchain::SubmitTransaction;
 use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
@@ -173,7 +174,7 @@ impl<T: Config> Pallet<T> {
 		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {
-		log::info!(target:"ocex","Importing block: {:?}",blk);
+		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
 		if blk <= state_info.last_block.saturated_into() {
 			return Err("BlockOutofSequence")
@@ -185,7 +186,7 @@ impl<T: Config> Pallet<T> {
 			// We don't care about any other message
 			match message {
 				IngressMessages::Deposit(main, asset, amt) => {
-					log::debug!("processing a deposit");
+					log::info!(target:"ocex","processing a deposit {:?}, {:?}, {:?}", main, asset, amt.to_f64());
 					add_balance(
 						state,
 						&Decode::decode(&mut &main.encode()[..])
@@ -300,3 +301,8 @@ pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 		TrieError::InvalidHash(_, _) => "InvalidHash",
 	}
 }
+
+// struct TrieLocalCache {
+// 	inner: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+// 	cache: BTreeMap<>
+// };
