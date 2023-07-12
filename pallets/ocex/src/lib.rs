@@ -385,7 +385,9 @@ pub mod pallet {
 			if let Err(err) = Self::run_on_chain_validation(block_number) {
 				log::error!(target:"ocex","OCEX worker error: {}",err)
 			}
-
+			// Set worker status to false
+			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
+			s_info.set(&false);
 			log::info!(target:"ocex", "OCEX worker exiting...");
 		}
 	}
