@@ -32,7 +32,7 @@ sp-application-crypto = { workspace = true }
 
 
 hash-db = { version = "0.16.0", default-features = false }
-trie-db = { version = "0.27.0", default-features = false }
+trie-db = { version = "0.27.1", default-features = false }
 #trie-root = { version = "0.18.0", default-features = false }
 sp-trie = { workspace = true, default-features = false }
 
