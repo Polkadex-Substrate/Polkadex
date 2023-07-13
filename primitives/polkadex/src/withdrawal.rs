@@ -24,12 +24,10 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
 use crate::AccountId;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 /// Defines withdrawal structure.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq,Serialize, Deserialize)]
 pub struct Withdrawal<AccountId> {
 	/// Main account identifier.
 	pub main_account: AccountId,
