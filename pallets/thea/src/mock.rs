@@ -139,8 +139,8 @@ parameter_types! {
 
 impl crate::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = crate::ecdsa::AuthorityId;
+	type Signature = crate::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
