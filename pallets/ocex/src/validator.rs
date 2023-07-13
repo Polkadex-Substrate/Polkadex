@@ -153,7 +153,7 @@ impl<T: Config> Pallet<T> {
 					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
 
 					let body = serde_json::json!({
-						"summary": summary,
+						"summary": summary.encode(),
 						"auth_index": auth_index,
 						"signature": signature.encode()
 					});
@@ -325,7 +325,7 @@ pub fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
 	)>() {
 		Ok(Some((summary, signature, index))) => {
 			let body = serde_json::json!({
-				"summary": summary,
+				"summary": summary.encode(),
 				"auth_index": index,
 				"signature": signature.encode()
 			});

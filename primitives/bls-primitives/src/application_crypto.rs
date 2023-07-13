@@ -26,7 +26,6 @@ pub use crate::*;
 
 pub mod app {
 	use sp_core::crypto::KeyTypeId;
-
 	pub const BLS: KeyTypeId = KeyTypeId(*b"blsk");
 
 	sp_application_crypto::app_crypto!(super, BLS);

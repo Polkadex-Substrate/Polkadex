@@ -29,9 +29,8 @@ use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use sp_core::H256;
-use sp_runtime::Deserialize;
 use sp_std::vec::Vec;
 
 pub mod constants;
