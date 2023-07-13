@@ -1582,7 +1582,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		}
 		let msg_hash = sp_io::hashing::keccak_256(&batch.encode());
 
-		if !sp_io::crypto::ecdsa_verify_prehashed(&signature, &msg_hash, &operator) {
+		if !sp_io::crypto::ecdsa_verify_prehashed(signature, &msg_hash, &operator) {
 			sp_runtime::print("signature verification failed");
 			return InvalidTransaction::Custom(4).into()
 		}
@@ -1616,7 +1616,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		let public_key = snapshot_summary.public.clone();
 		// Verify Signature
-		if !public_key.verify(&snapshot_summary.encode(), &signature) {
+		if !public_key.verify(&snapshot_summary.encode(), signature) {
 			return InvalidTransaction::Custom(13).into()
 		}
 

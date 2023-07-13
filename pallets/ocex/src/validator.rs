@@ -184,18 +184,14 @@ impl<T: Config> Pallet<T> {
 
 		for message in messages {
 			// We don't care about any other message
-			match message {
-				IngressMessages::Deposit(main, asset, amt) => {
-					log::info!(target:"ocex","processing a deposit {:?}, {:?}, {:?}", main, asset.to_string(), amt.to_f64().unwrap());
-					add_balance(
-						state,
-						&Decode::decode(&mut &main.encode()[..])
-							.map_err(|_| "account id decode error")?,
-						asset,
-						amt,
-					)?
-				},
-				_ => {},
+			if let IngressMessages::Deposit(main, asset, amt) = message {
+				add_balance(
+					state,
+					&Decode::decode(&mut &main.encode()[..])
+						.map_err(|_| "account id decode error")?,
+					asset,
+					amt,
+				)?
 			}
 		}
 
@@ -285,13 +281,12 @@ impl<T: Config> Pallet<T> {
 		state_info: StateInfo,
 		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 	) -> Result<(), &'static str> {
-		let _ = state
-			.insert(&STATE_INFO, &state_info.encode())
-			.map_err(|err| map_trie_error(err))?;
+		let _ = state.insert(&STATE_INFO, &state_info.encode()).map_err(map_trie_error)?;
 		Ok(())
 	}
 }
 
+#[allow(clippy::boxed_local)]
 pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 	match *err {
 		TrieError::InvalidStateRoot(_) => "Invalid State Root",

@@ -1322,10 +1322,10 @@ parameter_types! {
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
 }
 
-impl thea::pallet::Config for Runtime {
+impl thea::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
@@ -1551,33 +1551,6 @@ impl_runtime_apis! {
 
 		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
 			data.check_extrinsics(&block)
-		}
-	}
-
-	impl thea_primitives::TheaApi<Block> for Runtime {
-		/// Return the current active Thea validator set for all networks
-		fn full_validator_set() -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
-			Thea::full_validator_set()
-		}
-		/// Return the current active Thea validator set
-		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
-			Thea::validator_set(network)
-		}
-		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(network: thea_primitives::Network, nonce: u64) -> Option<thea_primitives::Message>{
-			Thea::get_outgoing_messages(network, nonce)
-		}
-		/// Get Thea network associated with Validator
-		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{
-			Thea::network(auth)
-		}
-		/// Incoming messages
-		fn incoming_message(message: thea_primitives::Message, bitmap: Vec<u128>, signature: thea_primitives::AuthoritySignature) -> Result<(),()>{
-			Thea::submit_incoming_message(message,bitmap,signature)
-		}
-		/// Get last processed nonce for a given network
-		fn get_last_processed_nonce(network: thea_primitives::Network) -> u64{
-			Thea::get_last_processed_nonce(network)
 		}
 	}
 

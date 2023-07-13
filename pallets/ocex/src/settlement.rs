@@ -46,7 +46,7 @@ pub fn add_balance(
 ) -> Result<(), &'static str> {
 	log::info!(target:"ocex", "adding {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account.as_slice());
 	let mut balances: BTreeMap<AssetId, Decimal> =
-		match state.get(account.as_slice()).map_err(|err| map_trie_error(err))? {
+		match state.get(account.as_slice()).map_err(map_trie_error)? {
 			None => BTreeMap::new(),
 			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
 				.map_err(|_| "Unable to decode balances for account")?,
@@ -57,9 +57,7 @@ pub fn add_balance(
 		.and_modify(|total| *total = total.saturating_add(balance))
 		.or_insert(balance);
 
-	state
-		.insert(account.as_slice(), &balances.encode())
-		.map_err(|err| map_trie_error(err))?;
+	state.insert(account.as_slice(), &balances.encode()).map_err(map_trie_error)?;
 	Ok(())
 }
 
@@ -81,7 +79,7 @@ pub fn sub_balance(
 ) -> Result<(), &'static str> {
 	log::info!(target:"ocex", "subtracting {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account.as_slice());
 	let mut balances: BTreeMap<AssetId, Decimal> =
-		match state.get(account.as_slice()).map_err(|err| map_trie_error(err))? {
+		match state.get(account.as_slice()).map_err(map_trie_error)? {
 			None => return Err("Account not found in trie"),
 			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
 				.map_err(|_| "Unable to decode balances for account")?,
@@ -94,9 +92,7 @@ pub fn sub_balance(
 	}
 	*account_balance = account_balance.saturating_sub(balance);
 
-	state
-		.insert(account.as_slice(), &balances.encode())
-		.map_err(|err| map_trie_error(err))?;
+	state.insert(account.as_slice(), &balances.encode()).map_err(map_trie_error)?;
 
 	Ok(())
 }
