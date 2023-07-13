@@ -5521,7 +5521,6 @@ dependencies = [
 name = "pallet-ocex-lmp"
 version = "5.1.0"
 dependencies = [
- "env_logger",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

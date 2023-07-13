@@ -3,15 +3,15 @@ use crate::{
 	settlement::{add_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
 	storage::store_trie_root,
-	Call, Config, Pallet, ProcessedSnapshotNonce,
+	Config, Pallet, SnapshotNonce,
 };
 
 use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AccountId};
-use rust_decimal::prelude::ToPrimitive;
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
+
 use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
@@ -23,7 +23,7 @@ use sp_runtime::{
 	offchain::{
 		http,
 		http::{Error, PendingRequest, Response},
-		storage::{StorageRetrievalError, StorageValueRef},
+		storage::StorageValueRef,
 	},
 	traits::BlakeTwo256,
 	SaturatedConversion,
@@ -76,7 +76,7 @@ impl<T: Config> Pallet<T> {
 		}
 		s_info.set(&true); // Set WORKER_STATUS to true
 				   // Check the next batch to process
-		let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
+		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 
 		// Load the state to memory
 		let mut root = crate::storage::load_trie_root();
@@ -372,7 +372,7 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 	log::debug!(target:"thea","Waiting for {} response...",log_target);
 	let response: Response = pending
 		.try_wait(deadline)
-		.map_err(|pending| "deadline reached")?
+		.map_err(|_pending| "deadline reached")?
 		.map_err(map_sp_runtime_http_err)?;
 
 	if response.code != 200u16 {

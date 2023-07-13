@@ -180,7 +180,6 @@ mod tests {
 	pub fn test_trie_storage() {
 		let mut ext = new_test_ext();
 		register_offchain_ext(&mut ext);
-		env_logger::init();
 		log::trace!(target:"ocex","test_trie_storage test starting..");
 		ext.execute_with(|| {
 			let mut root = load_trie_root();
