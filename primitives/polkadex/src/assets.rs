@@ -17,6 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::Balance;
+#[cfg(not(feature = "std"))]
+use codec::alloc::string::ToString;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	ensure,
@@ -25,14 +27,13 @@ use frame_support::{
 		Get,
 	},
 };
+#[cfg(not(feature = "std"))]
+use scale_info::prelude::{format, string::String};
 use scale_info::TypeInfo;
-use serde::de::{Error, MapAccess, Unexpected, Visitor};
-use serde::Deserializer;
-use serde::{Deserialize, Serialize, Serializer};
-#[cfg(not(feature = "std"))]
-use scale_info::prelude::{string::String, format};
-#[cfg(not(feature = "std"))]
-use codec::alloc::string::ToString;
+use serde::{
+	de::{Error, MapAccess, Unexpected, Visitor},
+	Deserialize, Deserializer, Serialize, Serializer,
+};
 use sp_core::RuntimeDebug;
 use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::fmt::{Display, Formatter};

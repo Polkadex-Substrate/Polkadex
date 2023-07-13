@@ -27,7 +27,9 @@ use crate::AccountId;
 use serde::{Deserialize, Serialize};
 
 /// Defines withdrawal structure.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq,Serialize, Deserialize)]
+#[derive(
+	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
+)]
 pub struct Withdrawal<AccountId> {
 	/// Main account identifier.
 	pub main_account: AccountId,

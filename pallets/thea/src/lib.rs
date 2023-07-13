@@ -28,9 +28,9 @@
 //! * handle validator session changes;
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
-use frame_system::{pallet_prelude::*};
+use frame_system::pallet_prelude::*;
 pub use pallet::*;
-use parity_scale_codec::{Encode};
+use parity_scale_codec::Encode;
 
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
@@ -39,9 +39,7 @@ use sp_runtime::{
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{
-	types::Message, Network, GENESIS_AUTHORITY_SET_ID,
-};
+use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -103,9 +101,7 @@ pub mod pallet {
 		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize + Ord;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
-			+ Member
-			+ Parameter;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -228,7 +224,7 @@ pub mod pallet {
 			// Signature and nonce are already verified in validate_unsigned, no need to do it again
 			T::Executor::execute_deposits(payload.network, payload.data.clone());
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
-			Self::deposit_event(Event::<T>::TheaPayloadProcessed(payload.network,payload.nonce));
+			Self::deposit_event(Event::<T>::TheaPayloadProcessed(payload.network, payload.nonce));
 			// Save the incoming message for some time
 			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
 			Ok(())

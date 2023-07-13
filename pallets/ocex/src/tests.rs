@@ -34,18 +34,12 @@ use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
-	offchain::{
-		testing::{TestOffchainExt},
-		OffchainDbExt, OffchainWorkerExt,
-	},
+	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
 	ByteArray, Pair, H256,
 };
 
 use sp_keystore::{testing::MemoryKeystore, Keystore};
-use sp_runtime::{
-	AccountId32, DispatchError::BadOrigin, SaturatedConversion,
-	TokenError,
-};
+use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
 
 pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
@@ -71,7 +65,6 @@ pub const ALICE_PROXY_ACCOUNT_RAW_ID: [u8; 32] = [7u8; 32];
 fn get_alice_accounts() -> (AccountId32, AccountId32) {
 	(AccountId::new(ALICE_MAIN_ACCOUNT_RAW_ID), AccountId::new(ALICE_PROXY_ACCOUNT_RAW_ID))
 }
-
 
 #[test]
 fn test_ocex_submit_snapshot() {
@@ -2218,9 +2211,7 @@ fn test_withdrawal() {
 }
 
 use orderbook_primitives::{
-	types::{
-		Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade,
-	},
+	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
 	Fees,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};

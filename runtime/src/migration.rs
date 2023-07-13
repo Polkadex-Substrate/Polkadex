@@ -40,9 +40,9 @@ pub mod session_keys {
 								orderbook: OCEXId::from(sp_core::sr25519::Public::from_raw(
 									[0u8; 32],
 								)),
-								thea: thea::ecdsa::AuthorityId::from(sp_core::ecdsa::Public::from_raw(
-									[0u8;33]
-								)),
+								thea: thea::ecdsa::AuthorityId::from(
+									sp_core::ecdsa::Public::from_raw([0u8; 33]),
+								),
 							},
 						);
 						log::info!(target:"migration","Migrated session key: {:?}",new_key);
@@ -67,7 +67,7 @@ pub mod session_keys {
 					authority_discovery: old_keys.authority_discovery,
 					orderbook: OCEXId::from(sp_core::sr25519::Public::from_raw([0u8; 32])),
 					thea: thea::ecdsa::AuthorityId::from(sp_core::ecdsa::Public::from_raw(
-						[0u8;33]
+						[0u8; 33],
 					)),
 				})
 			});
