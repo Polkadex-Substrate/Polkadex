@@ -56,8 +56,7 @@ mod tests;
 pub mod weights;
 
 use orderbook_primitives::{
-	types::{TradingPair, UserActionBatch},
-	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	types::TradingPair, SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
@@ -145,7 +144,7 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{types::UserActionBatch, Fees, SnapshotSummary};
+	use orderbook_primitives::{Fees, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -1034,7 +1033,7 @@ pub mod pallet {
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
 
 			let id = summary.snapshot_id;
-			<ProcessedSnapshotNonce<T>>::put(id);
+			<SnapshotNonce<T>>::put(id);
 			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
 			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
 			<Snapshots<T>>::insert(summary.snapshot_id, summary);
@@ -1352,11 +1351,6 @@ pub mod pallet {
 	#[pallet::getter(fn snapshot_nonce)]
 	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-	// Processed Snapshots Nonce
-	#[pallet::storage]
-	#[pallet::getter(fn processed_snapshot_nonce)]
-	pub type ProcessedSnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
-
 	// Exchange Operation State
 	#[pallet::storage]
 	#[pallet::getter(fn orderbook_operational_state)]
@@ -1436,7 +1430,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		sp_runtime::print("Validating submit_snapshot....");
 
 		// Verify if snapshot is already processed
-		if <ProcessedSnapshotNonce<T>>::get().saturating_add(1) != snapshot_summary.snapshot_id {
+		if <SnapshotNonce<T>>::get().saturating_add(1) != snapshot_summary.snapshot_id {
 			return InvalidTransaction::Custom(10).into()
 		}
 

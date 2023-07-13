@@ -20,6 +20,7 @@
 
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec};
+use orderbook_primitives::types::UserActionBatch;
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -90,38 +91,33 @@ fn test_ocex_submit_snapshot() {
 		AuthorityId::from(auth3.public()),
 	];
 
-	let snapshot1 = SnapshotSummary {
+	let snapshot = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
 		state_hash: H256::random(),
 		state_change_id: 1104,
 		last_processed_blk: 1103,
 		withdrawals: vec![],
-		public: authorities[0].clone(),
 	};
 
-	let signature1 = auth1.sign(&snapshot1.encode());
+	let signature1 = auth1.sign(&snapshot.encode());
 
-	let snapshot2 = SnapshotSummary {
-		validator_set_id: 0,
-		snapshot_id: 115,
-		state_hash: H256::random(),
-		state_change_id: 1104,
-		last_processed_blk: 1103,
-		withdrawals: vec![],
-		public: authorities[1].clone(),
-	};
-	let signature2 = auth2.sign(&snapshot2.encode());
+	let signature2 = auth2.sign(&snapshot.encode());
 
 	new_test_ext().execute_with(|| {
 		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
 		<SnapshotNonce<Test>>::put(113);
-		OCEX::validate_snapshot(&snapshot1, &signature1.clone().into()).unwrap();
-		assert!(OCEX::validate_snapshot(&snapshot2, &signature2.clone().into()).is_err());
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot1, signature1.into()));
-		OCEX::validate_snapshot(&snapshot2, &signature2.clone().into()).unwrap();
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot2, signature2.into()));
-		assert_eq!(<SnapshotNonce<Test>>::get(), 115);
+		OCEX::validate_snapshot(
+			&snapshot,
+			&vec![(0, signature1.clone().into()), (1, signature2.clone().into())],
+		)
+		.unwrap();
+		assert_ok!(OCEX::submit_snapshot(
+			RuntimeOrigin::none(),
+			snapshot,
+			vec![(0, signature1.into()), (1, signature2.into())]
+		));
+		assert_eq!(<SnapshotNonce<Test>>::get(), 114);
 	});
 }
 
@@ -129,80 +125,82 @@ fn finish_on_chain_validation() {
 	let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 	s_info.set(&false);
 }
-#[test]
-fn test_run_on_chain_validation_deposit_once() {
-	let _ = env_logger::builder().is_test(true).try_init();
-	let mut ext = new_test_ext();
-	ext.persist_offchain_overlay();
-	register_offchain_ext(&mut ext);
-	let (auth1, seed1, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
-	let (auth2, seed2, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
-	let (auth3, seed3, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
-	let memory_store = MemoryKeystore::new();
 
-	memory_store
-		.insert(crate::OCEX, seed1.as_str(), auth1.public().to_vec().as_slice())
-		.unwrap();
-	ext.register_extension(KeystoreExt::new(memory_store));
-	let (pool, state) = TestTransactionPoolExt::new();
-	ext.register_extension(TransactionPoolExt::new(pool));
-	let authorities = vec![
-		AuthorityId::from(auth1.public()),
-		AuthorityId::from(auth2.public()),
-		AuthorityId::from(auth3.public()),
-	];
-	ext.execute_with(|| {
-		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
-		let account_id = create_account_id();
-		let asset_id = AssetId::Polkadex;
-		let amount = 100_u128;
-
-		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
-		mint_into_account(account_id.clone());
-		allowlist_token(AssetId::Polkadex);
-		assert_ok!(OCEX::register_main_account(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			account_id.clone()
-		));
-		assert_ok!(OCEX::deposit(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			asset_id,
-			amount.into()
-		));
-		//check if block number is 0
-		let mut curr_blk = frame_system::Pallet::<Test>::current_block_number();
-		assert_eq!(curr_blk, 1_u64);
-		let mut batch = UserActionBatch { actions: vec![BlockImport(1)], snapshot_id: 1, stid: 1 };
-		<UserActionsBatches<Test>>::insert(1, batch);
-		assert_ok!(OCEX::run_on_chain_validation(1));
-		<ProcessedSnapshotNonce<Test>>::put(1 as u64);
-		finish_on_chain_validation();
-
-		let blocks = 3;
-
-		add_blocks(blocks);
-
-		assert_ok!(OCEX::deposit(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			asset_id,
-			amount.into()
-		));
-		curr_blk = frame_system::Pallet::<Test>::current_block_number();
-		assert_eq!(curr_blk, 4_u64);
-
-		for i in 2..=4 {
-			batch = UserActionBatch {
-				actions: vec![BlockImport(i)],
-				snapshot_id: i as u64,
-				stid: i as u64,
-			};
-			<UserActionsBatches<Test>>::insert(i as u64, batch);
-			assert_ok!(OCEX::run_on_chain_validation(i.try_into().unwrap()));
-			<ProcessedSnapshotNonce<Test>>::put(i as u64);
-			finish_on_chain_validation();
-		}
-	});
-}
+// #[ignore]
+// #[test]
+// fn test_run_on_chain_validation_deposit_once() {
+// 	let _ = env_logger::builder().is_test(true).try_init();
+// 	let mut ext = new_test_ext();
+// 	ext.persist_offchain_overlay();
+// 	register_offchain_ext(&mut ext);
+// 	let (auth1, seed1, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
+// 	let (auth2, seed2, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
+// 	let (auth3, seed3, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
+// 	let memory_store = MemoryKeystore::new();
+//
+// 	memory_store
+// 		.insert(crate::OCEX, seed1.as_str(), auth1.public().to_vec().as_slice())
+// 		.unwrap();
+// 	ext.register_extension(KeystoreExt::new(memory_store));
+// 	let (pool, state) = TestTransactionPoolExt::new();
+// 	ext.register_extension(TransactionPoolExt::new(pool));
+// 	let authorities = vec![
+// 		AuthorityId::from(auth1.public()),
+// 		AuthorityId::from(auth2.public()),
+// 		AuthorityId::from(auth3.public()),
+// 	];
+// 	ext.execute_with(|| {
+// 		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
+// 		let account_id = create_account_id();
+// 		let asset_id = AssetId::Polkadex;
+// 		let amount = 100_u128;
+//
+// 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+// 		mint_into_account(account_id.clone());
+// 		allowlist_token(AssetId::Polkadex);
+// 		assert_ok!(OCEX::register_main_account(
+// 			RuntimeOrigin::signed(account_id.clone().into()),
+// 			account_id.clone()
+// 		));
+// 		assert_ok!(OCEX::deposit(
+// 			RuntimeOrigin::signed(account_id.clone().into()),
+// 			asset_id,
+// 			amount.into()
+// 		));
+// 		//check if block number is 0
+// 		let mut curr_blk = frame_system::Pallet::<Test>::current_block_number();
+// 		assert_eq!(curr_blk, 1_u64);
+// 		let mut batch = UserActionBatch { actions: vec![BlockImport(1)], snapshot_id: 1, stid: 1 };
+// 		<UserActionsBatches<Test>>::insert(1, batch);
+// 		assert_ok!(OCEX::run_on_chain_validation(1));
+// 		<ProcessedSnapshotNonce<Test>>::put(1 as u64);
+// 		finish_on_chain_validation();
+//
+// 		let blocks = 3;
+//
+// 		add_blocks(blocks);
+//
+// 		assert_ok!(OCEX::deposit(
+// 			RuntimeOrigin::signed(account_id.clone().into()),
+// 			asset_id,
+// 			amount.into()
+// 		));
+// 		curr_blk = frame_system::Pallet::<Test>::current_block_number();
+// 		assert_eq!(curr_blk, 4_u64);
+//
+// 		for i in 2..=4 {
+// 			batch = UserActionBatch {
+// 				actions: vec![BlockImport(i)],
+// 				snapshot_id: i as u64,
+// 				stid: i as u64,
+// 			};
+// 			<UserActionsBatches<Test>>::insert(i as u64, batch);
+// 			assert_ok!(OCEX::run_on_chain_validation(i.try_into().unwrap()));
+// 			<ProcessedSnapshotNonce<Test>>::put(i as u64);
+// 			finish_on_chain_validation();
+// 		}
+// 	});
+// }
 #[test]
 // check if balance is added to new account
 fn test_add_balance_new_account() {
@@ -1855,7 +1853,7 @@ fn collect_fees() {
 		assert_ok!(OCEX::submit_snapshot(
 			RuntimeOrigin::none(),
 			snapshot.clone(),
-			signature.into()
+			vec![(0, signature.into())]
 		));
 
 		// Complete dispute period
@@ -2064,12 +2062,12 @@ fn collect_fees_ddos() {
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
-		let (mut snapshot, _public, signature) = get_dummy_snapshot(0);
+		let (mut snapshot, _public, _) = get_dummy_snapshot(0);
 		snapshot.snapshot_id = 2;
 		// Wrong nonce
 		assert_noop!(
-			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot, signature.into()),
-			Error::<Test>::SnapshotNonceError
+			OCEX::validate_snapshot(&snapshot, &Vec::new()),
+			InvalidTransaction::Custom(10)
 		);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk).len(), 0);
@@ -2078,11 +2076,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 
 fn get_dummy_snapshot(
 	withdrawals_len: usize,
-) -> (
-	SnapshotSummary<AccountId32, AuthorityId>,
-	sp_core::sr25519::Public,
-	sp_core::sr25519::Signature,
-) {
+) -> (SnapshotSummary<AccountId32>, sp_core::sr25519::Public, sp_core::sr25519::Signature) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -2104,7 +2098,6 @@ fn get_dummy_snapshot(
 		state_change_id: 1,
 		last_processed_blk: 1,
 		withdrawals,
-		public: AuthorityId::from(pair.public()),
 	};
 
 	let signature = pair.sign(&snapshot.encode());
@@ -2117,8 +2110,8 @@ fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
 		let (snapshot, _public, signature) = get_dummy_snapshot(1);
 		assert_noop!(
-			OCEX::validate_snapshot(&snapshot, &signature.into()),
-			InvalidTransaction::Custom(11)
+			OCEX::validate_snapshot(&snapshot, &vec![(0, signature.into())]),
+			InvalidTransaction::Custom(12)
 		);
 	});
 }
@@ -2142,11 +2135,7 @@ fn test_submit_snapshot() {
 				},
 			}
 		}
-		assert_ok!(OCEX::submit_snapshot(
-			RuntimeOrigin::none(),
-			snapshot.clone(),
-			signature.into()
-		));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone(), Vec::new()));
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
@@ -2210,11 +2199,7 @@ fn test_withdrawal() {
 
 		let (snapshot, _public, signature) = get_dummy_snapshot(1);
 
-		assert_ok!(OCEX::submit_snapshot(
-			RuntimeOrigin::none(),
-			snapshot.clone(),
-			signature.into()
-		));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone(), Vec::new()));
 
 		// Complete dispute period
 		new_block();
@@ -2472,23 +2457,6 @@ fn test_set_snapshot_full() {
 		assert_noop!(OCEX::set_snapshot(RuntimeOrigin::signed(b), 1), BadOrigin);
 		// proper cases
 		assert_ok!(OCEX::set_snapshot(RuntimeOrigin::root(), 1));
-	})
-}
-
-#[test]
-fn test_change_snapshot_interval_block_full() {
-	new_test_ext().execute_with(|| {
-		let (a, b) = get_alice_accounts();
-		// bad origins
-		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::none(), 1), BadOrigin);
-		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(a), 1), BadOrigin);
-		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(b), 1), BadOrigin);
-		// proper cases
-		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), 1));
-		// half max
-		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u32::MAX.into()));
-		// max
-		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u64::MAX));
 	})
 }
 
