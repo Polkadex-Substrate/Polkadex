@@ -28,10 +28,10 @@
 //! * handle validator session changes;
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
-use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
+use frame_system::{pallet_prelude::*};
 pub use pallet::*;
-use parity_scale_codec::{Encode, MaxEncodedLen};
-use polkadex_primitives::utils::return_set_bits;
+use parity_scale_codec::{Encode};
+
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
@@ -40,7 +40,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use thea_primitives::{
-	types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
+	types::Message, Network, GENESIS_AUTHORITY_SET_ID,
 };
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -178,7 +178,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		Dummy,
+		TheaPayloadProcessed(Network, u64),
 	}
 
 	#[pallet::error]
@@ -189,10 +189,6 @@ pub mod pallet {
 		ErrorExecutingMessage,
 		/// Wrong nonce provided
 		MessageNonce,
-		/// No validators for this network
-		NoValidatorsFound(Network),
-		/// Cannot update with older nonce
-		NonceIsAlreadyProcessed,
 	}
 
 	#[pallet::hooks]
@@ -230,9 +226,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			// Signature and nonce are already verified in validate_unsigned, no need to do it again
-
 			T::Executor::execute_deposits(payload.network, payload.data.clone());
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
+			Self::deposit_event(Event::<T>::TheaPayloadProcessed(payload.network,payload.nonce));
 			// Save the incoming message for some time
 			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
 			Ok(())

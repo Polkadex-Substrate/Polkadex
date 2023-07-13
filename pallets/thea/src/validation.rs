@@ -1,22 +1,22 @@
-use frame_system::offchain::SubmitTransaction;
+
 use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Deserializer, Serialize};
 use sp_core::offchain::{Duration, HttpError};
 use sp_runtime::offchain::{
 	http,
-	http::{Error, PendingRequest, Request, Response},
+	http::{Error, PendingRequest, Response},
 };
 use sp_std::{vec, vec::Vec};
 use thea_primitives::{Message, Network};
 
-use crate::{Call, Config, Pallet};
+use crate::{Config, Pallet};
 
 pub const MAINNET_URL: &str = "http://localhost:9944";
 pub const PARACHAIN_URL: &str = "http://localhost:9933";
 pub const AGGREGRATOR_URL: &str = "https://thea-aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
-	pub fn run_thea_validation(blk: T::BlockNumber) -> Result<(), &'static str> {
+	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
 		if !sp_io::offchain::is_validator() {
 			return Ok(())
 		}
@@ -106,31 +106,28 @@ pub fn get_payload_for_nonce(
 	network: Network,
 	destination: Destination,
 ) -> Option<Message> {
-	let mut message = None;
-
 	match destination {
 		Destination::Solochain => {
 			// Get the outgoing message with nonce: `nonce` for network: `network`
 			let key = create_solo_outgoing_message_key(nonce, network);
-			message = get_storage_at_latest_finalized_head::<Option<Message>>(
+			get_storage_at_latest_finalized_head::<Option<Message>>(
 				"solo_outgoing_message",
 				MAINNET_URL,
 				key,
 			)
-			.unwrap();
+			.unwrap()
 		},
 		Destination::Parachain => {
 			// Get the outgoing message with nonce: `nonce` from network
 			let key = create_para_outgoing_message_key(nonce);
-			message = get_storage_at_latest_finalized_head::<Option<Message>>(
+			get_storage_at_latest_finalized_head::<Option<Message>>(
 				"para_outgoing_message",
 				PARACHAIN_URL,
 				key,
 			)
-			.unwrap();
+			.unwrap()
 		},
 	}
-	message
 }
 
 pub fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8> {
@@ -192,9 +189,9 @@ pub fn get_finalized_head<'a>(url: &str) -> Result<Vec<u8>, &'static str> {
 }
 use crate::pallet::{ActiveNetworks, Authorities, IncomingNonce, OutgoingNonce, ValidatorSetId};
 use parity_scale_codec::alloc::string::ToString;
-use polkadex_primitives::Signature;
+
 use sp_application_crypto::RuntimeAppPublic;
-use sp_core::{bytes::to_hex, U256};
+
 use thea_primitives::types::Destination;
 
 pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
@@ -213,7 +210,7 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 	log::debug!(target:"thea","Waiting for {} response...",log_target);
 	let response: Response = pending
 		.try_wait(deadline)
-		.map_err(|pending| "deadline reached")?
+		.map_err(|_pending| "deadline reached")?
 		.map_err(map_sp_runtime_http_err)?;
 
 	if response.code != 200u16 {
@@ -268,24 +265,4 @@ where
 	let bytes = s.as_bytes().to_vec();
 
 	Ok(bytes)
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::validation::get_finalized_head;
-	use sp_io::TestExternalities;
-	use sp_runtime::offchain::{testing, OffchainDbExt, OffchainWorkerExt};
-	#[test]
-	pub fn test_get_finalized_head() {
-		env_logger::init();
-		let (offchain, state) = testing::TestOffchainExt::new();
-		let mut t = TestExternalities::default();
-		t.register_extension(OffchainWorkerExt::new(offchain.clone()));
-		// t.register_extension(OffchainDbExt::new(offchain.clone()));
-		t.execute_with(|| {
-			let head = get_finalized_head("https://mainnet.polkadex.trade").unwrap();
-			println!("head: {:?}", hex::encode(head));
-		});
-	}
 }

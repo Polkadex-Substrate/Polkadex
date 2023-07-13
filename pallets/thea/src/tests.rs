@@ -26,15 +26,11 @@ const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race 
 
 const PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
 
-fn any_id() -> <Test as Config>::TheaId {
-	<Test as Config>::TheaId::decode(&mut [1u8; 96].as_ref()).unwrap()
-}
-
 fn any_signature() -> <Test as Config>::Signature {
-	<Test as Config>::Signature::decode(&mut [1u8; 48].as_ref()).unwrap()
+	<Test as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap()
 }
 
-fn set_200_validators(network: u8) -> [Pair; 200] {
+fn set_200_validators(_: u8) -> [Pair; 200] {
 	let mut validators = Vec::with_capacity(200);
 	for i in 0..200 {
 		validators
@@ -81,6 +77,7 @@ fn test_session_change() {
 			.into_iter()
 			.for_each(|bls| authorities.push((&1, bls.public().into())));
 
+		<ActiveNetworks<Test>>::put(vec![1]);
 		assert!(Thea::validator_set_id() == 0);
 		assert!(Thea::outgoing_nonce(1) == 0);
 		let authorities_cloned: Vec<(&u64, <Test as Config>::TheaId)> = authorities.clone();
@@ -104,9 +101,8 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::incoming_message(
 				RuntimeOrigin::root(),
-				vec!(u128::MAX),
 				message_for_nonce(1),
-				any_signature()
+				vec![(0,any_signature())]
 			),
 			BadOrigin
 		);
@@ -116,56 +112,48 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::incoming_message(
 				RuntimeOrigin::signed(1),
-				vec!(u128::MAX),
 				message.clone(),
-				proper_sig.clone().into()
+				vec![(0,proper_sig.clone().into())]
 			),
 			BadOrigin
 		);
 		// bad bitmap
 		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::signed(1),
-				vec!(0),
-				message.clone(),
-				proper_sig.clone().into()
+			Thea::validate_incoming_message(
+				&message.clone(),
+				&vec![(0,proper_sig.clone().into())]
 			),
-			BadOrigin
+			InvalidTransaction::Custom(4)
 		);
+
 		// bad nonce (too big)
 		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::none(),
-				vec!(u128::MAX),
-				message_for_nonce(u64::MAX),
-				proper_sig.clone().into()
+			Thea::validate_incoming_message(
+				&message_for_nonce(u64::MAX),
+				&vec![(0,proper_sig.clone().into())]
 			),
-			Error::<Test>::MessageNonce
+			InvalidTransaction::Custom(1)
 		);
 		// bad nonce (too small)
 		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::none(),
-				vec!(u128::MAX),
-				message_for_nonce(u64::MIN),
-				proper_sig.clone().into()
+			Thea::validate_incoming_message(
+				&message_for_nonce(u64::MIN),
+				&vec![(0,proper_sig.clone().into())]
 			),
-			Error::<Test>::MessageNonce
+			InvalidTransaction::Custom(1)
 		);
 		// bad payload
 		let mut bad_message = message.clone();
 		bad_message.block_no = 1; // changing bit
 		let bad_message_call = Call::<Test>::incoming_message {
-			bitmap: vec![u128::MAX],
 			payload: bad_message,
-			signature: proper_sig.clone().into(),
+			signatures:vec![(0,proper_sig.clone().into())],
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
 		// bad signature
 		let bad_sig_call = Call::<Test>::incoming_message {
-			bitmap: vec![u128::MAX],
 			payload: message.clone(),
-			signature: any_signature(),
+			signatures:vec![(0,any_signature())],
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_sig_call).is_err());
 	})
@@ -199,11 +187,6 @@ fn test_send_thea_message_bad_inputs() {
 			BadOrigin
 		);
 		assert_err!(Thea::send_thea_message(RuntimeOrigin::signed(u64::MAX), vec!(), 0), BadOrigin);
-		// no authorities set for network
-		assert_err!(
-			Thea::send_thea_message(RuntimeOrigin::root(), vec!(), 0),
-			Error::<Test>::NoValidatorsFound(0)
-		);
 		assert_eq!(<OutgoingNonce<Test>>::get(0), 0);
 		assert_eq!(<OutgoingMessages<Test>>::get(0, 1), None);
 	})
@@ -222,22 +205,6 @@ fn test_update_incoming_nonce_all() {
 		assert_err!(
 			Thea::update_incoming_nonce(RuntimeOrigin::signed(u64::MAX), u64::MAX, 0),
 			BadOrigin
-		);
-		// equal or smaller shold fail
-		assert_err!(
-			Thea::update_incoming_nonce(RuntimeOrigin::root(), 0, 0),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
-		<IncomingNonce<Test>>::set(0, 2);
-		assert_err!(
-			Thea::update_incoming_nonce(RuntimeOrigin::root(), 1, 0),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
-		// overflow
-		<IncomingNonce<Test>>::set(0, u64::MAX);
-		assert_err!(
-			Thea::update_incoming_nonce(RuntimeOrigin::root(), 0, 0),
-			Error::<Test>::NonceIsAlreadyProcessed
 		);
 		// proper cases
 		<IncomingNonce<Test>>::set(0, 0);
@@ -263,22 +230,7 @@ fn test_update_outgoing_nonce_all() {
 			Thea::update_outgoing_nonce(RuntimeOrigin::signed(u64::MAX), u64::MAX, 0),
 			BadOrigin
 		);
-		// equal or smaller shold fail
-		assert_err!(
-			Thea::update_outgoing_nonce(RuntimeOrigin::root(), 0, 0),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
-		<OutgoingNonce<Test>>::set(0, 2);
-		assert_err!(
-			Thea::update_outgoing_nonce(RuntimeOrigin::root(), 1, 0),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
-		// overflow
-		<IncomingNonce<Test>>::set(0, u64::MAX);
-		assert_err!(
-			Thea::update_outgoing_nonce(RuntimeOrigin::root(), 0, 0),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
+
 		// proper cases
 		<IncomingNonce<Test>>::set(0, 0);
 		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), 10, 0));
