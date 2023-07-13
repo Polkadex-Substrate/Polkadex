@@ -10055,9 +10055,11 @@ dependencies = [
 name = "thea"
 version = "1.1.0"
 dependencies = [
+ "env_logger",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex",
  "log",
  "pallet-assets",
  "pallet-balances",
@@ -10133,12 +10135,13 @@ dependencies = [
 name = "thea-primitives"
 version = "1.1.0"
 dependencies = [
- "bls-primitives",
  "frame-support",
  "hex",
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
+ "serde",
+ "serde_json",
  "sp-api",
  "sp-application-crypto",
  "sp-core",

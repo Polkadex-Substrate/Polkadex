@@ -68,18 +68,10 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ Into<bls_primitives::Public>;
+		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
-			+ Member
-			+ Parameter
-			+ Into<bls_primitives::Signature>;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -166,8 +158,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { bitmap, payload, signature } =>
-					Self::validate_incoming_message(bitmap, payload, signature),
+				Call::incoming_message { payload, signatures } =>
+					Self::validate_incoming_message(payload, signatures),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -196,17 +188,12 @@ pub mod pallet {
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
-			_bitmap: Vec<u128>,
 			payload: Message,
-			_signature: T::Signature,
+			_signatures: Vec<(u16, T::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			// Signature is already verified in validate_unsigned, no need to do it again
 
-			let last_nonce = <IncomingNonce<T>>::get();
-			if last_nonce.saturating_add(1) != payload.nonce {
-				return Err(Error::<T>::MessageNonce.into())
-			}
 			let current_set_id = <ValidatorSetId<T>>::get();
 
 			if !payload.is_key_change {
@@ -245,10 +232,6 @@ pub mod pallet {
 		pub fn update_incoming_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
 			let last_nonce = <IncomingNonce<T>>::get();
-			// Nonce can only be changed forwards, already processed nonces should not be changed.
-			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
-			}
 			<IncomingNonce<T>>::put(nonce);
 			Ok(())
 		}
@@ -260,10 +243,6 @@ pub mod pallet {
 		pub fn update_outgoing_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
 			let last_nonce = <OutgoingNonce<T>>::get();
-			// Nonce can only be changed forwards, already processed nonces should not be changed.
-			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
-			}
 			<OutgoingNonce<T>>::put(nonce);
 			Ok(())
 		}
@@ -272,43 +251,37 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn validate_incoming_message(
-		bitmap: &[u128],
 		payload: &Message,
-		signature: &T::Signature,
+		signatures: &Vec<(u16, T::Signature)>,
 	) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
-		let nonce = <IncomingNonce<T>>::get();
-		if payload.nonce != nonce.saturating_add(1) {
-			return Err(InvalidTransaction::Custom(1).into())
+		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
+
+		if payload.nonce != next_nonce {
+			return InvalidTransaction::Custom(1).into()
 		}
 
-		// Find who all signed this payload
-		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
-		// Create a vector of public keys of everyone who signed
-		let auths = <Authorities<T>>::get(payload.validator_set_id);
+		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 
-		// Check if 2/3rd authorities signed on this.
-		if (signed_auths_indexes.len() as u64) < payload.threshold() {
-			// Reject there is not super majority.
-			return Err(InvalidTransaction::Custom(2).into())
+		// Check for super majority
+		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
+		if signatures.len() < threshold {
+			return InvalidTransaction::Custom(4).into()
 		}
 
-		let mut signatories: Vec<bls_primitives::Public> = vec![];
-		for index in signed_auths_indexes {
-			match auths.get(index) {
-				None => return Err(InvalidTransaction::Custom(3).into()),
-				Some(auth) => signatories.push((*auth).clone().into()),
+		let encoded_payload = payload.encode();
+		for (index, signature) in signatures {
+			match authorities.get(*index as usize) {
+				None => return InvalidTransaction::Custom(2).into(),
+				Some(auth) =>
+					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
+						return InvalidTransaction::Custom(3).into()
+					},
 			}
 		}
 
-		// Verify the aggregate signature.
-		let bls_signature: bls_primitives::Signature = signature.clone().into();
-		if !bls_signature.verify(&signatories, payload.encode().as_ref()) {
-			return Err(InvalidTransaction::BadSigner.into())
-		}
-
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides([signature])
+			.and_provides(payload)
 			.longevity(3)
 			.propagate(true)
 			.build()
@@ -335,7 +308,6 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			network,
 			is_key_change: false,
 			validator_set_id: Self::validator_set_id(),
-			validator_set_len: authorities_len.saturated_into(),
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);

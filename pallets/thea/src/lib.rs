@@ -100,10 +100,12 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
+		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize + Ord;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
+			+ Member
+			+ Parameter;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -208,8 +210,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { bitmap, payload, signature } =>
-					Self::validate_incoming_message(bitmap, payload, signature),
+				Call::incoming_message { payload, signatures } =>
+					Self::validate_incoming_message(payload, signatures),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -223,17 +225,12 @@ pub mod pallet {
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
-			_bitmap: Vec<u128>,
 			payload: Message,
-			_signature: T::Signature,
+			_signatures: Vec<(u16, T::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			// Signature is already verified in validate_unsigned, no need to do it again
+			// Signature and nonce are already verified in validate_unsigned, no need to do it again
 
-			let last_nonce = <IncomingNonce<T>>::get(payload.network);
-			if last_nonce.saturating_add(1) != payload.nonce {
-				return Err(Error::<T>::MessageNonce.into())
-			}
 			T::Executor::execute_deposits(payload.network, payload.data.clone());
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
 			// Save the incoming message for some time
@@ -265,17 +262,12 @@ pub mod pallet {
 			network: Network,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			let last_nonce = <IncomingNonce<T>>::get(network);
-			// Nonce can only be changed forwards, already processed nonces should not be changed.
-			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
-			}
 			<IncomingNonce<T>>::insert(network, nonce);
 			Ok(())
 		}
 
 		/// A governance endpoint to update last processed nonce
-		#[pallet::call_index(4)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))]
 		#[transactional]
 		pub fn update_outgoing_nonce(
@@ -284,11 +276,6 @@ pub mod pallet {
 			network: Network,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			let last_nonce = <OutgoingNonce<T>>::get(network);
-			// Nonce can only be changed forwards, already processed nonces should not be changed.
-			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
-			}
 			<OutgoingNonce<T>>::insert(network, nonce);
 			Ok(())
 		}
@@ -302,15 +289,37 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_incoming_message(
-		bitmap: &[u128],
 		payload: &Message,
-		signature: &T::Signature,
+		signatures: &Vec<(u16, T::Signature)>,
 	) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
-		todo!();
+		let next_nonce = <IncomingNonce<T>>::get(payload.network).saturating_add(1);
+
+		if payload.nonce != next_nonce {
+			return InvalidTransaction::Custom(1).into()
+		}
+
+		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
+
+		// Check for super majority
+		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
+		if signatures.len() < threshold {
+			return InvalidTransaction::Custom(4).into()
+		}
+
+		let encoded_payload = payload.encode();
+		for (index, signature) in signatures {
+			match authorities.get(*index as usize) {
+				None => return InvalidTransaction::Custom(2).into(),
+				Some(auth) =>
+					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
+						return InvalidTransaction::Custom(3).into()
+					},
+			}
+		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides("incoming")
+			.and_provides(payload)
 			.longevity(3)
 			.propagate(true)
 			.build()
@@ -366,16 +375,6 @@ impl<T: Config> Pallet<T> {
 
 	pub fn get_outgoing_messages(network: Network, nonce: u64) -> Option<Message> {
 		<OutgoingMessages<T>>::get(network, nonce)
-	}
-
-	#[allow(clippy::result_unit_err)]
-	pub fn submit_incoming_message(
-		payload: Message,
-		bitmap: Vec<u128>,
-		signature: T::Signature,
-	) -> Result<(), ()> {
-		let call = Call::<T>::incoming_message { bitmap, payload, signature };
-		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
 	}
 
 	pub fn get_last_processed_nonce(network: Network) -> u64 {

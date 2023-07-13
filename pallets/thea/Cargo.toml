@@ -20,16 +20,20 @@ sp-core = { workspace = true, default-features = false, features = ["serde"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 sp-application-crypto = { workspace = true, default-features = false}
 sp-io = { workspace = true, default-features = false}
+hex = {version = "0.4.3", default-features = false}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
 thea-executor = { path = "../thea-executor", features = ["std"] }
+env_logger = "0.10.0"
+
 
 [features]
 default = ["std"]
 std = [
+  "hex/std",
   "log/std",
   "serde_json/std",
   "serde/std",
