@@ -20,7 +20,7 @@
 
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-use orderbook_primitives::types::UserActionBatch;
+
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -35,16 +35,15 @@ use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
 	offchain::{
-		testing,
-		testing::{TestOffchainExt, TestTransactionPoolExt},
-		OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
+		testing::{TestOffchainExt},
+		OffchainDbExt, OffchainWorkerExt,
 	},
 	ByteArray, Pair, H256,
 };
-use sp_io::TestExternalities;
-use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
+
+use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{
-	offchain::storage::StorageValueRef, AccountId32, DispatchError::BadOrigin, SaturatedConversion,
+	AccountId32, DispatchError::BadOrigin, SaturatedConversion,
 	TokenError,
 };
 use sp_std::default::Default;
@@ -73,12 +72,6 @@ fn get_alice_accounts() -> (AccountId32, AccountId32) {
 	(AccountId::new(ALICE_MAIN_ACCOUNT_RAW_ID), AccountId::new(ALICE_PROXY_ACCOUNT_RAW_ID))
 }
 
-fn add_blocks(blocks: usize) {
-	// given
-	for _ in 0..blocks {
-		new_block();
-	}
-}
 
 #[test]
 fn test_ocex_submit_snapshot() {
@@ -119,11 +112,6 @@ fn test_ocex_submit_snapshot() {
 		));
 		assert_eq!(<SnapshotNonce<Test>>::get(), 114);
 	});
-}
-
-fn finish_on_chain_validation() {
-	let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-	s_info.set(&false);
 }
 
 // #[ignore]
@@ -413,7 +401,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
 		let initial_asset_1_alice_has = 40;
-		let initial_pdex_alice_has = 0;
+		let _initial_pdex_alice_has = 0;
 		assert_ok!(add_balance(
 			&mut state,
 			&alice_account_id.into(),
@@ -2121,7 +2109,7 @@ fn test_submit_snapshot() {
 	let _account_id = create_account_id();
 	let mut t = new_test_ext();
 	t.execute_with(|| {
-		let (mut snapshot, _public, signature) = get_dummy_snapshot(1);
+		let (mut snapshot, _public, _signature) = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
 		let mut withdrawal_map = BTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
@@ -2197,7 +2185,7 @@ fn test_withdrawal() {
 			initial_balance
 		);
 
-		let (snapshot, _public, signature) = get_dummy_snapshot(1);
+		let (snapshot, _public, _signature) = get_dummy_snapshot(1);
 
 		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone(), Vec::new()));
 
@@ -2231,8 +2219,7 @@ fn test_withdrawal() {
 
 use orderbook_primitives::{
 	types::{
-		Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade, UserActions,
-		UserActions::BlockImport, WithdrawPayloadCallByUser, WithdrawalRequest,
+		Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade,
 	},
 	Fees,
 };
@@ -2285,9 +2272,8 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 use crate::{
 	settlement::{add_balance, process_trade, sub_balance},
 	sr25519::AuthorityId,
-	validator::WORKER_STATUS,
 };
-use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit, IngressMessages::Deposit};
+use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
 #[test]
 fn test_set_balances_with_bad_origin() {
