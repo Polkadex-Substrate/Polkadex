@@ -146,6 +146,13 @@ impl AssetMetadata {
 	}
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct ApprovedMessage {
+	pub message: Message,
+	pub signature: Vec<u8>,
+	pub destination: Destination,
+}
+
 #[cfg(test)]
 mod tests {
 	use crate::types::AssetMetadata;

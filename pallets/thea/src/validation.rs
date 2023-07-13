@@ -87,16 +87,12 @@ pub fn submit_message_to_aggregator<T: Config>(
 	signature: T::Signature,
 	destination: Destination,
 ) -> Result<(), &'static str> {
-	let body = serde_json::json!({
-		"message": message,
-		"signature": signature.encode(),
-		"destination": destination
-	});
-	send_request(
-		"thea_aggregator_link",
-		AGGREGRATOR_URL,
-		body.as_str().ok_or("Unable to create str")?,
-	)?;
+	let approved_message = ApprovedMessage { message, signature: signature.encode(), destination };
+	let body = serde_json::to_string(&approved_message).map_err(|err| {
+		log::error!(target:"thea","Error serializing approved message: {:?}",err);
+		"Error serializing approved message"
+	})?;
+	send_request("thea_aggregator_link", AGGREGRATOR_URL, body.as_str())?;
 	Ok(())
 }
 
@@ -191,7 +187,7 @@ use parity_scale_codec::alloc::string::ToString;
 
 use sp_application_crypto::RuntimeAppPublic;
 
-use thea_primitives::types::Destination;
+use thea_primitives::types::{ApprovedMessage, Destination};
 
 pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));

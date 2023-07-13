@@ -152,14 +152,14 @@ impl<T: Config> Pallet<T> {
 					sp_runtime::print("Summary created!");
 					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
 
-					let body = serde_json::json!({
-						"summary": summary.encode(),
-						"auth_index": auth_index,
-						"signature": signature.encode()
-					});
+					let body = serde_json::to_string(&ApprovedSnapshot {
+						summary: summary.encode(),
+						index: auth_index.saturated_into(),
+						signature: signature.encode(),
+					})
+					.map_err(|_| "ApprovedSnapshot serialization failed")?;
 
-					if let Err(err) =
-						send_request("submit_snapshot_api", AGGREGATOR, body.as_str().unwrap())
+					if let Err(err) = send_request("submit_snapshot_api", AGGREGATOR, body.as_str())
 					{
 						log::error!(target:"ocex","Error submitting signature: {:?}",err);
 					}
@@ -324,16 +324,20 @@ pub fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
 		u16,
 	)>() {
 		Ok(Some((summary, signature, index))) => {
-			let body = serde_json::json!({
-				"summary": summary.encode(),
-				"auth_index": index,
-				"signature": signature.encode()
-			});
-
-			if let Err(err) =
-				send_request("submit_snapshot_api", AGGREGATOR, body.as_str().unwrap())
-			{
-				log::error!(target:"ocex","Error submitting signature: {:?}",err);
+			match serde_json::to_string(&ApprovedSnapshot {
+				summary: summary.encode(),
+				index: index.saturated_into(),
+				signature: signature.encode(),
+			}) {
+				Ok(body) => {
+					if let Err(err) = send_request("submit_snapshot_api", AGGREGATOR, body.as_str())
+					{
+						log::error!(target:"ocex","Error submitting signature: {:?}",err);
+					}
+				},
+				Err(err) => {
+					log::error!(target:"ocex","Error serializing ApprovedSnapshot: {:?}",err);
+				},
 			}
 		},
 		Ok(None) => {
@@ -440,4 +444,5 @@ where
 
 	Ok(bytes)
 }
+use orderbook_primitives::types::ApprovedSnapshot;
 use serde::Deserializer;
