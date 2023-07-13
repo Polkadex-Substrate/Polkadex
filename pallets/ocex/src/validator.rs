@@ -296,8 +296,3 @@ pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 		TrieError::InvalidHash(_, _) => "InvalidHash",
 	}
 }
-
-// struct TrieLocalCache {
-// 	inner: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
-// 	cache: BTreeMap<>
-// };
