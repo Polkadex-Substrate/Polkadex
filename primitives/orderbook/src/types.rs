@@ -905,7 +905,7 @@ mod tests {
 	}
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct ApprovedSnapshot {
 	pub summary: Vec<u8>,
 	pub index: u16,
