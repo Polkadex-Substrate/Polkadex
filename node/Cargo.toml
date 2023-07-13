@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "5.1.3"
+version = "5.2.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
@@ -30,10 +30,9 @@ node-polkadex-runtime = { path = "../runtime" }
 rpc-assets = { path = "../rpc/assets" }
 pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
 polkadex-client = { path = "../client" }
-thea-client = { path = "../clients/thea" }
-thea-primitives = { path = "../primitives/thea" }
 
-pallet-ocex-lmp = {path = "../pallets/ocex"}
+thea = { path = "../pallets/thea" }
+pallet-ocex-lmp = { path = "../pallets/ocex" }
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }

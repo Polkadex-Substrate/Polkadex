@@ -19,11 +19,9 @@
 //! Tests for "thea" pallet.
 
 use crate::{mock::*, *};
-use bls_primitives::Pair;
 use frame_support::{assert_err, assert_ok};
 use sp_core::Pair as CorePair;
 use sp_runtime::DispatchError::BadOrigin;
-
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 
 const PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
@@ -48,7 +46,7 @@ fn set_200_validators(network: u8) -> [Pair; 200] {
 		.clone()
 		.into_iter()
 		.for_each(|v| bv.try_push(v.public().into()).unwrap());
-	<Authorities<Test>>::insert(network, 0, bv);
+	<Authorities<Test>>::insert(0, bv);
 	validators
 		.try_into()
 		.unwrap_or_else(|_| panic!("Could not convert validators to array"))
@@ -62,12 +60,11 @@ fn message_for_nonce(nonce: u64) -> Message {
 		network: 0u8,
 		is_key_change: false,
 		validator_set_id: 0,
-		validator_set_len: 200,
 	}
 }
 
+use crate::ecdsa::AuthorityPair as Pair;
 use frame_support::traits::OneSessionHandler;
-
 #[test]
 fn test_session_change() {
 	new_test_ext().execute_with(|| {
@@ -95,52 +92,6 @@ fn test_session_change() {
 		let bounded_vec: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
 			BoundedVec::decode(&mut &message.data[..]).unwrap();
 		assert_eq!(bounded_vec.to_vec().len(), auth_len);
-	})
-}
-
-#[test]
-fn test_update_network_pref_bad_origin() {
-	new_test_ext().execute_with(|| {
-		assert_err!(
-			Thea::update_network_pref(RuntimeOrigin::root(), any_id(), 0, any_signature()),
-			BadOrigin
-		);
-	})
-}
-
-#[test]
-fn test_update_network_pref_success() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(Thea::update_network_pref(RuntimeOrigin::none(), any_id(), 0, any_signature()));
-	})
-}
-
-// following test does:
-// 1. creates and inserts 200 validators as authorities for network 0
-// 2. creates 200 messages signed by each of 200 validators in turn
-// 3. submits them sequentially
-// 4. validates runtime accepts it successfully
-#[test]
-fn test_lots_of_incoming_messages_with_200_validators_ok() {
-	new_test_ext().execute_with(|| {
-		// 200 validators
-		let validators = set_200_validators(0);
-		assert_eq!(validators.len(), 200);
-		let mut nonce = 1;
-		for v in validators {
-			//200 messages
-			for _ in 0..200 {
-				let message = message_for_nonce(nonce);
-				let signature = v.sign(&message.encode());
-				assert_ok!(Thea::incoming_message(
-					RuntimeOrigin::none(),
-					vec!(u128::MAX),
-					message,
-					signature.into()
-				));
-				nonce += 1;
-			}
-		}
 	})
 }
 
@@ -177,7 +128,7 @@ fn test_incoming_messages_bad_inputs() {
 				RuntimeOrigin::signed(1),
 				vec!(0),
 				message.clone(),
-				proper_sig.into()
+				proper_sig.clone().into()
 			),
 			BadOrigin
 		);

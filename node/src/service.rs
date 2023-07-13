@@ -304,8 +304,6 @@ pub struct NewFullBase {
 /// Creates a full service from the configuration.
 pub fn new_full_base(
 	mut config: Configuration,
-	foreign_chain_url: String,
-	thea_dummy_mode: bool,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
 		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
@@ -345,15 +343,6 @@ pub fn new_full_base(
 	net_config.add_notification_protocol(sc_consensus_grandpa::grandpa_peers_set_config(
 		grandpa_protocol_name.clone(),
 	));
-
-	// Thea
-	let thea_protocol_name = thea_client::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.as_ref(),
-	);
-
-	net_config
-		.add_notification_protocol(thea_client::thea_peers_set_config(thea_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config.network.request_response_protocols.push(
@@ -397,11 +386,9 @@ pub fn new_full_base(
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
-
-	let chain_type = config.chain_spec.chain_type();
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
-		backend: backend.clone(),
+		backend,
 		client: client.clone(),
 		keystore: keystore_container.keystore(),
 		network: network.clone(),
@@ -534,7 +521,7 @@ pub fn new_full_base(
 		observer_enabled: false,
 		keystore,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		local_role: role.clone(),
+		local_role: role,
 		protocol_name: grandpa_protocol_name,
 	};
 
@@ -551,7 +538,7 @@ pub fn new_full_base(
 			network: network.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry: prometheus_registry.clone(),
+			prometheus_registry,
 			shared_voter_state,
 			sync: sync_service.clone(),
 		};
@@ -564,29 +551,6 @@ pub fn new_full_base(
 			sc_consensus_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
-
-	let thea_config = thea_client::TheaParams {
-		client: client.clone(),
-		backend,
-		runtime: client.clone(),
-		keystore: keystore_container.local_keystore(),
-		network: network.clone(),
-		sync_oracle: sync_service.clone(),
-		prometheus_registry,
-		marker: Default::default(),
-		is_validator: role.is_authority(),
-		protocol_name: thea_protocol_name,
-		chain_type,
-		foreign_chain_url,
-		dummy_mode: thea_dummy_mode,
-	};
-
-	// Thea task
-	task_manager.spawn_handle().spawn_blocking(
-		"thea",
-		None,
-		thea_client::start_thea_gadget(thea_config),
-	);
 
 	network_starter.start_network();
 	Ok(NewFullBase {
@@ -602,14 +566,8 @@ pub fn new_full_base(
 /// Builds a new service for a full client.
 pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 	let database_source = config.database.clone();
-	let task_manager = new_full_base(
-		config,
-		cli.foreign_chain_url,
-		cli.thea_dummy_mode,
-		cli.no_hardware_benchmarks,
-		|_, _| (),
-	)
-	.map(|NewFullBase { task_manager, .. }| task_manager)?;
+	let task_manager = new_full_base(config, cli.no_hardware_benchmarks, |_, _| ())
+		.map(|NewFullBase { task_manager, .. }| task_manager)?;
 	sc_storage_monitor::StorageMonitorService::try_spawn(
 		cli.storage_monitor,
 		database_source,
@@ -688,8 +646,6 @@ mod tests {
 				let NewFullBase { task_manager, client, network, sync, transaction_pool, .. } =
 					new_full_base(
 						config,
-						"blah".to_string(),
-						true,
 						true,
 						|block_import: &sc_consensus_babe::BabeBlockImport<Block, _, _>,
 						 babe_link: &sc_consensus_babe::BabeLink<Block>| {
@@ -863,7 +819,7 @@ mod tests {
 			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, sync, .. } =
-					new_full_base(config, "blah".to_string(), true, true, |_, _| ())?;
+					new_full_base(config, true, |_, _| ())?;
 				Ok(sc_service_test::TestNetComponents::new(
 					task_manager,
 					client,

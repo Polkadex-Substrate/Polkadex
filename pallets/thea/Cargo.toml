@@ -4,7 +4,10 @@ version = "1.1.0"
 edition = "2021"
 
 [dependencies]
+log = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true, default-features = false }
+serde = {version = "1.0.171", default-features = false, features = ["derive"]}
+serde_json = {version = "1.0.102", default-features = false, features = ["alloc"]}
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
 frame-system = { default-features = false, workspace = true }
@@ -13,24 +16,28 @@ sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
-sp-core = { workspace = true, default-features = false }
-bls-primitives = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false, features = ["serde"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
-
+sp-application-crypto = { workspace = true, default-features = false}
+sp-io = { workspace = true, default-features = false}
+hex = {version = "0.4.3", default-features = false}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
-sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
-sp-io = { workspace = true }
 thea-executor = { path = "../thea-executor", features = ["std"] }
+env_logger = "0.10.0"
+
 
 [features]
 default = ["std"]
 std = [
+  "hex/std",
+  "log/std",
+  "serde_json/std",
+  "serde/std",
   "sp-application-crypto/std",
-  "bls-primitives/std",
   "thea-primitives/std",
   "parity-scale-codec/std",
   "scale-info/std",
@@ -38,6 +45,7 @@ std = [
   "frame-system/std",
   "sp-runtime/std",
   "sp-std/std",
+  "sp-io/std",
   "polkadex-primitives/std",
   "pallet-timestamp/std",
   "sp-core/std",
