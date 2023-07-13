@@ -29,8 +29,8 @@ sp-io = { workspace = true, default-features = false }
 liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
-
-
+serde = {version = "1.0.171", default-features = false, features = ["derive"]}
+serde_json = {version = "1.0.102", default-features = false, features = ["alloc"]}
 hash-db = { version = "0.16.0", default-features = false }
 trie-db = { version = "0.27.1", default-features = false }
 #trie-root = { version = "0.18.0", default-features = false }
@@ -48,6 +48,8 @@ env_logger = "0.10.0"
 default = ["std"]
 std = [
   "log/std",
+  "serde_json/std",
+  "serde/std",
   "sp-application-crypto/std",
   "orderbook-primitives/std",
   "parity-scale-codec/std",
