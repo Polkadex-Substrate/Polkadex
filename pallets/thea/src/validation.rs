@@ -1,4 +1,3 @@
-
 use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Deserializer, Serialize};
 use sp_core::offchain::{Duration, HttpError};

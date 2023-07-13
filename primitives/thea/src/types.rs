@@ -30,7 +30,9 @@ use sp_std::vec::Vec;
 use crate::{Network, ValidatorSetId};
 
 /// Defines the message structure.
-#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]
+#[derive(
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
 pub struct Message {
 	/// Block number.
 	pub block_no: u64,
@@ -47,10 +49,12 @@ pub struct Message {
 	pub validator_set_id: ValidatorSetId,
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub enum Destination {
 	Solochain,
-	Parachain
+	Parachain,
 }
 
 /// Defines structure of the deposit.

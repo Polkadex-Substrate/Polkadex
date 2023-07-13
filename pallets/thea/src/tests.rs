@@ -102,7 +102,7 @@ fn test_incoming_messages_bad_inputs() {
 			Thea::incoming_message(
 				RuntimeOrigin::root(),
 				message_for_nonce(1),
-				vec![(0,any_signature())]
+				vec![(0, any_signature())]
 			),
 			BadOrigin
 		);
@@ -113,7 +113,7 @@ fn test_incoming_messages_bad_inputs() {
 			Thea::incoming_message(
 				RuntimeOrigin::signed(1),
 				message.clone(),
-				vec![(0,proper_sig.clone().into())]
+				vec![(0, proper_sig.clone().into())]
 			),
 			BadOrigin
 		);
@@ -121,7 +121,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message.clone(),
-				&vec![(0,proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone().into())]
 			),
 			InvalidTransaction::Custom(4)
 		);
@@ -130,7 +130,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message_for_nonce(u64::MAX),
-				&vec![(0,proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone().into())]
 			),
 			InvalidTransaction::Custom(1)
 		);
@@ -138,7 +138,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message_for_nonce(u64::MIN),
-				&vec![(0,proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone().into())]
 			),
 			InvalidTransaction::Custom(1)
 		);
@@ -147,13 +147,13 @@ fn test_incoming_messages_bad_inputs() {
 		bad_message.block_no = 1; // changing bit
 		let bad_message_call = Call::<Test>::incoming_message {
 			payload: bad_message,
-			signatures:vec![(0,proper_sig.clone().into())],
+			signatures: vec![(0, proper_sig.clone().into())],
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
 		// bad signature
 		let bad_sig_call = Call::<Test>::incoming_message {
 			payload: message.clone(),
-			signatures:vec![(0,any_signature())],
+			signatures: vec![(0, any_signature())],
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_sig_call).is_err());
 	})
