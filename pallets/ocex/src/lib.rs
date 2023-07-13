@@ -180,11 +180,8 @@ pub mod pallet {
 		fn validate_unsigned(_: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Validating unsigned transactions...");
 			match call {
-				Call::submit_snapshot { summary, signature } =>
-					Self::validate_snapshot(summary, signature),
-
-				Call::submit_user_actions_batch { batch, signer, signature } =>
-					Self::validate_user_actions_batch(batch, signer, signature),
+				Call::submit_snapshot { summary, signatures } =>
+					Self::validate_snapshot(summary, signatures),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -814,24 +811,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// The extrinsic will be used to change snapshot interval based on block number.
-		///
-		/// # Parameters
-		///
-		/// * `origin`: Orderbook governance.
-		/// * `new_snapshot_interval_block`: The new block interval at which snapshot should  be
-		/// generated.
-		#[pallet::call_index(10)]
-		#[pallet::weight(< T as Config >::WeightInfo::change_snapshot_interval_block())]
-		pub fn change_snapshot_interval_block(
-			origin: OriginFor<T>,
-			new_snapshot_interval_block: T::BlockNumber,
-		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<SnapshotIntervalBlock<T>>::put(new_snapshot_interval_block);
-			Ok(())
-		}
-
 		/// Collects withdraws fees.
 		///
 		/// # Parameters
@@ -955,18 +934,6 @@ pub mod pallet {
 				Error::<T>::InvalidWithdrawalIndex
 			);
 
-			// Check if Disputation perioid for this snapshot has ended
-			if let Some(close_block) = <SnapshotDisputeCloseBlockMap<T>>::get(snapshot_id) {
-				let current_block = <frame_system::Pallet<T>>::block_number();
-				ensure!(current_block > close_block, Error::<T>::WithdrawStillInDisputationPeriod);
-			} else {
-				return Err(Error::<T>::CannotFindCloseBlockForSnapshot.into())
-			}
-
-			// Check if Snapshot is disputed
-			let is_disputed = <SnapshotValidates<T>>::get(snapshot_id);
-			ensure!(!is_disputed, Error::<T>::WithdrawBelongsToDisputedSnapshot);
-
 			// This entire block of code is put inside ensure as some of the nested functions will
 			// return Err
 			<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
@@ -1048,15 +1015,10 @@ pub mod pallet {
 		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
-			summary: SnapshotSummary<T::AccountId, T::AuthorityId>,
-			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
+			summary: SnapshotSummary<T::AccountId>,
+			_signatures: Vec<(u16, <T::AuthorityId as RuntimeAppPublic>::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-
-			let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
-			if next_nonce != summary.snapshot_id {
-				return Err(Error::<T>::SnapshotNonceError.into())
-			}
 
 			let withdrawal_map = Self::create_withdrawal_tree(summary.withdrawals.clone());
 			if !summary.withdrawals.is_empty() {
@@ -1071,15 +1033,8 @@ pub mod pallet {
 			}
 			log::debug!(target:"ocex", "Storing snapshot summary data...");
 
-			// get closing block number for this snapshot
-			let interval = <DisputeInterval<T>>::get().unwrap_or((24u32 * 60 * 5).saturated_into());
-			let close_block = <frame_system::Pallet<T>>::block_number() + interval;
-			// Update the snapshot nonce and move the summary to snapshots storage
-			<SnapshotDisputeCloseBlockMap<T>>::insert(summary.snapshot_id, close_block);
-
 			let id = summary.snapshot_id;
 			<ProcessedSnapshotNonce<T>>::put(id);
-			<TriggerRebroadcast<T>>::put(false);
 			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
 			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
 			<Snapshots<T>>::insert(summary.snapshot_id, summary);
@@ -1098,48 +1053,6 @@ pub mod pallet {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<OrderbookOperatorPublicKey<T>>::put(operator_public_key);
 			Self::deposit_event(Event::<T>::OrderbookOperatorKeyWhitelisted(operator_public_key));
-			Ok(())
-		}
-
-		/// This extrinsic will set the dispute period for snapshots
-		/// TODO: update weights
-		#[pallet::call_index(19)]
-		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
-		pub fn set_disputation_period(
-			origin: OriginFor<T>,
-			period: T::BlockNumber,
-		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<DisputeInterval<T>>::put(period);
-			Self::deposit_event(Event::DisputePeriodUpdated(period));
-			Ok(())
-		}
-
-		/// Submit Snapshot Summary
-		#[pallet::call_index(20)]
-		#[pallet::weight(<T as Config>::WeightInfo::whitelist_orderbook_operator())] // TODO: benchmark
-		pub fn submit_user_actions_batch(
-			origin: OriginFor<T>,
-			batch: UserActionBatch<T::AccountId>,
-			_signer: sp_core::ecdsa::Public,
-			_signature: sp_core::ecdsa::Signature,
-		) -> DispatchResult {
-			ensure_none(origin)?;
-			let snapshot_id = batch.snapshot_id;
-			<UserActionsBatches<T>>::insert(snapshot_id, batch);
-			<SnapshotNonce<T>>::set(snapshot_id);
-			Self::deposit_event(Event::<T>::UserActionsBatchSubmitted(snapshot_id));
-			Ok(())
-		}
-
-		/// This extrinsic will trigger the offchain worker to rebroadcast the previous snapshot
-		/// summary TODO: update weights
-		#[pallet::call_index(21)]
-		#[pallet::weight(< T as Config >::WeightInfo::set_exchange_state(1))]
-		pub fn trigger_summary_rebroadcast(origin: OriginFor<T>) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
-			<TriggerRebroadcast<T>>::put(true);
-			Self::deposit_event(Event::RebroadcastTriggered);
 			Ok(())
 		}
 	}
@@ -1431,20 +1344,8 @@ pub mod pallet {
 	// Snapshots Storage
 	#[pallet::storage]
 	#[pallet::getter(fn snapshots)]
-	pub type Snapshots<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		u64,
-		SnapshotSummary<T::AccountId, T::AuthorityId>,
-		OptionQuery,
-	>;
-
-	// UserActions Storage
-	// Key => snapshot nonce
-	#[pallet::storage]
-	#[pallet::getter(fn user_actions_batches)]
-	pub(super) type UserActionsBatches<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, UserActionBatch<T::AccountId>, OptionQuery>;
+	pub type Snapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, OptionQuery>;
 
 	// Snapshots Nonce
 	#[pallet::storage]
@@ -1456,26 +1357,10 @@ pub mod pallet {
 	#[pallet::getter(fn processed_snapshot_nonce)]
 	pub type ProcessedSnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-	// Snapshot will be produced after snapshot interval block
-	#[pallet::storage]
-	#[pallet::getter(fn snapshot_interval_block)]
-	pub(super) type SnapshotIntervalBlock<T: Config> = StorageValue<_, T::BlockNumber, OptionQuery>;
-
 	// Exchange Operation State
 	#[pallet::storage]
 	#[pallet::getter(fn orderbook_operational_state)]
 	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-	// Snapshot dispute interval
-	#[pallet::storage]
-	#[pallet::getter(fn get_snapshot_dispute_interval)]
-	pub(super) type DisputeInterval<T: Config> =
-		StorageValue<_, <T as frame_system::Config>::BlockNumber, OptionQuery>;
-
-	// Flag to trigger rebroadacast
-	#[pallet::storage]
-	#[pallet::getter(fn trigger_rebroadcast)]
-	pub(super) type TriggerRebroadcast<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	// Fees collected
 	#[pallet::storage]
@@ -1488,18 +1373,6 @@ pub mod pallet {
 	#[pallet::getter(fn withdrawals)]
 	pub(super) type Withdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
-
-	//snapshot validates are mapped by snapshot id -> is_disputed
-	#[pallet::storage]
-	#[pallet::getter(fn get_snapshot_validity)]
-	pub(super) type SnapshotValidates<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, bool, ValueQuery>;
-
-	//snapshot validates are mapped by snapshot id -> end_block of disputation period
-	#[pallet::storage]
-	#[pallet::getter(fn get_snapshot_dipution_end_block)]
-	pub(super) type SnapshotDisputeCloseBlockMap<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, T::BlockNumber, OptionQuery>;
 
 	// Queue for enclave ingress messages
 	#[pallet::storage]
@@ -1556,48 +1429,9 @@ pub mod pallet {
 // functions that do not write to storage and operation functions that do.
 // - Private functions. These are your usual private utilities unavailable to other pallets.
 impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T> {
-	fn validate_user_actions_batch(
-		batch: &UserActionBatch<T::AccountId>,
-		signer: &sp_core::ecdsa::Public,
-		signature: &sp_core::ecdsa::Signature,
-	) -> TransactionValidity {
-		sp_runtime::print("Validating submit_user_actions_batch....");
-		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
-		if batch.snapshot_id != next_nonce {
-			sp_runtime::print("nonce failure");
-			sp_runtime::print(next_nonce);
-			sp_runtime::print(batch.snapshot_id);
-			return InvalidTransaction::Custom(1).into()
-		}
-
-		let operator = match <OrderbookOperatorPublicKey<T>>::get() {
-			None => return InvalidTransaction::Custom(2).into(),
-			Some(op) => op,
-		};
-		if operator != *signer {
-			sp_runtime::print("signer diff.");
-			sp_runtime::print(operator.0);
-			sp_runtime::print(signer.0);
-			return InvalidTransaction::Custom(3).into()
-		}
-		let msg_hash = sp_io::hashing::keccak_256(&batch.encode());
-
-		if !sp_io::crypto::ecdsa_verify_prehashed(signature, &msg_hash, &operator) {
-			sp_runtime::print("signature verification failed");
-			return InvalidTransaction::Custom(4).into()
-		}
-
-		sp_runtime::print("submit_user_action validated!");
-		ValidTransaction::with_tag_prefix("orderbook")
-			.and_provides([&"batch"])
-			.longevity(3)
-			.propagate(true)
-			.build()
-	}
-
 	pub fn validate_snapshot(
-		snapshot_summary: &SnapshotSummary<T::AccountId, T::AuthorityId>,
-		signature: &<T::AuthorityId as RuntimeAppPublic>::Signature,
+		snapshot_summary: &SnapshotSummary<T::AccountId>,
+		signatures: &Vec<(u16, <T::AuthorityId as RuntimeAppPublic>::Signature)>,
 	) -> TransactionValidity {
 		sp_runtime::print("Validating submit_snapshot....");
 
@@ -1607,17 +1441,22 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		}
 
 		// Check if this validator was part of that authority set
-		if !<Authorities<T>>::get(snapshot_summary.validator_set_id)
-			.validators()
-			.contains(&snapshot_summary.public)
-		{
+		let authorities = <Authorities<T>>::get(snapshot_summary.validator_set_id).validators;
+
+		//Check threshold
+		if authorities.len().saturating_mul(1).saturating_div(3) > signatures.len() {
 			return InvalidTransaction::Custom(11).into()
 		}
 
-		let public_key = snapshot_summary.public.clone();
-		// Verify Signature
-		if !public_key.verify(&snapshot_summary.encode(), signature) {
-			return InvalidTransaction::Custom(13).into()
+		// Check signatures
+		for (index, signature) in signatures {
+			match authorities.get(*index as usize) {
+				None => return InvalidTransaction::Custom(12).into(),
+				Some(auth) =>
+					if !auth.verify(&snapshot_summary.encode(), signature) {
+						return InvalidTransaction::Custom(12).into()
+					},
+			}
 		}
 
 		sp_runtime::print("submit_snapshot validated!");
@@ -1631,15 +1470,6 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 	pub fn validator_set() -> ValidatorSet<T::AuthorityId> {
 		let id = Self::validator_set_id();
 		<Authorities<T>>::get(id)
-	}
-
-	pub fn get_latest_snapshot() -> Option<SnapshotSummary<T::AccountId, T::AuthorityId>> {
-		let last_nonce = <SnapshotNonce<T>>::get();
-		<Snapshots<T>>::get(last_nonce)
-	}
-
-	pub fn get_snapshot_by_id(nonce: u64) -> Option<SnapshotSummary<T::AccountId, T::AuthorityId>> {
-		<Snapshots<T>>::get(nonce)
 	}
 
 	// Returns all main accounts and corresponding proxies for it at this point in time

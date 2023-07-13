@@ -5549,6 +5549,8 @@ dependencies = [
  "polkadex-primitives",
  "rust_decimal",
  "scale-info",
+ "serde",
+ "serde_json",
  "sp-application-crypto",
  "sp-core",
  "sp-io",
