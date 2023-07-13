@@ -21,9 +21,9 @@
 use crate::validator::map_trie_error;
 use log::{error, info};
 use orderbook_primitives::types::Trade;
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_runtime::traits::BlakeTwo256;
 use sp_std::collections::btree_map::BTreeMap;
@@ -44,6 +44,7 @@ pub fn add_balance(
 	asset: AssetId,
 	balance: Decimal,
 ) -> Result<(), &'static str> {
+	log::info!(target:"ocex", "adding {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account.as_slice());
 	let mut balances: BTreeMap<AssetId, Decimal> =
 		match state.get(account.as_slice()).map_err(map_trie_error)? {
 			None => BTreeMap::new(),
@@ -76,8 +77,7 @@ pub fn sub_balance(
 	asset: AssetId,
 	balance: Decimal,
 ) -> Result<(), &'static str> {
-	info!(target:"orderbook","📒 Subtracting balance from account");
-
+	log::info!(target:"ocex", "subtracting {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account.as_slice());
 	let mut balances: BTreeMap<AssetId, Decimal> =
 		match state.get(account.as_slice()).map_err(map_trie_error)? {
 			None => return Err("Account not found in trie"),
