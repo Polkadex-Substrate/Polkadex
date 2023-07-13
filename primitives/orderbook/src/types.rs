@@ -904,3 +904,10 @@ mod tests {
 		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());
 	}
 }
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ApprovedSnapshot {
+	pub summary: Vec<u8>,
+	pub index: u16,
+	pub signature: Vec<u8>,
+}
