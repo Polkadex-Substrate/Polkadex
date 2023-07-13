@@ -29,7 +29,9 @@ use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
+use serde::Serialize;
 use sp_core::H256;
+use sp_runtime::Deserialize;
 use sp_std::vec::Vec;
 
 pub mod constants;
@@ -98,8 +100,8 @@ pub struct Fees {
 }
 
 /// Defines the structure of snapshot DTO.
-#[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq)]
-pub struct SnapshotSummary<AccountId: Clone + Codec, AuthorityId: Clone + Codec> {
+#[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq, Serialize, Deserialize)]
+pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	/// Validator set identifier.
 	pub validator_set_id: u64,
 	/// Snapshot identifier.
@@ -112,11 +114,9 @@ pub struct SnapshotSummary<AccountId: Clone + Codec, AuthorityId: Clone + Codec>
 	pub last_processed_blk: BlockNumber,
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
-	/// public key of validator
-	pub public: AuthorityId,
 }
 
-impl<AccountId: Clone + Codec, AuthorityId: Clone + Codec> SnapshotSummary<AccountId, AuthorityId> {
+impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
 	/// Collects and returns the collection of fees fro for all withdrawals.
 	pub fn get_fees(&self) -> Vec<Fees> {
 		let mut fees = Vec::new();

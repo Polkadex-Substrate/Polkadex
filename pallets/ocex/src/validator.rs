@@ -1,59 +1,62 @@
 use crate::{
-	pallet::{Accounts, TriggerRebroadcast, UserActionsBatches, ValidatorSetId},
+	pallet::{Accounts, ValidatorSetId},
 	settlement::{add_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
 	storage::store_trie_root,
 	Call, Config, Pallet, ProcessedSnapshotNonce,
 };
-use frame_system::offchain::SubmitTransaction;
+
 use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
+use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
-use sp_core::H256;
-use sp_runtime::{offchain::storage::StorageValueRef, traits::BlakeTwo256, SaturatedConversion};
+use sp_core::{
+	offchain::{Duration, HttpError},
+	H256,
+};
+use sp_runtime::{
+	offchain::{
+		http,
+		http::{Error, PendingRequest, Response},
+		storage::{StorageRetrievalError, StorageValueRef},
+	},
+	traits::BlakeTwo256,
+	SaturatedConversion,
+};
 use sp_std::{boxed::Box, vec::Vec};
 use sp_trie::{LayoutV1, TrieDBMut};
 use trie_db::{TrieError, TrieMut};
 
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
-const TXN: [u8; 26] = *b"offchain-ocex::transaction";
 const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
+
+pub const AGGREGATOR: &str = "https://aggregator.polkadex.trade/orderbook";
+pub const BATCH_URL: &str = "https://snapshots.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
+		let mut auth_index = 0;
 		let mut available_keys = authorities
 			.into_iter()
 			.enumerate()
 			.filter_map(move |(_index, authority)| {
-				local_keys
-					.binary_search(&authority)
-					.ok()
-					.map(|location| local_keys[location].clone())
+				local_keys.binary_search(&authority).ok().map(|location| {
+					auth_index = location;
+					local_keys[location].clone()
+				})
 			})
 			.collect::<Vec<T::AuthorityId>>();
 		available_keys.sort();
 
 		if available_keys.is_empty() && sp_io::offchain::is_validator() {
 			return Err("No active keys available")
-		}
-
-		if <TriggerRebroadcast<T>>::get() {
-			let c_info = StorageValueRef::persistent(&TXN);
-			match c_info.get::<Call<T>>().map_err(|_| "Unable to decode call")? {
-				None => {},
-				Some(call) => {
-					SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-						.map_err(|_| "Error sending unsigned txn")?;
-					return Ok(())
-				},
-			}
 		}
 
 		// Check if another worker is already running or not
@@ -70,7 +73,7 @@ impl<T: Config> Pallet<T> {
 			Some(false) => {},
 		}
 		s_info.set(&true); // Set WORKER_STATUS to true
-				   // Check the next ObMessages to process
+				   // Check the next batch to process
 		let next_nonce = <ProcessedSnapshotNonce<T>>::get().saturating_add(1);
 
 		// Load the state to memory
@@ -80,11 +83,12 @@ impl<T: Config> Pallet<T> {
 
 		let mut state_info = Self::load_state_info(&state);
 
-		let _snapshot_id_info = StorageValueRef::persistent(&LAST_PROCESSED_SNAPSHOT);
 		let last_processed_nonce = state_info.snapshot_id;
 
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
+			// resubmit the summary to aggregator
+			load_signed_summary_and_send::<T>(next_nonce);
 			return Ok(())
 		}
 
@@ -97,7 +101,7 @@ impl<T: Config> Pallet<T> {
 			// We need to sync our offchain state
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
 				// Load the next ObMessages
-				let batch = match <UserActionsBatches<T>>::get(nonce) {
+				let batch = match get_user_action_batch::<T>(nonce) {
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
 						return Ok(())
@@ -111,7 +115,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Load the next ObMessages
-		let batch = match <UserActionsBatches<T>>::get(next_nonce) {
+		let batch = match get_user_action_batch::<T>(next_nonce) {
 			None => {
 				log::debug!(target:"ocex","No user actions found for nonce: {:?}",next_nonce);
 				// Store the last processed nonce
@@ -141,18 +145,22 @@ impl<T: Config> Pallet<T> {
 						state_change_id: batch.stid,
 						last_processed_blk: state_info.last_block.saturated_into(),
 						withdrawals,
-						public: key.clone(),
 					};
 					sp_runtime::print("Summary created!");
 					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
 
-					let call = Call::submit_snapshot { summary, signature };
+					let body = serde_json::json!({
+						"summary": summary,
+						"auth_index": auth_index,
+						"signature": signature.encode()
+					});
 
-					let s_info = StorageValueRef::persistent(&TXN);
-					s_info.set(&call); // Store the call for future use
-
-					SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-						.map_err(|_| "Error sending unsigned txn")?;
+					if let Err(err) =
+						send_request("submit_snapshot_api", AGGREGATOR, body.as_str().unwrap())
+					{
+						log::error!(target:"ocex","Error submitting signature: {:?}",err);
+					}
+					store_summary::<T>(summary, signature, auth_index.saturated_into()); // Casting is fine here
 				},
 			}
 		}
@@ -281,6 +289,106 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+	let body = serde_json::json!({ "id": id });
+	let result = match send_request("user_actions_batch", BATCH_URL, body.as_str().unwrap()) {
+		Ok(encoded_batch) => encoded_batch,
+		Err(err) => {
+			log::error!(target:"ocex","Error fetching user actions batch for {:?}: {:?}",id,err);
+			return None
+		},
+	};
+
+	match UserActionBatch::<T::AccountId>::decode(&mut &result[..]) {
+		Ok(batch) => Some(batch),
+		Err(_) => {
+			log::error!(target:"ocex","Unable to decode batch");
+			None
+		},
+	}
+}
+
+pub fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
+	let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
+	key.append(&mut snapshot_id.encode());
+
+	let summay_ref = StorageValueRef::persistent(&key);
+	match summay_ref.get::<(
+		SnapshotSummary<T::AccountId>,
+		<<T as Config>::AuthorityId as RuntimeAppPublic>::Signature,
+		u16,
+	)>() {
+		Ok(Some((summary, signature, index))) => {
+			let body = serde_json::json!({
+				"summary": summary,
+				"auth_index": index,
+				"signature": signature.encode()
+			});
+
+			if let Err(err) =
+				send_request("submit_snapshot_api", AGGREGATOR, body.as_str().unwrap())
+			{
+				log::error!(target:"ocex","Error submitting signature: {:?}",err);
+			}
+		},
+		Ok(None) => {
+			log::error!(target:"ocex"," signed summary for:  nonce {:?} not found",snapshot_id);
+		},
+		Err(err) => {
+			log::error!(target:"ocex","Error loading signed summary for:  nonce {:?}, {:?}",snapshot_id,err);
+		},
+	}
+}
+
+pub fn store_summary<T: Config>(
+	summary: SnapshotSummary<T::AccountId>,
+	signature: <<T as Config>::AuthorityId as RuntimeAppPublic>::Signature,
+	auth_index: u16,
+) {
+	let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
+	key.append(&mut summary.snapshot_id.encode());
+	let summay_ref = StorageValueRef::persistent(&key);
+	summay_ref.set(&(summary, signature, auth_index));
+}
+
+pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
+
+	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
+	log::debug!(target:"thea","Sending {} request with body len {}...",log_target,body_len);
+	let request = http::Request::post(url, [body]);
+	let pending: PendingRequest = request
+		.add_header("Content-Type", "application/json")
+		.add_header("Content-Length", body_len.as_str())
+		.deadline(deadline)
+		.send()
+		.map_err(map_http_err)?;
+
+	log::debug!(target:"thea","Waiting for {} response...",log_target);
+	let response: Response = pending
+		.try_wait(deadline)
+		.map_err(|pending| "deadline reached")?
+		.map_err(map_sp_runtime_http_err)?;
+
+	if response.code != 200u16 {
+		log::warn!(target:"thea","Unexpected status code for {}: {:?}",log_target,response.code);
+		return Err("request failed")
+	}
+
+	let body = response.body().collect::<Vec<u8>>();
+
+	// Create a str slice from the body.
+	let body_str = sp_std::str::from_utf8(body.as_slice()).map_err(|_| {
+		log::warn!("No UTF8 body");
+		"no UTF8 body in response"
+	})?;
+	log::debug!(target:"thea","{} response: {:?}",log_target,body_str);
+	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(&body_str)
+		.map_err(|_| "Response failed deserialize")?;
+
+	Ok(response.result.clone())
+}
+
 #[allow(clippy::boxed_local)]
 pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 	match *err {
@@ -291,3 +399,40 @@ pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 		TrieError::InvalidHash(_, _) => "InvalidHash",
 	}
 }
+
+fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
+	match err {
+		Error::DeadlineReached => "Deadline Reached",
+		Error::IoError => "Io Error",
+		Error::Unknown => "Unknown error",
+	}
+}
+fn map_http_err(err: HttpError) -> &'static str {
+	match err {
+		HttpError::DeadlineReached => "Deadline Reached",
+		HttpError::IoError => "Io Error",
+		HttpError::Invalid => "Invalid request",
+	}
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JSONRPCResponse {
+	jsonrpc: serde_json::Value,
+	#[serde(deserialize_with = "deserialize_bytes")]
+	result: Vec<u8>,
+	id: u64,
+}
+
+fn deserialize_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	// Deserialize the value as a string
+	let s: &str = Deserialize::deserialize(deserializer)?;
+
+	// Convert the string to bytes
+	let bytes = s.as_bytes().to_vec();
+
+	Ok(bytes)
+}
+use serde::Deserializer;
