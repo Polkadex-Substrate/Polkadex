@@ -10,8 +10,9 @@ use orderbook_primitives::{
 	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AccountId};
+use rust_decimal::prelude::ToPrimitive;
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{
@@ -67,6 +68,7 @@ impl<T: Config> Pallet<T> {
 		})? {
 			Some(true) => {
 				// Another worker is online, so exit
+				log::info!(target:"ocex", "Another worker is online, so exit");
 				return Ok(())
 			},
 			None => {},
@@ -78,6 +80,7 @@ impl<T: Config> Pallet<T> {
 
 		// Load the state to memory
 		let mut root = crate::storage::load_trie_root();
+		log::info!(target:"ocex","block: {:?}, state_root {:?}", _block_num, root);
 		let mut storage = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut storage, &mut root);
 
@@ -92,10 +95,7 @@ impl<T: Config> Pallet<T> {
 			return Ok(())
 		}
 
-		sp_runtime::print("next_nonce");
-		sp_runtime::print(next_nonce);
-		sp_runtime::print("last_processed_nonce");
-		sp_runtime::print(last_processed_nonce);
+		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
 		if next_nonce.saturating_sub(last_processed_nonce) > 2 {
 			// We need to sync our offchain state
@@ -115,6 +115,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Load the next ObMessages
+		log::info!(target:"ocex","Loading user actions for nonce: {:?}",next_nonce);
 		let batch = match get_user_action_batch::<T>(next_nonce) {
 			None => {
 				log::debug!(target:"ocex","No user actions found for nonce: {:?}",next_nonce);
@@ -124,11 +125,13 @@ impl<T: Config> Pallet<T> {
 				Self::store_state_info(state_info, &mut state)?;
 				state.commit();
 				store_trie_root(*state.root());
+				log::debug!(target:"ocex","Stored state root: {:?}",state.root());
 				return Ok(())
 			},
 			Some(batch) => batch,
 		};
 
+		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
 
 		if sp_io::offchain::is_validator() {
@@ -169,6 +172,8 @@ impl<T: Config> Pallet<T> {
 		Self::store_state_info(state_info, &mut state)?;
 		state.commit();
 		store_trie_root(*state.root());
+		log::info!(target:"ocex","updated trie root: {:?}", state.root());
+
 		Ok(())
 	}
 
@@ -177,7 +182,7 @@ impl<T: Config> Pallet<T> {
 		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {
-		log::info!(target:"ocex","Importing block: {:?}",blk);
+		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
 		if blk <= state_info.last_block.saturated_into() {
 			return Err("BlockOutofSequence")
