@@ -431,7 +431,6 @@ fn map_http_err(err: HttpError) -> &'static str {
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
-	#[serde(deserialize_with = "deserialize_bytes")]
 	result: Vec<u8>,
 	id: u64,
 }
@@ -442,18 +441,5 @@ impl JSONRPCResponse {
 	}
 }
 
-fn deserialize_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-where
-	D: Deserializer<'de>,
-{
-	// Deserialize the value as a string
-	let s: &str = Deserialize::deserialize(deserializer)?;
-
-	// Convert the string to bytes
-	let bytes = s.as_bytes().to_vec();
-
-	Ok(bytes)
-}
 
 use orderbook_primitives::types::ApprovedSnapshot;
-use serde::Deserializer;
