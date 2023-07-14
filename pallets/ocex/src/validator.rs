@@ -438,7 +438,7 @@ pub struct JSONRPCResponse {
 
 impl JSONRPCResponse {
 	pub fn new(content: Vec<u8>) -> Self {
-		Self { jsonrpc: serde_json::Value("2.0"), result: content, id: 2 }
+		Self { jsonrpc: "2.0".into(), result: content, id: 2 }
 	}
 }
 
