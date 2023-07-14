@@ -292,8 +292,10 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 }
+
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
+
 pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
@@ -417,6 +419,7 @@ fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static s
 		Error::Unknown => "Unknown error",
 	}
 }
+
 fn map_http_err(err: HttpError) -> &'static str {
 	match err {
 		HttpError::DeadlineReached => "Deadline Reached",
@@ -433,6 +436,12 @@ pub struct JSONRPCResponse {
 	id: u64,
 }
 
+impl JSONRPCResponse {
+	pub fn new(content: Vec<u8>) -> Self {
+		Self { jsonrpc: serde_json::Value("2.0"), result: content, id: 2 }
+	}
+}
+
 fn deserialize_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
 	D: Deserializer<'de>,
@@ -445,5 +454,6 @@ where
 
 	Ok(bytes)
 }
+
 use orderbook_primitives::types::ApprovedSnapshot;
 use serde::Deserializer;

@@ -91,7 +91,7 @@ pub(crate) mod fixtures;
 mod settlement;
 mod snapshot;
 pub mod storage;
-mod validator;
+pub mod validator;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
