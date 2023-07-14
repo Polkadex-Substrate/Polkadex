@@ -146,7 +146,7 @@ impl AssetMetadata {
 	}
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct ApprovedMessage {
 	pub message: Message,
 	pub signature: Vec<u8>,
