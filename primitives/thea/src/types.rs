@@ -149,6 +149,7 @@ impl AssetMetadata {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ApprovedMessage {
 	pub message: Message,
+	pub index: u16,
 	pub signature: Vec<u8>,
 	pub destination: Destination,
 }
