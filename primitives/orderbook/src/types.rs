@@ -186,6 +186,7 @@ pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub actions: Vec<UserActions<AccountId>>,
 	pub stid: u64,
 	pub snapshot_id: u64,
+	pub signature: sp_core::ecdsa::Signature
 }
 
 #[cfg(feature = "std")]
