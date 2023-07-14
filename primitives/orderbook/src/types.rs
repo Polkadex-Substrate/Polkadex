@@ -888,7 +888,14 @@ pub struct WithdrawalDetails {
 
 #[cfg(test)]
 mod tests {
-	use crate::types::{ObMessage, UserActions};
+	use crate::{
+		types::{ApprovedSnapshot, ObMessage, UserActions},
+		SnapshotSummary,
+	};
+	use parity_scale_codec::Encode;
+	use polkadex_primitives::AccountId;
+	use primitive_types::H256;
+	use sp_core::Pair;
 
 	#[test]
 	pub fn test_ob_message() {
@@ -902,6 +909,27 @@ mod tests {
 		};
 
 		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());
+	}
+
+	#[test]
+	pub fn approved_snapshot() {
+		let pair = sp_core::sr25519::Pair::generate().0;
+		let summary: SnapshotSummary<AccountId> = SnapshotSummary {
+			validator_set_id: 1,
+			snapshot_id: 1,
+			state_hash: H256::random(),
+			state_change_id: 1,
+			last_processed_blk: 1,
+			withdrawals: vec![],
+		};
+
+		let approved = ApprovedSnapshot {
+			summary: summary.encode(),
+			index: 1,
+			signature: pair.sign(&summary.encode()).encode(),
+		};
+
+		println!("{:?}", serde_json::to_string(&approved).unwrap());
 	}
 }
 
