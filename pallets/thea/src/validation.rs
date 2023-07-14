@@ -11,8 +11,8 @@ use thea_primitives::{Message, Network};
 use crate::{Config, Pallet};
 
 pub const MAINNET_URL: &str = "http://localhost:9944";
-pub const PARACHAIN_URL: &str = "http://localhost:9933";
-pub const AGGREGRATOR_URL: &str = "https://thea-aggregator.polkadex.trade";
+pub const PARACHAIN_URL: &str = "http://localhost:9902";
+pub const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
@@ -21,12 +21,15 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let active_networks = <ActiveNetworks<T>>::get();
+		log::debug!(target:"thea","List of active networks: {:?}",active_networks);
 		// 2. Check for new nonce to process for all networks
 		for network in active_networks {
 			//		a. Read the next nonce (N) to process at source and destination on its finalized
 			// state
 			let next_incoming_nonce = <IncomingNonce<T>>::get(network).saturating_add(1);
 			let next_outgoing_nonce = <OutgoingNonce<T>>::get(network).saturating_add(1);
+			log::debug!(target:"thea","Next Incoming nonce: {:?}, Outgoing nonce: {:?} for network: {:?}",
+				next_incoming_nonce,next_outgoing_nonce,network);
 			//		b. Check if payload for N is available at source and destination on its finalized
 			// state
 			let next_incoming_message =
@@ -42,6 +45,7 @@ impl<T: Config> Pallet<T> {
 				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
 			}
 		}
+		log::debug!(target:"thea","Thea offchain worker exiting..");
 		Ok(())
 	}
 }

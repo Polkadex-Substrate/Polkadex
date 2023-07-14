@@ -36,8 +36,7 @@ pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
 const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 
-pub const AGGREGATOR: &str = "https://aggregator.polkadex.trade/orderbook";
-pub const BATCH_URL: &str = "https://snapshots.polkadex.trade";
+pub const AGGREGATOR: &str = "https://testnet.ob.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
@@ -293,16 +292,18 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 }
-
+use parity_scale_codec::alloc::string::ToString;
+use sp_std::borrow::ToOwned;
 pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
-	let body = serde_json::json!({ "id": id });
-	let result = match send_request("user_actions_batch", BATCH_URL, body.as_str().unwrap()) {
-		Ok(encoded_batch) => encoded_batch,
-		Err(err) => {
-			log::error!(target:"ocex","Error fetching user actions batch for {:?}: {:?}",id,err);
-			return None
-		},
-	};
+	let body = serde_json::json!({ "id": id }).to_string();
+	let result =
+		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
+			Ok(encoded_batch) => encoded_batch,
+			Err(err) => {
+				log::error!(target:"ocex","Error fetching user actions batch for {:?}: {:?}",id,err);
+				return None
+			},
+		};
 
 	match UserActionBatch::<T::AccountId>::decode(&mut &result[..]) {
 		Ok(batch) => Some(batch),
@@ -364,7 +365,7 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
 	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
-	log::debug!(target:"thea","Sending {} request with body len {}...",log_target,body_len);
+	log::debug!(target:"ocex","Sending {} request with body len {}...",log_target,body_len);
 	let request = http::Request::post(url, [body]);
 	let pending: PendingRequest = request
 		.add_header("Content-Type", "application/json")
@@ -373,14 +374,14 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 		.send()
 		.map_err(map_http_err)?;
 
-	log::debug!(target:"thea","Waiting for {} response...",log_target);
+	log::debug!(target:"ocex","Waiting for {} response...",log_target);
 	let response: Response = pending
 		.try_wait(deadline)
 		.map_err(|_pending| "deadline reached")?
 		.map_err(map_sp_runtime_http_err)?;
 
 	if response.code != 200u16 {
-		log::warn!(target:"thea","Unexpected status code for {}: {:?}",log_target,response.code);
+		log::warn!(target:"ocex","Unexpected status code for {}: {:?}",log_target,response.code);
 		return Err("request failed")
 	}
 
@@ -391,7 +392,7 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 		log::warn!("No UTF8 body");
 		"no UTF8 body in response"
 	})?;
-	log::debug!(target:"thea","{} response: {:?}",log_target,body_str);
+	log::debug!(target:"ocex","{} response: {:?}",log_target,body_str);
 	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(&body_str)
 		.map_err(|_| "Response failed deserialize")?;
 

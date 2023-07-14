@@ -155,8 +155,33 @@ pub struct ApprovedMessage {
 
 #[cfg(test)]
 mod tests {
-	use crate::types::AssetMetadata;
+	use crate::{
+		types::{ApprovedMessage, AssetMetadata, Destination},
+		Message,
+	};
+	use parity_scale_codec::Encode;
 	use polkadex_primitives::UNIT_BALANCE;
+	use sp_core::Pair;
+
+	#[test]
+	pub fn approved_message() {
+		let message = Message {
+			block_no: 1,
+			nonce: 3,
+			data: vec![1, 2, 3],
+			network: 1,
+			is_key_change: false,
+			validator_set_id: 1,
+		};
+		let pair = sp_core::ecdsa::Pair::generate().0;
+		let approved_message = ApprovedMessage {
+			message: message.clone(),
+			signature: pair.sign(&message.encode()).encode(),
+			destination: Destination::Solochain,
+		};
+
+		println!("{:?}", serde_json::to_string(&approved_message).unwrap())
+	}
 
 	#[test]
 	pub fn test_decimal_conversion() {
