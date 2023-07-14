@@ -189,6 +189,16 @@ pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub signature: sp_core::ecdsa::Signature
 }
 
+
+impl<AccountId: Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
+	pub fn sign_data(&self) -> [u8;32] {
+		let mut data: Vec<u8> = self.actions.encode();
+		data.append(&mut self.stid.encode());
+		data.append(&mut self.snapshot_id.encode());
+		sp_io::hashing::blake2_256(&data)
+	}
+}
+
 #[cfg(feature = "std")]
 impl ObMessage {
 	/// Verifies itself.
