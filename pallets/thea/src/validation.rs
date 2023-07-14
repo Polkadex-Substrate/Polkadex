@@ -62,14 +62,15 @@ pub fn compute_signer_and_submit<T: Config>(
 
 	let local_keys = T::TheaId::all();
 
+	let mut auth_index = 0;
 	let mut available_keys = authorities
 		.into_iter()
 		.enumerate()
-		.filter_map(move |(_index, authority)| {
-			local_keys
-				.binary_search(&authority)
-				.ok()
-				.map(|location| local_keys[location].clone())
+		.filter_map(move |(index, authority)| {
+			local_keys.binary_search(&authority).ok().map(|location| {
+				auth_index = index;
+				local_keys[location].clone()
+			})
 		})
 		.collect::<Vec<T::TheaId>>();
 	available_keys.sort();
@@ -82,7 +83,7 @@ pub fn compute_signer_and_submit<T: Config>(
 	// Note: this is a double hash signing
 	let signature = signer.sign(&msg_hash).ok_or("Expected signature to be returned")?;
 
-	submit_message_to_aggregator::<T>(message, signature.into(), destination)?;
+	submit_message_to_aggregator::<T>(message, signature.into(), destination, auth_index as u16)?;
 	Ok(())
 }
 
@@ -90,8 +91,10 @@ pub fn submit_message_to_aggregator<T: Config>(
 	message: Message,
 	signature: T::Signature,
 	destination: Destination,
+	auth_index: u16,
 ) -> Result<(), &'static str> {
-	let approved_message = ApprovedMessage { message, signature: signature.encode(), destination };
+	let approved_message =
+		ApprovedMessage { message, index: auth_index, signature: signature.encode(), destination };
 	let body = serde_json::to_string(&approved_message).map_err(|err| {
 		log::error!(target:"thea","Error serializing approved message: {:?}",err);
 		"Error serializing approved message"
