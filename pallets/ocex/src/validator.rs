@@ -46,9 +46,9 @@ impl<T: Config> Pallet<T> {
 		let mut available_keys = authorities
 			.into_iter()
 			.enumerate()
-			.filter_map(move |(_index, authority)| {
+			.filter_map(move |(index, authority)| {
 				local_keys.binary_search(&authority).ok().map(|location| {
-					auth_index = location;
+					auth_index = index;
 					local_keys[location].clone()
 				})
 			})
