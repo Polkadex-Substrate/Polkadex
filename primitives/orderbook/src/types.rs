@@ -186,12 +186,11 @@ pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub actions: Vec<UserActions<AccountId>>,
 	pub stid: u64,
 	pub snapshot_id: u64,
-	pub signature: sp_core::ecdsa::Signature
+	pub signature: sp_core::ecdsa::Signature,
 }
 
-
 impl<AccountId: Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
-	pub fn sign_data(&self) -> [u8;32] {
+	pub fn sign_data(&self) -> [u8; 32] {
 		let mut data: Vec<u8> = self.actions.encode();
 		data.append(&mut self.stid.encode());
 		data.append(&mut self.snapshot_id.encode());

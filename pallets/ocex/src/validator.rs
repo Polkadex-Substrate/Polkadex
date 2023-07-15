@@ -42,17 +42,17 @@ impl<T: Config> Pallet<T> {
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
-		let mut auth_index = 0;
 		let mut available_keys = authorities
-			.into_iter()
+			.iter()
 			.enumerate()
-			.filter_map(move |(index, authority)| {
-				local_keys.binary_search(&authority).ok().map(|location| {
-					auth_index = index;
-					local_keys[location].clone()
-				})
+			.filter_map(move |(_index, authority)| {
+				local_keys
+					.binary_search(&authority)
+					.ok()
+					.map(|location| local_keys[location].clone())
 			})
 			.collect::<Vec<T::AuthorityId>>();
+
 		available_keys.sort();
 
 		if available_keys.is_empty() && sp_io::offchain::is_validator() {
@@ -89,6 +89,7 @@ impl<T: Config> Pallet<T> {
 
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
+			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
 			// resubmit the summary to aggregator
 			load_signed_summary_and_send::<T>(next_nonce);
 			return Ok(())
@@ -139,6 +140,8 @@ impl<T: Config> Pallet<T> {
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
+					let auth_index = Self::calculate_signer_index(&authorities, key).unwrap();
+
 					// Prepare summary
 					let summary = SnapshotSummary {
 						validator_set_id: <ValidatorSetId<T>>::get(),
@@ -148,7 +151,7 @@ impl<T: Config> Pallet<T> {
 						last_processed_blk: state_info.last_block.saturated_into(),
 						withdrawals,
 					};
-					sp_runtime::print("Summary created!");
+					log::debug!(target:"ocex","Summary created by auth index: {:?}",auth_index);
 					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
 
 					let body = serde_json::to_string(&ApprovedSnapshot {
@@ -158,8 +161,11 @@ impl<T: Config> Pallet<T> {
 					})
 					.map_err(|_| "ApprovedSnapshot serialization failed")?;
 
-					if let Err(err) = send_request("submit_snapshot_api", AGGREGATOR, body.as_str())
-					{
+					if let Err(err) = send_request(
+						"submit_snapshot_api",
+						&(AGGREGATOR.to_owned() + "/submit_snapshot"),
+						body.as_str(),
+					) {
 						log::error!(target:"ocex","Error submitting signature: {:?}",err);
 					}
 					store_summary::<T>(summary, signature, auth_index.saturated_into()); // Casting is fine here
@@ -291,6 +297,20 @@ impl<T: Config> Pallet<T> {
 		let _ = state.insert(&STATE_INFO, &state_info.encode()).map_err(map_trie_error)?;
 		Ok(())
 	}
+
+	fn calculate_signer_index(
+		authorities: &Vec<T::AuthorityId>,
+		expected_signer: &T::AuthorityId,
+	) -> Option<usize> {
+		let mut auth_index: Option<usize> = None;
+		for (index, auth) in authorities.into_iter().enumerate() {
+			if *expected_signer == *auth {
+				auth_index = Some(index);
+				break
+			}
+		}
+		auth_index
+	}
 }
 
 use parity_scale_codec::alloc::string::ToString;
@@ -333,8 +353,11 @@ pub fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
 				signature: signature.encode(),
 			}) {
 				Ok(body) => {
-					if let Err(err) = send_request("submit_snapshot_api", AGGREGATOR, body.as_str())
-					{
+					if let Err(err) = send_request(
+						"submit_snapshot_api",
+						&(AGGREGATOR.to_owned() + "/submit_snapshot"),
+						body.as_str(),
+					) {
 						log::error!(target:"ocex","Error submitting signature: {:?}",err);
 					}
 				},
@@ -440,6 +463,5 @@ impl JSONRPCResponse {
 		Self { jsonrpc: "2.0".into(), result: content, id: 2 }
 	}
 }
-
 
 use orderbook_primitives::types::ApprovedSnapshot;
