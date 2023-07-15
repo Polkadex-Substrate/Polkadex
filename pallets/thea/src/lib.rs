@@ -27,19 +27,19 @@
 //! * keep track of egress messages;
 //! * handle validator session changes;
 
-use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
+use frame_support::{BoundedVec, pallet_prelude::*, Parameter, traits::Get};
 use frame_system::pallet_prelude::*;
-pub use pallet::*;
 use parity_scale_codec::Encode;
-
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
-	traits::{BlockNumberProvider, Member},
-	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	RuntimeAppPublic, SaturatedConversion,
+	RuntimeAppPublic,
+	SaturatedConversion,
+	traits::{BlockNumberProvider, Member}, transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
+
+pub use pallet::*;
+use thea_primitives::{GENESIS_AUTHORITY_SET_ID, Network, types::Message};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -59,8 +59,10 @@ pub const THEA: KeyTypeId = KeyTypeId(*b"thea");
 
 pub mod ecdsa {
 	mod app_ecdsa {
-		use super::super::THEA;
 		use sp_application_crypto::{app_crypto, ecdsa};
+
+		use super::super::THEA;
+
 		app_crypto!(ecdsa, THEA);
 	}
 
@@ -89,7 +91,7 @@ pub mod pallet {
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
 
-	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
+	use thea_primitives::{TheaIncomingExecutor, TheaOutgoingExecutor, types::Message};
 
 	use super::*;
 
@@ -270,6 +272,43 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			<OutgoingNonce<T>>::insert(network, nonce);
+			Ok(())
+		}
+
+		/// Add a network to active networks
+		#[pallet::call_index(7)]
+		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
+		pub fn add_thea_network(
+			origin: OriginFor<T>,
+			network: Network,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<ActiveNetworks<T>>::mutate(|list| {
+				if !list.contains(&network) {
+					list.push(network);
+				}
+			});
+
+			Ok(())
+		}
+
+		/// Remove a network to active networks
+		#[pallet::call_index(8)]
+		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
+		pub fn remove_thea_network(
+			origin: OriginFor<T>,
+			network: Network,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<ActiveNetworks<T>>::mutate(|list| {
+				list.sort(); // This is fine as the list is very small < 10 items
+				if let Ok(index) = list.binary_search(&network) {
+					list.remove(index);
+				}
+			});
+
 			Ok(())
 		}
 	}
