@@ -269,7 +269,7 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(4).into()
 		}
 
-		let encoded_payload = payload.encode();
+		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(2).into(),
