@@ -20,7 +20,7 @@ sp-core = { workspace = true, default-features = false, features = ["serde"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 sp-application-crypto = { workspace = true, default-features = false}
 sp-io = { workspace = true, default-features = false}
-hex = {version = "0.4.3", default-features = false}
+hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
