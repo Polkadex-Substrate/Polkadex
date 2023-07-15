@@ -11,7 +11,7 @@ use thea_primitives::{Message, Network};
 use crate::{Config, Pallet};
 
 pub const MAINNET_URL: &str = "http://localhost:9944";
-pub const PARACHAIN_URL: &str = "http://localhost:50917";
+pub const PARACHAIN_URL: &str = "http://localhost:56719";
 pub const AGGREGRATOR_URL: &str = "http://localhost:9903";
 
 impl<T: Config> Pallet<T> {
