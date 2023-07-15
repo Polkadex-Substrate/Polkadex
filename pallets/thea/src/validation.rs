@@ -11,8 +11,8 @@ use thea_primitives::{Message, Network};
 use crate::{Config, Pallet};
 
 pub const MAINNET_URL: &str = "http://localhost:9944";
-pub const PARACHAIN_URL: &str = "http://localhost:56719";
-pub const AGGREGRATOR_URL: &str = "http://localhost:9903";
+pub const PARACHAIN_URL: &str = "http://localhost:9902";
+pub const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
