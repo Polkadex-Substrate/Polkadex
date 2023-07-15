@@ -1,5 +1,5 @@
 use parity_scale_codec::{Decode, Encode};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use sp_core::offchain::{Duration, HttpError};
 use sp_runtime::offchain::{
 	http,
@@ -11,7 +11,7 @@ use thea_primitives::{Message, Network};
 use crate::{Config, Pallet};
 
 pub const MAINNET_URL: &str = "http://localhost:9944";
-pub const PARACHAIN_URL: &str = "http://localhost:9902";
+pub const PARACHAIN_URL: &str = "http://localhost:50917";
 pub const AGGREGRATOR_URL: &str = "http://localhost:9903";
 
 impl<T: Config> Pallet<T> {
@@ -27,7 +27,7 @@ impl<T: Config> Pallet<T> {
 			//		a. Read the next nonce (N) to process at source and destination on its finalized
 			// state
 			let next_incoming_nonce = <IncomingNonce<T>>::get(network).saturating_add(1);
-			let next_outgoing_nonce = <OutgoingNonce<T>>::get(network).saturating_add(1);
+			let next_outgoing_nonce = get_latest_incoming_nonce_parachain().saturating_add(1);
 			log::debug!(target:"thea","Next Incoming nonce: {:?}, Outgoing nonce: {:?} for network: {:?}",
 				next_incoming_nonce,next_outgoing_nonce,network);
 			//		b. Check if payload for N is available at source and destination on its finalized
@@ -40,9 +40,13 @@ impl<T: Config> Pallet<T> {
 			if let Some(message) = next_incoming_message {
 				//  d. store the signed payload on-chain for relayers to relay it to destination
 				compute_signer_and_submit::<T>(message, Destination::Solochain)?;
+			}else {
+				log::debug!(target:"thea","No incoming message with nonce: {:?} from network: {:?}",next_incoming_nonce,network);
 			}
 			if let Some(message) = next_outgoing_message {
 				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
+			}else {
+				log::debug!(target:"thea","No outgoing message with nonce: {:?} from network: {:?}",next_outgoing_nonce,network);
 			}
 		}
 		log::debug!(target:"thea","Thea offchain worker exiting..");
@@ -54,6 +58,7 @@ pub fn compute_signer_and_submit<T: Config>(
 	message: Message,
 	destination: Destination,
 ) -> Result<(), &'static str> {
+	log::debug!(target:"thea","signing and submitting {:?} to {:?}",message, destination);
 	// We use SHA256 as it is available across many networks
 	let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
 
@@ -93,6 +98,7 @@ pub fn submit_message_to_aggregator<T: Config>(
 	destination: Destination,
 	auth_index: u16,
 ) -> Result<(), &'static str> {
+	log::debug!(target:"thea","submitting ({:?},{:?}) to aggregator",message.nonce,destination);
 	let approved_message =
 		ApprovedMessage { message, index: auth_index, signature: signature.encode(), destination };
 	let body = serde_json::to_string(&approved_message).map_err(|err| {
@@ -103,33 +109,53 @@ pub fn submit_message_to_aggregator<T: Config>(
 	Ok(())
 }
 
+
+
+pub fn get_latest_incoming_nonce_parachain() -> u64 {
+	let storage_key = create_para_incoming_nonce_key();
+	get_storage_at_latest_finalized_head::<u64>(
+		"para_incoming_nonce",
+		PARACHAIN_URL,
+		storage_key,
+	).unwrap_or_default().unwrap_or_default()
+}
+
 pub fn get_payload_for_nonce(
 	nonce: u64,
 	network: Network,
 	destination: Destination,
 ) -> Option<Message> {
+	log::debug!(target:"thea","Getting payload for nonce {} for network: {} ,dest: {:?}",nonce,network,destination);
 	match destination {
 		Destination::Solochain => {
 			// Get the outgoing message with nonce: `nonce` for network: `network`
 			let key = create_solo_outgoing_message_key(nonce, network);
-			get_storage_at_latest_finalized_head::<Option<Message>>(
+			get_storage_at_latest_finalized_head::<Message>(
 				"solo_outgoing_message",
 				MAINNET_URL,
 				key,
 			)
-			.unwrap()
+				.unwrap()
 		},
 		Destination::Parachain => {
 			// Get the outgoing message with nonce: `nonce` from network
 			let key = create_para_outgoing_message_key(nonce);
-			get_storage_at_latest_finalized_head::<Option<Message>>(
+			get_storage_at_latest_finalized_head::<Message>(
 				"para_outgoing_message",
 				PARACHAIN_URL,
 				key,
-			)
-			.unwrap()
+			).unwrap()
 		},
 	}
+}
+
+pub fn create_para_incoming_nonce_key() -> Vec<u8> {
+	let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
+	let storage_prefix = sp_io::hashing::twox_128(b"IncomingNonce");
+	let mut key = Vec::new();
+	key.append(&mut module_name.to_vec());
+	key.append(&mut storage_prefix.to_vec());
+	key
 }
 
 pub fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8> {
@@ -152,33 +178,45 @@ pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 	key.append(&mut nonce.encode());
 	key
 }
-
+use sp_std::borrow::ToOwned;
 pub fn get_storage_at_latest_finalized_head<S: Decode>(
 	log_target: &str,
 	url: &str,
 	storage_key: Vec<u8>,
-) -> Result<S, &'static str> {
+) -> Result<Option<S>, &'static str> {
 	log::debug!(target:"thea","getting storage for {}",log_target);
 	// 1. Get finalized head ( Fh )
 	let finalized_head = get_finalized_head(url)?;
+
+	let storage_key = "0x".to_owned()+&hex::encode(storage_key);
+
 	// 2. Get the storage at Fh
 	let body = serde_json::json!({
 	"id":1,
 	"jsonrpc":"2.0",
 	"method": "state_getStorage",
 	"params": [storage_key,finalized_head]
-	});
+	}).to_string();
 
 	let storage_bytes = send_request(
 		log_target,
 		url,
-		body.as_str().unwrap(), // TODO: Remove unwraps
+		body.as_str(),
 	)?;
 
-	Ok(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?)
-}
+	if storage_bytes.is_null() {
+		log::debug!(target:"thea","Storage query returned null response");
+		return Ok(None)
+	}
 
-pub fn get_finalized_head<'a>(url: &str) -> Result<Vec<u8>, &'static str> {
+	let storage_bytes = storage_bytes.to_string().replace("\"",""); // Remove unwanted \"
+	let storage_bytes = storage_bytes.to_string().replace("0x",""); // Remove unwanted 0x for decoding
+	let storage_bytes = hex::decode(&storage_bytes).unwrap();
+
+	Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
+}
+use scale_info::prelude::string::String;
+pub fn get_finalized_head<'a>(url: &str) -> Result<String, &'static str> {
 	// This body will work for most substrate chains
 	let body = serde_json::json!({
 	"id":1,
@@ -186,21 +224,24 @@ pub fn get_finalized_head<'a>(url: &str) -> Result<Vec<u8>, &'static str> {
 	"method": "chain_getFinalizedHead",
 	"params": []
 	});
-	let result = send_request("get_finalized_head", url, body.to_string().as_str())?;
+	let mut result = send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
+	result = result.replace("\"","");
+	log::debug!(target:"thea","Finalized head: {:?}",result);
 	Ok(result)
 }
-use crate::pallet::{ActiveNetworks, Authorities, IncomingNonce, OutgoingNonce, ValidatorSetId};
+use crate::pallet::{ActiveNetworks, Authorities, IncomingNonce, ValidatorSetId};
 use parity_scale_codec::alloc::string::ToString;
 
 use sp_application_crypto::RuntimeAppPublic;
 
 use thea_primitives::types::{ApprovedMessage, Destination};
 
-pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<serde_json::Value, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
 	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
 	log::debug!(target:"thea","Sending {} request with body len {}...",log_target,body_len);
+	log::debug!(target:"thea","Sending {} request with body {}",log_target,body);
 	let request = http::Request::post(url, [body]);
 	let pending: PendingRequest = request
 		.add_header("Content-Type", "application/json")
@@ -251,20 +292,12 @@ fn map_http_err(err: HttpError) -> &'static str {
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
-	#[serde(deserialize_with = "deserialize_bytes")]
-	result: Vec<u8>,
+	result: serde_json::Value,
 	id: u64,
 }
 
-fn deserialize_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-where
-	D: Deserializer<'de>,
-{
-	// Deserialize the value as a string
-	let s: &str = Deserialize::deserialize(deserializer)?;
-
-	// Convert the string to bytes
-	let bytes = s.as_bytes().to_vec();
-
-	Ok(bytes)
+impl JSONRPCResponse {
+	pub fn new(content: Vec<u8>) -> Self {
+		Self { jsonrpc: "2.0".into(), result: content.into(), id: 2 }
+	}
 }

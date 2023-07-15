@@ -164,6 +164,25 @@ mod tests {
 	use polkadex_primitives::UNIT_BALANCE;
 	use sp_core::Pair;
 
+
+	#[test]
+	pub fn test_message_decode_encode() {
+		let encoded_msg = "060000000000000001000000000000000c12345001000000000000000000";
+		
+		let bytes = hex::decode(&encoded_msg).unwrap();
+		
+		let expected_msg = Message {
+			block_no: 6,
+			nonce: 1,
+			data: hex::decode("123450").unwrap(),
+			network: 1,
+			is_key_change: false,
+			validator_set_id: 0,
+		};
+		assert_eq!(bytes,expected_msg.encode());
+
+	}
+
 	#[test]
 	pub fn approved_message() {
 		let message = Message {
@@ -177,6 +196,7 @@ mod tests {
 		let pair = sp_core::ecdsa::Pair::generate().0;
 		let approved_message = ApprovedMessage {
 			message: message.clone(),
+			index: 0,
 			signature: pair.sign(&message.encode()).encode(),
 			destination: Destination::Solochain,
 		};
