@@ -161,25 +161,29 @@ mod tests {
 		Message,
 	};
 	use parity_scale_codec::Encode;
+	use sp_application_crypto::RuntimePublic;
 	use polkadex_primitives::UNIT_BALANCE;
-	use sp_core::Pair;
+	use sp_core::{ByteArray, Pair};
 
 
 	#[test]
 	pub fn test_message_decode_encode() {
-		let encoded_msg = "060000000000000001000000000000000c12345001000000000000000000";
-		
-		let bytes = hex::decode(&encoded_msg).unwrap();
-		
-		let expected_msg = Message {
-			block_no: 6,
-			nonce: 1,
-			data: hex::decode("123450").unwrap(),
-			network: 1,
-			is_key_change: false,
-			validator_set_id: 0,
-		};
-		assert_eq!(bytes,expected_msg.encode());
+		let encoded_signature = "e7315de93b4ade67faa08195f43d54d9c76dbca2374968f13ae0a908a66624d746e46940262ef89f5afaece6652f4b2390652807ca3d67047c1e6fc15b28cbd901";
+
+		let bytes = hex::decode(encoded_signature).unwrap();
+		let pubk_bytes = hex::decode("0020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").unwrap();
+
+		let signature = sp_core::ecdsa::Signature::from_slice(&bytes).unwrap();
+		let pubk = sp_core::ecdsa::Public::from_slice(&bytes).unwrap();
+
+		let msg = Message { block_no: 8,
+			nonce: 1, data: [18, 52, 80],
+			network: 1, is_key_change: false,
+			validator_set_id: 0 };
+
+		let msg_hash = sp_io::hashing::sha2_256(&msg.encode());
+
+		pubk.verify(&msg_hash,&signature)
 
 	}
 

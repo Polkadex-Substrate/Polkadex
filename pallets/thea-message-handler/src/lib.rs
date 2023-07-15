@@ -266,16 +266,16 @@ impl<T: Config> Pallet<T> {
 		// Check for super majority
 		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
 		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(4).into()
+			return InvalidTransaction::Custom(2).into()
 		}
 
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
 			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(2).into(),
+				None => return InvalidTransaction::Custom(3).into(),
 				Some(auth) =>
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(3).into()
+						return InvalidTransaction::Custom(4).into()
 					},
 			}
 		}
