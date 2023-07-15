@@ -49,7 +49,7 @@ pub struct Message {
 	pub validator_set_id: ValidatorSetId,
 }
 
-#[derive(
+#[derive(Copy,
 	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
 )]
 pub enum Destination {
