@@ -272,10 +272,10 @@ impl<T: Config> Pallet<T> {
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
 			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(3).into(),
+				None => return InvalidTransaction::Custom(5).into(),
 				Some(auth) =>
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(4).into()
+						return InvalidTransaction::Custom(7).into()
 					},
 			}
 		}
