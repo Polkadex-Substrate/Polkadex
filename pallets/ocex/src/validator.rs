@@ -140,7 +140,9 @@ impl<T: Config> Pallet<T> {
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
-					let auth_index = Self::calculate_signer_index(&authorities, key).unwrap();
+					// Unwrap is okay here, we verified the data before.
+					let auth_index = Self::calculate_signer_index(&authorities, key)
+						.ok_or("Unable to calculate signer index")?;
 
 					// Prepare summary
 					let summary = SnapshotSummary {
@@ -389,7 +391,8 @@ pub fn store_summary<T: Config>(
 pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
-	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
+	let body_len =
+		serde_json::to_string(&body.as_bytes().len()).map_err(|_| "Unable to serialize")?;
 	log::debug!(target:"ocex","Sending {} request with body len {}...",log_target,body_len);
 	let request = http::Request::post(url, [body]);
 	let pending: PendingRequest = request

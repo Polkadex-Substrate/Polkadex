@@ -40,12 +40,12 @@ impl<T: Config> Pallet<T> {
 			if let Some(message) = next_incoming_message {
 				//  d. store the signed payload on-chain for relayers to relay it to destination
 				compute_signer_and_submit::<T>(message, Destination::Solochain)?;
-			}else {
+			} else {
 				log::debug!(target:"thea","No incoming message with nonce: {:?} from network: {:?}",next_incoming_nonce,network);
 			}
 			if let Some(message) = next_outgoing_message {
 				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
-			}else {
+			} else {
 				log::debug!(target:"thea","No outgoing message with nonce: {:?} from network: {:?}",next_outgoing_nonce,network);
 			}
 		}
@@ -109,15 +109,11 @@ pub fn submit_message_to_aggregator<T: Config>(
 	Ok(())
 }
 
-
-
 pub fn get_latest_incoming_nonce_parachain() -> u64 {
 	let storage_key = create_para_incoming_nonce_key();
-	get_storage_at_latest_finalized_head::<u64>(
-		"para_incoming_nonce",
-		PARACHAIN_URL,
-		storage_key,
-	).unwrap_or_default().unwrap_or_default()
+	get_storage_at_latest_finalized_head::<u64>("para_incoming_nonce", PARACHAIN_URL, storage_key)
+		.unwrap_or_default()
+		.unwrap_or_default()
 }
 
 pub fn get_payload_for_nonce(
@@ -135,7 +131,7 @@ pub fn get_payload_for_nonce(
 				MAINNET_URL,
 				key,
 			)
-				.unwrap()
+			.unwrap()
 		},
 		Destination::Parachain => {
 			// Get the outgoing message with nonce: `nonce` from network
@@ -144,7 +140,8 @@ pub fn get_payload_for_nonce(
 				"para_outgoing_message",
 				PARACHAIN_URL,
 				key,
-			).unwrap()
+			)
+			.unwrap()
 		},
 	}
 }
@@ -188,7 +185,7 @@ pub fn get_storage_at_latest_finalized_head<S: Decode>(
 	// 1. Get finalized head ( Fh )
 	let finalized_head = get_finalized_head(url)?;
 
-	let storage_key = "0x".to_owned()+&hex::encode(storage_key);
+	let storage_key = "0x".to_owned() + &hex::encode(storage_key);
 
 	// 2. Get the storage at Fh
 	let body = serde_json::json!({
@@ -196,22 +193,20 @@ pub fn get_storage_at_latest_finalized_head<S: Decode>(
 	"jsonrpc":"2.0",
 	"method": "state_getStorage",
 	"params": [storage_key,finalized_head]
-	}).to_string();
+	})
+	.to_string();
 
-	let storage_bytes = send_request(
-		log_target,
-		url,
-		body.as_str(),
-	)?;
+	let storage_bytes = send_request(log_target, url, body.as_str())?;
 
 	if storage_bytes.is_null() {
 		log::debug!(target:"thea","Storage query returned null response");
 		return Ok(None)
 	}
 
-	let storage_bytes = storage_bytes.to_string().replace("\"",""); // Remove unwanted \"
-	let storage_bytes = storage_bytes.to_string().replace("0x",""); // Remove unwanted 0x for decoding
-	let storage_bytes = hex::decode(&storage_bytes).unwrap();
+	let storage_bytes = storage_bytes.to_string().replace("\"", ""); // Remove unwanted \"
+	let storage_bytes = storage_bytes.to_string().replace("0x", ""); // Remove unwanted 0x for decoding
+	let storage_bytes =
+		hex::decode(&storage_bytes).map_err(|_| "Unable to hex decode storage value bytes")?;
 
 	Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
 }
@@ -224,8 +219,9 @@ pub fn get_finalized_head<'a>(url: &str) -> Result<String, &'static str> {
 	"method": "chain_getFinalizedHead",
 	"params": []
 	});
-	let mut result = send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
-	result = result.replace("\"","");
+	let mut result =
+		send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
+	result = result.replace("\"", "");
 	log::debug!(target:"thea","Finalized head: {:?}",result);
 	Ok(result)
 }
@@ -236,10 +232,15 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use thea_primitives::types::{ApprovedMessage, Destination};
 
-pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<serde_json::Value, &'static str> {
+pub fn send_request<'a>(
+	log_target: &str,
+	url: &str,
+	body: &str,
+) -> Result<serde_json::Value, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
-	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
+	let body_len = serde_json::to_string(&body.as_bytes().len())
+		.map_err(|_| "Unable to to string body len")?;
 	log::debug!(target:"thea","Sending {} request with body len {}...",log_target,body_len);
 	log::debug!(target:"thea","Sending {} request with body {}",log_target,body);
 	let request = http::Request::post(url, [body]);

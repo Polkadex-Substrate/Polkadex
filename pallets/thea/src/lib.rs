@@ -27,19 +27,19 @@
 //! * keep track of egress messages;
 //! * handle validator session changes;
 
-use frame_support::{BoundedVec, pallet_prelude::*, Parameter, traits::Get};
+use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 use parity_scale_codec::Encode;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
-	RuntimeAppPublic,
-	SaturatedConversion,
-	traits::{BlockNumberProvider, Member}, transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
+	traits::{BlockNumberProvider, Member},
+	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
+	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 
 pub use pallet::*;
-use thea_primitives::{GENESIS_AUTHORITY_SET_ID, Network, types::Message};
+use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -91,7 +91,7 @@ pub mod pallet {
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
 
-	use thea_primitives::{TheaIncomingExecutor, TheaOutgoingExecutor, types::Message};
+	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
 
 	use super::*;
 
@@ -278,10 +278,7 @@ pub mod pallet {
 		/// Add a network to active networks
 		#[pallet::call_index(7)]
 		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
-		pub fn add_thea_network(
-			origin: OriginFor<T>,
-			network: Network,
-		) -> DispatchResult {
+		pub fn add_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			ensure_root(origin)?;
 
 			<ActiveNetworks<T>>::mutate(|list| {
@@ -296,10 +293,7 @@ pub mod pallet {
 		/// Remove a network to active networks
 		#[pallet::call_index(8)]
 		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
-		pub fn remove_thea_network(
-			origin: OriginFor<T>,
-			network: Network,
-		) -> DispatchResult {
+		pub fn remove_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			ensure_root(origin)?;
 
 			<ActiveNetworks<T>>::mutate(|list| {
