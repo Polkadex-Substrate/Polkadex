@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 log = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true, default-features = false }
-serde = {version = "1.0.171", default-features = false, features = ["derive"]}
-serde_json = {version = "1.0.102", default-features = false, features = ["alloc"]}
+serde = { version = "1.0.171", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.102", default-features = false, features = ["alloc"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
 frame-system = { default-features = false, workspace = true }
@@ -18,9 +18,9 @@ pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false, features = ["serde"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
-sp-application-crypto = { workspace = true, default-features = false}
-sp-io = { workspace = true, default-features = false}
-hex = {version = "0.4.3", default-features = false, features = ["alloc"]}
+sp-application-crypto = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
