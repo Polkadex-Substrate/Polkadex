@@ -258,7 +258,7 @@ impl<T: Config> Pallet<T> {
 		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
 
 		if payload.nonce != next_nonce {
-			return InvalidTransaction::Custom(1).into()
+			return InvalidTransaction::Custom(next_nonce as u8).into()
 		}
 
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
@@ -266,16 +266,16 @@ impl<T: Config> Pallet<T> {
 		// Check for super majority
 		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
 		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(2).into()
+			return InvalidTransaction::Custom(200).into()
 		}
 
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
 			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(5).into(),
+				None => return InvalidTransaction::Custom(500).into(),
 				Some(auth) =>
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(7).into()
+						return InvalidTransaction::Custom(700).into()
 					},
 			}
 		}
