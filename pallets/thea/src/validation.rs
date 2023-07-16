@@ -203,15 +203,15 @@ pub fn get_storage_at_latest_finalized_head<S: Decode>(
 		return Ok(None)
 	}
 
-	let storage_bytes = storage_bytes.to_string().replace("\"", ""); // Remove unwanted \"
-	let storage_bytes = storage_bytes.to_string().replace("0x", ""); // Remove unwanted 0x for decoding
+	let storage_bytes = storage_bytes.to_string().replace('\"', ""); // Remove unwanted \"
+	let storage_bytes = storage_bytes.replace("0x", ""); // Remove unwanted 0x for decoding
 	let storage_bytes =
-		hex::decode(&storage_bytes).map_err(|_| "Unable to hex decode storage value bytes")?;
+		hex::decode(storage_bytes).map_err(|_| "Unable to hex decode storage value bytes")?;
 
 	Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
 }
 use scale_info::prelude::string::String;
-pub fn get_finalized_head<'a>(url: &str) -> Result<String, &'static str> {
+pub fn get_finalized_head(url: &str) -> Result<String, &'static str> {
 	// This body will work for most substrate chains
 	let body = serde_json::json!({
 	"id":1,
@@ -221,7 +221,7 @@ pub fn get_finalized_head<'a>(url: &str) -> Result<String, &'static str> {
 	});
 	let mut result =
 		send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
-	result = result.replace("\"", "");
+	result = result.replace('\"', "");
 	log::debug!(target:"thea","Finalized head: {:?}",result);
 	Ok(result)
 }
@@ -232,7 +232,7 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use thea_primitives::types::{ApprovedMessage, Destination};
 
-pub fn send_request<'a>(
+pub fn send_request(
 	log_target: &str,
 	url: &str,
 	body: &str,
@@ -270,9 +270,9 @@ pub fn send_request<'a>(
 		"no UTF8 body in response"
 	})?;
 	log::debug!(target:"thea","{} response: {:?}",log_target,body_str);
-	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(&body_str)
+	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(body_str)
 		.map_err(|_| "Response failed deserialize")?;
-	Ok(response.result.clone())
+	Ok(response.result)
 }
 
 fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
