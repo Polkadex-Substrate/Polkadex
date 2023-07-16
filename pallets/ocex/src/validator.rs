@@ -47,7 +47,7 @@ impl<T: Config> Pallet<T> {
 			.enumerate()
 			.filter_map(move |(_index, authority)| {
 				local_keys
-					.binary_search(&authority)
+					.binary_search(authority)
 					.ok()
 					.map(|location| local_keys[location].clone())
 			})
@@ -301,11 +301,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn calculate_signer_index(
-		authorities: &Vec<T::AuthorityId>,
+		authorities: &[T::AuthorityId],
 		expected_signer: &T::AuthorityId,
 	) -> Option<usize> {
 		let mut auth_index: Option<usize> = None;
-		for (index, auth) in authorities.into_iter().enumerate() {
+		for (index, auth) in authorities.iter().enumerate() {
 			if *expected_signer == *auth {
 				auth_index = Some(index);
 				break
@@ -388,7 +388,7 @@ pub fn store_summary<T: Config>(
 	summay_ref.set(&(summary, signature, auth_index));
 }
 
-pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
 	let body_len =
@@ -421,10 +421,10 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 		"no UTF8 body in response"
 	})?;
 	log::debug!(target:"ocex","{} response: {:?}",log_target,body_str);
-	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(&body_str)
+	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(body_str)
 		.map_err(|_| "Response failed deserialize")?;
 
-	Ok(response.result.clone())
+	Ok(response.result)
 }
 
 #[allow(clippy::boxed_local)]
