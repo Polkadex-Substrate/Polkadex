@@ -37,8 +37,7 @@ benchmarks! {
 			is_key_change: false,
 			validator_set_id: 0
 		};
-		let signature: sp_core::sr25519::Signature = sp_core::sr25519::Signature([0u8;64]);
-		let signature: T::Signature = Decode::decode(&mut &signature.encode()[..]).unwrap();
+		let signature: T::Signature = <T as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap();
 		let signatures = vec![(1, signature)];
 	}: _(RawOrigin::None, message, signatures)
 	verify {

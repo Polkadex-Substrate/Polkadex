@@ -89,7 +89,6 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-bls-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 
 # Orderbook 
@@ -117,7 +116,6 @@ substrate-wasm-builder = { workspace = true }
 [features]
 default = ["std"]
 std = [
-  "bls-primitives/std",
   "parity-scale-codec/std",
   "scale-info/std",
   "log/std",

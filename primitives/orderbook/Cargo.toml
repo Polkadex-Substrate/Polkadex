@@ -16,7 +16,7 @@ sp-std = { workspace = true }
 polkadex-primitives = { workspace = true }
 chrono = { version = "0.4.23", optional = true }
 rand = { version = "0.8.5", optional = true }
-serde = { version = "1.0.152", default-features = false }
+serde = { workspace = true, default-features = false }
 serde_with = { version = "2.3.2", features = ["json"], optional = true }
 log = { workspace = true, default-features = false }
 anyhow = { version = "1.0.69", default-features = false }

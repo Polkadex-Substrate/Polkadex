@@ -28,7 +28,6 @@ lazy_static::lazy_static! {
 		network: 0u8,
 		is_key_change: false,
 		validator_set_id: 0,
-		validator_set_len: 1,
 	};
 	/// keychange message invalid
 	pub(crate) static ref M_KC: Message = Message {
@@ -38,31 +37,30 @@ lazy_static::lazy_static! {
 		network: 0u8,
 		is_key_change: true,
 		validator_set_id: 0,
-		validator_set_len: 1,
 	};
 }
 
 pub(crate) const SIG: [u8; 48] = [
-	149, 78, 11, 39, 209, 149, 209, 101, 74, 132, 154, 96, 46, 218, 114, 207, 95, 52, 40, 70, 44,
-	13, 7, 236, 224, 87, 192, 58, 99, 125, 175, 25, 35, 186, 6, 53, 246, 152, 164, 191, 169, 212,
-	133, 30, 143, 196, 55, 214,
+    149, 78, 11, 39, 209, 149, 209, 101, 74, 132, 154, 96, 46, 218, 114, 207, 95, 52, 40, 70, 44,
+    13, 7, 236, 224, 87, 192, 58, 99, 125, 175, 25, 35, 186, 6, 53, 246, 152, 164, 191, 169, 212,
+    133, 30, 143, 196, 55, 214,
 ];
 
 pub(crate) const PK: [u8; 96] = [
-	128, 68, 92, 111, 149, 140, 246, 244, 137, 50, 23, 217, 197, 153, 235, 255, 228, 58, 108, 191,
-	41, 203, 237, 112, 203, 173, 118, 41, 92, 3, 165, 18, 200, 173, 125, 232, 182, 162, 9, 122, 13,
-	77, 41, 222, 92, 53, 60, 0, 22, 227, 136, 163, 35, 121, 27, 34, 208, 233, 191, 74, 36, 223, 17,
-	34, 79, 35, 164, 208, 138, 207, 171, 53, 254, 213, 17, 141, 35, 196, 81, 247, 20, 171, 33, 187,
-	152, 79, 229, 3, 121, 17, 242, 252, 147, 209, 50, 186,
+    128, 68, 92, 111, 149, 140, 246, 244, 137, 50, 23, 217, 197, 153, 235, 255, 228, 58, 108, 191,
+    41, 203, 237, 112, 203, 173, 118, 41, 92, 3, 165, 18, 200, 173, 125, 232, 182, 162, 9, 122, 13,
+    77, 41, 222, 92, 53, 60, 0, 22, 227, 136, 163, 35, 121, 27, 34, 208, 233, 191, 74, 36, 223, 17,
+    34, 79, 35, 164, 208, 138, 207, 171, 53, 254, 213, 17, 141, 35, 196, 81, 247, 20, 171, 33, 187,
+    152, 79, 229, 3, 121, 17, 242, 252, 147, 209, 50, 186,
 ];
 
 pub(crate) fn produce_authorities<T: Config>(
 ) -> BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> {
-	let mut authorities: BoundedVec<
-		<T as crate::Config>::TheaId,
-		<T as crate::Config>::MaxAuthorities,
-	> = BoundedVec::with_bounded_capacity(1);
-	let key = <T as crate::Config>::TheaId::decode(&mut PK.as_ref()).unwrap();
-	authorities.try_push(key).unwrap();
-	authorities
+    let mut authorities: BoundedVec<
+        <T as crate::Config>::TheaId,
+        <T as crate::Config>::MaxAuthorities,
+    > = BoundedVec::with_bounded_capacity(1);
+    let key = <T as crate::Config>::TheaId::decode(&mut PK.as_ref()).unwrap();
+    authorities.try_push(key).unwrap();
+    authorities
 }

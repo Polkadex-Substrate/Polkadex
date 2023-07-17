@@ -1,20 +1,28 @@
-use parity_scale_codec::{Decode, Encode};
+use crate::{
+	pallet::{ActiveNetworks, Authorities, IncomingNonce, ValidatorSetId},
+	Config, Pallet,
+};
+use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use serde::{Deserialize, Serialize};
 use sp_core::offchain::{Duration, HttpError};
 use sp_runtime::offchain::{
 	http,
 	http::{Error, PendingRequest, Response},
 };
-use sp_std::{vec, vec::Vec};
+use sp_std::{borrow::ToOwned, vec, vec::Vec};
 use thea_primitives::{Message, Network};
 
-use crate::{Config, Pallet};
+use sp_application_crypto::RuntimeAppPublic;
 
-pub const MAINNET_URL: &str = "http://localhost:9944";
-pub const PARACHAIN_URL: &str = "http://localhost:50917";
-pub const AGGREGRATOR_URL: &str = "http://localhost:9903";
+use thea_primitives::types::{ApprovedMessage, Destination};
+
+const MAINNET_URL: &str = "http://localhost:9944";
+const PARACHAIN_URL: &str = "http://localhost:51504";
+const AGGREGRATOR_URL: &str = "http://localhost:9901";
 
 impl<T: Config> Pallet<T> {
+	/// Starts the offchain worker instance that checks for finalized next incoming messages
+	/// for both solochain and parachain, signs it and submits to aggregator
 	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
 		if !sp_io::offchain::is_validator() {
 			return Ok(())
@@ -40,12 +48,12 @@ impl<T: Config> Pallet<T> {
 			if let Some(message) = next_incoming_message {
 				//  d. store the signed payload on-chain for relayers to relay it to destination
 				compute_signer_and_submit::<T>(message, Destination::Solochain)?;
-			}else {
+			} else {
 				log::debug!(target:"thea","No incoming message with nonce: {:?} from network: {:?}",next_incoming_nonce,network);
 			}
 			if let Some(message) = next_outgoing_message {
 				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
-			}else {
+			} else {
 				log::debug!(target:"thea","No outgoing message with nonce: {:?} from network: {:?}",next_outgoing_nonce,network);
 			}
 		}
@@ -54,7 +62,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-pub fn compute_signer_and_submit<T: Config>(
+fn compute_signer_and_submit<T: Config>(
 	message: Message,
 	destination: Destination,
 ) -> Result<(), &'static str> {
@@ -67,15 +75,14 @@ pub fn compute_signer_and_submit<T: Config>(
 
 	let local_keys = T::TheaId::all();
 
-	let mut auth_index = 0;
 	let mut available_keys = authorities
-		.into_iter()
+		.iter()
 		.enumerate()
-		.filter_map(move |(index, authority)| {
-			local_keys.binary_search(&authority).ok().map(|location| {
-				auth_index = index;
-				local_keys[location].clone()
-			})
+		.filter_map(move |(_index, authority)| {
+			local_keys
+				.binary_search(&authority)
+				.ok()
+				.map(|location| local_keys[location].clone())
 		})
 		.collect::<Vec<T::TheaId>>();
 	available_keys.sort();
@@ -85,6 +92,15 @@ pub fn compute_signer_and_submit<T: Config>(
 	}
 
 	let signer = available_keys.get(0).ok_or("Key not avaialble")?;
+	let mut auth_index = -1;
+	for (index, auth) in authorities.iter().enumerate() {
+		if auth == signer {
+			auth_index = index as i32
+		}
+	}
+	if auth_index < 0 {
+		return Err("Unable to calculate auth index")
+	}
 	// Note: this is a double hash signing
 	let signature = signer.sign(&msg_hash).ok_or("Expected signature to be returned")?;
 
@@ -92,7 +108,7 @@ pub fn compute_signer_and_submit<T: Config>(
 	Ok(())
 }
 
-pub fn submit_message_to_aggregator<T: Config>(
+fn submit_message_to_aggregator<T: Config>(
 	message: Message,
 	signature: T::Signature,
 	destination: Destination,
@@ -109,18 +125,14 @@ pub fn submit_message_to_aggregator<T: Config>(
 	Ok(())
 }
 
-
-
-pub fn get_latest_incoming_nonce_parachain() -> u64 {
+fn get_latest_incoming_nonce_parachain() -> u64 {
 	let storage_key = create_para_incoming_nonce_key();
-	get_storage_at_latest_finalized_head::<u64>(
-		"para_incoming_nonce",
-		PARACHAIN_URL,
-		storage_key,
-	).unwrap_or_default().unwrap_or_default()
+	get_storage_at_latest_finalized_head::<u64>("para_incoming_nonce", PARACHAIN_URL, storage_key)
+		.unwrap_or_default()
+		.unwrap_or_default()
 }
 
-pub fn get_payload_for_nonce(
+fn get_payload_for_nonce(
 	nonce: u64,
 	network: Network,
 	destination: Destination,
@@ -135,7 +147,7 @@ pub fn get_payload_for_nonce(
 				MAINNET_URL,
 				key,
 			)
-				.unwrap()
+			.unwrap()
 		},
 		Destination::Parachain => {
 			// Get the outgoing message with nonce: `nonce` from network
@@ -144,12 +156,14 @@ pub fn get_payload_for_nonce(
 				"para_outgoing_message",
 				PARACHAIN_URL,
 				key,
-			).unwrap()
+			)
+			.unwrap()
 		},
 	}
 }
 
-pub fn create_para_incoming_nonce_key() -> Vec<u8> {
+/// Returns the encoded key of the storage that stores incoming nonce on TheaMessageHandler pallet
+fn create_para_incoming_nonce_key() -> Vec<u8> {
 	let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
 	let storage_prefix = sp_io::hashing::twox_128(b"IncomingNonce");
 	let mut key = Vec::new();
@@ -157,7 +171,7 @@ pub fn create_para_incoming_nonce_key() -> Vec<u8> {
 	key.append(&mut storage_prefix.to_vec());
 	key
 }
-
+/// Returns the encoded key of the storage that stores outgoing nonce on Thea pallet
 pub fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8> {
 	let module_name = sp_io::hashing::twox_128(b"Thea");
 	let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
@@ -168,7 +182,7 @@ pub fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8>
 	key.append(&mut nonce.encode());
 	key
 }
-
+/// Returns the encoded key for outgoing message for given nonce in TheaMessageHandler pallet
 pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 	let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
 	let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
@@ -178,8 +192,8 @@ pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 	key.append(&mut nonce.encode());
 	key
 }
-use sp_std::borrow::ToOwned;
-pub fn get_storage_at_latest_finalized_head<S: Decode>(
+
+fn get_storage_at_latest_finalized_head<S: Decode>(
 	log_target: &str,
 	url: &str,
 	storage_key: Vec<u8>,
@@ -188,7 +202,7 @@ pub fn get_storage_at_latest_finalized_head<S: Decode>(
 	// 1. Get finalized head ( Fh )
 	let finalized_head = get_finalized_head(url)?;
 
-	let storage_key = "0x".to_owned()+&hex::encode(storage_key);
+	let storage_key = "0x".to_owned() + &hex::encode(storage_key);
 
 	// 2. Get the storage at Fh
 	let body = serde_json::json!({
@@ -196,27 +210,25 @@ pub fn get_storage_at_latest_finalized_head<S: Decode>(
 	"jsonrpc":"2.0",
 	"method": "state_getStorage",
 	"params": [storage_key,finalized_head]
-	}).to_string();
+	})
+	.to_string();
 
-	let storage_bytes = send_request(
-		log_target,
-		url,
-		body.as_str(),
-	)?;
+	let storage_bytes = send_request(log_target, url, body.as_str())?;
 
 	if storage_bytes.is_null() {
 		log::debug!(target:"thea","Storage query returned null response");
 		return Ok(None)
 	}
 
-	let storage_bytes = storage_bytes.to_string().replace("\"",""); // Remove unwanted \"
-	let storage_bytes = storage_bytes.to_string().replace("0x",""); // Remove unwanted 0x for decoding
-	let storage_bytes = hex::decode(&storage_bytes).unwrap();
+	let storage_bytes = storage_bytes.to_string().replace('\"', ""); // Remove unwanted \"
+	let storage_bytes = storage_bytes.replace("0x", ""); // Remove unwanted 0x for decoding
+	let storage_bytes =
+		hex::decode(storage_bytes).map_err(|_| "Unable to hex decode storage value bytes")?;
 
 	Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
 }
 use scale_info::prelude::string::String;
-pub fn get_finalized_head<'a>(url: &str) -> Result<String, &'static str> {
+fn get_finalized_head(url: &str) -> Result<String, &'static str> {
 	// This body will work for most substrate chains
 	let body = serde_json::json!({
 	"id":1,
@@ -224,22 +236,22 @@ pub fn get_finalized_head<'a>(url: &str) -> Result<String, &'static str> {
 	"method": "chain_getFinalizedHead",
 	"params": []
 	});
-	let mut result = send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
-	result = result.replace("\"","");
+	let mut result =
+		send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
+	result = result.replace('\"', "");
 	log::debug!(target:"thea","Finalized head: {:?}",result);
 	Ok(result)
 }
-use crate::pallet::{ActiveNetworks, Authorities, IncomingNonce, ValidatorSetId};
-use parity_scale_codec::alloc::string::ToString;
 
-use sp_application_crypto::RuntimeAppPublic;
-
-use thea_primitives::types::{ApprovedMessage, Destination};
-
-pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<serde_json::Value, &'static str> {
+pub fn send_request(
+	log_target: &str,
+	url: &str,
+	body: &str,
+) -> Result<serde_json::Value, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
-	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
+	let body_len = serde_json::to_string(&body.as_bytes().len())
+		.map_err(|_| "Unable to to string body len")?;
 	log::debug!(target:"thea","Sending {} request with body len {}...",log_target,body_len);
 	log::debug!(target:"thea","Sending {} request with body {}",log_target,body);
 	let request = http::Request::post(url, [body]);
@@ -269,9 +281,9 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<serde
 		"no UTF8 body in response"
 	})?;
 	log::debug!(target:"thea","{} response: {:?}",log_target,body_str);
-	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(&body_str)
+	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(body_str)
 		.map_err(|_| "Response failed deserialize")?;
-	Ok(response.result.clone())
+	Ok(response.result)
 }
 
 fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
@@ -289,6 +301,7 @@ fn map_http_err(err: HttpError) -> &'static str {
 	}
 }
 
+/// Http Resposne body
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,

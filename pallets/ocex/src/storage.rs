@@ -7,13 +7,13 @@ use trie_db::{DBValue, TrieDBMut};
 
 pub struct State;
 
-pub const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
-pub const NULL_NODE_DATA: [u8; 29] = *b"offchain-ocex::null_node_data";
-pub const KEY_PREFIX: [u8; 15] = *b"offchain-ocex::";
-pub const TRIE_ROOT: [u8; 24] = *b"offchain-ocex::trie_root";
+const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
+const NULL_NODE_DATA: [u8; 29] = *b"offchain-ocex::null_node_data";
+const KEY_PREFIX: [u8; 15] = *b"offchain-ocex::";
+const TRIE_ROOT: [u8; 24] = *b"offchain-ocex::trie_root";
 
 impl State {
-	pub fn hashed_null_node(&self) -> <BlakeTwo256 as Hasher>::Out {
+	fn hashed_null_node(&self) -> <BlakeTwo256 as Hasher>::Out {
 		let s_r = StorageValueRef::persistent(&HASHED_NULL_NODE);
 		match s_r.get::<<BlakeTwo256 as Hasher>::Out>() {
 			Ok(Some(x)) => x,
@@ -28,7 +28,7 @@ impl State {
 		}
 	}
 
-	pub fn null_node_data(&self) -> Vec<u8> {
+	fn null_node_data(&self) -> Vec<u8> {
 		let s_r = StorageValueRef::persistent(&NULL_NODE_DATA);
 		match s_r.get::<Vec<u8>>() {
 			Ok(Some(x)) => x,
@@ -43,7 +43,7 @@ impl State {
 		}
 	}
 
-	pub fn db_get(&self, key: &<BlakeTwo256 as Hasher>::Out) -> Option<(DBValue, i32)> {
+	fn db_get(&self, key: &<BlakeTwo256 as Hasher>::Out) -> Option<(DBValue, i32)> {
 		let derive_key = self.derive_storage_key(*key);
 		let s_ref = StorageValueRef::persistent(derive_key.as_slice());
 		match s_ref.get::<(DBValue, i32)>() {
@@ -52,13 +52,13 @@ impl State {
 		}
 	}
 
-	pub fn db_insert(&self, key: <BlakeTwo256 as Hasher>::Out, value: (DBValue, i32)) {
+	fn db_insert(&self, key: <BlakeTwo256 as Hasher>::Out, value: (DBValue, i32)) {
 		let derive_key = self.derive_storage_key(key);
 		let s_ref = StorageValueRef::persistent(derive_key.as_slice());
 		s_ref.set(&value);
 	}
 
-	pub fn derive_storage_key(&self, key: <BlakeTwo256 as Hasher>::Out) -> Vec<u8> {
+	fn derive_storage_key(&self, key: <BlakeTwo256 as Hasher>::Out) -> Vec<u8> {
 		let mut derived = KEY_PREFIX.to_vec();
 		derived.append(&mut key.0.to_vec());
 		derived
