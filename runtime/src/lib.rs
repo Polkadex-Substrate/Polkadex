@@ -1353,8 +1353,8 @@ impl thea_executor::Config for Runtime {
 #[cfg(feature = "runtime-benchmarks")]
 impl thea_message_handler::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;

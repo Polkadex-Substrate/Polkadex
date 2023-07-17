@@ -20,7 +20,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::{fixtures::SNAPSHOT, Pallet as Ocex};
+use crate::Pallet as Ocex;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
@@ -273,31 +273,6 @@ benchmarks! {
 		}.into());
 	}
 
-	submit_snapshot {
-		<ExchangeState<T>>::put(true);
-		let snapshot = SnapshotSummary::decode(&mut SNAPSHOT.as_ref()).unwrap();
-		let signature: sp_core::sr25519::Signature = sp_core::sr25519::Signature([0u8;64]);
-		let signature: <<T as pallet::Config>::AuthorityId as RuntimeAppPublic>::Signature = Decode::decode(&mut &signature.encode()[..]).unwrap();
-		let call = Call::<T>::submit_snapshot { summary: snapshot, signature };
-	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
-	verify {
-		assert!(<Snapshots<T>>::contains_key(1));
-	}
-
-	collect_fees {
-		let x in 0 .. 255; // should not overflow u8
-		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
-		let beneficiary = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
-		let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::new(100, 1) };
-		<ExchangeState<T>>::put(true);
-		let snapshot = SnapshotSummary::decode(&mut SNAPSHOT.as_ref()).unwrap();
-		<Snapshots<T>>::insert(x as u64, snapshot);
-		let call = Call::<T>::collect_fees { snapshot_id: x as u64, beneficiary: beneficiary.clone() };
-	}: { call.dispatch_bypass_filter(origin)? }
-	verify {
-		assert_last_event::<T>(Event::FeesClaims{ beneficiary, snapshot_id: x as u64}.into());
-	}
-
 	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;
@@ -401,21 +376,6 @@ benchmarks! {
 	set_snapshot {
 		let call = Call::<T>::set_snapshot{ new_snapshot_id: u64::MAX };
 	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
-
-	change_snapshot_interval_block {
-		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
-		let new_snapshot_interval_block = T::BlockNumber::decode(&mut 123u64.to_le_bytes().as_ref()).unwrap();
-		let call = Call::<T>::change_snapshot_interval_block{ new_snapshot_interval_block };
-	}: { call.dispatch_bypass_filter(origin)? }
-
-	whitelist_orderbook_operator {
-		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
-		let operator_public_key = sp_core::ecdsa::Public([u8::MAX; 33]);
-		let call = Call::<T>::whitelist_orderbook_operator { operator_public_key };
-	}: { call.dispatch_bypass_filter(origin)? }
-	verify {
-		assert!(<OrderbookOperatorPublicKey<T>>::get().unwrap() == operator_public_key);
-	}
 }
 
 #[cfg(test)]
