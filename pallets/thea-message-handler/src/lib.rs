@@ -28,8 +28,7 @@
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
-use parity_scale_codec::{Encode, MaxEncodedLen};
-use polkadex_primitives::utils::return_set_bits;
+use parity_scale_codec::Encode;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
@@ -231,7 +230,6 @@ pub mod pallet {
 		#[transactional]
 		pub fn update_incoming_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
-			let last_nonce = <IncomingNonce<T>>::get();
 			<IncomingNonce<T>>::put(nonce);
 			Ok(())
 		}
@@ -242,7 +240,6 @@ pub mod pallet {
 		#[transactional]
 		pub fn update_outgoing_nonce(origin: OriginFor<T>, nonce: u64) -> DispatchResult {
 			ensure_root(origin)?;
-			let last_nonce = <OutgoingNonce<T>>::get();
 			<OutgoingNonce<T>>::put(nonce);
 			Ok(())
 		}
@@ -257,26 +254,32 @@ impl<T: Config> Pallet<T> {
 		// Check if this message can be processed next by checking its nonce
 		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
 
+		log::debug!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.nonce);
 		if payload.nonce != next_nonce {
-			return InvalidTransaction::Custom(100).into()
+			return InvalidTransaction::Custom(1).into()
 		}
 
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
-
+		log::debug!(target:"thea", "Authorities: {:?}",authorities);
 		// Check for super majority
 		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
+
+		log::debug!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
 		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(200).into()
+			return InvalidTransaction::Custom(2).into()
 		}
 
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
+			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(500).into(),
-				Some(auth) =>
+				None => return InvalidTransaction::Custom(3).into(),
+				Some(auth) => {
+					log::debug!(target:"thea", "Checking signature of index: {:?} -> {:?}",index,auth);
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(700).into()
-					},
+						return InvalidTransaction::Custom(4).into()
+					}
+				},
 			}
 		}
 
