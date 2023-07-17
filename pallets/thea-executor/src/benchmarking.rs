@@ -18,7 +18,7 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
-
+use crate::{Pallet as TheaExecutor};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::{boxed::Box, vec, vec::Vec};
 
