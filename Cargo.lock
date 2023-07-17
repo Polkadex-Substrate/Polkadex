@@ -9949,6 +9949,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "lazy_static",
+ "log",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",

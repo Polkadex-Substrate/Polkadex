@@ -17,6 +17,7 @@ sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"], optional = true }
+log = { version = "0.4.19", default-features = false }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -30,6 +31,7 @@ lazy_static = "1.4.0"
 [features]
 default = ["std"]
 std = [
+  "log/std",
   "sp-io/std",
   "sp-application-crypto/std",
   "thea-primitives/std",
