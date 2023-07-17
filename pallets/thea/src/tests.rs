@@ -30,7 +30,7 @@ fn any_signature() -> <Test as Config>::Signature {
 	<Test as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap()
 }
 
-fn set_200_validators(_: u8) -> [Pair; 200] {
+fn set_200_validators() -> [Pair; 200] {
 	let mut validators = Vec::with_capacity(200);
 	for i in 0..200 {
 		validators
@@ -96,7 +96,7 @@ fn test_session_change() {
 fn test_incoming_messages_bad_inputs() {
 	new_test_ext().execute_with(|| {
 		// set authorities
-		let auth = set_200_validators(0);
+		let auth = set_200_validators();
 		// bad origin (root)
 		assert_err!(
 			Thea::incoming_message(
@@ -117,7 +117,7 @@ fn test_incoming_messages_bad_inputs() {
 			),
 			BadOrigin
 		);
-		// bad bitmap
+		// bad threshold
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message.clone(),
@@ -164,7 +164,7 @@ fn test_send_thea_message_proper_inputs() {
 	new_test_ext().execute_with(|| {
 		// each 25%th of all possible networks
 		for n in (0u8..=u8::MAX).step_by((u8::MAX / 4).into()) {
-			set_200_validators(n); // setting max validators
+			set_200_validators(); // setting max validators
 			assert_ok!(Thea::send_thea_message(
 				RuntimeOrigin::root(),
 				// 10MB of u8::MAX payload

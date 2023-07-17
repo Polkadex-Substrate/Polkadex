@@ -30,14 +30,15 @@ use sp_std::collections::btree_map::BTreeMap;
 use sp_trie::LayoutV1;
 use trie_db::{TrieDBMut, TrieMut};
 
-/// Updates provided trie db with a new entrance balance if it is not contains item for specific
-/// account asset yet, or increments existed item balance.
+/// Updates provided trie db with a new balance entry if it is does not contain item for specific
+/// account or asset yet, or increments existing item balance.
 ///
 /// # Parameters
 ///
-/// * `trie`: Trie db to update.
-/// * `account_asset`: Account asset to look for in the db for update.
-/// * `balance`: Amount on which account asset balance should be incremented.
+/// * `state`: Trie db to update.
+/// * `account`: Main Account to look for in the db for update.
+/// * `asset`:  Asset to look for
+/// * `balance`: Amount on which balance should be added.
 pub fn add_balance(
 	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 	account: &AccountId,
@@ -63,14 +64,15 @@ pub fn add_balance(
 
 /// Updates provided trie db with reducing balance of account asset if it exists in the db.
 ///
-/// If account asset balance is not exists in the db `AccountBalanceNotFound` error will be
+/// If account asset balance does not exists in the db `AccountBalanceNotFound` error will be
 /// returned.
 ///
 /// # Parameters
 ///
-/// * `trie`: Trie db to update.
-/// * `account_asset`: Account asset to look for in the db for update.
-/// * `balance`: Amount on which account asset balance should be reduced.
+/// * `state`: Trie db to update.
+/// * `account`: Main Account to look for in the db for update.
+/// * `asset`:  Asset to look for
+/// * `balance`: Amount on which balance should be reduced.
 pub fn sub_balance(
 	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 	account: &AccountId,
@@ -102,7 +104,7 @@ pub fn sub_balance(
 ///
 /// # Parameters
 ///
-/// * `accounts`: A mutable reference to a Accounts.
+/// * `state`: A mutable reference to the Offchain State.
 /// * `trade`: A `Trade` object representing the trade to process.
 /// * `config`: Trading pair configuration DTO.
 ///
