@@ -17,8 +17,8 @@ use sp_application_crypto::RuntimeAppPublic;
 use thea_primitives::types::{ApprovedMessage, Destination};
 
 const MAINNET_URL: &str = "http://localhost:9944";
-const PARACHAIN_URL: &str = "http://localhost:9902";
-const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
+const PARACHAIN_URL: &str = "http://localhost:51504";
+const AGGREGRATOR_URL: &str = "http://localhost:9901";
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages

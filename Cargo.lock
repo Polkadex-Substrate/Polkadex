@@ -9948,6 +9948,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex",
  "lazy_static",
  "log",
  "pallet-assets",

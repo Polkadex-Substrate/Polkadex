@@ -39,8 +39,6 @@ use thea_primitives::{types::Message, Network, ValidatorSet};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-#[cfg(any(feature = "runtime-benchmarks", test))]
-pub(crate) mod fixtures;
 #[cfg(test)]
 pub(crate) mod mock;
 #[cfg(test)]
@@ -259,6 +257,10 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(1).into()
 		}
 
+		if <ValidatorSetId<T>>::get() < payload.validator_set_id {
+			// Reject message from future validator sets
+			return InvalidTransaction::Custom(2).into()
+		}
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 		log::debug!(target:"thea", "Authorities: {:?}",authorities);
 		// Check for super majority
@@ -266,18 +268,18 @@ impl<T: Config> Pallet<T> {
 
 		log::debug!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
 		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(2).into()
+			return InvalidTransaction::Custom(3).into()
 		}
 
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
 			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(3).into(),
+				None => return InvalidTransaction::Custom(4).into(),
 				Some(auth) => {
 					log::debug!(target:"thea", "Checking signature of index: {:?} -> {:?}",index,auth);
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(4).into()
+						return InvalidTransaction::Custom(5).into()
 					}
 				},
 			}
