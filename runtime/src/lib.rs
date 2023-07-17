@@ -94,7 +94,6 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-pub mod migration;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1503,10 +1502,8 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	Migrations,
 >;
 
-pub type Migrations = (migration::session_keys::MigrateToV5,);
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
