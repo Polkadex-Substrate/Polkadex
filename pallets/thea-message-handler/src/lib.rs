@@ -258,7 +258,7 @@ impl<T: Config> Pallet<T> {
 		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
 
 		if payload.nonce != next_nonce {
-			return InvalidTransaction::Custom(next_nonce as u8).into()
+			return InvalidTransaction::Custom(100).into()
 		}
 
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();

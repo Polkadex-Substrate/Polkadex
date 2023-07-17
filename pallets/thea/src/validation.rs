@@ -67,15 +67,14 @@ pub fn compute_signer_and_submit<T: Config>(
 
 	let local_keys = T::TheaId::all();
 
-	let mut auth_index = 0;
 	let mut available_keys = authorities
-		.into_iter()
+		.iter()
 		.enumerate()
-		.filter_map(move |(index, authority)| {
-			local_keys.binary_search(&authority).ok().map(|location| {
-				auth_index = index;
-				local_keys[location].clone()
-			})
+		.filter_map(move |(_index, authority)| {
+			local_keys
+				.binary_search(&authority)
+				.ok()
+				.map(|location| local_keys[location].clone())
 		})
 		.collect::<Vec<T::TheaId>>();
 	available_keys.sort();
@@ -85,6 +84,15 @@ pub fn compute_signer_and_submit<T: Config>(
 	}
 
 	let signer = available_keys.get(0).ok_or("Key not avaialble")?;
+	let mut auth_index = -1;
+	for (index, auth) in authorities.iter().enumerate() {
+		if auth == signer {
+			auth_index = index as i32
+		}
+	}
+	if auth_index < 0 {
+		return Err("Unable to calculate auth index")
+	}
 	// Note: this is a double hash signing
 	let signature = signer.sign(&msg_hash).ok_or("Expected signature to be returned")?;
 
