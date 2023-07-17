@@ -212,7 +212,7 @@ fn test_sub_balance_existing_account_with_balance() {
 		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
-		assert_eq!(account_info.get(&asset_id).unwrap(), &0);
+		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
 	});
 }
 
