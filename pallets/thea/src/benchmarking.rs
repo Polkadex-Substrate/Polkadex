@@ -45,16 +45,6 @@ const PK: [u8; 96] = [
 ];
 
 benchmarks! {
-	update_network_pref {
-		let b in 1 .. 255; // keep within u8 range
-		let authority = <T as crate::Config>::TheaId::decode(&mut PK.as_ref()).unwrap();
-		let network = b as u8;
-		let signature = <T as crate::Config>::Signature::decode(&mut SIG.as_ref()).unwrap();
-	}: _(RawOrigin::None, authority.clone(), network, signature)
-	verify {
-		assert_last_event::<T>(Event::NetworkUpdated { authority, network}.into());
-	}
-
 	incoming_message {
 		let b in 0 .. 256; // keep withing u8 range
 		let key = <T as crate::Config>::TheaId::decode(&mut PK.as_ref()).unwrap();
@@ -66,13 +56,12 @@ benchmarks! {
 			network: 0u8,
 			is_key_change: false,
 			validator_set_id: 0,
-			validator_set_len: 1,
 		};
 		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
 		set.try_push(key).unwrap();
-		<Authorities::<T>>::insert(0, 0, set);
+		<Authorities::<T>>::insert(0, set);
 		let bitmap = vec!(u128::MAX); // ALL bits are set :)
-	}: _(RawOrigin::None, bitmap, message, signature)
+	}: _(RawOrigin::None, message, vec!((0, signature)))
 	verify {
 		assert!(<IncomingNonce::<T>>::get(0) == 1);
 		assert!(<IncomingMessages::<T>>::iter().count() == 1);
@@ -85,7 +74,7 @@ benchmarks! {
 		let data = [b as u8; 1_048_576].to_vec(); // 10MB
 		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
 		set.try_push(key).unwrap();
-		<Authorities::<T>>::insert(network, 0, set);
+		<Authorities::<T>>::insert(0, set);
 	}: _(RawOrigin::Root, data, network)
 	verify {
 		assert!(<OutgoingNonce::<T>>::get(network) == 1);
