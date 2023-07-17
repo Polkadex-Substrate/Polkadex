@@ -49,6 +49,7 @@ pub struct Message {
 	pub validator_set_id: ValidatorSetId,
 }
 
+/// Defines the destination of a thea message
 #[derive(
 	Copy,
 	Clone,
@@ -157,71 +158,24 @@ impl AssetMetadata {
 	}
 }
 
+/// Overarching type used by aggregator to collect signatures from
+/// authorities for a given Thea message
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ApprovedMessage {
+	/// Thea message
 	pub message: Message,
+	/// index of the authority from on-chain list
 	pub index: u16,
+	/// ECDSA signature of authority
 	pub signature: Vec<u8>,
+	/// Destination network
 	pub destination: Destination,
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::{
-		types::{ApprovedMessage, AssetMetadata, Destination},
-		Message,
-	};
-	use parity_scale_codec::Encode;
+	use crate::types::AssetMetadata;
 	use polkadex_primitives::UNIT_BALANCE;
-	use sp_application_crypto::RuntimePublic;
-	use sp_core::{ByteArray, Pair};
-
-	#[test]
-	pub fn test_message_decode_encode() {
-		let encoded_signature = "e7315de93b4ade67faa08195f43d54d9c76dbca2374968f13ae0a908a66624d746e46940262ef89f5afaece6652f4b2390652807ca3d67047c1e6fc15b28cbd901";
-
-		let bytes = hex::decode(encoded_signature).unwrap();
-		let pubk_bytes =
-			hex::decode("0020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1")
-				.unwrap();
-
-		let signature = sp_core::ecdsa::Signature::from_slice(&bytes).unwrap();
-		let pubk = sp_core::ecdsa::Public::from_slice(&bytes).unwrap();
-
-		let msg = Message {
-			block_no: 8,
-			nonce: 1,
-			data: [18, 52, 80],
-			network: 1,
-			is_key_change: false,
-			validator_set_id: 0,
-		};
-
-		let msg_hash = sp_io::hashing::sha2_256(&msg.encode());
-
-		pubk.verify(&msg_hash, &signature)
-	}
-
-	#[test]
-	pub fn approved_message() {
-		let message = Message {
-			block_no: 1,
-			nonce: 3,
-			data: vec![1, 2, 3],
-			network: 1,
-			is_key_change: false,
-			validator_set_id: 1,
-		};
-		let pair = sp_core::ecdsa::Pair::generate().0;
-		let approved_message = ApprovedMessage {
-			message: message.clone(),
-			index: 0,
-			signature: pair.sign(&message.encode()).encode(),
-			destination: Destination::Solochain,
-		};
-
-		println!("{:?}", serde_json::to_string(&approved_message).unwrap())
-	}
 
 	#[test]
 	pub fn test_decimal_conversion() {

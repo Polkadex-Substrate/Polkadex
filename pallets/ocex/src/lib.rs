@@ -86,8 +86,6 @@ pub mod sr25519 {
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-#[cfg(feature = "runtime-benchmarks")]
-pub(crate) mod fixtures;
 mod settlement;
 mod snapshot;
 pub mod storage;

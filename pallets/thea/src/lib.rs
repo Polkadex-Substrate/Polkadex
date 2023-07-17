@@ -44,8 +44,6 @@ use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 #[cfg(test)]
-mod fixtures;
-#[cfg(test)]
 mod mock;
 mod session;
 #[cfg(test)]

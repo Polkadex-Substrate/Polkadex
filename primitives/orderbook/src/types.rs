@@ -183,13 +183,18 @@ pub struct ObMessage {
 #[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
+	/// Vector of user actions from engine in this batch
 	pub actions: Vec<UserActions<AccountId>>,
+	/// State change id
 	pub stid: u64,
+	/// Snapshot id
 	pub snapshot_id: u64,
+	/// Operator signature
 	pub signature: sp_core::ecdsa::Signature,
 }
 
 impl<AccountId: Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
+	/// Returns the data used for signing a snapshot summary
 	pub fn sign_data(&self) -> [u8; 32] {
 		let mut data: Vec<u8> = self.actions.encode();
 		data.append(&mut self.stid.encode());
@@ -896,56 +901,14 @@ pub struct WithdrawalDetails {
 	pub signature: Signature,
 }
 
-#[cfg(test)]
-mod tests {
-	use crate::{
-		types::{ApprovedSnapshot, ObMessage, UserActions},
-		SnapshotSummary,
-	};
-	use parity_scale_codec::Encode;
-	use polkadex_primitives::AccountId;
-	use primitive_types::H256;
-	use sp_core::Pair;
-
-	#[test]
-	pub fn test_ob_message() {
-		let msg = ObMessage {
-			stid: 0,
-			worker_nonce: 0,
-			action: UserActions::BlockImport(1),
-			signature: Default::default(),
-			reset: false,
-			version: 0,
-		};
-
-		println!("OBMessage: {:?}", serde_json::to_string(&msg).unwrap());
-	}
-
-	#[test]
-	pub fn approved_snapshot() {
-		let pair = sp_core::sr25519::Pair::generate().0;
-		let summary: SnapshotSummary<AccountId> = SnapshotSummary {
-			validator_set_id: 1,
-			snapshot_id: 1,
-			state_hash: H256::random(),
-			state_change_id: 1,
-			last_processed_blk: 1,
-			withdrawals: vec![],
-		};
-
-		let approved = ApprovedSnapshot {
-			summary: summary.encode(),
-			index: 1,
-			signature: pair.sign(&summary.encode()).encode(),
-		};
-
-		println!("{:?}", serde_json::to_string(&approved).unwrap());
-	}
-}
-
+/// Overarching type used by validators when submitting
+/// their signature for a summary to aggregator
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ApprovedSnapshot {
+	/// Encoded snapshot summary
 	pub summary: Vec<u8>,
+	/// Index of the authority from on-chain ist
 	pub index: u16,
+	/// sr25519 signature of the authority
 	pub signature: Vec<u8>,
 }

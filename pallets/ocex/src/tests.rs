@@ -107,81 +107,6 @@ fn test_ocex_submit_snapshot() {
 	});
 }
 
-// #[ignore]
-// #[test]
-// fn test_run_on_chain_validation_deposit_once() {
-// 	let _ = env_logger::builder().is_test(true).try_init();
-// 	let mut ext = new_test_ext();
-// 	ext.persist_offchain_overlay();
-// 	register_offchain_ext(&mut ext);
-// 	let (auth1, seed1, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
-// 	let (auth2, seed2, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
-// 	let (auth3, seed3, _) = sp_core::sr25519::Pair::generate_with_phrase(None);
-// 	let memory_store = MemoryKeystore::new();
-//
-// 	memory_store
-// 		.insert(crate::OCEX, seed1.as_str(), auth1.public().to_vec().as_slice())
-// 		.unwrap();
-// 	ext.register_extension(KeystoreExt::new(memory_store));
-// 	let (pool, state) = TestTransactionPoolExt::new();
-// 	ext.register_extension(TransactionPoolExt::new(pool));
-// 	let authorities = vec![
-// 		AuthorityId::from(auth1.public()),
-// 		AuthorityId::from(auth2.public()),
-// 		AuthorityId::from(auth3.public()),
-// 	];
-// 	ext.execute_with(|| {
-// 		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
-// 		let account_id = create_account_id();
-// 		let asset_id = AssetId::Polkadex;
-// 		let amount = 100_u128;
-//
-// 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
-// 		mint_into_account(account_id.clone());
-// 		allowlist_token(AssetId::Polkadex);
-// 		assert_ok!(OCEX::register_main_account(
-// 			RuntimeOrigin::signed(account_id.clone().into()),
-// 			account_id.clone()
-// 		));
-// 		assert_ok!(OCEX::deposit(
-// 			RuntimeOrigin::signed(account_id.clone().into()),
-// 			asset_id,
-// 			amount.into()
-// 		));
-// 		//check if block number is 0
-// 		let mut curr_blk = frame_system::Pallet::<Test>::current_block_number();
-// 		assert_eq!(curr_blk, 1_u64);
-// 		let mut batch = UserActionBatch { actions: vec![BlockImport(1)], snapshot_id: 1, stid: 1 };
-// 		<UserActionsBatches<Test>>::insert(1, batch);
-// 		assert_ok!(OCEX::run_on_chain_validation(1));
-// 		<ProcessedSnapshotNonce<Test>>::put(1 as u64);
-// 		finish_on_chain_validation();
-//
-// 		let blocks = 3;
-//
-// 		add_blocks(blocks);
-//
-// 		assert_ok!(OCEX::deposit(
-// 			RuntimeOrigin::signed(account_id.clone().into()),
-// 			asset_id,
-// 			amount.into()
-// 		));
-// 		curr_blk = frame_system::Pallet::<Test>::current_block_number();
-// 		assert_eq!(curr_blk, 4_u64);
-//
-// 		for i in 2..=4 {
-// 			batch = UserActionBatch {
-// 				actions: vec![BlockImport(i)],
-// 				snapshot_id: i as u64,
-// 				stid: i as u64,
-// 			};
-// 			<UserActionsBatches<Test>>::insert(i as u64, batch);
-// 			assert_ok!(OCEX::run_on_chain_validation(i.try_into().unwrap()));
-// 			<ProcessedSnapshotNonce<Test>>::put(i as u64);
-// 			finish_on_chain_validation();
-// 		}
-// 	});
-// }
 #[test]
 // check if balance is added to new account
 fn test_add_balance_new_account() {
@@ -192,7 +117,6 @@ fn test_add_balance_new_account() {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
-		assert_eq!(asset_id, AssetId::Polkadex);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -214,7 +138,6 @@ fn test_add_balance_existing_account_with_balance() {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
-		assert_eq!(asset_id, AssetId::Polkadex);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -244,7 +167,6 @@ fn test_sub_balance_new_account() {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
-		assert_eq!(asset_id, AssetId::Polkadex);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -266,7 +188,6 @@ fn test_sub_balance_existing_account_with_balance() {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 3000000;
-		assert_eq!(asset_id, AssetId::Polkadex);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
@@ -291,7 +212,7 @@ fn test_sub_balance_existing_account_with_balance() {
 		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
-		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount - amount2 - amount3).into());
+		assert_eq!(account_info.get(&asset_id).unwrap(), &0);
 	});
 }
 
@@ -338,7 +259,6 @@ fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
 		let account_id = create_account_id();
 		let asset_id = AssetId::Polkadex;
 		let amount = 3000000;
-		assert_eq!(asset_id, AssetId::Polkadex);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);

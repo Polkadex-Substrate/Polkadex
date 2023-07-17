@@ -1,20 +1,28 @@
-use parity_scale_codec::{Decode, Encode};
+use crate::{
+	pallet::{ActiveNetworks, Authorities, IncomingNonce, ValidatorSetId},
+	Config, Pallet,
+};
+use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use serde::{Deserialize, Serialize};
 use sp_core::offchain::{Duration, HttpError};
 use sp_runtime::offchain::{
 	http,
 	http::{Error, PendingRequest, Response},
 };
-use sp_std::{vec, vec::Vec};
+use sp_std::{borrow::ToOwned, vec, vec::Vec};
 use thea_primitives::{Message, Network};
 
-use crate::{Config, Pallet};
+use sp_application_crypto::RuntimeAppPublic;
 
-pub const MAINNET_URL: &str = "http://localhost:9944";
-pub const PARACHAIN_URL: &str = "http://localhost:9902";
-pub const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
+use thea_primitives::types::{ApprovedMessage, Destination};
+
+const MAINNET_URL: &str = "http://localhost:9944";
+const PARACHAIN_URL: &str = "http://localhost:9902";
+const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
+	/// Starts the offchain worker instance that checks for finalized next incoming messages
+	/// for both solochain and parachain, signs it and submits to aggregator
 	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
 		if !sp_io::offchain::is_validator() {
 			return Ok(())
@@ -54,7 +62,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-pub fn compute_signer_and_submit<T: Config>(
+fn compute_signer_and_submit<T: Config>(
 	message: Message,
 	destination: Destination,
 ) -> Result<(), &'static str> {
@@ -100,7 +108,7 @@ pub fn compute_signer_and_submit<T: Config>(
 	Ok(())
 }
 
-pub fn submit_message_to_aggregator<T: Config>(
+fn submit_message_to_aggregator<T: Config>(
 	message: Message,
 	signature: T::Signature,
 	destination: Destination,
@@ -117,14 +125,14 @@ pub fn submit_message_to_aggregator<T: Config>(
 	Ok(())
 }
 
-pub fn get_latest_incoming_nonce_parachain() -> u64 {
+fn get_latest_incoming_nonce_parachain() -> u64 {
 	let storage_key = create_para_incoming_nonce_key();
 	get_storage_at_latest_finalized_head::<u64>("para_incoming_nonce", PARACHAIN_URL, storage_key)
 		.unwrap_or_default()
 		.unwrap_or_default()
 }
 
-pub fn get_payload_for_nonce(
+fn get_payload_for_nonce(
 	nonce: u64,
 	network: Network,
 	destination: Destination,
@@ -154,7 +162,8 @@ pub fn get_payload_for_nonce(
 	}
 }
 
-pub fn create_para_incoming_nonce_key() -> Vec<u8> {
+/// Returns the encoded key of the storage that stores incoming nonce on TheaMessageHandler pallet
+fn create_para_incoming_nonce_key() -> Vec<u8> {
 	let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
 	let storage_prefix = sp_io::hashing::twox_128(b"IncomingNonce");
 	let mut key = Vec::new();
@@ -162,7 +171,7 @@ pub fn create_para_incoming_nonce_key() -> Vec<u8> {
 	key.append(&mut storage_prefix.to_vec());
 	key
 }
-
+/// Returns the encoded key of the storage that stores outgoing nonce on Thea pallet
 pub fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8> {
 	let module_name = sp_io::hashing::twox_128(b"Thea");
 	let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
@@ -173,7 +182,7 @@ pub fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8>
 	key.append(&mut nonce.encode());
 	key
 }
-
+/// Returns the encoded key for outgoing message for given nonce in TheaMessageHandler pallet
 pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 	let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
 	let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
@@ -183,8 +192,8 @@ pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 	key.append(&mut nonce.encode());
 	key
 }
-use sp_std::borrow::ToOwned;
-pub fn get_storage_at_latest_finalized_head<S: Decode>(
+
+fn get_storage_at_latest_finalized_head<S: Decode>(
 	log_target: &str,
 	url: &str,
 	storage_key: Vec<u8>,
@@ -219,7 +228,7 @@ pub fn get_storage_at_latest_finalized_head<S: Decode>(
 	Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
 }
 use scale_info::prelude::string::String;
-pub fn get_finalized_head(url: &str) -> Result<String, &'static str> {
+fn get_finalized_head(url: &str) -> Result<String, &'static str> {
 	// This body will work for most substrate chains
 	let body = serde_json::json!({
 	"id":1,
@@ -233,12 +242,6 @@ pub fn get_finalized_head(url: &str) -> Result<String, &'static str> {
 	log::debug!(target:"thea","Finalized head: {:?}",result);
 	Ok(result)
 }
-use crate::pallet::{ActiveNetworks, Authorities, IncomingNonce, ValidatorSetId};
-use parity_scale_codec::alloc::string::ToString;
-
-use sp_application_crypto::RuntimeAppPublic;
-
-use thea_primitives::types::{ApprovedMessage, Destination};
 
 pub fn send_request(
 	log_target: &str,
@@ -298,6 +301,7 @@ fn map_http_err(err: HttpError) -> &'static str {
 	}
 }
 
+/// Http Resposne body
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
