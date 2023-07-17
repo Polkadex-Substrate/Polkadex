@@ -86,12 +86,11 @@ pub mod sr25519 {
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-#[cfg(feature = "runtime-benchmarks")]
-pub(crate) mod fixtures;
 mod settlement;
 mod snapshot;
 pub mod storage;
 pub mod validator;
+mod fixtures;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -376,16 +375,16 @@ pub mod pallet {
 			}
 		}
 
-		// fn offchain_worker(block_number: T::BlockNumber) {
-		// 	log::info!(target:"ocex", "offchain worker started");
-		// 	if let Err(err) = Self::run_on_chain_validation(block_number) {
-		// 		log::error!(target:"ocex","OCEX worker error: {}",err)
-		// 	}
-		// 	// Set worker status to false
-		// 	let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		// 	s_info.set(&false);
-		// 	log::info!(target:"ocex", "OCEX worker exiting...");
-		// }
+		fn offchain_worker(block_number: T::BlockNumber) {
+			log::info!(target:"ocex", "offchain worker started");
+			if let Err(err) = Self::run_on_chain_validation(block_number) {
+				log::error!(target:"ocex","OCEX worker error: {}",err)
+			}
+			// Set worker status to false
+			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
+			s_info.set(&false);
+			log::info!(target:"ocex", "OCEX worker exiting...");
+		}
 	}
 
 	#[pallet::call]

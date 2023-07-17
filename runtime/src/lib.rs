@@ -94,7 +94,6 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-pub mod migration;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -119,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 286,
+	spec_version: 287,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1354,8 +1353,8 @@ impl thea_executor::Config for Runtime {
 #[cfg(feature = "runtime-benchmarks")]
 impl thea_message_handler::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
@@ -1503,10 +1502,8 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	// Migrations,
 >;
 
-pub type Migrations = (migration::session_keys::MigrateToV5,);
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {

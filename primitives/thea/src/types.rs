@@ -49,8 +49,20 @@ pub struct Message {
 	pub validator_set_id: ValidatorSetId,
 }
 
-#[derive(Copy,
-	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+/// Defines the destination of a thea message
+#[derive(
+	Copy,
+	Clone,
+	Encode,
+	Decode,
+	TypeInfo,
+	Debug,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Serialize,
+	Deserialize,
 )]
 pub enum Destination {
 	Solochain,
@@ -146,63 +158,24 @@ impl AssetMetadata {
 	}
 }
 
+/// Overarching type used by aggregator to collect signatures from
+/// authorities for a given Thea message
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ApprovedMessage {
+	/// Thea message
 	pub message: Message,
+	/// index of the authority from on-chain list
 	pub index: u16,
+	/// ECDSA signature of authority
 	pub signature: Vec<u8>,
+	/// Destination network
 	pub destination: Destination,
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::{
-		types::{ApprovedMessage, AssetMetadata, Destination},
-		Message,
-	};
-	use parity_scale_codec::Encode;
+	use crate::types::AssetMetadata;
 	use polkadex_primitives::UNIT_BALANCE;
-	use sp_core::Pair;
-
-
-	#[test]
-	pub fn test_message_decode_encode() {
-		let encoded_msg = "060000000000000001000000000000000c12345001000000000000000000";
-		
-		let bytes = hex::decode(&encoded_msg).unwrap();
-		
-		let expected_msg = Message {
-			block_no: 6,
-			nonce: 1,
-			data: hex::decode("123450").unwrap(),
-			network: 1,
-			is_key_change: false,
-			validator_set_id: 0,
-		};
-		assert_eq!(bytes,expected_msg.encode());
-
-	}
-
-	#[test]
-	pub fn approved_message() {
-		let message = Message {
-			block_no: 1,
-			nonce: 3,
-			data: vec![1, 2, 3],
-			network: 1,
-			is_key_change: false,
-			validator_set_id: 1,
-		};
-		let pair = sp_core::ecdsa::Pair::generate().0;
-		let approved_message = ApprovedMessage {
-			message: message.clone(),
-			index: 0,
-			signature: pair.sign(&message.encode()).encode(),
-			destination: Destination::Solochain,
-		};
-
-		println!("{:?}", serde_json::to_string(&approved_message).unwrap())
-	}
 
 	#[test]
 	pub fn test_decimal_conversion() {

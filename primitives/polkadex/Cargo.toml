@@ -18,7 +18,7 @@ sp-application-crypto = { default-features = false, git = "https://github.com/pa
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
-  "serde"
+  "serde",
 ], default-features = false }
 
 [dev-dependencies]

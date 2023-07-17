@@ -16,9 +16,8 @@ sp-core = { workspace = true, default-features = false }
 xcm = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 hex = { version = "0.4", default-features = false }
-serde = {version = "1.0.171", default-features = false, features = ["derive"]}
-serde_json = {version = "1.0.102", default-features = false, features = ["alloc"]}
-
+serde = { workspace = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 
 
 [features]

@@ -7,12 +7,11 @@ use crate::{
 };
 
 use orderbook_primitives::{
-	types::{Trade, UserActionBatch, UserActions, WithdrawalRequest},
+	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
-
 use parity_scale_codec::{Decode, Encode};
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{
@@ -32,13 +31,19 @@ use sp_std::{boxed::Box, vec::Vec};
 use sp_trie::{LayoutV1, TrieDBMut};
 use trie_db::{TrieError, TrieMut};
 
+/// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
 const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
-
+/// Aggregator endpoint: Even though it is centralized for now, it is trustless
+/// as it verifies the signature and and relays them to destination.
+/// As a future improvment, we can make it decentralized, by having the community run
+/// such aggregation endpoints
 pub const AGGREGATOR: &str = "https://testnet.ob.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
+	/// Runs the offchain worker computes the next batch of user actions and
+	/// submits snapshot summary to aggregator endpoint
 	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
@@ -47,7 +52,7 @@ impl<T: Config> Pallet<T> {
 			.enumerate()
 			.filter_map(move |(_index, authority)| {
 				local_keys
-					.binary_search(&authority)
+					.binary_search(authority)
 					.ok()
 					.map(|location| local_keys[location].clone())
 			})
@@ -140,7 +145,9 @@ impl<T: Config> Pallet<T> {
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
-					let auth_index = Self::calculate_signer_index(&authorities, key).unwrap();
+					// Unwrap is okay here, we verified the data before.
+					let auth_index = Self::calculate_signer_index(&authorities, key)
+						.ok_or("Unable to calculate signer index")?;
 
 					// Prepare summary
 					let summary = SnapshotSummary {
@@ -299,11 +306,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn calculate_signer_index(
-		authorities: &Vec<T::AuthorityId>,
+		authorities: &[T::AuthorityId],
 		expected_signer: &T::AuthorityId,
 	) -> Option<usize> {
 		let mut auth_index: Option<usize> = None;
-		for (index, auth) in authorities.into_iter().enumerate() {
+		for (index, auth) in authorities.iter().enumerate() {
 			if *expected_signer == *auth {
 				auth_index = Some(index);
 				break
@@ -316,7 +323,7 @@ impl<T: Config> Pallet<T> {
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
-pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
 		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
@@ -336,7 +343,7 @@ pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::Ac
 	}
 }
 
-pub fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
+fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
 	let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
 	key.append(&mut snapshot_id.encode());
 
@@ -375,7 +382,7 @@ pub fn load_signed_summary_and_send<T: Config>(snapshot_id: u64) {
 	}
 }
 
-pub fn store_summary<T: Config>(
+fn store_summary<T: Config>(
 	summary: SnapshotSummary<T::AccountId>,
 	signature: <<T as Config>::AuthorityId as RuntimeAppPublic>::Signature,
 	auth_index: u16,
@@ -386,10 +393,11 @@ pub fn store_summary<T: Config>(
 	summay_ref.set(&(summary, signature, auth_index));
 }
 
-pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
 
-	let body_len = serde_json::to_string(&body.as_bytes().len()).unwrap();
+	let body_len =
+		serde_json::to_string(&body.as_bytes().len()).map_err(|_| "Unable to serialize")?;
 	log::debug!(target:"ocex","Sending {} request with body len {}...",log_target,body_len);
 	let request = http::Request::post(url, [body]);
 	let pending: PendingRequest = request
@@ -418,12 +426,13 @@ pub fn send_request<'a>(log_target: &str, url: &str, body: &str) -> Result<Vec<u
 		"no UTF8 body in response"
 	})?;
 	log::debug!(target:"ocex","{} response: {:?}",log_target,body_str);
-	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(&body_str)
+	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(body_str)
 		.map_err(|_| "Response failed deserialize")?;
 
-	Ok(response.result.clone())
+	Ok(response.result)
 }
 
+/// Helper function to map trie error to a static str
 #[allow(clippy::boxed_local)]
 pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 	match *err {
@@ -451,6 +460,7 @@ fn map_http_err(err: HttpError) -> &'static str {
 	}
 }
 
+/// Http Resposne body
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
@@ -463,5 +473,3 @@ impl JSONRPCResponse {
 		Self { jsonrpc: "2.0".into(), result: content, id: 2 }
 	}
 }
-
-use orderbook_primitives::types::ApprovedSnapshot;
