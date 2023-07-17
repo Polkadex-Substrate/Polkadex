@@ -26,6 +26,7 @@ sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 thea = { path = "../thea" }
 thea-executor = { path = "../thea-executor" }
+hex = "0.4.3"
 lazy_static = "1.4.0"
 
 [features]
