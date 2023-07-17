@@ -46,7 +46,7 @@ mod benchmarking;
 #[cfg(test)]
 mod fixtures;
 #[cfg(test)]
-mod mock;
+pub mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
@@ -215,7 +215,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Handles the verified incoming message
-		#[pallet::call_index(1)]
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
 		#[transactional]
 		pub fn incoming_message(
@@ -234,7 +234,7 @@ pub mod pallet {
 		}
 
 		/// Send some arbitrary data to the given network
-		#[pallet::call_index(2)]
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::send_thea_message(1))]
 		#[transactional]
 		pub fn send_thea_message(
@@ -248,7 +248,7 @@ pub mod pallet {
 		}
 
 		/// A governance endpoint to update last processed nonce
-		#[pallet::call_index(3)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))]
 		#[transactional]
 		pub fn update_incoming_nonce(
@@ -262,7 +262,7 @@ pub mod pallet {
 		}
 
 		/// A governance endpoint to update last processed nonce
-		#[pallet::call_index(6)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))]
 		#[transactional]
 		pub fn update_outgoing_nonce(
@@ -276,7 +276,7 @@ pub mod pallet {
 		}
 
 		/// Add a network to active networks
-		#[pallet::call_index(7)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
 		pub fn add_thea_network(
 			origin: OriginFor<T>,
@@ -294,7 +294,7 @@ pub mod pallet {
 		}
 
 		/// Remove a network to active networks
-		#[pallet::call_index(8)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
 		pub fn remove_thea_network(
 			origin: OriginFor<T>,
