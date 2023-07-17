@@ -29,10 +29,10 @@ sp-io = { workspace = true, default-features = false }
 liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
-serde = { workspace = true,  default-features = false, features = ["derive"] }
-serde_json = { workspace = true,  default-features = false, features = ["alloc"] }
-hash-db = { workspace = true,  default-features = false }
-trie-db = { workspace = true,  default-features = false }
+serde = { workspace = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+hash-db = { workspace = true, default-features = false }
+trie-db = { workspace = true, default-features = false }
 sp-trie = { workspace = true, default-features = false }
 
 [dev-dependencies]

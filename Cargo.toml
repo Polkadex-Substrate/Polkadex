@@ -181,7 +181,7 @@ polkadex-primitives = { path = "primitives/polkadex", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot.git", default-features = false, branch = "release-v0.9.43" }
-env_logger = {version = "0.10.0"}
+env_logger = { version = "0.10.0" }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.171", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.102", default-features = false, features = ["alloc"] }
