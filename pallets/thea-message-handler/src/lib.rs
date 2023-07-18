@@ -147,6 +147,11 @@ pub mod pallet {
 		ValidatorSetEmpty,
 		/// Cannot update with older nonce
 		NonceIsAlreadyProcessed,
+		/// Future validator set
+		FutureValidatorSet,
+		NotEnoughSignatures,
+		InvalidAuthIndex(u16),
+		InvalidSignature(u16)
 	}
 
 	#[pallet::validate_unsigned]
@@ -186,13 +191,35 @@ pub mod pallet {
 		pub fn incoming_message(
 			origin: OriginFor<T>,
 			payload: Message,
-			_signatures: Vec<(u16, T::Signature)>,
+			signatures: Vec<(u16, T::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+
+			// Check if this message can be processed next by checking its nonce
+			let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
+			ensure!(payload.nonce != next_nonce, Error::<T>::MessageNonce);
+			ensure!(<ValidatorSetId<T>>::get() < payload.validator_set_id, Error::<T>::FutureValidatorSet);
+
+			let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
+			// Check for super majority
+			let threshold = authorities.len().saturating_mul(2).saturating_div(3);
+
+			ensure!(signatures.len() < threshold, Error::<T>::NotEnoughSignatures);
+
+			let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
+			for (index, signature) in signatures {
+				match authorities.get(index as usize) {
+					None => return Err(Error::<T>::InvalidAuthIndex(index).into()),
+					Some(auth) => {
+						if !auth.verify(&encoded_payload, &(signature.clone().into())) {
+							return Err(Error::<T>::InvalidSignature(index).into())
+						}
+					},
+				}
+			}
+
 			// Signature is already verified in validate_unsigned, no need to do it again
-
 			let current_set_id = <ValidatorSetId<T>>::get();
-
 			if !payload.is_key_change {
 				// Normal Thea message
 				T::Executor::execute_deposits(payload.network, payload.data.clone());
@@ -247,43 +274,9 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn validate_incoming_message(
 		payload: &Message,
-		signatures: &Vec<(u16, T::Signature)>,
+		_: &Vec<(u16, T::Signature)>,
 	) -> TransactionValidity {
-		// Check if this message can be processed next by checking its nonce
-		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
 
-		if payload.nonce != next_nonce {
-			log::error!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.nonce);
-			return InvalidTransaction::Custom(1).into()
-		}
-
-		if <ValidatorSetId<T>>::get() < payload.validator_set_id {
-			log::error!(target:"thea","Future validator set: Stored: {:?}, Given: {:?}",<ValidatorSetId<T>>::get(), payload.validator_set_id);
-			// Reject message from future validator sets
-			return InvalidTransaction::Custom(2).into()
-		}
-		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
-		// Check for super majority
-		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
-
-		if signatures.len() < threshold {
-			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
-			return InvalidTransaction::Custom(3).into()
-		}
-
-		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
-		for (index, signature) in signatures {
-			log::debug!(target:"thea", "Get auth of index: {:?}",index);
-			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(4).into(),
-				Some(auth) => {
-					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
-						return InvalidTransaction::Custom(5).into()
-					}
-				},
-			}
-		}
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides(payload)
