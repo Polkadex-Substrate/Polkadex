@@ -54,7 +54,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(message) = next_outgoing_message {
 				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
 			} else {
-				log::debug!(target:"thea","No outgoing message with nonce: {:?} from network: {:?}",next_outgoing_nonce,network);
+				log::debug!(target:"thea","No outgoing message with nonce: {:?} to network: {:?}",next_outgoing_nonce,network);
 			}
 		}
 		log::debug!(target:"thea","Thea offchain worker exiting..");
