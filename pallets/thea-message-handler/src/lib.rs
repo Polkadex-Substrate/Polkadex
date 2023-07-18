@@ -276,12 +276,11 @@ impl<T: Config> Pallet<T> {
 			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(4).into(),
-				Some(auth) => {
+				Some(auth) =>
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
 						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
 						return InvalidTransaction::Custom(5).into()
-					}
-				},
+					},
 			}
 		}
 
