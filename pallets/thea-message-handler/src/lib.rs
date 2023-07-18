@@ -252,22 +252,22 @@ impl<T: Config> Pallet<T> {
 		// Check if this message can be processed next by checking its nonce
 		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
 
-		log::debug!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.nonce);
 		if payload.nonce != next_nonce {
+			log::error!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.nonce);
 			return InvalidTransaction::Custom(1).into()
 		}
 
 		if <ValidatorSetId<T>>::get() < payload.validator_set_id {
+			log::error!(target:"thea","Future validator set: Stored: {:?}, Given: {:?}",<ValidatorSetId<T>>::get(), payload.validator_set_id);
 			// Reject message from future validator sets
 			return InvalidTransaction::Custom(2).into()
 		}
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
-		log::debug!(target:"thea", "Authorities: {:?}",authorities);
 		// Check for super majority
 		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
 
-		log::debug!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
 		if signatures.len() < threshold {
+			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
 			return InvalidTransaction::Custom(3).into()
 		}
 
@@ -277,8 +277,8 @@ impl<T: Config> Pallet<T> {
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(4).into(),
 				Some(auth) => {
-					log::debug!(target:"thea", "Checking signature of index: {:?} -> {:?}",index,auth);
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
+						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
 						return InvalidTransaction::Custom(5).into()
 					}
 				},
