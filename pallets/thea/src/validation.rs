@@ -18,7 +18,7 @@ use thea_primitives::types::{ApprovedMessage, Destination};
 
 const MAINNET_URL: &str = "https://solochain.polkadex.trade";
 const PARACHAIN_URL: &str = "https://moonbeam-integration-parachain.polkadex.trade";
-const AGGREGRATOR_URL: &str = "https://testnet.ob.aggregator.polkadex.trade";
+const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
@@ -47,12 +47,12 @@ impl<T: Config> Pallet<T> {
 			//		c. Compute who should sign this and if its us then sign the payload
 			if let Some(message) = next_incoming_message {
 				//  d. store the signed payload on-chain for relayers to relay it to destination
-				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
+				compute_signer_and_submit::<T>(message, Destination::Solochain)?;
 			} else {
 				log::debug!(target:"thea","No incoming message with nonce: {:?} from network: {:?}",next_incoming_nonce,network);
 			}
 			if let Some(message) = next_outgoing_message {
-				compute_signer_and_submit::<T>(message, Destination::Solochain)?;
+				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
 			} else {
 				log::debug!(target:"thea","No outgoing message with nonce: {:?} from network: {:?}",next_outgoing_nonce,network);
 			}
