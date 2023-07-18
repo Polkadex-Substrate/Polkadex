@@ -32,7 +32,7 @@ use parity_scale_codec::Encode;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	RuntimeAppPublic, SaturatedConversion,
+	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 use thea_primitives::{types::Message, Network, ValidatorSet};
@@ -264,7 +264,9 @@ impl<T: Config> Pallet<T> {
 		}
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 		// Check for super majority
-		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		let threshold = p * authorities.len();
 
 		if signatures.len() < threshold {
 			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
