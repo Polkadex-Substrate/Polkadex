@@ -26,14 +26,6 @@ use parity_scale_codec::{Decode, Encode};
 use sp_core::{ByteArray, Pair};
 use sp_runtime::traits::BadOrigin;
 
-fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
-	let events = frame_system::Pallet::<T>::events();
-	let system_event: <T as frame_system::Config>::RuntimeEvent = generic_event.into();
-	// compare to the last event record
-	let EventRecord { event, .. } = &events[events.len() - 1];
-	assert_eq!(event, &system_event);
-}
-
 #[test]
 fn test_insert_authorities_full() {
 	new_test_ext().execute_with(|| {
