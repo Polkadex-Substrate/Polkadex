@@ -42,7 +42,7 @@ benchmarks! {
 			is_key_change: false,
 			validator_set_id: 0,
 		};
-		let signature = key.sign(&message.encode());
+		let signature = key.sign(&message.encode()).unwrap();
 
 		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
 		set.try_push(key).unwrap();
