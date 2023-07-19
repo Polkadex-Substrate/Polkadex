@@ -43,7 +43,10 @@ use parity_scale_codec::Encode;
 use polkadex_primitives::assets::AssetId;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
-use sp_runtime::traits::{AccountIdConversion, UniqueSaturatedInto};
+use sp_runtime::{
+	traits::{AccountIdConversion, UniqueSaturatedInto},
+	Percent,
+};
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -1436,7 +1439,12 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		let authorities = <Authorities<T>>::get(snapshot_summary.validator_set_id).validators;
 
 		//Check threshold
-		if authorities.len().saturating_mul(1).saturating_div(3) > signatures.len() {
+
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		let threshold = p * authorities.len();
+
+		if threshold > signatures.len() {
 			return InvalidTransaction::Custom(11).into()
 		}
 
