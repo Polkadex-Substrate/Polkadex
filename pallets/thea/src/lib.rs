@@ -34,7 +34,7 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	RuntimeAppPublic, SaturatedConversion,
+	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 
@@ -326,17 +326,21 @@ impl<T: Config> Pallet<T> {
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 
 		// Check for super majority
-		let threshold = authorities.len().saturating_mul(2).saturating_div(3);
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		let threshold = p * authorities.len();
+
 		if signatures.len() < threshold {
 			return InvalidTransaction::Custom(4).into()
 		}
 
 		let encoded_payload = payload.encode();
+		let msg_hash = sp_io::hashing::sha2_256(&encoded_payload);
 		for (index, signature) in signatures {
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(2).into(),
 				Some(auth) =>
-					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
+					if !auth.verify(&msg_hash, &((*signature).clone().into())) {
 						return InvalidTransaction::Custom(3).into()
 					},
 			}

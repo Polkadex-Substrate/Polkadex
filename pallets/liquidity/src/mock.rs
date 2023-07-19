@@ -221,8 +221,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
-where
-	RuntimeCall: From<C>,
+	where
+		RuntimeCall: From<C>,
 {
 	type Extrinsic = UncheckedExtrinsic;
 	type OverarchingCall = RuntimeCall;
