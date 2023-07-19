@@ -179,6 +179,5 @@ where
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	t.register_extension(KeystoreExt::new(MemoryKeystore::new()));
 	t.into()
 }

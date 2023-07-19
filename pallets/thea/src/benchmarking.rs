@@ -47,7 +47,7 @@ benchmarks! {
 		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
 		set.try_push(key).unwrap();
 		<Authorities::<T>>::insert(0, set);
-	}: _(RawOrigin::None, message, vec!((0, signature)))
+	}: _(RawOrigin::None, message, vec!((0, signature.into())))
 	verify {
 		assert!(<IncomingNonce::<T>>::get(0) == 1);
 		assert!(<IncomingMessages::<T>>::iter().count() == 1);
