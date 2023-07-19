@@ -25,15 +25,6 @@ use frame_system::EventRecord;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::{ByteArray, Pair};
 use sp_runtime::traits::BadOrigin;
-use thea_primitives::ValidatorSet;
-
-fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
-	let events = frame_system::Pallet::<T>::events();
-	let system_event: <T as frame_system::Config>::RuntimeEvent = generic_event.into();
-	// compare to the last event record
-	let EventRecord { event, .. } = &events[events.len() - 1];
-	assert_eq!(event, &system_event);
-}
 
 #[test]
 fn test_insert_authorities_full() {
@@ -193,5 +184,26 @@ fn real_test_vector() {
 		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
 		println!("Running the validation..");
 		TheaHandler::validate_incoming_message(&message, &vec![(0, signature.into())]).unwrap();
+	})
+}
+
+#[test]
+fn test_unsigned_call_validation() {
+	new_test_ext().execute_with(|| {
+		let public_bytes = hex::decode("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").unwrap();
+		println!("{public_bytes:?}");
+		let public = <Test as Config>::TheaId::from_slice(&public_bytes).unwrap();
+
+		let signature_bytes = hex::decode("f665f69c959c4a3cbc54ec4de8a566f1897c648fe6c33ab1056ef11fcdd7ad937f4bae4540c18c1a4c61acc4a8bb8c11cafaafe8a06cfb7298e3f9ffba71d33500").unwrap();
+		let signature = sp_core::ecdsa::Signature::from_slice(&signature_bytes).unwrap();
+		println!("{signature_bytes:?}");
+
+		assert_ok!(TheaHandler::insert_authorities(RuntimeOrigin::root(), BoundedVec::truncate_from(vec![public]), 0));
+		<ValidatorSetId<Test>>::put(0);
+
+		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
+		println!("Running the validation..");
+		let call = Call::<Test>::incoming_message { payload: message, signatures: vec!((0, signature.into())) };
+		assert!(TheaHandler::validate_unsigned(TransactionSource::Local, &call).is_ok());
 	})
 }

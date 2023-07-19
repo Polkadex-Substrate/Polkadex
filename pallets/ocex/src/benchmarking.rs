@@ -45,7 +45,7 @@ fn convert_to_balance<T: Config>(dec: Decimal) -> BalanceOf<T> {
 	BalanceOf::<T>::decode(
 		&mut &dec.saturating_mul(UNIT_BALANCE.into()).to_u128().unwrap().to_le_bytes()[..],
 	)
-	.unwrap()
+		.unwrap()
 }
 
 fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {

@@ -16,9 +16,9 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use thea_primitives::types::{ApprovedMessage, Destination};
 
-const MAINNET_URL: &str = "http://localhost:9944";
-const PARACHAIN_URL: &str = "http://localhost:51504";
-const AGGREGRATOR_URL: &str = "http://localhost:9901";
+const MAINNET_URL: &str = "https://solochain.polkadex.trade";
+const PARACHAIN_URL: &str = "https://moonbeam-integration-parachain.polkadex.trade";
+const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
@@ -54,7 +54,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(message) = next_outgoing_message {
 				compute_signer_and_submit::<T>(message, Destination::Parachain)?;
 			} else {
-				log::debug!(target:"thea","No outgoing message with nonce: {:?} from network: {:?}",next_outgoing_nonce,network);
+				log::debug!(target:"thea","No outgoing message with nonce: {:?} to network: {:?}",next_outgoing_nonce,network);
 			}
 		}
 		log::debug!(target:"thea","Thea offchain worker exiting..");
@@ -80,7 +80,7 @@ fn compute_signer_and_submit<T: Config>(
 		.enumerate()
 		.filter_map(move |(_index, authority)| {
 			local_keys
-				.binary_search(&authority)
+				.binary_search(authority)
 				.ok()
 				.map(|location| local_keys[location].clone())
 		})
