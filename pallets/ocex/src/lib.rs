@@ -721,20 +721,18 @@ pub mod pallet {
 					Some(qty_step_size),
 				) => {
 					let trading_pair_info = TradingPairConfig {
-                        base_asset: base,
-                        quote_asset: quote,
-                        min_price,
-                        max_price,
-                        price_tick_size,
-                        min_qty,
-                        max_qty,
-                        qty_step_size,
-                        operational_status: true,
-                        base_asset_precision: price_tick_size.scale() as u8,
-                        /* scale() can never be                                                    * greater u8::MAX */
-                        quote_asset_precision: qty_step_size.scale() as u8,
-                        /* scale() can never be                                                    * greater than u8::MAX */
-                    };
+						base_asset: base,
+						quote_asset: quote,
+						min_price,
+						max_price,
+						price_tick_size,
+						min_qty,
+						max_qty,
+						qty_step_size,
+						operational_status: true,
+						base_asset_precision: price_tick_size.scale().saturated_into(),
+						quote_asset_precision: qty_step_size.scale().saturated_into(),
+					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
