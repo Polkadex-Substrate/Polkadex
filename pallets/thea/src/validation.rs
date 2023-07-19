@@ -80,7 +80,7 @@ fn compute_signer_and_submit<T: Config>(
 		.enumerate()
 		.filter_map(move |(_index, authority)| {
 			local_keys
-				.binary_search(&authority)
+				.binary_search(authority)
 				.ok()
 				.map(|location| local_keys[location].clone())
 		})
