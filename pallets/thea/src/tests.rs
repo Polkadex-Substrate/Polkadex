@@ -23,6 +23,7 @@ use frame_support::{assert_err, assert_ok};
 use sp_core::Pair as CorePair;
 use sp_runtime::DispatchError::BadOrigin;
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
+use sp_std::collections::btree_set::BTreeSet;
 
 const PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
 
@@ -76,8 +77,9 @@ fn test_session_change() {
 			.clone()
 			.into_iter()
 			.for_each(|bls| authorities.push((&1, bls.public().into())));
-
-		<ActiveNetworks<Test>>::put(vec![1]);
+		let mut networks = BTreeSet::new();
+		networks.insert(1);
+		<ActiveNetworks<Test>>::put(networks);
 		assert!(Thea::validator_set_id() == 0);
 		assert!(Thea::outgoing_nonce(1) == 0);
 		let authorities_cloned: Vec<(&u64, <Test as Config>::TheaId)> = authorities.clone();
@@ -238,5 +240,57 @@ fn test_update_outgoing_nonce_all() {
 		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), 10_000, 0));
 		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), u32::MAX.into(), 0));
 		assert_ok!(Thea::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX, 0));
+	})
+}
+
+#[test]
+fn test_add_thea_network_full() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_err!(Thea::add_thea_network(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_err!(Thea::add_thea_network(RuntimeOrigin::signed(1), 1), BadOrigin);
+		// add max number of networks
+		for net in 0u8..=u8::MAX {
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			let an = <ActiveNetworks<Test>>::get();
+			assert_eq!(an.len(), net as usize + 1);
+			assert!(an.get(&net).is_some());
+		}
+		// no failures on adding same network again
+		for net in 0u8..=u8::MAX {
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+		}
+	})
+}
+
+#[test]
+fn test_remove_thea_network_full() {
+	new_test_ext().execute_with(|| {
+		// bad origins
+		assert_err!(Thea::remove_thea_network(RuntimeOrigin::none(), 1), BadOrigin);
+		assert_err!(Thea::remove_thea_network(RuntimeOrigin::signed(1), 1), BadOrigin);
+		// make sure it's not blowing on absent network
+		for net in 0u8..=u8::MAX {
+			assert_ok!(Thea::remove_thea_network(RuntimeOrigin::root(), net));
+		}
+		// add one and remove one
+		for net in 0u8..=u8::MAX {
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::remove_thea_network(RuntimeOrigin::root(), net));
+			let an = <ActiveNetworks<Test>>::get();
+			assert_eq!(an.len(), 0);
+		}
+		// populating everything
+		for net in 0u8..=u8::MAX {
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+		}
+		// remove reverse order
+		for net in (0u8..=u8::MAX).rev() {
+			assert_ok!(Thea::remove_thea_network(RuntimeOrigin::root(), net));
+			let an = <ActiveNetworks<Test>>::get();
+			// when we remove one it should be exact same len as value :)
+			assert_eq!(an.len(), net as usize);
+			assert!(an.get(&net).is_none());
+		}
 	})
 }

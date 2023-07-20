@@ -60,7 +60,6 @@ std = [
   "sp-trie/std",
   "hash-db/std",
   "trie-db/std",
-  #  "trie-root/std",
   "polkadex-primitives/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
