@@ -378,14 +378,14 @@ pub mod pallet {
 		}
 
 		fn offchain_worker(block_number: T::BlockNumber) {
-			log::info!(target:"ocex", "offchain worker started");
+			log::debug!(target:"ocex", "offchain worker started");
 			if let Err(err) = Self::run_on_chain_validation(block_number) {
 				log::error!(target:"ocex","OCEX worker error: {}",err)
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 			s_info.set(&false);
-			log::info!(target:"ocex", "OCEX worker exiting...");
+			log::debug!(target:"ocex", "OCEX worker exiting...");
 		}
 	}
 
@@ -721,20 +721,18 @@ pub mod pallet {
 					Some(qty_step_size),
 				) => {
 					let trading_pair_info = TradingPairConfig {
-                        base_asset: base,
-                        quote_asset: quote,
-                        min_price,
-                        max_price,
-                        price_tick_size,
-                        min_qty,
-                        max_qty,
-                        qty_step_size,
-                        operational_status: true,
-                        base_asset_precision: price_tick_size.scale() as u8,
-                        /* scale() can never be                                                    * greater u8::MAX */
-                        quote_asset_precision: qty_step_size.scale() as u8,
-                        /* scale() can never be                                                    * greater than u8::MAX */
-                    };
+						base_asset: base,
+						quote_asset: quote,
+						min_price,
+						max_price,
+						price_tick_size,
+						min_qty,
+						max_qty,
+						qty_step_size,
+						operational_status: true,
+						base_asset_precision: price_tick_size.scale().saturated_into(),
+						quote_asset_precision: qty_step_size.scale().saturated_into(),
+					};
 
 					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
@@ -1019,9 +1017,10 @@ pub mod pallet {
 			_signatures: Vec<(u16, <T::AuthorityId as RuntimeAppPublic>::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-
-			let withdrawal_map = Self::create_withdrawal_tree(summary.withdrawals.clone());
 			if !summary.withdrawals.is_empty() {
+				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
+				<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
+				<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
 						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
@@ -1031,15 +1030,10 @@ pub mod pallet {
 					);
 				});
 			}
-			log::debug!(target:"ocex", "Storing snapshot summary data...");
-
 			let id = summary.snapshot_id;
 			<SnapshotNonce<T>>::put(id);
-			<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
-			<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
-			<Snapshots<T>>::insert(summary.snapshot_id, summary);
+			<Snapshots<T>>::insert(id, summary);
 			Self::deposit_event(Event::<T>::SnapshotProcessed(id));
-			log::debug!(target:"ocex", "Snapshot stored successfully");
 			Ok(())
 		}
 
@@ -1207,15 +1201,15 @@ pub mod pallet {
 		}
 
 		fn create_withdrawal_tree(
-			pending_withdrawals: Vec<Withdrawal<T::AccountId>>,
+			pending_withdrawals: impl AsRef<[Withdrawal<T::AccountId>]>,
 		) -> WithdrawalsMap<T> {
 			let mut withdrawal_map: WithdrawalsMap<T> = WithdrawalsMap::<T>::new();
-			for withdrawal in pending_withdrawals {
+			for withdrawal in pending_withdrawals.as_ref() {
 				let recipient_account: T::AccountId = withdrawal.main_account.clone();
 				if let Some(pending_withdrawals) = withdrawal_map.get_mut(&recipient_account) {
-					pending_withdrawals.push(withdrawal)
+					pending_withdrawals.push(withdrawal.to_owned())
 				} else {
-					let pending_withdrawals = sp_std::vec![withdrawal];
+					let pending_withdrawals = sp_std::vec![withdrawal.to_owned()];
 					withdrawal_map.insert(recipient_account, pending_withdrawals);
 				}
 			}
