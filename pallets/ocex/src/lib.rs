@@ -120,8 +120,6 @@ pub trait OcexWeightInfo {
 	fn allowlist_token(_x: u32) -> Weight;
 	fn remove_allowlisted_token(_x: u32) -> Weight;
 	fn set_snapshot() -> Weight;
-	fn change_pending_withdrawal_limit() -> Weight;
-	fn change_snapshot_interval_block() -> Weight;
 	fn whitelist_orderbook_operator() -> Weight;
 }
 
