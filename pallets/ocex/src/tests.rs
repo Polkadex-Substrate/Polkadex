@@ -189,6 +189,10 @@ fn test_state_not_impacted_by_incompleete_batch() {
 		assert!(state.is_empty());
 		// check it actuall stores on good batch
 		let _ = actions.pop(); // remove broken action
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state_info = OCEX::load_state_info(&state);
 		let batch = UserActionBatch {
 			actions: actions.clone(),
 			stid: 1,
