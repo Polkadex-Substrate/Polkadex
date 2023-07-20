@@ -59,7 +59,6 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
@@ -95,7 +94,6 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
-pub mod migration;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -120,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 286,
+	spec_version: 287,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1281,9 +1279,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
-	type Public = <Signature as traits::Verify>::Signer;
-	type Signature = Signature;
-	type MsPerDay = MsPerDay;
+	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
@@ -1325,10 +1321,10 @@ parameter_types! {
 	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
 }
 
-impl thea::pallet::Config for Runtime {
+impl thea::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
@@ -1357,8 +1353,8 @@ impl thea_executor::Config for Runtime {
 #[cfg(feature = "runtime-benchmarks")]
 impl thea_message_handler::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
@@ -1506,10 +1502,8 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	// Migrations,
 >;
 
-pub type Migrations = (migration::session_keys::MigrateToV5,);
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -1554,85 +1548,6 @@ impl_runtime_apis! {
 
 		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
 			data.check_extrinsics(&block)
-		}
-	}
-
-	impl orderbook_primitives::ObApi<Block> for Runtime {
-		fn validator_set() -> orderbook_primitives::ValidatorSet<orderbook_primitives::crypto::AuthorityId>{
-			OCEX::validator_set()
-		}
-
-		fn get_latest_snapshot() -> orderbook_primitives::SnapshotSummary<AccountId>{
-			OCEX::get_latest_snapshot()
-		}
-
-		fn get_snapshot_by_id(nonce: u64) -> Option<orderbook_primitives::SnapshotSummary<AccountId>>{
-			OCEX::get_snapshot_by_id(nonce)
-		}
-
-		fn ingress_messages(blk: BlockNumber) -> Vec<polkadex_primitives::ingress::IngressMessages<AccountId>>{
-			OCEX::get_ingress_messages(blk)
-		}
-
-		fn submit_snapshot(summary: orderbook_primitives::SnapshotSummary<AccountId>) -> Result<(),()> {
-			OCEX::submit_snapshot_api(summary)
-		}
-
-		fn pending_snapshot(auth: orderbook_primitives::crypto::AuthorityId) -> Option<u64> {
-			OCEX::pending_snapshot(auth)
-		}
-
-		fn get_all_accounts_and_proxies() -> Vec<(AccountId,Vec<AccountId>)>{
-			OCEX::get_all_accounts_and_proxies()
-		}
-
-		fn get_snapshot_generation_intervals() -> (u64,BlockNumber) {
-			OCEX::get_snapshot_generation_intervals()
-		}
-
-		fn get_last_accepted_worker_nonce () -> u64 {
-			OCEX::get_last_accepted_worker_nonce()
-		}
-
-
-		fn get_allowlisted_assets() -> Vec<AssetId> {
-			OCEX::get_allowlisted_assets()
-		}
-
-		fn read_trading_pair_configs() -> Vec<(orderbook_primitives::types::TradingPair, polkadex_primitives::ocex::TradingPairConfig)> {
-			OCEX::read_trading_pair_configs()
-		}
-
-
-		fn get_orderbook_opearator_key() -> Option<sp_core::ecdsa::Public>{
-			OCEX::get_orderbook_operator_public_key()
-		}
-	}
-
-	impl thea_primitives::TheaApi<Block> for Runtime {
-		/// Return the current active Thea validator set for all networks
-		fn full_validator_set() -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
-			Thea::full_validator_set()
-		}
-		/// Return the current active Thea validator set
-		fn validator_set(network: thea_primitives::Network) -> Option<thea_primitives::ValidatorSet<thea_primitives::AuthorityId>>{
-			Thea::validator_set(network)
-		}
-		/// Returns the outgoing message for given network and blk
-		fn outgoing_messages(network: thea_primitives::Network, nonce: u64) -> Option<thea_primitives::Message>{
-			Thea::get_outgoing_messages(network, nonce)
-		}
-		/// Get Thea network associated with Validator
-		fn network(auth: thea_primitives::AuthorityId) -> Option<thea_primitives::Network>{
-			Thea::network(auth)
-		}
-		/// Incoming messages
-		fn incoming_message(message: thea_primitives::Message, bitmap: Vec<u128>, signature: thea_primitives::AuthoritySignature) -> Result<(),()>{
-			Thea::submit_incoming_message(message,bitmap,signature)
-		}
-		/// Get last processed nonce for a given network
-		fn get_last_processed_nonce(network: thea_primitives::Network) -> u64{
-			Thea::get_last_processed_nonce(network)
 		}
 	}
 

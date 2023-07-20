@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 //
-// Copyright (c) 2022-2023 Polkadex oü.
+// Copyright (c) 2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,19 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![deny(unused_crate_dependencies)]
-// Declare an instance of the native executor named `ExecutorDispatch`. Include the wasm binary as
-// the equivalent wasm code.
-pub struct ExecutorDispatch;
+use parity_scale_codec::{Decode, Encode};
+use polkadex_primitives::BlockNumber;
 
-impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = (frame_benchmarking::benchmarking::HostFunctions,);
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		node_polkadex_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		node_polkadex_runtime::native_version()
-	}
+// Accounts storage
+#[derive(Encode, Decode, PartialEq, Debug, Clone, Default)]
+pub struct StateInfo {
+	/// Last block processed
+	pub last_block: BlockNumber,
+	/// Last processed worker nonce
+	pub worker_nonce: u64,
+	/// Last processed stid
+	pub stid: u64,
+	/// Last processed snapshot id
+	pub snapshot_id: u64,
 }

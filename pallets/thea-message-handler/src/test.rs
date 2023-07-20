@@ -17,32 +17,20 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	fixtures::{produce_authorities, M, M_KC, SIG},
 	mock::{new_test_ext, Test, *},
 	TransactionSource, *,
 };
 use frame_support::{assert_noop, assert_ok};
 use frame_system::EventRecord;
 use parity_scale_codec::{Decode, Encode};
+use sp_core::{ByteArray, Pair};
 use sp_runtime::traits::BadOrigin;
-use thea_primitives::ValidatorSet;
-
-fn get_valid_signature<T: Config>() -> T::Signature {
-	<T as crate::Config>::Signature::decode(&mut SIG.as_ref()).unwrap()
-}
-
-fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
-	let events = frame_system::Pallet::<T>::events();
-	let system_event: <T as frame_system::Config>::RuntimeEvent = generic_event.into();
-	// compare to the last event record
-	let EventRecord { event, .. } = &events[events.len() - 1];
-	assert_eq!(event, &system_event);
-}
 
 #[test]
 fn test_insert_authorities_full() {
 	new_test_ext().execute_with(|| {
-		let authorities = produce_authorities::<Test>();
+		let authorities =
+			BoundedVec::truncate_from(vec![sp_core::ecdsa::Pair::generate().0.public().into()]);
 		// bad origins
 		assert_noop!(
 			TheaHandler::insert_authorities(RuntimeOrigin::none(), authorities.clone(), 0),
@@ -66,108 +54,86 @@ fn test_insert_authorities_full() {
 #[test]
 fn test_incoming_message_full() {
 	new_test_ext().execute_with(|| {
+		let message = Message {
+			block_no: 10,
+			nonce: 1,
+			data: vec![1, 2, 3, 4, 5],
+			network: 1,
+			is_key_change: false,
+			validator_set_id: 0,
+		};
+		let pair = sp_core::ecdsa::Pair::generate().0;
+
+		<ValidatorSetId<Test>>::put(0);
+		<Authorities<Test>>::insert(0, BoundedVec::truncate_from(vec![pair.public().into()]));
+		let msg_prehashed = sp_io::hashing::sha2_256(&message.encode());
+		let signature = pair.sign(&msg_prehashed);
 		// bad origins
 		assert_noop!(
 			TheaHandler::incoming_message(
 				RuntimeOrigin::root(),
-				vec!(u128::MAX),
-				M.clone(),
-				get_valid_signature::<Test>()
+				message.clone(),
+				vec![(0, signature.clone().into())]
 			),
 			BadOrigin
 		);
 		assert_noop!(
 			TheaHandler::incoming_message(
 				RuntimeOrigin::signed(1),
-				vec!(u128::MAX),
-				M.clone(),
-				get_valid_signature::<Test>()
+				message.clone(),
+				vec![(0, signature.clone().into())]
 			),
 			BadOrigin
 		);
 		// root
 		assert_ok!(TheaHandler::incoming_message(
 			RuntimeOrigin::none(),
-			vec!(u128::MAX),
-			M.clone(),
-			get_valid_signature::<Test>()
+			message.clone(),
+			vec![(0, signature.clone().into())]
 		));
+		assert_eq!(<ValidatorSetId<Test>>::get(), 0);
 		// bad signature in unsigned verification
-		let mut direct = M.clone();
-		direct.validator_set_len = 100;
+		let mut direct = message.clone();
+		direct.validator_set_id = 100;
 		let bad_signature_call = Call::<Test>::incoming_message {
-			bitmap: vec![u128::MAX],
-			payload: direct,
-			signature: get_valid_signature::<Test>(),
+			payload: direct.clone(),
+			signatures: vec![(0, signature.clone().into())],
 		};
 		assert!(
 			TheaHandler::validate_unsigned(TransactionSource::Local, &bad_signature_call).is_err()
 		);
 		// bad message in unsigned verification
 		let bad_message_call = Call::<Test>::incoming_message {
-			bitmap: vec![u128::MAX],
-			payload: M.clone(), // proper message
-			signature: <Test as Config>::Signature::decode(&mut [0u8; 48].as_ref()).unwrap(),
+			payload: direct.clone(), // proper message
+			signatures: vec![(
+				0,
+				<Test as Config>::Signature::decode(&mut [0u8; 65].as_ref()).unwrap(),
+			)],
 		};
 		assert!(
 			TheaHandler::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err()
 		);
 		// bad nonce
-		let mut vs = M_KC.clone();
+		let mut vs = message.clone();
+		vs.nonce = 3;
 		assert_noop!(
-			TheaHandler::incoming_message(
-				RuntimeOrigin::none(),
-				vec!(u128::MAX),
-				vs.clone(),
-				get_valid_signature::<Test>()
+			TheaHandler::validate_incoming_message(
+				&vs.clone(),
+				&vec![(0, signature.clone().into())]
 			),
-			Error::<Test>::MessageNonce
+			InvalidTransaction::Custom(1)
 		);
-		vs.nonce += 1;
-		// Error Deconding keychange
-		assert_noop!(
-			TheaHandler::incoming_message(
-				RuntimeOrigin::none(),
-				vec!(u128::MAX),
-				vs.clone(),
-				get_valid_signature::<Test>()
-			),
-			Error::<Test>::ErrorDecodingValidatorSet
-		);
-		// invalid validator set id
-		let mut aid: Vec<thea_primitives::AuthorityId> = Vec::with_capacity(3);
-		for u in 1..=3 {
-			aid.push(bls_primitives::Public([u as u8; 96]).into())
-		}
-		let validators = ValidatorSet { validators: aid, set_id: 1 };
-		let encoded = Encode::encode(&validators);
-		assert_eq!(validators, ValidatorSet::decode(&mut encoded.as_ref()).unwrap());
-		vs.data = encoded.clone();
-		assert_eq!(vs.data, encoded);
-		<ValidatorSetId<Test>>::set(3);
-		assert_noop!(
-			TheaHandler::incoming_message(
-				RuntimeOrigin::none(),
-				vec!(u128::MAX),
-				vs.clone(),
-				get_valid_signature::<Test>()
-			),
-			Error::<Test>::InvalidValidatorSetId
-		);
-		// proper validator set change
-		<ValidatorSetId<Test>>::set(0);
+		vs.nonce = 2;
+		vs.validator_set_id = 1;
 		assert_eq!(<ValidatorSetId<Test>>::get(), 0);
-		System::set_block_number(1);
-		assert_ok!(TheaHandler::incoming_message(
-			RuntimeOrigin::none(),
-			vec!(u128::MAX),
-			vs.clone(),
-			get_valid_signature::<Test>()
-		));
-		// actually inserted
-		assert_eq!(<Authorities<Test>>::get(1).len(), 3);
-		// event validation
-		assert_last_event::<Test>(Event::<Test>::TheaMessageExecuted { message: vs }.into());
+		// invalid validator set id
+		assert_noop!(
+			TheaHandler::validate_incoming_message(
+				&vs.clone(),
+				&vec![(0, signature.clone().into())]
+			),
+			InvalidTransaction::Custom(2)
+		);
 	})
 }
 
@@ -184,11 +150,6 @@ fn update_incoming_nonce_full() {
 		assert_eq!(u64::MAX / 2, <IncomingNonce<Test>>::get());
 		assert_ok!(TheaHandler::update_incoming_nonce(RuntimeOrigin::root(), u64::MAX));
 		assert_eq!(u64::MAX, <IncomingNonce<Test>>::get());
-		// nonce already processed
-		assert_noop!(
-			TheaHandler::update_incoming_nonce(RuntimeOrigin::root(), u64::MAX),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
 	})
 }
 
@@ -205,10 +166,44 @@ fn update_outgoing_nonce_full() {
 		assert_eq!(u64::MAX / 2, <OutgoingNonce<Test>>::get());
 		assert_ok!(TheaHandler::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX));
 		assert_eq!(u64::MAX, <OutgoingNonce<Test>>::get());
-		// nonce already processed
-		assert_noop!(
-			TheaHandler::update_outgoing_nonce(RuntimeOrigin::root(), u64::MAX),
-			Error::<Test>::NonceIsAlreadyProcessed
-		);
+	})
+}
+
+#[test]
+fn real_test_vector() {
+	new_test_ext().execute_with(|| {
+		let public_bytes = hex::decode("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").unwrap();
+		let public = <Test as Config>::TheaId::from_slice(&public_bytes).unwrap();
+
+		let signature_bytes = hex::decode("f665f69c959c4a3cbc54ec4de8a566f1897c648fe6c33ab1056ef11fcdd7ad937f4bae4540c18c1a4c61acc4a8bb8c11cafaafe8a06cfb7298e3f9ffba71d33500").unwrap();
+		let signature = sp_core::ecdsa::Signature::from_slice(&signature_bytes).unwrap();
+
+		<Authorities<Test>>::insert(0, BoundedVec::truncate_from(vec![public]));
+		<ValidatorSetId<Test>>::put(0);
+
+		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
+		println!("Running the validation..");
+		TheaHandler::validate_incoming_message(&message, &vec![(0, signature.into())]).unwrap();
+	})
+}
+
+#[test]
+fn test_unsigned_call_validation() {
+	new_test_ext().execute_with(|| {
+		let public_bytes = hex::decode("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").unwrap();
+		println!("{public_bytes:?}");
+		let public = <Test as Config>::TheaId::from_slice(&public_bytes).unwrap();
+
+		let signature_bytes = hex::decode("f665f69c959c4a3cbc54ec4de8a566f1897c648fe6c33ab1056ef11fcdd7ad937f4bae4540c18c1a4c61acc4a8bb8c11cafaafe8a06cfb7298e3f9ffba71d33500").unwrap();
+		let signature = sp_core::ecdsa::Signature::from_slice(&signature_bytes).unwrap();
+		println!("{signature_bytes:?}");
+
+		assert_ok!(TheaHandler::insert_authorities(RuntimeOrigin::root(), BoundedVec::truncate_from(vec![public]), 0));
+		<ValidatorSetId<Test>>::put(0);
+
+		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
+		println!("Running the validation..");
+		let call = Call::<Test>::incoming_message { payload: message, signatures: vec!((0, signature.into())) };
+		assert!(TheaHandler::validate_unsigned(TransactionSource::Local, &call).is_ok());
 	})
 }

@@ -30,9 +30,9 @@ node-polkadex-runtime = { path = "../runtime" }
 rpc-assets = { path = "../rpc/assets" }
 pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
 polkadex-client = { path = "../client" }
-orderbook-primitives = { path = "../primitives/orderbook" }
-thea-primitives = { path = "../primitives/thea" }
 
+thea = { path = "../pallets/thea" }
+pallet-ocex-lmp = { path = "../pallets/ocex" }
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
