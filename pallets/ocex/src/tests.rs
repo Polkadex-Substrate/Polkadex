@@ -20,7 +20,6 @@
 
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -29,6 +28,7 @@ use std::str::FromStr;
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
 use frame_system::EventRecord;
+use orderbook_primitives::types::UserActions;
 use parity_scale_codec::Decode;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
@@ -37,7 +37,6 @@ use sp_core::{
 	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
 	ByteArray, Pair, H256,
 };
-
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
@@ -155,6 +154,36 @@ fn test_add_balance_existing_account_with_balance() {
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
 	});
+}
+#[test]
+// check if balance is added to existing account with balance
+fn test_state_not_impacted_by_incompleete_batch() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state_info = OCEX::load_state_info(&state);
+		assert!(state.is_empty());
+		let mut actions = Vec::with_capacity(3);
+		// ok
+		actions.push(UserActions::BlockImport(state_info.last_block.saturating_add(1).into()));
+		// ok
+		actions.push(UserActions::BlockImport(state_info.last_block.saturating_add(2).into()));
+		// err
+		actions.push(UserActions::BlockImport(state_info.last_block.saturating_add(1).into()));
+		let batch =
+			UserActionBatch { actions, stid: 1, snapshot_id: 1, signature: Default::default() };
+		// give batch with non-first failing action - MUST throw
+		assert_eq!(
+			OCEX::process_batch(&mut state, &batch, &mut state_info).unwrap_err(),
+			"BlockOutofSequence"
+		);
+		// verify no change commited
+		assert!(state.is_empty());
+	})
 }
 
 #[test]
@@ -2131,7 +2160,7 @@ fn test_withdrawal() {
 }
 
 use orderbook_primitives::{
-	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
+	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade, UserActionBatch},
 	Fees,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};

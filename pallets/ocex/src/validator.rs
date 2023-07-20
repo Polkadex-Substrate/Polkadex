@@ -262,7 +262,7 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawal)
 	}
 
-	fn process_batch(
+	pub(crate) fn process_batch(
 		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
@@ -289,7 +289,7 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	fn load_state_info(state: &TrieDBMut<LayoutV1<BlakeTwo256>>) -> StateInfo {
+	pub(crate) fn load_state_info(state: &TrieDBMut<LayoutV1<BlakeTwo256>>) -> StateInfo {
 		match state.get(&STATE_INFO) {
 			Ok(Some(data)) => StateInfo::decode(&mut &data[..]).unwrap_or_default(),
 			Ok(None) => StateInfo::default(),
