@@ -17,6 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::Balance;
+#[cfg(not(feature = "std"))]
+use codec::alloc::string::ToString;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	ensure,
@@ -25,13 +27,13 @@ use frame_support::{
 		Get,
 	},
 };
+#[cfg(not(feature = "std"))]
+use scale_info::prelude::{format, string::String};
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::de::{Error, MapAccess, Unexpected, Visitor};
-#[cfg(feature = "std")]
-use serde::Deserializer;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{
+	de::{Error, MapAccess, Unexpected, Visitor},
+	Deserialize, Deserializer, Serialize, Serializer,
+};
 use sp_core::RuntimeDebug;
 use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::fmt::{Display, Formatter};
@@ -156,7 +158,6 @@ pub enum AssetId {
 	Polkadex,
 }
 
-#[cfg(feature = "std")]
 impl Serialize for AssetId {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
@@ -171,7 +172,6 @@ impl Serialize for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
 impl<'de> Deserialize<'de> for AssetId {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
@@ -181,11 +181,10 @@ impl<'de> Deserialize<'de> for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
 impl<'de> Visitor<'de> for AssetId {
 	type Value = Self;
 
-	fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+	fn expecting(&self, formatter: &mut Formatter) -> sp_std::fmt::Result {
 		formatter.write_str("expecting an asset id map in the for {\"asset\":\"123\"}")
 	}
 
@@ -238,7 +237,6 @@ impl TryFrom<String> for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
 impl Display for AssetId {
 	fn fmt(&self, f: &mut Formatter<'_>) -> sp_std::fmt::Result {
 		match self {

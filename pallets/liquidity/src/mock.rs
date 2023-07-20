@@ -131,9 +131,7 @@ impl pallet_ocex_lmp::Config for Test {
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<AccountId>;
-	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
-	type Signature = Signature;
-	type MsPerDay = MsPerDay;
+	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Test>;
 }
 

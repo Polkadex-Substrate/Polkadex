@@ -16,15 +16,13 @@ sp-std = { workspace = true }
 polkadex-primitives = { workspace = true }
 chrono = { version = "0.4.23", optional = true }
 rand = { version = "0.8.5", optional = true }
-serde = { version = "1.0.152", optional = true, default-features = false }
+serde = { workspace = true, default-features = false }
 serde_with = { version = "2.3.2", features = ["json"], optional = true }
 log = { workspace = true, default-features = false }
 anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
 ], default-features = false }
-bls-primitives = { workspace = true, default-features = false }
-sc-network = { workspace = true, optional = true }
 
 
 [dev-dependencies]
@@ -35,11 +33,9 @@ default = ["std"]
 std = [
   "log/std",
   "primitive-types/std",
-  "sc-network",
   "chrono",
   "rand",
-  "bls-primitives/std",
-  "serde",
+  "serde/std",
   "serde_with",
   "anyhow/std",
   "rust_decimal/std",

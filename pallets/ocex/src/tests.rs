@@ -20,22 +20,33 @@
 
 use crate::*;
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-use polkadex_primitives::{
-	assets::AssetId, ingress::IngressMessages, withdrawal::Withdrawal, UNIT_BALANCE,
-};
+
+use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
-
+use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
 use frame_system::EventRecord;
-
-use polkadex_primitives::{AccountId, AssetsLimit};
+use parity_scale_codec::Decode;
+use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
-use sp_core::{bounded::BoundedBTreeSet, ByteArray, Pair};
+use sp_core::{
+	bounded::BoundedBTreeSet,
+	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
+	ByteArray, Pair, H256,
+};
+
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
+use sp_std::default::Default;
+
+pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
+	let (offchain, _offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
+	ext.register_extension(OffchainDbExt::new(offchain.clone()));
+	ext.register_extension(OffchainWorkerExt::new(offchain));
+}
 
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"ocex");
 
@@ -57,75 +68,417 @@ fn get_alice_accounts() -> (AccountId32, AccountId32) {
 
 #[test]
 fn test_ocex_submit_snapshot() {
+	let auth1 = sp_core::sr25519::Pair::generate().0;
+	let auth2 = sp_core::sr25519::Pair::generate().0;
+	let auth3 = sp_core::sr25519::Pair::generate().0;
 	let authorities = vec![
-		AuthorityId::from_slice(&hex::decode("a2cb69bc369821987a80f3441eb868e5d34ba02ef437e1eb9d5fb019994bff99b5a\
-		43afecbdffb18412d80d12ed411901178c52ec8a7ad5d2a1cd40cd346af4dc92617b72b2577634b44700691ee322bf012e4795041c80117de530433c4966d").unwrap()).unwrap(),
-		AuthorityId::from_slice(&hex::decode("b335a9cc86c14bb3befa2337b43000f8291c06c196c9003b24b25de75a6369f1c9df\
-		67e65a0da38a3339779a2825c6871506c86fe0250316cceff08b119d559312533be83ba62093908744f4e6c4bd37c71c30719e1aaf0428de966e61847d23").unwrap()).unwrap(),
-		AuthorityId::from_slice(&hex::decode("aee672d32bf85ef55c5fecedc0cc4c17ab828e4e30cada4a565fc0136c4adc1cdad5\
-		6efb96d52ac19d84b43f289ad456127ea3d09af51cef4ff0776375c1ea0d2b6c42dd095119ff371e8d3d56f44eca23811d19298755dba7627fd61a3f0c9e").unwrap()).unwrap()
+		AuthorityId::from(auth1.public()),
+		AuthorityId::from(auth2.public()),
+		AuthorityId::from(auth3.public()),
 	];
 
-	let signature: [u8; 48] = hex::decode(
-		"927d\
-		5700dfe641117ffa23fd553926a20b603d947200160f1f43b892cf007aa62bf4a9a8aaf067fdaa431b44ddaed596",
-	)
-	.unwrap()
-	.try_into()
-	.unwrap();
-	let snapshot1 = SnapshotSummary {
+	let snapshot = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 114,
-		state_root: H256::from_slice(
-			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
-				.unwrap(),
-		),
-		worker_nonce: 1104,
+		state_hash: H256::random(),
 		state_change_id: 1104,
 		last_processed_blk: 1103,
-		state_chunk_hashes: vec![H128::from_slice(
-			&hex::decode("41320ec41a1f860d45685400b7060b01").unwrap(),
-		)],
-		bitflags: vec![42535295865117307932921825928971026432],
 		withdrawals: vec![],
-		aggregate_signature: Some(bls_primitives::Signature(signature)),
-		state_version: 0,
 	};
 
-	let signature: [u8; 48] = hex::decode(
-		"a92ba\
-		a06af18d2b96713ef62951562c9585af5fadb041ef1ff3279f2d75910fefd74f96dfed112f0c99354eea23a184e",
-	)
-	.unwrap()
-	.try_into()
-	.unwrap();
-	let snapshot2 = SnapshotSummary {
-		validator_set_id: 0,
-		snapshot_id: 114,
-		state_root: H256::from_slice(
-			&hex::decode("bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a")
-				.unwrap(),
-		),
-		worker_nonce: 1104,
-		state_change_id: 1104,
-		last_processed_blk: 1103,
-		state_chunk_hashes: vec![H128::from_slice(
-			&hex::decode("41320ec41a1f860d45685400b7060b01").unwrap(),
-		)],
-		bitflags: vec![85070591730234615865843651857942052864],
-		withdrawals: vec![],
-		aggregate_signature: Some(bls_primitives::Signature(signature)),
-		state_version: 0,
-	};
+	let signature1 = auth1.sign(&snapshot.encode());
+
+	let signature2 = auth2.sign(&snapshot.encode());
 
 	new_test_ext().execute_with(|| {
 		<Authorities<Test>>::insert(0, ValidatorSet::new(authorities, 0));
 		<SnapshotNonce<Test>>::put(113);
-		OCEX::validate_snapshot(&snapshot1).unwrap();
-		OCEX::validate_snapshot(&snapshot2).unwrap();
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot1));
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot2));
+		OCEX::validate_snapshot(
+			&snapshot,
+			&vec![(0, signature1.clone().into()), (1, signature2.clone().into())],
+		)
+		.unwrap();
+		assert_ok!(OCEX::submit_snapshot(
+			RuntimeOrigin::none(),
+			snapshot,
+			vec![(0, signature1.into()), (1, signature2.into())]
+		));
 		assert_eq!(<SnapshotNonce<Test>>::get(), 114);
+	});
+}
+
+#[test]
+// check if balance is added to new account
+fn test_add_balance_new_account() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let asset_id = AssetId::Polkadex;
+		let amount = 1000000;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+	});
+}
+
+#[test]
+// check if balance is added to existing account with balance
+fn test_add_balance_existing_account_with_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let asset_id = AssetId::Polkadex;
+		let amount = 1000000;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+
+		//add more balance
+		let amount2 = 2000000;
+		let result = add_balance(&mut state, &account_id, asset_id, amount2.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
+	});
+}
+
+#[test]
+// check if balance can be subtracted from a new account
+fn test_sub_balance_new_account() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let asset_id = AssetId::Polkadex;
+		let amount = 1000000;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let result = sub_balance(&mut state, &account_id, asset_id, amount.into());
+		match result {
+			Ok(_) => assert!(false),
+			Err(e) => assert_eq!(e, "Account not found in trie"),
+		}
+	});
+}
+
+#[test]
+// check if balance can be subtracted from existing account
+fn test_sub_balance_existing_account_with_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let asset_id = AssetId::Polkadex;
+		let amount = 3000000;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+
+		//sub balance
+		let amount2 = 2000000;
+		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount - amount2).into());
+
+		//sub balance till 0
+		let amount3 = amount - amount2;
+		let result = sub_balance(&mut state, &account_id, asset_id, amount3.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(amount - amount2 - amount3, 0);
+		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
+	});
+}
+
+#[test]
+// check if balance can be subtracted from existing account
+fn test_balance_update_depost_first_then_trade() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let amount = 20;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		let result = add_balance(
+			&mut state,
+			&&Decode::decode(&mut &account_id.encode()[..]).unwrap(),
+			AssetId::Polkadex,
+			amount.into(),
+		);
+		assert_eq!(result, Ok(()));
+
+		//add balance for another asset
+		let amount2 = Decimal::from_f64_retain(4.2).unwrap();
+		let result = add_balance(&mut state, &account_id, AssetId::Asset(1), amount2.into());
+		assert_eq!(result, Ok(()));
+
+		//sub balance till 0
+		let amount3 = Decimal::from_f64_retain(2.0).unwrap();
+		let result = sub_balance(&mut state, &account_id, AssetId::Polkadex, amount3.into());
+		assert_eq!(result, Ok(()));
+	});
+}
+
+#[test]
+// check if more than available balance can be subtracted from existing account
+fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_id = create_account_id();
+		let asset_id = AssetId::Polkadex;
+		let amount = 3000000;
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
+		assert_eq!(result, Ok(()));
+		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+
+		//sub balance
+		let amount2 = 4000000;
+		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
+		match result {
+			Ok(_) => assert!(false),
+			Err(e) => assert_eq!(e, "NotEnoughBalance"),
+		}
+	});
+}
+
+#[test]
+// check if balance is added to new account
+fn test_trade_between_two_accounts_without_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let config = get_trading_pair_config();
+		let amount = Decimal::from_str("20").unwrap();
+		let price = Decimal::from_str("2").unwrap();
+		let trade = create_trade_between_alice_and_bob(price, amount);
+		let result = process_trade(&mut state, &trade, config);
+		match result {
+			Ok(_) => assert!(false),
+			Err(e) => assert_eq!(e, "NotEnoughBalance"),
+		}
+	});
+}
+
+#[test]
+// check if balance is added to new account
+fn test_trade_between_two_accounts_with_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		// add balance to alice
+		let alice_account_id = get_alice_key_pair().public();
+		let initial_asset_1_alice_has = 40;
+		let _initial_pdex_alice_has = 0;
+		assert_ok!(add_balance(
+			&mut state,
+			&alice_account_id.into(),
+			AssetId::Asset(1),
+			initial_asset_1_alice_has.into()
+		));
+
+		//add balance to bob
+		let bob_account_id = get_bob_key_pair().public();
+		let initial_pdex_bob_has = 20;
+		let initial_asset_1_bob_has = 0;
+		assert_ok!(add_balance(
+			&mut state,
+			&bob_account_id.into(),
+			AssetId::Polkadex,
+			initial_pdex_bob_has.into()
+		));
+
+		//market PDEX-1
+		let config = get_trading_pair_config();
+		let amount = Decimal::from_str("20").unwrap();
+		let price = Decimal::from_str("2").unwrap();
+
+		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
+		// total trade value = 20 PDEX and 40 Asset(1)
+		//so alice should have 20 PDEX and bob should have 20 less PDEX
+		//also, alice should have 40 less Asset(1) and bob should have 40 more Asset(1)
+		let trade = create_trade_between_alice_and_bob(price, amount);
+		let result = process_trade(&mut state, &trade, config);
+		assert_ok!(result);
+
+		//check has 20 pdex now
+		let encoded = state.get(alice_account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(account_info.get(&AssetId::Polkadex).unwrap(), &20.into());
+
+		//check if bob has 20 less pdex
+		let encoded = state.get(bob_account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(
+			account_info.get(&AssetId::Polkadex).unwrap(),
+			&(initial_pdex_bob_has - 20).into()
+		);
+
+		//check if bob has 40 more asset_1
+		let encoded = state.get(bob_account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(
+			account_info.get(&AssetId::Asset(1)).unwrap(),
+			&(initial_asset_1_bob_has + 40).into()
+		);
+
+		//check if alice has 40 less asset_1
+		let encoded = state.get(alice_account_id.as_slice()).unwrap().unwrap();
+		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
+		assert_eq!(
+			account_info.get(&AssetId::Asset(1)).unwrap(),
+			&(initial_asset_1_alice_has - 40).into()
+		);
+	});
+}
+
+#[test]
+// check if balance is added to new account
+fn test_trade_between_two_accounts_insuffient_bidder_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		// add balance to alice
+		let alice_account_id = get_alice_key_pair().public();
+		assert_ok!(add_balance(&mut state, &alice_account_id.into(), AssetId::Asset(1), 39.into()));
+
+		//add balance to bob
+		let bob_account_id = get_bob_key_pair().public();
+		assert_ok!(add_balance(&mut state, &bob_account_id.into(), AssetId::Polkadex, 20.into()));
+
+		//market PDEX-1
+		let config = get_trading_pair_config();
+		let amount = Decimal::from_str("20").unwrap();
+		let price = Decimal::from_str("2").unwrap();
+
+		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
+		let trade = create_trade_between_alice_and_bob(price, amount);
+		let result = process_trade(&mut state, &trade, config);
+		match result {
+			Ok(_) => assert!(false),
+			Err(e) => assert_eq!(e, "NotEnoughBalance"),
+		}
+	});
+}
+
+#[test]
+// check if balance is added to new account
+fn test_trade_between_two_accounts_insuffient_asker_balance() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		// add balance to alice
+		let alice_account_id = get_alice_key_pair().public();
+		assert_ok!(add_balance(&mut state, &alice_account_id.into(), AssetId::Asset(1), 40.into()));
+
+		//add balance to bob
+		let bob_account_id = get_bob_key_pair().public();
+		assert_ok!(add_balance(&mut state, &bob_account_id.into(), AssetId::Polkadex, 19.into()));
+
+		//market PDEX-1
+		let config = get_trading_pair_config();
+		let amount = Decimal::from_str("20").unwrap();
+		let price = Decimal::from_str("2").unwrap();
+
+		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
+		let trade = create_trade_between_alice_and_bob(price, amount);
+		let result = process_trade(&mut state, &trade, config);
+		match result {
+			Ok(_) => assert!(false),
+			Err(e) => assert_eq!(e, "NotEnoughBalance"),
+		}
+	});
+}
+
+#[test]
+// check if balance is added to new account
+fn test_trade_between_two_accounts_invalid_signature() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		// add balance to alice
+		let alice_account_id = get_alice_key_pair().public();
+		assert_ok!(add_balance(&mut state, &alice_account_id.into(), AssetId::Asset(1), 40.into()));
+
+		//add balance to bob
+		let bob_account_id = get_bob_key_pair().public();
+		assert_ok!(add_balance(&mut state, &bob_account_id.into(), AssetId::Polkadex, 20.into()));
+
+		//market PDEX-1
+		let config = get_trading_pair_config();
+		let amount = Decimal::from_str("20").unwrap();
+		let price = Decimal::from_str("2").unwrap();
+
+		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
+		let mut trade = create_trade_between_alice_and_bob(price, amount);
+		//swap alice and bob's signature
+		trade.maker.signature = trade.taker.signature.clone();
+
+		let result = process_trade(&mut state, &trade, config);
+		match result {
+			Ok(_) => assert!(false),
+			Err(e) => assert_eq!(e, "InvalidTrade"),
+		}
 	});
 }
 
@@ -210,6 +563,7 @@ fn test_add_proxy_account_main_account_not_found() {
 		);
 	});
 }
+
 #[test]
 fn test_add_proxy_account_exchange_state_not_operational() {
 	let account_id = create_account_id();
@@ -959,6 +1313,7 @@ fn test_deposit_unknown_asset() {
 		);
 	});
 }
+
 #[test]
 fn test_deposit_exchange_not_operational() {
 	let account_id = create_account_id();
@@ -1140,6 +1495,7 @@ fn test_open_trading_pair_both_assets_cannot_be_same() {
 		assert_eq!(OCEX::ingress_messages(blk).len(), 1);
 	});
 }
+
 #[test]
 fn test_open_trading_pair_exchange_not_operational() {
 	new_test_ext().execute_with(|| {
@@ -1391,11 +1747,19 @@ fn collect_fees() {
 			initial_balance
 		);
 
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
+		let (mut snapshot, _public, signature) = get_dummy_snapshot(1);
 
 		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
 
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(
+			RuntimeOrigin::none(),
+			snapshot.clone(),
+			vec![(0, signature.into())]
+		));
+
+		// Complete dispute period
+		new_block();
+		new_block();
 
 		assert_ok!(OCEX::claim_withdraw(
 			RuntimeOrigin::signed(account_id.clone().into()),
@@ -1567,7 +1931,7 @@ fn withdrawal() {
 				alice_proxy_account,
 				AssetId::Polkadex,
 				Decimal::new(100, 12),
-				true
+				true,
 			)
 		);
 
@@ -1599,11 +1963,12 @@ fn collect_fees_ddos() {
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
-		let (mut snapshot, _public) = get_dummy_snapshot(0);
-		snapshot.snapshot_id = 2; // Wrong nonce
+		let (mut snapshot, _public, _) = get_dummy_snapshot(0);
+		snapshot.snapshot_id = 2;
+		// Wrong nonce
 		assert_noop!(
-			OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot),
-			Error::<Test>::SnapshotNonceError
+			OCEX::validate_snapshot(&snapshot, &Vec::new()),
+			InvalidTransaction::Custom(10)
 		);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk).len(), 0);
@@ -1612,7 +1977,7 @@ fn test_submit_snapshot_snapshot_nonce_error() {
 
 fn get_dummy_snapshot(
 	withdrawals_len: usize,
-) -> (SnapshotSummary<AccountId>, bls_primitives::Public) {
+) -> (SnapshotSummary<AccountId32>, sp_core::sr25519::Public, sp_core::sr25519::Signature) {
 	let main = create_account_id();
 
 	let mut withdrawals = vec![];
@@ -1623,34 +1988,32 @@ fn get_dummy_snapshot(
 			asset: AssetId::Polkadex,
 			fees: Default::default(),
 			stid: 0,
-			worker_nonce: 0,
 		})
 	}
 
-	let mut snapshot = SnapshotSummary {
+	let pair = sp_core::sr25519::Pair::generate().0;
+	let snapshot = SnapshotSummary {
 		validator_set_id: 0,
 		snapshot_id: 1,
-		state_root: Default::default(),
-		worker_nonce: 1,
+		state_hash: Default::default(),
 		state_change_id: 1,
 		last_processed_blk: 1,
-		state_chunk_hashes: vec![],
-		bitflags: vec![1, 2],
 		withdrawals,
-		aggregate_signature: None,
-		state_version: 0,
 	};
-	let (pair, _seed) = bls_primitives::Pair::generate();
-	snapshot.aggregate_signature = Some(pair.sign(&snapshot.sign_data()));
 
-	(snapshot, pair.public())
+	let signature = pair.sign(&snapshot.encode());
+
+	(snapshot, pair.public(), signature)
 }
 
 #[test]
 fn test_submit_snapshot_bad_origin() {
 	new_test_ext().execute_with(|| {
-		let (snapshot, _public) = get_dummy_snapshot(1);
-		assert_noop!(OCEX::validate_snapshot(&snapshot), InvalidTransaction::Custom(11));
+		let (snapshot, _public, signature) = get_dummy_snapshot(1);
+		assert_noop!(
+			OCEX::validate_snapshot(&snapshot, &vec![(0, signature.into())]),
+			InvalidTransaction::Custom(12)
+		);
 	});
 }
 
@@ -1659,7 +2022,7 @@ fn test_submit_snapshot() {
 	let _account_id = create_account_id();
 	let mut t = new_test_ext();
 	t.execute_with(|| {
-		let (mut snapshot, _public) = get_dummy_snapshot(1);
+		let (mut snapshot, _public, _signature) = get_dummy_snapshot(1);
 		snapshot.withdrawals[0].fees = Decimal::from_f64(1.0).unwrap();
 		let mut withdrawal_map = BTreeMap::new();
 		for withdrawal in &snapshot.withdrawals {
@@ -1673,13 +2036,13 @@ fn test_submit_snapshot() {
 				},
 			}
 		}
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone(), Vec::new()));
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
 		assert_eq!(FeesCollected::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
-		assert_eq!(Snapshots::<Test>::get(1), snapshot.clone());
+		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
 		let onchain_events =
 			vec![polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
@@ -1688,8 +2051,16 @@ fn test_submit_snapshot() {
 			)];
 		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
-		assert_eq!(Snapshots::<Test>::get(1).withdrawals, snapshot.withdrawals);
+		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, snapshot.withdrawals);
 	})
+}
+
+fn new_block() {
+	let number = frame_system::Pallet::<Test>::block_number() + 1;
+	let hash = H256::repeat_byte(number as u8);
+
+	frame_system::Pallet::<Test>::reset_events();
+	frame_system::Pallet::<Test>::initialize(&number, &hash, &Default::default())
 }
 
 #[test]
@@ -1727,9 +2098,13 @@ fn test_withdrawal() {
 			initial_balance
 		);
 
-		let (snapshot, _public) = get_dummy_snapshot(1);
+		let (snapshot, _public, _signature) = get_dummy_snapshot(1);
 
-		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone()));
+		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone(), Vec::new()));
+
+		// Complete dispute period
+		new_block();
+		new_block();
 
 		assert_ok!(OCEX::claim_withdraw(
 			RuntimeOrigin::signed(account_id.clone().into()),
@@ -1754,8 +2129,13 @@ fn test_withdrawal() {
 		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
-use orderbook_primitives::{Fees, H128};
+
+use orderbook_primitives::{
+	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
+	Fees,
+};
 use sp_runtime::traits::{BlockNumberProvider, One};
+use trie_db::TrieMut;
 
 #[test]
 fn test_withdrawal_bad_origin() {
@@ -1800,6 +2180,10 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 	});
 }
 
+use crate::{
+	settlement::{add_balance, process_trade, sub_balance},
+	sr25519::AuthorityId,
+};
 use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
 #[test]
@@ -1851,7 +2235,7 @@ pub fn test_set_balances_when_exchange_is_pause() {
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(
 			OCEX::ingress_messages(blk)[1],
-			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice,)
+			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice)
 		);
 	});
 }
@@ -1974,40 +2358,6 @@ fn test_set_snapshot_full() {
 }
 
 #[test]
-fn test_change_pending_withdrawal_limit_full() {
-	new_test_ext().execute_with(|| {
-		let (a, b) = get_alice_accounts();
-		// bad origins
-		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::none(), 1), BadOrigin);
-		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::signed(a), 1), BadOrigin);
-		assert_noop!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::signed(b), 1), BadOrigin);
-		// proper cases
-		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), 1));
-		// half max
-		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), u32::MAX.into()));
-		// max
-		assert_ok!(OCEX::change_pending_withdrawal_limit(RuntimeOrigin::root(), u64::MAX));
-	})
-}
-
-#[test]
-fn test_change_snapshot_interval_block_full() {
-	new_test_ext().execute_with(|| {
-		let (a, b) = get_alice_accounts();
-		// bad origins
-		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::none(), 1), BadOrigin);
-		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(a), 1), BadOrigin);
-		assert_noop!(OCEX::change_snapshot_interval_block(RuntimeOrigin::signed(b), 1), BadOrigin);
-		// proper cases
-		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), 1));
-		// half max
-		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u32::MAX.into()));
-		// max
-		assert_ok!(OCEX::change_snapshot_interval_block(RuntimeOrigin::root(), u64::MAX));
-	})
-}
-
-#[test]
 fn test_set_exchange_state_full() {
 	new_test_ext().execute_with(|| {
 		let (a, b) = get_alice_accounts();
@@ -2098,6 +2448,108 @@ fn create_proxy_account() -> AccountId32 {
 	.expect("Unable to convert to AccountId32");
 
 	return account_id
+}
+
+fn create_trade_between_alice_and_bob(price: Decimal, qty: Decimal) -> Trade {
+	let order1 = create_order_by_alice(price, qty, 3.into(), OrderStatus::OPEN);
+	let order2 = create_order_by_bob(price, qty, 3.into(), OrderStatus::OPEN);
+	return Trade { maker: order1, taker: order2, price, amount: qty, time: 2 }
+}
+
+fn create_order_by_alice(
+	price: Decimal,
+	qty: Decimal,
+	filled: Decimal,
+	status: OrderStatus,
+) -> Order {
+	let account = get_alice_key_pair().public();
+	let mut order = Order {
+		stid: 0,
+		client_order_id: H256([1u8; 32]),
+		avg_filled_price: 0.into(),
+		fee: 0.into(),
+		filled_quantity: filled.into(),
+		status,
+		id: H256::random(),
+		user: AccountId::new(account.into()),
+		main_account: AccountId::new(account.into()),
+		pair: get_trading_pair(),
+		side: OrderSide::Bid,
+		order_type: OrderType::LIMIT,
+		qty,
+		price,
+		quote_order_qty: 0.into(),
+		timestamp: 1,
+		overall_unreserved_volume: 0.into(),
+		signature: get_random_signature(),
+	};
+	let payload: OrderPayload = order.clone().into();
+	order.signature = get_alice_key_pair().sign(&payload.encode()).into();
+	return order
+}
+
+fn create_order_by_bob(
+	price: Decimal,
+	qty: Decimal,
+	filled: Decimal,
+	status: OrderStatus,
+) -> Order {
+	let account = get_bob_key_pair().public();
+	let mut order = Order {
+		stid: 0,
+		client_order_id: H256([1u8; 32]),
+		avg_filled_price: 0.into(),
+		fee: 0.into(),
+		filled_quantity: filled.into(),
+		status,
+		id: H256::random(),
+		user: AccountId::new(account.into()),
+		main_account: AccountId::new(account.into()),
+		pair: get_trading_pair(),
+		side: OrderSide::Ask,
+		order_type: OrderType::LIMIT,
+		qty,
+		price,
+		quote_order_qty: 0.into(),
+		timestamp: 1,
+		overall_unreserved_volume: 0.into(),
+		signature: get_random_signature(),
+	};
+	let payload: OrderPayload = order.clone().into();
+	order.signature = get_bob_key_pair().sign(&payload.encode()).into();
+	return order
+}
+
+pub fn get_alice_key_pair() -> sp_core::sr25519::Pair {
+	return sp_core::sr25519::Pair::from_string("//Alice", None).unwrap()
+}
+
+pub fn get_bob_key_pair() -> sp_core::sr25519::Pair {
+	return sp_core::sr25519::Pair::from_string("//Bob", None).unwrap()
+}
+
+pub fn get_trading_pair_config() -> TradingPairConfig {
+	TradingPairConfig {
+		base_asset: get_trading_pair().base,
+		quote_asset: get_trading_pair().quote,
+		min_price: Decimal::from_str("0.0001").unwrap(),
+		max_price: Decimal::from_str("1000").unwrap(),
+		price_tick_size: Decimal::from_str("0.000001").unwrap(),
+		min_qty: Decimal::from_str("0.001").unwrap(),
+		max_qty: Decimal::from_str("1000").unwrap(),
+		qty_step_size: Decimal::from_str("0.001").unwrap(),
+		operational_status: true,
+		base_asset_precision: 8,
+		quote_asset_precision: 8,
+	}
+}
+
+pub fn get_trading_pair() -> TradingPair {
+	TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) }
+}
+
+pub fn get_random_signature() -> Signature {
+	Signature::Ecdsa(Default::default())
 }
 
 fn create_max_fees<T: Config>() -> Fees {

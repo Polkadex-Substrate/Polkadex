@@ -16,7 +16,6 @@ pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
-bls-primitives = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 xcm = { workspace = true, default-features = false }
 
@@ -31,7 +30,6 @@ thea = { path = "../thea" }
 default = ["std"]
 std = [
   "sp-application-crypto/std",
-  "bls-primitives/std",
   "thea-primitives/std",
   "parity-scale-codec/std",
   "scale-info/std",
