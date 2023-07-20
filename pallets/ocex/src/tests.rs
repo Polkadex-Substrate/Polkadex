@@ -174,8 +174,12 @@ fn test_state_not_impacted_by_incompleete_batch() {
 		actions.push(UserActions::BlockImport(state_info.last_block.saturating_add(2).into()));
 		// err
 		actions.push(UserActions::BlockImport(state_info.last_block.saturating_add(1).into()));
-		let batch =
-			UserActionBatch { actions, stid: 1, snapshot_id: 1, signature: Default::default() };
+		let batch = UserActionBatch {
+			actions: actions.clone(),
+			stid: 1,
+			snapshot_id: 1,
+			signature: Default::default(),
+		};
 		// give batch with non-first failing action - MUST throw
 		assert_eq!(
 			OCEX::process_batch(&mut state, &batch, &mut state_info).unwrap_err(),
@@ -183,6 +187,17 @@ fn test_state_not_impacted_by_incompleete_batch() {
 		);
 		// verify no change commited
 		assert!(state.is_empty());
+		// check it actuall stores on good batch
+		let _ = actions.pop(); // remove broken action
+		let batch = UserActionBatch {
+			actions: actions.clone(),
+			stid: 1,
+			snapshot_id: 1,
+			signature: Default::default(),
+		};
+		assert_ok!(OCEX::process_batch(&mut state, &batch, &mut state_info));
+		// verify change is commited
+		assert!(!state.is_empty());
 	})
 }
 
