@@ -273,6 +273,29 @@ benchmarks! {
 		}.into());
 	}
 
+	submit_snapshot {
+		<ExchangeState<T>>::put(true);
+		let snapshot = get_dummy_snapshot::<T>();
+		let call = Call::<T>::submit_snapshot { summary: snapshot, signatures: Vec::new() };
+	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
+	verify {
+		assert!(<Snapshots<T>>::contains_key(1));
+	}
+
+	collect_fees {
+		let x in 0 .. 255; // should not overflow u8
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
+		let beneficiary = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
+		let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::new(100, 1) };
+		<ExchangeState<T>>::put(true);
+		let snapshot =  get_dummy_snapshot::<T>();
+		<Snapshots<T>>::insert(x as u64, snapshot);
+		let call = Call::<T>::collect_fees { snapshot_id: x as u64, beneficiary: beneficiary.clone() };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert_last_event::<T>(Event::FeesClaims{ beneficiary, snapshot_id: x as u64}.into());
+	}
+
 	set_exchange_state {
 		let x in 0 .. 100_000;
 		let state = x % 2 == 0;
@@ -376,6 +399,36 @@ benchmarks! {
 	set_snapshot {
 		let call = Call::<T>::set_snapshot{ new_snapshot_id: u64::MAX };
 	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
+
+	whitelist_orderbook_operator {
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
+		let operator_public_key = sp_core::ecdsa::Public([u8::MAX; 33]);
+		let call = Call::<T>::whitelist_orderbook_operator { operator_public_key };
+	}: { call.dispatch_bypass_filter(origin)? }
+	verify {
+		assert!(<OrderbookOperatorPublicKey<T>>::get().unwrap() == operator_public_key);
+	}
+}
+
+fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
+	let mut withdrawals = Vec::new();
+	for _ in 0..20 {
+		withdrawals.push(Withdrawal {
+			main_account: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
+			amount: Decimal::one(),
+			asset: AssetId::Polkadex,
+			fees: Decimal::one(),
+			stid: 1,
+		});
+	}
+	SnapshotSummary {
+		validator_set_id: 10,
+		snapshot_id: 1,
+		state_hash: Default::default(),
+		state_change_id: 10,
+		last_processed_blk: 11,
+		withdrawals,
+	}
 }
 
 #[cfg(test)]
