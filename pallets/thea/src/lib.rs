@@ -29,6 +29,7 @@
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
+pub use pallet::*;
 use parity_scale_codec::Encode;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
@@ -37,8 +38,6 @@ use sp_runtime::{
 	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-
-pub use pallet::*;
 use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -86,12 +85,11 @@ pub trait TheaWeightInfo {
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
-
+	use sp_std::collections::btree_set::BTreeSet;
 	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
-
-	use super::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
@@ -169,7 +167,7 @@ pub mod pallet {
 	/// List of Active networks
 	#[pallet::storage]
 	#[pallet::getter(fn active_networks)]
-	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, Vec<Network>, ValueQuery>;
+	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -278,13 +276,9 @@ pub mod pallet {
 		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
 		pub fn add_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			ensure_root(origin)?;
-
 			<ActiveNetworks<T>>::mutate(|list| {
-				if !list.contains(&network) {
-					list.push(network);
-				}
+				list.insert(network);
 			});
-
 			Ok(())
 		}
 
@@ -293,14 +287,9 @@ pub mod pallet {
 		#[pallet::weight(< T as Config >::WeightInfo::update_outgoing_nonce(1))] // TODO: benchmark
 		pub fn remove_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			ensure_root(origin)?;
-
 			<ActiveNetworks<T>>::mutate(|list| {
-				list.sort(); // This is fine as the list is very small < 10 items
-				if let Ok(index) = list.binary_search(&network) {
-					list.remove(index);
-				}
+				list.remove(&network);
 			});
-
 			Ok(())
 		}
 	}

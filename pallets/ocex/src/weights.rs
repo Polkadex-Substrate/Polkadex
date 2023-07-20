@@ -308,28 +308,6 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: OCEX PendingWithdrawalsAllowedPerSnapshot (r:0 w:1)
-	/// Proof Skipped: OCEX PendingWithdrawalsAllowedPerSnapshot (max_values: Some(1), max_size: None, mode: Measured)
-	fn change_pending_withdrawal_limit() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 2_214_000 picoseconds.
-		Weight::from_parts(2_388_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	/// Storage: OCEX SnapshotIntervalBlock (r:0 w:1)
-	/// Proof Skipped: OCEX SnapshotIntervalBlock (max_values: Some(1), max_size: None, mode: Measured)
-	fn change_snapshot_interval_block() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 2_229_000 picoseconds.
-		Weight::from_parts(2_382_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
 	/// Storage: OCEX OrderbookOperatorPublicKey (r:0 w:1)
 	/// Proof Skipped: OCEX OrderbookOperatorPublicKey (max_values: Some(1), max_size: None, mode: Measured)
 	fn whitelist_orderbook_operator() -> Weight {
