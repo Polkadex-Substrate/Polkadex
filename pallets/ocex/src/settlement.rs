@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Contains common/reusable functionality.
+//! Helper functions for updating the balance
 
 use crate::validator::map_trie_error;
 use log::{error, info};
