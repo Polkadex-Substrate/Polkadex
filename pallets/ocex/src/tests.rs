@@ -30,7 +30,7 @@ use crate::mock::*;
 use frame_system::EventRecord;
 use orderbook_primitives::types::UserActions;
 use parity_scale_codec::Decode;
-use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
+use polkadex_primitives::{ingress::IngressMessages as IM, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
@@ -162,11 +162,32 @@ fn test_state_not_impacted_by_incompleete_batch() {
 	ext.persist_offchain_overlay();
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
+		// deposit setup
+		let account_id = create_account_id();
+		let custodian_account = OCEX::get_pallet_account();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		mint_into_account(account_id.clone());
+		// Balances before deposit
+		assert_eq!(
+			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
+			10000000000000000000000
+		);
+		assert_eq!(<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()), 0);
+		allowlist_token(AssetId::Polkadex);
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone().into()),
+			account_id.clone()
+		));
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
 		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
 		let mut state_info = OCEX::load_state_info(&state);
 		assert!(state.is_empty());
+		let deposit_target_block: u64 = state_info.last_block.saturating_add(2).into();
+		<IngressMessages<Test>>::insert(
+			deposit_target_block,
+			vec![IM::Deposit(account_id, AssetId::Polkadex, 100_u128.into())],
+		);
 		let mut actions = Vec::with_capacity(3);
 		// ok
 		actions.push(UserActions::BlockImport(state_info.last_block.saturating_add(1).into()));
@@ -552,8 +573,7 @@ fn test_register_main_account() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32> =
-			IngressMessages::RegisterUser(account_id.clone(), account_id.clone());
+		let event: IM<AccountId32> = IM::RegisterUser(account_id.clone(), account_id.clone());
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[1], event);
 	});
@@ -692,8 +712,7 @@ fn test_add_proxy_account() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32> =
-			IngressMessages::AddProxy(account_id.clone(), account_id.clone());
+		let event: IM<AccountId32> = IM::AddProxy(account_id.clone(), account_id.clone());
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[2], event);
 	});
@@ -832,7 +851,7 @@ fn test_register_trading_pair() {
 		);
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::Asset(10), AssetId::Asset(20)).unwrap();
-		let event: IngressMessages<AccountId32> = IngressMessages::OpenTradingPair(trading_pair);
+		let event: IM<AccountId32> = IM::OpenTradingPair(trading_pair);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[1], event);
 	});
@@ -1161,7 +1180,7 @@ fn test_update_trading_pair() {
 		);
 		let trading_pair =
 			TradingPairs::<Test>::get(AssetId::Asset(10), AssetId::Asset(20)).unwrap();
-		let event: IngressMessages<AccountId32> = IngressMessages::UpdateTradingPair(trading_pair);
+		let event: IM<AccountId32> = IM::UpdateTradingPair(trading_pair);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[3], event);
 	});
@@ -1453,8 +1472,8 @@ fn test_deposit() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32> =
-			IngressMessages::Deposit(account_id, AssetId::Polkadex, Decimal::new(10, 11));
+		let event: IM<AccountId32> =
+			IM::Deposit(account_id, AssetId::Polkadex, Decimal::new(10, 11));
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[2], event);
 	});
@@ -1617,7 +1636,7 @@ fn test_open_trading_pair() {
 		assert_last_event::<Test>(
 			crate::Event::OpenTradingPair { pair: trading_pair.clone() }.into(),
 		);
-		let event: IngressMessages<AccountId32> = IngressMessages::OpenTradingPair(trading_pair);
+		let event: IM<AccountId32> = IM::OpenTradingPair(trading_pair);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[1], event);
 	})
@@ -1709,7 +1728,7 @@ fn test_close_trading_pair() {
 		assert_last_event::<Test>(
 			crate::Event::ShutdownTradingPair { pair: trading_pair.clone() }.into(),
 		);
-		let event: IngressMessages<AccountId32> = IngressMessages::CloseTradingPair(trading_pair);
+		let event: IM<AccountId32> = IM::CloseTradingPair(trading_pair);
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(OCEX::ingress_messages(blk)[2], event);
 	})
@@ -1975,7 +1994,7 @@ fn withdrawal() {
 		//assert ingress message
 		assert_eq!(
 			OCEX::ingress_messages(blk)[2],
-			IngressMessages::DirectWithdrawal(
+			IM::DirectWithdrawal(
 				alice_proxy_account,
 				AssetId::Polkadex,
 				Decimal::new(100, 12),
@@ -2283,7 +2302,7 @@ pub fn test_set_balances_when_exchange_is_pause() {
 		let blk = frame_system::Pallet::<Test>::current_block_number();
 		assert_eq!(
 			OCEX::ingress_messages(blk)[1],
-			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice)
+			IM::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice)
 		);
 	});
 }
