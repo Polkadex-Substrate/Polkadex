@@ -142,7 +142,7 @@ impl<T: Config> Pallet<T> {
 		if sp_io::offchain::is_validator() {
 			// Create state hash.
 			state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-			Self::store_state_info(state_info, &mut state)?;
+			Self::store_state_info(state_info.clone(), &mut state)?;
 			state.commit();
 			let state_hash: H256 = *state.root();
 			store_trie_root(state_hash);
