@@ -85,7 +85,7 @@ benchmarks! {
 		assert!(<OutgoingNonce::<T>>::get(network) == nonce);
 	}
 
-	add_thea_network{
+	add_thea_network {
 		let network: u8 = 2;
 	}: _(RawOrigin::Root, network)
 	verify {
@@ -93,7 +93,7 @@ benchmarks! {
 		assert!(active_list.contains(&network));
 	}
 
-	remove_thea_network{
+	remove_thea_network {
 		let network: u8 = 2;
 		let active_list = vec![network];
 		<ActiveNetworks<T>>::put(active_list);
