@@ -76,7 +76,6 @@ pub mod ecdsa {
 }
 
 pub trait TheaWeightInfo {
-	fn update_network_pref(b: u32) -> Weight;
 	fn incoming_message(b: u32) -> Weight;
 	fn send_thea_message(_b: u32) -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
