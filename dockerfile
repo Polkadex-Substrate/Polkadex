@@ -35,6 +35,12 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
 FROM docker.io/library/ubuntu:20.04
 COPY --from=builder /Polkadex/target/release/polkadex-node /usr/local/bin
 
+#polkadex CA root cert installation
+RUN curl -ks 'https://letsencrypt.org/certs/lets-encrypt-r3.pem' -o 'ltc.pem'
+RUN openssl x509 -outform der -in ltc.pem -out ltc.crt
+COPY ltc.crt '/usr/local/share/ca-certificates/'
+RUN /usr/sbin/update-ca-certificates
+
 RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
         mkdir -p /polkadex-node/.local/share && \
         mkdir /data && \
