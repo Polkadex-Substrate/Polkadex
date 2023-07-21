@@ -25,8 +25,7 @@ RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
     mkdir /data && \
     chown -R polkadex-node:polkadex-node /data && \
     ln -s /data /polkadex-node/.local/share/polkadex-node && \
-    rm -rf /usr/bin /usr/sbin && \
-    sudo apt-get update && sudo apt-get install -y ca-certificates
+    rm -rf /usr/bin /usr/sbin
 
 COPY ./extras/customSpecRaw.json /data
 
