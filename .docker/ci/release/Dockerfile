@@ -18,6 +18,8 @@
 
 FROM ubuntu:22.04
 
+RUN apt-get update && apt-get install --assume-yes ca-certificates
+
 COPY ./polkadex-node /usr/local/bin
 
 RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
