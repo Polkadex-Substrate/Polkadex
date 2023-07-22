@@ -80,8 +80,8 @@ pub trait TheaWeightInfo {
 	fn send_thea_message(_b: u32) -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 	fn update_outgoing_nonce(_b: u32) -> Weight;
-	fn add_thea_network(_b: u32) -> Weight;
-	fn remove_thea_network(_b: u32) -> Weight;
+	fn add_thea_network() -> Weight;
+	fn remove_thea_network() -> Weight;
 }
 
 #[frame_support::pallet]
@@ -274,7 +274,7 @@ pub mod pallet {
 
 		/// Add a network to active networks
 		#[pallet::call_index(4)]
-		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
 		pub fn add_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			ensure_root(origin)?;
 			<ActiveNetworks<T>>::mutate(|list| {
@@ -285,7 +285,7 @@ pub mod pallet {
 
 		/// Remove a network to active networks
 		#[pallet::call_index(5)]
-		#[pallet::weight(< T as Config >::WeightInfo::remove_thea_network(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::remove_thea_network())]
 		pub fn remove_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
 			ensure_root(origin)?;
 			<ActiveNetworks<T>>::mutate(|list| {
