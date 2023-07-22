@@ -16,9 +16,9 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use thea_primitives::types::{ApprovedMessage, Destination};
 
-const MAINNET_URL: &str = "https://solochain.polkadex.trade";
-const PARACHAIN_URL: &str = "https://moonbeam-integration-parachain.polkadex.trade";
-const AGGREGRATOR_URL: &str = "https://testnet.thea.aggregator.polkadex.trade";
+const MAINNET_URL: &str = "https://mainnet.polkadex.trade";
+const PARACHAIN_URL: &str = "https://parachain.polkadex.trade";
+const AGGREGRATOR_URL: &str = "https://thea.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
