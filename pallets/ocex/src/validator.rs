@@ -39,7 +39,7 @@ const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// as it verifies the signature and and relays them to destination.
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
-pub const AGGREGATOR: &str = "https://testnet.ob.aggregator.polkadex.trade";
+pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
 
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
@@ -141,7 +141,13 @@ impl<T: Config> Pallet<T> {
 
 		if sp_io::offchain::is_validator() {
 			// Create state hash.
+			state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
+			Self::store_state_info(state_info.clone(), &mut state)?;
+			state.commit();
 			let state_hash: H256 = *state.root();
+			store_trie_root(state_hash);
+			log::info!(target:"ocex","updated trie root: {:?}", state.root());
+
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
@@ -179,12 +185,6 @@ impl<T: Config> Pallet<T> {
 				},
 			}
 		}
-
-		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-		Self::store_state_info(state_info, &mut state)?;
-		state.commit();
-		store_trie_root(*state.root());
-		log::info!(target:"ocex","updated trie root: {:?}", state.root());
 
 		Ok(())
 	}

@@ -217,6 +217,43 @@ fn test_sub_balance_existing_account_with_balance() {
 }
 
 #[test]
+fn test_trie_update() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		assert!(state.is_empty());
+
+		state.insert(b"a", b"1").unwrap();
+		state.insert(b"b", b"2").unwrap();
+		state.insert(b"c", b"3").unwrap();
+		assert!(!state.is_empty());
+		let root = state.root(); // This should flush everything to db.
+		crate::storage::store_trie_root(*root);
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+
+		assert_eq!(state.get(b"a").unwrap().unwrap(), b"1");
+		assert_eq!(state.get(b"b").unwrap().unwrap(), b"2");
+		assert_eq!(state.get(b"c").unwrap().unwrap(), b"3");
+
+		state.insert(b"d", b"4").unwrap(); // This will not be in DB, as neither root() or commit() is called
+
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		assert_eq!(state.get(b"a").unwrap().unwrap(), b"1");
+		assert_eq!(state.get(b"b").unwrap().unwrap(), b"2");
+		assert_eq!(state.get(b"c").unwrap().unwrap(), b"3");
+		assert_eq!(state.get(b"d").unwrap(), None);
+	})
+}
+
+#[test]
 // check if balance can be subtracted from existing account
 fn test_balance_update_depost_first_then_trade() {
 	let mut ext = new_test_ext();

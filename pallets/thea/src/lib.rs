@@ -377,11 +377,10 @@ impl<T: Config> Pallet<T> {
 				<OutgoingNonce<T>>::insert(message.network, message.nonce);
 				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
 			}
+			<Authorities<T>>::insert(new_id, incoming);
+			<ValidatorSetId<T>>::put(new_id);
+			<NextAuthorities<T>>::put(queued);
 		}
-
-		<Authorities<T>>::insert(new_id, incoming);
-		<ValidatorSetId<T>>::put(new_id);
-		<NextAuthorities<T>>::put(queued);
 	}
 
 	fn initialize_authorities(authorities: &[T::TheaId]) -> Result<(), ()> {
