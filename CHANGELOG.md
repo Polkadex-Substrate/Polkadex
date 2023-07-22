@@ -12,6 +12,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [5.3.0] - 2023-07-22
+
+### Added
+
+- `thea-executor` tests to cover `TheaExecutor::parachain_withdraw`, `TheaExecutor::update_asset_metadata` and `TheaExecutor::set_withdrawal_fee` extrinsics ([#823])
+- `pallet-ocex-lmp` tests to cover `OCEX::remove_proxy_account`, `OCEX::set_snapshot`, `OCEX::set_exchange_state` and `OCEX::whitelist_orderbook_operator` extrinsics ([#819])
+- `pallet-ocex-lmp` tests ([#835])
+- `thea-message-handler` tests, mock ([#825])
+- Disputation period and validation in `pallet-ocex-lmp` pallet ([#835])
+
+### Changed
+
+- `Resolver` abstraction (trait) with extending a list of members (methods) `resolve_create` and `resolve_transfer` ([#821])
+- `pallet-ocex-lmp` pallet `on_idle` and `on_initialize` hooks ([#822])
+- `thea-message-handler` pallet weights and benchmarks ([#825])
+- Weights for `liquidity`, `pallet-ocex-lmp`, `thea`, `thea-executor` and `thea-message-handler` pallets ([#841])
+- Percent instead of saturated arithmetics in `thea-message-handler` ([#835])
+- `submit_snapshot` extrinsic in `pallet-ocex-lmp` pallet to update the state in proper condition ([#835])
+- On chain validation ([#835])
+
+
+### Fixed
+
+- `thea-executor` pallet weights usage ([#824])
+- Network preferred default value in `thea` pallet ([#828])
+- Docker environment with adding `ca-certificates` in release docker image ([#842])
+- `Pallet::change_authorities` method in `thea` pallet ([#839])
+
+
 ## [5.1.1] - 2023-06-26
 
 ### Added
@@ -144,8 +173,10 @@ All notable changes to this project will be documented in this file.
 
 - Prevented double spend attack scenario in `collect_fees` extrinsic of `OCEX` pallet ([#552])
 
-[unreleased]: https://github.com/Polkadex-Substrate/Polkadex/compare/v4.0.0...HEAD
+[unreleased]: https://github.com/Polkadex-Substrate/Polkadex/compare/v5.2.0...HEAD
 [5.0.0]: https://github.com/Polkadex-Substrate/Polkadex/compare/v4.0.0...v5.0.0
+[5.1.1]: https://github.com/Polkadex-Substrate/Polkadex/compare/v5.0.0...v5.1.1
+[5.3.0]: https://github.com/Polkadex-Substrate/Polkadex/compare/v5.1.1...v5.3.0
 
 [#409]: https://github.com/Polkadex-Substrate/Polkadex/pull/409
 [#411]: https://github.com/Polkadex-Substrate/Polkadex/pull/411
@@ -271,3 +302,14 @@ All notable changes to this project will be documented in this file.
 [#806]: https://github.com/Polkadex-Substrate/Polkadex/pull/806
 [#809]: https://github.com/Polkadex-Substrate/Polkadex/pull/809
 [#802]: https://github.com/Polkadex-Substrate/Polkadex/pull/802
+[#819]: https://github.com/Polkadex-Substrate/Polkadex/pull/819
+[#821]: https://github.com/Polkadex-Substrate/Polkadex/pull/821
+[#822]: https://github.com/Polkadex-Substrate/Polkadex/pull/822
+[#823]: https://github.com/Polkadex-Substrate/Polkadex/pull/823
+[#824]: https://github.com/Polkadex-Substrate/Polkadex/pull/824
+[#825]: https://github.com/Polkadex-Substrate/Polkadex/pull/825
+[#828]: https://github.com/Polkadex-Substrate/Polkadex/pull/828
+[#835]: https://github.com/Polkadex-Substrate/Polkadex/pull/835
+[#839]: https://github.com/Polkadex-Substrate/Polkadex/pull/839
+[#841]: https://github.com/Polkadex-Substrate/Polkadex/pull/841
+[#842]: https://github.com/Polkadex-Substrate/Polkadex/pull/842
