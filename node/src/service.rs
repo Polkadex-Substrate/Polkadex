@@ -225,6 +225,7 @@ pub fn new_partial(
 	)?;
 
 	let import_setup = (block_import, grandpa_link, babe_link);
+
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, _babe_link) = &import_setup;
 
@@ -302,13 +303,16 @@ pub struct NewFullBase {
 
 /// Creates a full service from the configuration.
 pub fn new_full_base(
-	config: Configuration,
+	mut config: Configuration,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
 		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
+	// Ensure all nodes implement offchain indexing and workers
+	config.offchain_worker.enabled = true;
+	config.offchain_worker.indexing_enabled = true;
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
 			let _ = std::fs::create_dir_all(database_path);
@@ -367,15 +371,13 @@ pub fn new_full_base(
 			block_announce_validator_builder: None,
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 		})?;
-
-	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&config,
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
-	}
+	// Enable offchain indexing
+	sc_service::build_offchain_workers(
+		&config,
+		task_manager.spawn_handle(),
+		client.clone(),
+		network.clone(),
+	);
 
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
@@ -595,7 +597,7 @@ mod tests {
 	use sp_core::crypto::Pair as CryptoPair;
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
-	use sp_keystore::{Keystore, KeystorePtr};
+	use sp_keystore::KeystorePtr;
 	use sp_runtime::{
 		generic,
 		generic::{Digest, SignedPayload},

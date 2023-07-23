@@ -8,7 +8,7 @@ edition = "2021"
 primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 anyhow = "1.0.56"
 codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive", "full"] }
-serde = { version = "1.0.136", optional = true }
+serde = { version = "1.0.152", default-features = false }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
@@ -18,6 +18,7 @@ sp-application-crypto = { default-features = false, git = "https://github.com/pa
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
+  "serde",
 ], default-features = false }
 
 [dev-dependencies]
@@ -31,7 +32,7 @@ std = [
   "primitive-types/std",
   "codec/std",
   "scale-info/std",
-  "serde",
+  "serde/std",
   "frame-system/std",
   "frame-support/std",
   "sp-application-crypto/std",

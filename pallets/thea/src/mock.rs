@@ -139,8 +139,8 @@ parameter_types! {
 
 impl crate::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = thea_primitives::AuthorityId;
-	type Signature = thea_primitives::AuthoritySignature;
+	type TheaId = crate::ecdsa::AuthorityId;
+	type Signature = crate::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
@@ -164,6 +164,7 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
