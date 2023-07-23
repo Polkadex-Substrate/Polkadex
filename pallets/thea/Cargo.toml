@@ -49,6 +49,7 @@ std = [
   "polkadex-primitives/std",
   "pallet-timestamp/std",
   "sp-core/std",
+  "frame-benchmarking?/std",
 ]
 runtime-benchmarks = [
   "sp-runtime/runtime-benchmarks",
