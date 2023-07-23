@@ -132,9 +132,7 @@ impl Config for Test {
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
-	type Signature = Signature;
-	type MsPerDay = MsPerDay;
+	type AuthorityId = crate::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }

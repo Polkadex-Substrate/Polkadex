@@ -28,67 +28,79 @@
 //! * handle validator session changes;
 
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
-use frame_system::{offchain::SubmitTransaction, pallet_prelude::*};
+use frame_system::pallet_prelude::*;
 pub use pallet::*;
-use parity_scale_codec::{Encode, MaxEncodedLen};
-use polkadex_primitives::utils::return_set_bits;
+use parity_scale_codec::Encode;
+use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	RuntimeAppPublic, SaturatedConversion,
+	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{
-	types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID, NATIVE_NETWORK,
-};
+use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-#[cfg(test)]
-mod fixtures;
 #[cfg(test)]
 mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
 
+pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
 
+pub const THEA: KeyTypeId = KeyTypeId(*b"thea");
+
+pub mod ecdsa {
+	mod app_ecdsa {
+		use sp_application_crypto::{app_crypto, ecdsa};
+
+		use super::super::THEA;
+
+		app_crypto!(ecdsa, THEA);
+	}
+
+	sp_application_crypto::with_pair! {
+		/// An THEA keypair using ecdsa as its crypto.
+		pub type AuthorityPair = app_ecdsa::Pair;
+	}
+
+	/// An THEA signature using ecdsa as its crypto.
+	pub type AuthoritySignature = app_ecdsa::Signature;
+
+	/// An THEA identifier using ecdsa as its crypto.
+	pub type AuthorityId = app_ecdsa::Public;
+}
+
 pub trait TheaWeightInfo {
-	fn update_network_pref(b: u32) -> Weight;
 	fn incoming_message(b: u32) -> Weight;
 	fn send_thea_message(_b: u32) -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 	fn update_outgoing_nonce(_b: u32) -> Weight;
+	fn add_thea_network() -> Weight;
+	fn remove_thea_network() -> Weight;
 }
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
-
+	use sp_std::collections::btree_set::BTreeSet;
 	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
-
-	use super::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ Into<bls_primitives::Public>;
+		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize + Ord;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
-			+ Member
-			+ Parameter
-			+ Into<bls_primitives::Signature>;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -107,10 +119,8 @@ pub mod pallet {
 	/// The current authorities set
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
-	pub(super) type Authorities<T: Config> = StorageDoubleMap<
+	pub(super) type Authorities<T: Config> = StorageMap<
 		_,
-		Identity,
-		Network,
 		Identity,
 		thea_primitives::ValidatorSetId,
 		BoundedVec<T::TheaId, T::MaxAuthorities>,
@@ -127,13 +137,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn next_authorities)]
 	pub(super) type NextAuthorities<T: Config> =
-		StorageMap<_, Identity, Network, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
-
-	/// Authority's network preference
-	#[pallet::storage]
-	#[pallet::getter(fn network_pref)]
-	pub(super) type NetworkPreference<T: Config> =
-		StorageMap<_, Identity, T::TheaId, Network, OptionQuery>;
+		StorageValue<_, BoundedVec<T::TheaId, T::MaxAuthorities>, ValueQuery>;
 
 	/// Outgoing messages
 	/// first key: Network
@@ -161,10 +165,15 @@ pub mod pallet {
 	#[pallet::getter(fn outgoing_nonce)]
 	pub(super) type OutgoingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
 
+	/// List of Active networks
+	#[pallet::storage]
+	#[pallet::getter(fn active_networks)]
+	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		NetworkUpdated { authority: T::TheaId, network: Network },
+		TheaPayloadProcessed(Network, u64),
 	}
 
 	#[pallet::error]
@@ -175,10 +184,16 @@ pub mod pallet {
 		ErrorExecutingMessage,
 		/// Wrong nonce provided
 		MessageNonce,
-		/// No validators for this network
-		NoValidatorsFound(Network),
-		/// Cannot update with older nonce
-		NonceIsAlreadyProcessed,
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn offchain_worker(blk: T::BlockNumber) {
+			log::debug!(target:"thea","Thea offchain worker started");
+			if let Err(err) = Self::run_thea_validation(blk) {
+				log::error!(target:"thea","Error while running thea: {:?}",err);
+			}
+		}
 	}
 
 	#[pallet::validate_unsigned]
@@ -187,8 +202,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { bitmap, payload, signature } =>
-					Self::validate_incoming_message(bitmap, payload, signature),
+				Call::incoming_message { payload, signatures } =>
+					Self::validate_incoming_message(payload, signatures),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -196,47 +211,27 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Updates the network preference of a thea validator
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_network_pref(1))]
-		pub fn update_network_pref(
-			origin: OriginFor<T>,
-			authority: T::TheaId,
-			network: Network,
-			_signature: T::Signature,
-		) -> DispatchResult {
-			ensure_none(origin)?;
-			<NetworkPreference<T>>::insert(authority.clone(), network);
-			Self::deposit_event(Event::NetworkUpdated { authority, network });
-			Ok(())
-		}
-
 		/// Handles the verified incoming message
-		#[pallet::call_index(1)]
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
-			_bitmap: Vec<u128>,
 			payload: Message,
-			_signature: T::Signature,
+			_signatures: Vec<(u16, T::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			// Signature is already verified in validate_unsigned, no need to do it again
-
-			let last_nonce = <IncomingNonce<T>>::get(payload.network);
-			if last_nonce.saturating_add(1) != payload.nonce {
-				return Err(Error::<T>::MessageNonce.into())
-			}
+			// Signature and nonce are already verified in validate_unsigned, no need to do it again
 			T::Executor::execute_deposits(payload.network, payload.data.clone());
 			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
+			Self::deposit_event(Event::<T>::TheaPayloadProcessed(payload.network, payload.nonce));
 			// Save the incoming message for some time
 			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
 			Ok(())
 		}
 
 		/// Send some arbitrary data to the given network
-		#[pallet::call_index(2)]
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::send_thea_message(1))]
 		#[transactional]
 		pub fn send_thea_message(
@@ -250,7 +245,7 @@ pub mod pallet {
 		}
 
 		/// A governance endpoint to update last processed nonce
-		#[pallet::call_index(3)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_incoming_nonce(1))]
 		#[transactional]
 		pub fn update_incoming_nonce(
@@ -259,17 +254,12 @@ pub mod pallet {
 			network: Network,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			let last_nonce = <IncomingNonce<T>>::get(network);
-			// Nonce can only be changed forwards, already processed nonces should not be changed.
-			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
-			}
 			<IncomingNonce<T>>::insert(network, nonce);
 			Ok(())
 		}
 
 		/// A governance endpoint to update last processed nonce
-		#[pallet::call_index(4)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))]
 		#[transactional]
 		pub fn update_outgoing_nonce(
@@ -278,172 +268,130 @@ pub mod pallet {
 			network: Network,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			let last_nonce = <OutgoingNonce<T>>::get(network);
-			// Nonce can only be changed forwards, already processed nonces should not be changed.
-			if last_nonce >= nonce {
-				return Err(Error::<T>::NonceIsAlreadyProcessed.into())
-			}
 			<OutgoingNonce<T>>::insert(network, nonce);
+			Ok(())
+		}
+
+		/// Add a network to active networks
+		#[pallet::call_index(4)]
+		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
+		pub fn add_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
+			ensure_root(origin)?;
+			<ActiveNetworks<T>>::mutate(|list| {
+				list.insert(network);
+			});
+			Ok(())
+		}
+
+		/// Remove a network to active networks
+		#[pallet::call_index(5)]
+		#[pallet::weight(< T as Config >::WeightInfo::remove_thea_network())]
+		pub fn remove_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
+			ensure_root(origin)?;
+			<ActiveNetworks<T>>::mutate(|list| {
+				list.remove(&network);
+			});
 			Ok(())
 		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn active_validators(network: Network) -> Vec<T::TheaId> {
+	pub fn active_validators() -> Vec<T::TheaId> {
 		let id = Self::validator_set_id();
-		<Authorities<T>>::get(network, id).to_vec()
-	}
-
-	pub fn authority_network_pref(authority: &T::TheaId) -> Option<Network> {
-		<NetworkPreference<T>>::get(authority)
+		<Authorities<T>>::get(id).to_vec()
 	}
 
 	fn validate_incoming_message(
-		bitmap: &[u128],
 		payload: &Message,
-		signature: &T::Signature,
+		signatures: &Vec<(u16, T::Signature)>,
 	) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
-		let nonce = <IncomingNonce<T>>::get(payload.network);
-		if payload.nonce != nonce.saturating_add(1) {
-			return Err(InvalidTransaction::Custom(1).into())
+		let next_nonce = <IncomingNonce<T>>::get(payload.network).saturating_add(1);
+
+		if payload.nonce != next_nonce {
+			return InvalidTransaction::Custom(1).into()
 		}
 
-		// Find who all signed this payload
-		let signed_auths_indexes: Vec<usize> = return_set_bits(bitmap);
+		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 
-		// Create a vector of public keys of everyone who signed
-		let auths: Vec<T::TheaId> =
-			<Authorities<T>>::get(payload.network, payload.validator_set_id).to_vec();
-		// CHeck if 2/3rd authorities signed on this.
-		if (signed_auths_indexes.len() as u64) < payload.threshold() {
-			// Reject there is not super majority.
-			return Err(InvalidTransaction::Custom(2).into())
+		// Check for super majority
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		let threshold = p * authorities.len();
+
+		if signatures.len() < threshold {
+			return InvalidTransaction::Custom(4).into()
 		}
 
-		let mut signatories: Vec<bls_primitives::Public> = vec![];
-		for index in signed_auths_indexes {
-			match auths.get(index) {
-				None => return Err(InvalidTransaction::Custom(3).into()),
-				Some(auth) => signatories.push(auth.clone().into()),
+		let encoded_payload = payload.encode();
+		let msg_hash = sp_io::hashing::sha2_256(&encoded_payload);
+		for (index, signature) in signatures {
+			match authorities.get(*index as usize) {
+				None => return InvalidTransaction::Custom(2).into(),
+				Some(auth) =>
+					if !auth.verify(&msg_hash, &((*signature).clone().into())) {
+						return InvalidTransaction::Custom(3).into()
+					},
 			}
-		}
-		// Verify the aggregate signature.
-		let bls_signature: bls_primitives::Signature = signature.clone().into();
-		if !bls_signature.verify(&signatories, payload.encode().as_ref()) {
-			return Err(InvalidTransaction::BadSigner.into())
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides("incoming")
+			.and_provides(payload)
 			.longevity(3)
 			.propagate(true)
 			.build()
 	}
 
-	/// Return the current active validator set for all networks
-	pub fn full_validator_set() -> Option<ValidatorSet<T::TheaId>> {
-		let mut full_list = sp_std::vec::Vec::new();
-		for list in <Authorities<T>>::iter_values() {
-			full_list.append(&mut list.to_vec())
+	pub fn generate_payload(is_key_change: bool, network: Network, data: Vec<u8>) -> Message {
+		// Generate the Thea payload to communicate with foreign chains
+		let nonce = <OutgoingNonce<T>>::get(network);
+		let id = Self::validator_set_id();
+		Message {
+			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
+			nonce: nonce.saturating_add(1),
+			data,
+			network,
+			is_key_change,
+			validator_set_id: id,
 		}
-		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
-		ValidatorSet::<T::TheaId>::new(full_list, id)
-	}
-
-	/// Return the current active validator set.
-	pub fn validator_set(network: Network) -> Option<ValidatorSet<T::TheaId>> {
-		let id: thea_primitives::ValidatorSetId = Self::validator_set_id();
-		let validators: BoundedVec<T::TheaId, T::MaxAuthorities> = Self::authorities(network, id);
-		ValidatorSet::<T::TheaId>::new(validators, id)
 	}
 
 	fn change_authorities(
-		new: BoundedVec<T::TheaId, T::MaxAuthorities>,
+		incoming: BoundedVec<T::TheaId, T::MaxAuthorities>,
 		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,
 	) {
-		let group_by = |list: &BoundedVec<T::TheaId, T::MaxAuthorities>| -> sp_std::collections::btree_map::BTreeMap<
-			Network,
-			BoundedVec<T::TheaId, T::MaxAuthorities>,
-		> {
-			let mut map = sp_std::collections::btree_map::BTreeMap::new();
-			for auth in list {
-				let network = if let Some(network) = <NetworkPreference<T>>::get(auth) {
-					network
-				} else {
-					// TODO: Make it an offence to not provide network as part of next release
-					1
-				};
-				map.entry(network)
-					.and_modify(|list: &mut BoundedVec<T::TheaId, T::MaxAuthorities>| {
-						// Force push is fine as the subset of network will be less than
-						// or equal to max validators
-						list.force_push(auth.clone());
-					})
-					.or_insert(BoundedVec::truncate_from(sp_std::vec::Vec::from([auth.clone()])));
-			}
-			map
-		};
-
 		let id = Self::validator_set_id();
+		let outgoing = <Authorities<T>>::get(id);
 		let new_id = id + 1u64;
 
-		for (network, list) in &group_by(&new) {
-			<Authorities<T>>::insert(network, new_id, list);
-		}
-
-		<ValidatorSetId<T>>::put(new_id);
-
-		for (network, list) in &group_by(&queued) {
-			// Store the queued authorities
-			<NextAuthorities<T>>::insert(network, list);
-			// Generate the Thea payload to communicate with foreign chains
-			let nonce = <OutgoingNonce<T>>::get(network);
-			let payload = Message {
-				block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
-				nonce: nonce.saturating_add(1),
-				data: list.encode(),
-				network: *network,
-				is_key_change: true,
-				validator_set_id: id,
-				validator_set_len: Self::authorities(network, id).len().saturated_into(),
-			};
-			// Update nonce
-			<OutgoingNonce<T>>::insert(network, payload.nonce);
-			<OutgoingMessages<T>>::insert(payload.network, payload.nonce, payload);
+		// We need to issue a new message if the validator set is changing,
+		// that is, the incoming set is has different session keys from outgoing set.
+		// This last message should be signed by the outgoing set
+		// Similar to how Grandpa's session change works.
+		if outgoing != incoming {
+			let active_networks = <ActiveNetworks<T>>::get();
+			for network in active_networks {
+				let message = Self::generate_payload(true, network, incoming.encode());
+				// Update nonce
+				<OutgoingNonce<T>>::insert(message.network, message.nonce);
+				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+			}
+			<Authorities<T>>::insert(new_id, incoming);
+			<ValidatorSetId<T>>::put(new_id);
+			<NextAuthorities<T>>::put(queued);
 		}
 	}
 
 	fn initialize_authorities(authorities: &[T::TheaId]) -> Result<(), ()> {
 		let id = GENESIS_AUTHORITY_SET_ID;
 		<ValidatorSetId<T>>::put(id);
-
-		<Authorities<T>>::insert(1, id, BoundedVec::truncate_from(authorities.to_vec()));
-		for auth in authorities {
-			// Everyone is assigned to one on genesis.
-			<NetworkPreference<T>>::insert(auth.clone(), 1);
-		}
+		<Authorities<T>>::insert(id, BoundedVec::truncate_from(authorities.to_vec()));
 		Ok(())
 	}
 
 	pub fn get_outgoing_messages(network: Network, nonce: u64) -> Option<Message> {
 		<OutgoingMessages<T>>::get(network, nonce)
-	}
-
-	pub fn network(auth: T::TheaId) -> Option<Network> {
-		// If the network pref is not explicit, then default to 1
-		Some(<NetworkPreference<T>>::get(auth).unwrap_or(1))
-	}
-
-	#[allow(clippy::result_unit_err)]
-	pub fn submit_incoming_message(
-		payload: Message,
-		bitmap: Vec<u128>,
-		signature: T::Signature,
-	) -> Result<(), ()> {
-		let call = Call::<T>::incoming_message { bitmap, payload, signature };
-		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
 	}
 
 	pub fn get_last_processed_nonce(network: Network) -> u64 {
@@ -453,21 +401,7 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
-		let id = Self::validator_set_id();
-		let auth_len = Self::authorities(network, id).len();
-		if auth_len == 0 {
-			return Err(Error::<T>::NoValidatorsFound(network).into())
-		}
-		let nonce = <OutgoingNonce<T>>::get(network);
-		let payload = Message {
-			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
-			nonce: nonce.saturating_add(1),
-			data,
-			network: NATIVE_NETWORK,
-			is_key_change: false,
-			validator_set_id: Self::validator_set_id(),
-			validator_set_len: auth_len.saturated_into(),
-		};
+		let payload = Self::generate_payload(false, network, data);
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);
 		<OutgoingMessages<T>>::insert(network, payload.nonce, payload);

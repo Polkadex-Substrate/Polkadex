@@ -20,7 +20,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::{fixtures::SNAPSHOT, Pallet as Ocex};
+use crate::Pallet as Ocex;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
@@ -275,8 +275,8 @@ benchmarks! {
 
 	submit_snapshot {
 		<ExchangeState<T>>::put(true);
-		let snapshot = SnapshotSummary::decode(&mut SNAPSHOT.as_ref()).unwrap();
-		let call = Call::<T>::submit_snapshot { summary: snapshot };
+		let snapshot = get_dummy_snapshot::<T>();
+		let call = Call::<T>::submit_snapshot { summary: snapshot, signatures: Vec::new() };
 	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
 	verify {
 		assert!(<Snapshots<T>>::contains_key(1));
@@ -288,7 +288,7 @@ benchmarks! {
 		let beneficiary = T::AccountId::decode(&mut &[x as u8; 32][..]).unwrap();
 		let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::new(100, 1) };
 		<ExchangeState<T>>::put(true);
-		let snapshot = SnapshotSummary::decode(&mut SNAPSHOT.as_ref()).unwrap();
+		let snapshot =  get_dummy_snapshot::<T>();
 		<Snapshots<T>>::insert(x as u64, snapshot);
 		let call = Call::<T>::collect_fees { snapshot_id: x as u64, beneficiary: beneficiary.clone() };
 	}: { call.dispatch_bypass_filter(origin)? }
@@ -342,7 +342,6 @@ benchmarks! {
 		vec_withdrawals.push(Withdrawal {
 			amount: Decimal::new(x.into(), 0),
 			stid:0,
-			worker_nonce:0,
 			asset,
 			main_account: main.clone(),
 			fees,
@@ -401,17 +400,6 @@ benchmarks! {
 		let call = Call::<T>::set_snapshot{ new_snapshot_id: u64::MAX };
 	}: { call.dispatch_bypass_filter(RawOrigin::Root.into())? }
 
-	change_pending_withdrawal_limit {
-		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
-		let call = Call::<T>::change_pending_withdrawal_limit { new_pending_withdrawals_limit: u64::MAX };
-	}: { call.dispatch_bypass_filter(origin)? }
-
-	change_snapshot_interval_block {
-		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
-		let new_snapshot_interval_block = T::BlockNumber::decode(&mut 123u64.to_le_bytes().as_ref()).unwrap();
-		let call = Call::<T>::change_snapshot_interval_block{ new_snapshot_interval_block };
-	}: { call.dispatch_bypass_filter(origin)? }
-
 	whitelist_orderbook_operator {
 		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let operator_public_key = sp_core::ecdsa::Public([u8::MAX; 33]);
@@ -419,6 +407,27 @@ benchmarks! {
 	}: { call.dispatch_bypass_filter(origin)? }
 	verify {
 		assert!(<OrderbookOperatorPublicKey<T>>::get().unwrap() == operator_public_key);
+	}
+}
+
+fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
+	let mut withdrawals = Vec::new();
+	for _ in 0..20 {
+		withdrawals.push(Withdrawal {
+			main_account: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
+			amount: Decimal::one(),
+			asset: AssetId::Polkadex,
+			fees: Decimal::one(),
+			stid: 1,
+		});
+	}
+	SnapshotSummary {
+		validator_set_id: 10,
+		snapshot_id: 1,
+		state_hash: Default::default(),
+		state_change_id: 10,
+		last_processed_blk: 11,
+		withdrawals,
 	}
 }
 

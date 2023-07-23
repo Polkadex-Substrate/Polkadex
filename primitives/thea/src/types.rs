@@ -22,7 +22,7 @@
 
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_runtime::Percent;
+use serde::{Deserialize, Serialize};
 use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
@@ -30,7 +30,9 @@ use sp_std::vec::Vec;
 use crate::{Network, ValidatorSetId};
 
 /// Defines the message structure.
-#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
 pub struct Message {
 	/// Block number.
 	pub block_no: u64,
@@ -38,23 +40,33 @@ pub struct Message {
 	pub nonce: u64,
 	/// Payload of the message.
 	pub data: Vec<u8>,
-	/// Message originated from this network
+	/// Message originated from this network if it's an incoming message
+	/// and destination network if it's an outgoing message
 	pub network: Network,
 	/// Defines if authority was changed.
 	pub is_key_change: bool,
 	/// Validator set id at which this message was executed.
 	pub validator_set_id: ValidatorSetId,
-	/// Validators authorities set length.
-	pub validator_set_len: u64,
 }
 
-impl Message {
-	/// Calculates message validators threshold percentage.
-	pub fn threshold(&self) -> u64 {
-		const MAJORITY: u8 = 67;
-		let p = Percent::from_percent(MAJORITY);
-		p * self.validator_set_len
-	}
+/// Defines the destination of a thea message
+#[derive(
+	Copy,
+	Clone,
+	Encode,
+	Decode,
+	TypeInfo,
+	Debug,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Serialize,
+	Deserialize,
+)]
+pub enum Destination {
+	Solochain,
+	Parachain,
 }
 
 /// Defines structure of the deposit.
@@ -144,6 +156,20 @@ impl AssetMetadata {
 			Ordering::Greater => amount.saturating_div(10u128.pow(diff as u32)),
 		}
 	}
+}
+
+/// Overarching type used by aggregator to collect signatures from
+/// authorities for a given Thea message
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ApprovedMessage {
+	/// Thea message
+	pub message: Message,
+	/// index of the authority from on-chain list
+	pub index: u16,
+	/// ECDSA signature of authority
+	pub signature: Vec<u8>,
+	/// Destination network
+	pub destination: Destination,
 }
 
 #[cfg(test)]

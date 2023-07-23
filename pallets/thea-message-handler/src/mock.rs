@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::pallet as thea_executor;
 use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -25,7 +24,6 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use thea::ecdsa::{AuthorityId, AuthoritySignature};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -42,7 +40,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 		Thea: thea::{Pallet, Call, Storage, Event<T>},
-		TheaExecutor: thea_executor::{Pallet, Call, Storage, Event<T>}
+		TheaExecutor: thea_executor::{Pallet, Call, Storage, Event<T>},
+		TheaHandler: crate::{Pallet, Call, Storage, Event<T>}
 	}
 );
 
@@ -140,8 +139,8 @@ parameter_types! {
 
 impl thea::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type TheaId = AuthorityId;
-	type Signature = AuthoritySignature;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Test>;
@@ -165,6 +164,15 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
+}
+
+impl crate::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type TheaId = thea::ecdsa::AuthorityId;
+	type Signature = thea::ecdsa::AuthoritySignature;
+	type MaxAuthorities = MaxAuthorities;
+	type Executor = TheaExecutor;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
