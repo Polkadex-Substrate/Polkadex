@@ -42,6 +42,16 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
+fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
+	sp_std::vec![Deposit {
+		id: H256::zero().0.to_vec(),
+		recipient: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
+		asset_id: 0,
+		amount: 0,
+		extra: Vec::new(),
+	}]
+}
+
 benchmarks! {
 	insert_authorities {
 		let b in 0 .. u32::MAX;
@@ -59,7 +69,8 @@ benchmarks! {
 		let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
 		<Authorities<T>>::insert(0, BoundedVec::truncate_from(vec![public]));
 		<ValidatorSetId<T>>::put(0);
-		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
+		let message = Message { block_no: 11, nonce: 1, data: generate_deposit_payload::<T>().encode(),
+			network: 1, is_key_change: false, validator_set_id: 0 };
 	}: _(RawOrigin::None, message, vec!((0, <T as crate::Config>::Signature::decode(&mut SIG.as_ref()).unwrap())))
 	verify {
 		assert_eq!(1, <IncomingNonce<T>>::get());
@@ -84,6 +95,8 @@ benchmarks! {
 
 #[cfg(test)]
 use frame_benchmarking::impl_benchmark_test_suite;
+use sp_core::H256;
+use thea_primitives::types::Deposit;
 
 #[cfg(test)]
 impl_benchmark_test_suite!(TheaMH, crate::mock::new_test_ext(), crate::mock::Test);
