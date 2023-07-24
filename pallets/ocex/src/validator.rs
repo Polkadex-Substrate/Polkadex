@@ -394,8 +394,7 @@ fn store_summary<T: Config>(
 }
 
 fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
-	let deadline = sp_io::offchain::timestamp()
-		.add(Duration::from_millis(12_000));
+	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
 	let body_len =
 		serde_json::to_string(&body.as_bytes().len()).map_err(|_| "Unable to serialize")?;
