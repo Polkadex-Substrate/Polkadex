@@ -248,7 +248,7 @@ pub fn send_request(
 	url: &str,
 	body: &str,
 ) -> Result<serde_json::Value, &'static str> {
-	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(5_000));
+	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
 	let body_len = serde_json::to_string(&body.as_bytes().len())
 		.map_err(|_| "Unable to to string body len")?;

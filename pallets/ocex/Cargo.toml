@@ -1,6 +1,6 @@
 [package]
 name = "pallet-ocex-lmp"
-version = "5.1.0"
+version = "5.3.0"
 authors = ["Gautham J <gautham@polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
