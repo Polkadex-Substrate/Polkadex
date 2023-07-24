@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "5.1.1"
+version = "5.3"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
