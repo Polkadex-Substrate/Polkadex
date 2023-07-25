@@ -36,7 +36,6 @@ use frame_support::{
 	},
 	BoundedVec,
 };
-
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
@@ -49,7 +48,15 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use orderbook_primitives::{
+	recovery::ObRecoveryState, types::TradingPair, SnapshotSummary, ValidatorSet,
+	GENESIS_AUTHORITY_SET_ID,
+};
 pub use pallet::*;
+use polkadex_primitives::ocex::TradingPairConfig;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
@@ -57,14 +64,6 @@ mod mock;
 mod tests;
 
 pub mod weights;
-
-use orderbook_primitives::{
-	types::TradingPair, SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
-};
-use polkadex_primitives::ocex::TradingPairConfig;
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
-use sp_std::vec::Vec;
 
 pub const OCEX: KeyTypeId = KeyTypeId(*b"ocex");
 
@@ -1232,6 +1231,15 @@ pub mod pallet {
 			} else {
 				false
 			}
+		}
+
+		pub fn get_ob_recover_state() -> Result<ObRecoveryState, DispatchError> {
+			ObRecoveryState {}
+		}
+
+		pub fn get_balance(from: T::AccountId, of: u128) -> Result<String, DispatchError> {
+			Ok(serde_json::to_string(&T::OtherAssets::balance(of, &from))
+				.unwrap_or_else(|_| "failed to fetch proper balance for serialization".into()))
 		}
 	}
 

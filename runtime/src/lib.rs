@@ -39,9 +39,6 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use sp_std::vec;
-
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use frame_system::{
@@ -59,6 +56,7 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
@@ -66,6 +64,8 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
+use sp_runtime::DispatchError;
+use sp_std::vec;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -1566,10 +1566,15 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block,AccountId,Hash> for Runtime {
-		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError> {
-			Rewards::account_info(account_id,reward_id)
+	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block, AccountId, Hash> for Runtime {
+		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, DispatchError> {
+			Rewards::account_info(account_id, reward_id)
 		}
+	}
+
+	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
+		fn get_ob_recover_state() ->  Result<ObRecoveryState, DispatchError> { OCEX::get_ob_recover_state() }
+		fn get_balance(from: AccountId, of: u128) -> Result<String, DispatchError> { OCEX::get_balance(from, of) }
 	}
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
@@ -1578,7 +1583,7 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
-			Executive::validate_transaction(source, tx,block_hash)
+			Executive::validate_transaction(source, tx, block_hash)
 		}
 	}
 

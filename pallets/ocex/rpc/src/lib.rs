@@ -43,7 +43,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	fn get_balance(
 		&self,
 		account_id: AccountId,
-		of: u64,
+		of: u128,
 		at: Option<BlockHash>,
 	) -> RpcResult<String>;
 }
@@ -99,7 +99,7 @@ where
 	fn get_balance(
 		&self,
 		account_id: AccountId,
-		of: u64,
+		of: u128,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
 		let api = self.client.runtime_api();
