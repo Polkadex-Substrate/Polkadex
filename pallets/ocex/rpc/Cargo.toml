@@ -1,0 +1,16 @@
+[package]
+name = "pallet-ocex-rpc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.136" }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+jsonrpsee = { workspace = true, features = ["client-core", "server", "macros"] }
+sp-rpc = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-api = { workspace = true }
+sp-runtime = { workspace = true }
+orderbook-primitives = { path = "../../../primitives/orderbook" }
+pallet-ocex-runtime-api = { path = "runtime-api" }
+serde_json = "1.0.96"
