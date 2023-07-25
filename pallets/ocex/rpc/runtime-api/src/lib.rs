@@ -25,6 +25,6 @@ sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec {
 		fn get_ob_recover_state() ->  Result<ObRecoveryState, sp_runtime::DispatchError>;
 		// gets balance from given account of given asset
-		fn get_balance(from: AccountId, of: u64) -> Result<String, sp_runtime::DispatchError>;
+		fn get_balance(from: AccountId, of: u128) -> Result<String, sp_runtime::DispatchError>;
 	}
 }
