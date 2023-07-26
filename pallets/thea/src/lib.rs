@@ -359,8 +359,9 @@ impl<T: Config> Pallet<T> {
 
 	fn change_authorities(
 		incoming: BoundedVec<T::TheaId, T::MaxAuthorities>, // n+1th set
-		queued: BoundedVec<T::TheaId, T::MaxAuthorities>, // n+ 2th set
-	) {	//	( outgoing) -> (validators/incoming) -> (queued)
+		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,   // n+ 2th set
+	) {
+		//	( outgoing) -> (validators/incoming) -> (queued)
 		// nth epoch -> n+1th epoch -> n+2nd epoch
 		let id = Self::validator_set_id();
 		let outgoing = <Authorities<T>>::get(id); // nth set  ( active ,current )
