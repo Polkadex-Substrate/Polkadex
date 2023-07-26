@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{pallet as rewards, *};
 use frame_support::{
 	parameter_types,
@@ -69,21 +87,25 @@ impl system::Config for Test {
 pub const PDEX: Balance = 1_000_000_000_000;
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * PDEX;
+	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 	type Balance = Balance;
 	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
+	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
-	type WeightInfo = ();
+	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 
 parameter_types! {
@@ -134,10 +156,10 @@ parameter_types! {
 impl rewards::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = RewardsPalletId;
-	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type NativeCurrency = Balances;
 	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
 	type Signature = Signature;
+	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 

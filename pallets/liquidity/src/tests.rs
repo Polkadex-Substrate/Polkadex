@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{mock::*, *};
 use frame_support::{assert_noop, assert_ok};
 use polkadex_primitives::{AccountId, AssetId};
@@ -16,10 +34,10 @@ fn get_account_generation_key() -> u32 {
 fn register_pallet_account() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), u32::MAX));
-		assert_eq!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MAX), true);
+		assert!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MAX));
 
 		assert_ok!(Liquidity::register_account(RuntimeOrigin::root(), u32::MIN));
-		assert_eq!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MIN), true);
+		assert!(<RegisterGovernanceAccounts<Test>>::contains_key(u32::MIN));
 	});
 }
 

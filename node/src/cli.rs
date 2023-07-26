@@ -1,18 +1,18 @@
 // This file is part of Substrate.
-
+//
 // Copyright (C) 2018-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
@@ -27,6 +27,26 @@ pub struct Cli {
 	#[allow(missing_docs)]
 	#[clap(flatten)]
 	pub run: RunCmd,
+	/// Thea expects foreign chain to run in this url
+	#[arg(short, long, default_value_t = String::from("ws://127.0.0.1:9902"))]
+	pub foreign_chain_url: String,
+
+	/// Thea Dummy mode starts the chain with dummy connector ( for local testing only )
+	#[arg(short, long, default_value_t = false)]
+	pub thea_dummy_mode: bool,
+	/// Disable automatic hardware benchmarks.
+	///
+	/// By default these benchmarks are automatically ran at startup and measure
+	/// the CPU speed, the memory bandwidth and the disk speed.
+	///
+	/// The results are then printed out in the logs, and also sent as part of
+	/// telemetry, if telemetry is enabled.
+	#[arg(long)]
+	pub no_hardware_benchmarks: bool,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -39,7 +59,7 @@ pub enum Subcommand {
 	// Inspect(node_inspect::cli::InspectCmd),
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(subcommand)]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+	Benchmark(Box<frame_benchmarking_cli::BenchmarkCmd>),
 
 	/// Try some command against runtime state.
 	#[cfg(feature = "try-runtime")]
@@ -51,7 +71,7 @@ pub enum Subcommand {
 
 	/// Key management cli utilities
 	#[clap(subcommand)]
-	Key(sc_cli::KeySubcommand),
+	Key(Box<sc_cli::KeySubcommand>),
 
 	/// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
 	Verify(sc_cli::VerifyCmd),

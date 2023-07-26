@@ -1,6 +1,6 @@
 [package]
 name = "pallet-rewards"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Polkadex Authors"]
 repository = 'https://github.com/Polkadex-Substrate/Polkadex/'
@@ -19,7 +19,6 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
-once_cell = { version = "1.17.0", default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
@@ -31,21 +30,21 @@ sp-io = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "parity-scale-codec/std",
-    "scale-info/std",
-    "frame-support/std",
-    "frame-system/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "polkadex-primitives/std",
-    "pallet-timestamp/std",
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "polkadex-primitives/std",
+  "pallet-timestamp/std",
 ]
 
 runtime-benchmarks = [
-    "sp-runtime/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
 ]
 
 try-runtime = ["frame-support/try-runtime"]

@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
@@ -23,7 +41,7 @@ benchmarks! {
 		let i in 1..100;
 		let r in 0..10;
 
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let start_block = b as u32;
 		let end_block = start_block + 1;
 
@@ -50,9 +68,9 @@ benchmarks! {
 		<InitializeRewards<T>>::insert(reward_id, reward_info);
 		let someone: [u8; 32] =
 			[
-				56, 134, 235, 7, 231, 177, 252, 235, 55, 126, 246, 106, 208, 183, 23, 68, 222, 230,
-				68, 172, 98, 117, 196, 201, 188, 54, 116, 10, 8, 86, 229, 86,
-			];
+			254, 243, 86, 10, 107, 201, 46, 29, 70, 6, 204, 171, 233, 231, 178, 8, 147, 180, 143,
+			59, 167, 7, 203, 235, 194, 253, 133, 67, 99, 107, 26, 7,
+		];
 		let alice_account = T::AccountId::decode(&mut someone.as_ref()).unwrap();
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
 

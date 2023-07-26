@@ -1,17 +1,24 @@
 // This file is part of Polkadex.
-
-// Copyright (C) 2020-2023 Polkadex oü.
+//
+// Copyright (c) 2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! # Liquidity Pallet.
+//!
+//! Pallet for adding liquidity through governance.
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -132,7 +139,6 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
@@ -153,13 +159,13 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Register pallet account into orderbook
+		/// Register pallet account into orderbook.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: governance
+		/// * `origin`: governance.
 		/// * `account_generation_key`: u32 value that will be used to generate main account and
-		///   proxy account
+		///   proxy account.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
 		pub fn register_account(
@@ -192,15 +198,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Deposit assets to orderbook
+		/// Deposit assets to orderbook.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: governance
-		/// * `asset`: asset id to deposit
-		/// * `amount`: amount to deposit
+		/// * `origin`: governance.
+		/// * `asset`: asset id to deposit.
+		/// * `amount`: amount to deposit.
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
-		///   account
+		///   account.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
 		pub fn deposit_to_orderbook(
@@ -225,16 +231,16 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Withdraw assets from orderbook
+		/// Withdraw assets from orderbook.
 		///
 		/// # Parameters
 		///
-		/// * `origin`: governance
-		/// * `asset`: asset id to withdraw
-		/// * `amount`: amount to withdraw
-		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook
+		/// * `origin`: governance.
+		/// * `asset`: asset id to withdraw.
+		/// * `amount`: amount to withdraw.
+		/// * `do_force_withdraw`: if set to true all active orders will be canceled from orderbook.
 		/// * `account_generation_key`: u32 value that was used to generate main account and proxy
-		///  account given amount will be withdrawn
+		///  account given amount will be withdrawn.
 		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
 		pub fn withdraw_from_orderbook(

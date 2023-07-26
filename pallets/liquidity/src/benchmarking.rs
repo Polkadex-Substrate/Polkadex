@@ -1,18 +1,18 @@
 // This file is part of Polkadex.
-
-// Copyright (C) 2020-2023 Polkadex oü.
+//
+// Copyright (c) 2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
@@ -36,7 +36,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	register_account {
 		let a in 0..u32::MAX;
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let account_generation_key = a as u32;
 		let proxy_account: T::AccountId = liquidity::<T>::generate_proxy_account(account_generation_key).unwrap();
 		let main_account: T::AccountId = liquidity::<T>::generate_main_account(account_generation_key).unwrap();
@@ -53,7 +53,7 @@ benchmarks! {
 		let i in 0..u32::MAX;
 		let z in 10..u32::MAX;
 
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let asset = AssetId::Asset(a.into());
 		let amount = BalanceOf::<T>::decode(&mut &(z as u128).saturating_mul(4u128).to_le_bytes()[..]).unwrap();
 		let account_generation_key = i as u32;
@@ -89,7 +89,7 @@ benchmarks! {
 		let i in 0..u32::MAX;
 		let z in 10..u32::MAX;
 
-		let origin = T::GovernanceOrigin::successful_origin();
+		let origin = T::GovernanceOrigin::try_successful_origin().unwrap();
 		let asset = AssetId::Asset(a.into());
 		let amount = BalanceOf::<T>::decode(&mut &(z as u128).saturating_mul(4u128).to_le_bytes()[..]).unwrap();
 		let account_generation_key = i as u32;

@@ -1,73 +1,92 @@
-use crate::{
-	ocex::{OCEXConfig, TradingPairConfig},
-	AssetId,
-};
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! In this module defined ingress messages related types.
+
+use crate::{ocex::TradingPairConfig, AssetId};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
-use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
-use sp_core::H256;
 
+/// Definition of available ingress messages variants.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum IngressMessages<AccountId> {
-	// Start Enclave
-	StartEnclave(OCEXConfig<AccountId>),
-	// Open Trading Pair
+	/// Open Trading Pair.
 	OpenTradingPair(TradingPairConfig),
-	// Update Trading Pair Config
+	/// Update Trading Pair Config.
 	UpdateTradingPair(TradingPairConfig),
-	// Register User ( main, proxy)
+	/// Register User ( main, proxy).
 	RegisterUser(AccountId, AccountId),
-	// Main Acc, Assetid, Amount
+	/// Main Acc, Assetid, Amount.
 	Deposit(AccountId, AssetId, Decimal),
-	// Main Acc, Proxy Account
+	/// Main Acc, Proxy Account.
 	AddProxy(AccountId, AccountId),
-	// Main Acc, Proxy Account
+	/// Main Acc, Proxy Account.
 	RemoveProxy(AccountId, AccountId),
-	// Enclave registration confirmation
-	EnclaveRegistered(AccountId),
-	// Close Trading Pair
+	/// Close Trading Pair.
 	CloseTradingPair(TradingPairConfig),
-	// Latest snapshot (snapshot number, state_root, state_change_id, state_hash)
-	LatestSnapshot(u64, H256, u64, BoundedVec<H128, StateHashesLimit>),
-	// Resetting the balances of Account
+	/// Resetting the balances of Account.
 	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
-	// Changing the exchange state in order-book
+	/// Changing the exchange state in order-book.
 	SetExchangeState(bool),
-	// Withdrawal from Chain to OrderBook
+	/// Withdrawal from Chain to OrderBook.
 	DirectWithdrawal(AccountId, AssetId, Decimal, bool),
 }
 
+/// Defines the structure of handle balance data which used to set account balance.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalance<AccountId> {
+	/// Main account identifier.
 	pub main_account: AccountId,
+	/// Asset identifier.
 	pub asset_id: AssetId,
+	/// Operation fee.
 	pub free: u128,
+	/// Reserved amount.
 	pub reserve: u128,
 }
 
+/// Defines a limit of the account handle balance.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalanceLimit;
 
 impl Get<u32> for HandleBalanceLimit {
+	/// Accessor to the handle balance limit amount.
 	fn get() -> u32 {
 		1000
 	}
 }
 
+/// Defines a limit of the state hashes.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct StateHashesLimit;
 
 impl Get<u32> for StateHashesLimit {
-	// for max 20 GB and 10 MB chunks
+	/// Accessor to the state hashes limit amount.
+	/// For max 20 GB and 10 MB chunks.
 	fn get() -> u32 {
 		2000
 	}

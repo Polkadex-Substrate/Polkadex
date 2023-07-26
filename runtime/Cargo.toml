@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "4.0.0"
+version = "5.3.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -73,10 +73,8 @@ sp-inherents = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
-pallet-randomness-collective-flip = { default-features = false, workspace = true }
+#pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
-thea-staking = { default-features = false, path = "../pallets/thea-staking" }
-pallet-nomination-pools = { default-features = false, workspace = true }
 #end added
 
 # Used for the node template"s RPCs
@@ -92,23 +90,15 @@ orml-vesting = { workspace = true, default-features = false }
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
-asset-handler = { path = "../pallets/asset-handler", default-features = false }
-chainbridge = { path = "../pallets/chainbridge", default-features = false }
-thea-cross-chain-governance = { path = "../pallets/thea-cross-chain-governance", default-features = false }
-orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
 pallet-assets-transaction-payment = { path= "../pallets/assets-transaction-payment", default-features = false }
-
-# Orderbook 
+wallet-connector = { path = "../wallet-connector", default-features = false  }
+# Orderbook
 pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 
 # Thea
 thea = { path = "../pallets/thea", default-features = false }
-wallet-connector = { path = "../wallet-connector", default-features = false  }
-
-#swap
-pallet-amm = { path="../pallets/swap", default-features = false }
-#router for swap
-router= { path="../pallets/router", default-features=false }
+thea-executor = { path = "../pallets/thea-executor", default-features = false }
+thea-message-handler = { path = "../pallets/thea-message-handler", default-features = false, optional = true }
 
 # Liquidity Pallet
 liquidity = { path = "../pallets/liquidity", default-features = false }
@@ -118,7 +108,8 @@ pallet-rewards = { path = "../pallets/rewards", default-features = false }
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
-pallet-asset-handler-runtime-api = { path = "../pallets/asset-handler/rpc/runtime-api", default-features = false }
+rpc-assets-runtime-api = { path = "../rpc/assets/runtime-api", default-features = false }
+pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -126,127 +117,136 @@ substrate-wasm-builder = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "orderbook-primitives/std",
-    "parity-scale-codec/std",
-    "scale-info/std",
-    "log/std",
-    "pallet-authorship/std",
-    "pallet-babe/std",
-    "pallet-balances/std",
-    "pallet-grandpa/std",
-    "pallet-im-online/std",
-    "pallet-offences/std",
-    "pallet-session/std",
-    "pallet-staking/std",
-    "pallet-multisig/std",
-    "pallet-sudo/std",
-    "pallet-utility/std",
-    "pallet-timestamp/std",
-    "pallet-transaction-payment/std",
-    "pallet-transaction-payment-rpc-runtime-api/std",
-    "pallet-treasury/std",
-    "pallet-collective/std",
-    "pallet-democracy/std",
-    "pallet-elections-phragmen/std",
-    "pallet-membership/std",
-    "pallet-scheduler/std",
-    "pallet-bounties/std",
-    "pallet-preimage/std",
-    "pallet-indices/std",
-    "pallet-identity/std",
-    "pallet-proxy/std",
-    "pallet-recovery/std",
-    "pallet-election-provider-multi-phase/std",
-    "pallet-authority-discovery/std",
-    "pallet-child-bounties/std",
-    "frame-support/std",
-    "frame-system/std",
-    "frame-executive/std",
-    "sp-api/std",
-    "sp-offchain/std",
-    "sp-runtime/std",
-    "sp-session/std",
-    "sp-std/std",
-    "sp-transaction-pool/std",
-    "sp-version/std",
-    "sp-io/std",
-    "sp-authority-discovery/std",
-    "sp-block-builder/std",
-    "sp-consensus-babe/std",
-    "sp-core/std",
-    "sp-inherents/std",
-    "sp-staking/std",
-    "sp-npos-elections/std",
-    "frame-election-provider-support/std",
-    "pallet-randomness-collective-flip/std",
-    "pallet-assets/std",
-    "frame-system-rpc-runtime-api/std",
-    "orml-vesting/std",
-    "polkadex-primitives/std",
-    "pdex-migration/std",
-    "asset-handler/std",
-    "chainbridge/std",
-    "pallet-ocex-lmp/std",
-    "pallet-asset-handler-runtime-api/std",
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "log/std",
+  "pallet-authorship/std",
+  "pallet-babe/std",
+  "pallet-balances/std",
+  "pallet-grandpa/std",
+  "pallet-im-online/std",
+  "pallet-offences/std",
+  "pallet-session/std",
+  "pallet-staking/std",
+  "pallet-multisig/std",
+  "pallet-sudo/std",
+  "pallet-utility/std",
+  "pallet-timestamp/std",
+  "pallet-transaction-payment/std",
+  "pallet-transaction-payment-rpc-runtime-api/std",
+  "pallet-treasury/std",
+  "pallet-collective/std",
+  "pallet-democracy/std",
+  "pallet-elections-phragmen/std",
+  "pallet-membership/std",
+  "pallet-scheduler/std",
+  "pallet-bounties/std",
+  "pallet-preimage/std",
+  "pallet-indices/std",
+  "pallet-identity/std",
+  "pallet-proxy/std",
+  "pallet-recovery/std",
+  "pallet-election-provider-multi-phase/std",
+  "pallet-authority-discovery/std",
+  "pallet-child-bounties/std",
+  "frame-support/std",
+  "frame-system/std",
+  "frame-executive/std",
+  "sp-api/std",
+  "sp-offchain/std",
+  "sp-runtime/std",
+  "sp-session/std",
+  "sp-std/std",
+  "sp-transaction-pool/std",
+  "sp-version/std",
+  "sp-io/std",
+  "sp-authority-discovery/std",
+  "sp-block-builder/std",
+  "sp-consensus-babe/std",
+  "sp-core/std",
+  "sp-inherents/std",
+  "sp-staking/std",
+  "sp-npos-elections/std",
+  "frame-election-provider-support/std",
+  #"pallet-randomness-collective-flip/std",
+  "pallet-assets/std",
+  "frame-system-rpc-runtime-api/std",
+  "orml-vesting/std",
+  "polkadex-primitives/std",
+  "pdex-migration/std",
+  "pallet-ocex-lmp/std",
+  "rpc-assets-runtime-api/std",
+  "pallet-rewards-runtime-api/std",
+  "thea/std",
+  "liquidity/std",
+  "pallet-rewards/std",
     "pallet-assets-transaction-payment/std",
-    "thea-staking/std",
-    "pallet-nomination-pools/std",
-    "pallet-asset-handler-runtime-api/std",
-    "thea/std",
-    "pallet-amm/std",
-    "router/std",
-    "thea-cross-chain-governance/std",
-    "liquidity/std",
+  "thea-executor/std",
     "wallet-connector/std",
-    "pallet-rewards/std"
+  "frame-try-runtime?/std",
+  "thea-message-handler?/std",
 ]
 runtime-benchmarks = [
-    #theirs
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-system-benchmarking",
-    "sp-runtime/runtime-benchmarks",
-    "hex-literal",
-    "pallet-assets/runtime-benchmarks",
-    #our
-    "pallet-ocex-lmp/runtime-benchmarks",
-    "asset-handler/runtime-benchmarks",
-    "pdex-migration/runtime-benchmarks",
-    "pallet-rewards/runtime-benchmarks",
-    "liquidity/runtime-benchmarks",
-    "thea-staking/runtime-benchmarks",
-    "thea/runtime-benchmarks",
-    "pallet-assets-transaction-payment/runtime-benchmarks"
+  #theirs
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-system-benchmarking",
+  "sp-runtime/runtime-benchmarks",
+  "hex-literal",
+  "pallet-assets/runtime-benchmarks",
+  "pallet-collective/runtime-benchmarks",
+  #our
+  "pallet-ocex-lmp/runtime-benchmarks",
+  "pdex-migration/runtime-benchmarks",
+  "pallet-rewards/runtime-benchmarks",
+  "liquidity/runtime-benchmarks",
+  "thea/runtime-benchmarks",
+  "thea-executor/runtime-benchmarks",
+  "thea-message-handler/runtime-benchmarks",
 ]
+
 try-runtime = [
-    "frame-executive/try-runtime",
-    "frame-try-runtime",
-    "frame-support/try-runtime",
-    "frame-system/try-runtime",
-    "pallet-election-provider-multi-phase/try-runtime",
-    "pallet-babe/try-runtime",
-    "pallet-balances/try-runtime",
-    "pallet-bounties/try-runtime",
-    "pallet-collective/try-runtime",
-    "pallet-elections-phragmen/try-runtime",
-    "pallet-grandpa/try-runtime",
-    "pallet-identity/try-runtime",
-    "pallet-im-online/try-runtime",
-    "pallet-indices/try-runtime",
-    "pallet-child-bounties/try-runtime",
-    "pallet-preimage/try-runtime",
-    "pallet-membership/try-runtime",
-    "pallet-multisig/try-runtime",
-    "pallet-proxy/try-runtime",
-    "pallet-scheduler/try-runtime",
-    "pallet-staking/try-runtime",
-    "pallet-timestamp/try-runtime",
-    "pallet-treasury/try-runtime",
-    "pallet-democracy/try-runtime",
-    "pallet-utility/try-runtime",
-    "orml-vesting/try-runtime",
-    "pdex-migration/try-runtime",
-    "pallet-rewards/try-runtime",
-    "liquidity/try-runtime",
+  "frame-executive/try-runtime",
+  "frame-try-runtime/try-runtime",
+  "frame-system/try-runtime",
+  "pallet-utility/try-runtime",
+  "pallet-babe/try-runtime",
+  "pallet-timestamp/try-runtime",
+  "pallet-authorship/try-runtime",
+  "pallet-indices/try-runtime",
+  "pallet-balances/try-runtime",
+  "pallet-transaction-payment/try-runtime",
+  "pallet-election-provider-multi-phase/try-runtime",
+  "pallet-staking/try-runtime",
+  "pallet-session/try-runtime",
+  "pallet-collective/try-runtime",
+  "pallet-elections-phragmen/try-runtime",
+  "pallet-membership/try-runtime",
+  "pallet-grandpa/try-runtime",
+  "pallet-treasury/try-runtime",
+  "pallet-sudo/try-runtime",
+  "pallet-im-online/try-runtime",
+  "pallet-authority-discovery/try-runtime",
+  "pallet-offences/try-runtime",
+  "pallet-session/try-runtime",
+  "pallet-identity/try-runtime",
+  "pallet-recovery/try-runtime",
+  "pallet-scheduler/try-runtime",
+  "pallet-proxy/try-runtime",
+  "pallet-multisig/try-runtime",
+  "pallet-bounties/try-runtime",
+  "orml-vesting/try-runtime",
+  "pdex-migration/try-runtime",
+  "pallet-democracy/try-runtime",
+  "pallet-preimage/try-runtime",
+  #"pallet-randomness-collective-flip/try-runtime",
+  "pallet-child-bounties/try-runtime",
+  "pallet-assets/try-runtime",
+  "pallet-ocex-lmp/try-runtime",
+  "pallet-collective/try-runtime",
+  "thea/try-runtime",
+  "pallet-rewards/try-runtime",
+  "liquidity/try-runtime",
+  "thea-executor/try-runtime",
 ]

@@ -1,0 +1,10 @@
+{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"author_insertKey",
+    "params": [
+        "thea",
+        "owner word vocal dose decline sunset battle example forget excite gentle waste//1//thea",
+        "0x02483e69d8e93b8b8560d8adb606590568dad6370999219e0b4b95c11d77e285ce"
+    ]
+}

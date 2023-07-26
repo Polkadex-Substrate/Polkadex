@@ -1,17 +1,20 @@
 // This file is part of Polkadex.
-
-// Copyright (C) 2020-2023 Polkadex oü.
+//
+// Copyright (c) 2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Start of lease period: 2022-06-06 07:47
 // End of the lease period: 2024-04-08 07:47
@@ -19,6 +22,10 @@
 // 96 weeks =  672 days = 58060800 seconds = 4838400 blocks
 // Start block on PDEX solo chain: 1815527
 // End block on PDEX solo chain: 6653927
+
+//! # Rewards Pallet.
+//!
+//! This pallet will help to provide "parachain" rewards to the participants in crowdloan.
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -32,9 +39,10 @@ use frame_support::{
 use pallet_timestamp as timestamp;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	SaturatedConversion,
+	SaturatedConversion, Saturating,
 };
-use sp_std::prelude::*;
+use sp_std::{cmp::min, prelude::*};
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -47,10 +55,9 @@ pub trait WeightInfo {
 	fn initialize_claim_rewards() -> Weight;
 	fn claim() -> Weight;
 }
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod crowdloan_rewardees;
+pub mod crowdloan_rewardees;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -72,8 +79,8 @@ pub mod pallet {
 		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
+	use polkadex_primitives::AccountId;
 	use sp_runtime::traits::{IdentifyAccount, Verify};
-	use sp_std::cmp::min;
 
 	/// Our pallet's configuration trait. All our types and constants go in here. If the
 	/// pallet is dependent on specific other pallets, then their configuration traits
@@ -120,19 +127,20 @@ pub mod pallet {
 	// Simple declaration of the `Pallet` type. It is placeholder we use to implement traits and
 	// method.
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// The extrinsic will be used to start a new reward cycle
+		/// The extrinsic will be used to start a new reward cycle.
+		///
 		/// # Parameters
-		/// * `origin`: The donor who wants to start the reward cycle
-		/// * `start_block`: The block from which reward distribution will start
-		/// * `end_block`: The block at which last rewards will be distributed
-		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block
-		/// * `reward_id`: The reward id
+		///
+		/// * `origin`: The donor who wants to start the reward cycle.
+		/// * `start_block`: The block from which reward distribution will start.
+		/// * `end_block`: The block at which last rewards will be distributed.
+		/// * `initial_percentage`: The percentage of rewards that can be claimed at start block.
+		/// * `reward_id`: The reward id.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_reward_cycle(1, 1, 1))]
 		pub fn create_reward_cycle(
@@ -167,10 +175,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///The extrinsic will transfer and lock users rewards into users account
-		/// # Parameters,
-		/// * `origin`: The users address which has been mapped to reward id
-		/// * `reward_id`: Reward id
+		/// The extrinsic will transfer and lock users rewards into users account.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: The users address which has been mapped to reward id.
+		/// * `reward_id`: Reward id.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_claim_rewards())]
 		pub fn initialize_claim_rewards(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
@@ -194,12 +204,16 @@ pub mod pallet {
 				Error::<T>::RewardsAlreadyInitialized
 			);
 
-			let account_in_vec: Vec<u8> = T::AccountId::encode(&user);
+			let account_in_vec: [u8; 32] = T::AccountId::encode(&user)
+				.try_into()
+				.map_err(|_| Error::<T>::IncorrectDonorAccount)?;
 			#[allow(clippy::borrow_interior_mutable_const)]
 			#[allow(clippy::declare_interior_mutable_const)]
 			//get info of user from pre defined hash map and add it in storage
-			if let Some((total_rewards_in_pdex, initial_rewards_claimable, factor)) =
-				crowdloan_rewardees::HASHMAP.get(&account_in_vec)
+			if let Some((_, (total_rewards_in_pdex, initial_rewards_claimable, factor))) =
+				crowdloan_rewardees::HASHMAP
+					.iter()
+					.find(|a| a.0 == AccountId::new(account_in_vec))
 			{
 				//get reward info
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
@@ -252,15 +266,16 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// The user will use the extrinsic to claim rewards
+		/// The user will use the extrinsic to claim rewards.
+		///
 		/// # Parameters
-		/// * `origin`: The users address which has been mapped to reward id
-		/// * `id`: The reward id
+		///
+		/// * `origin`: The users address which has been mapped to reward id.
+		/// * `id`: The reward id.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim())]
 		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
-
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 					if let Some(user_reward_info) = user_reward_info {
@@ -471,5 +486,62 @@ impl<T: Config> Pallet<T> {
 			ExistenceRequirement::KeepAlive,
 		)?;
 		Ok(())
+	}
+
+	/// Retrieves the rewards information associated with a given account and reward ID.
+	///
+	/// # Parameters
+	///
+	/// * `account_id`: The account ID for which the rewards information is to be fetched.
+	/// * `reward_id`: The specific reward ID to fetch the rewards information.
+	///
+	/// # Returns
+	///
+	/// A `RewardsInfoByAccount` structure containing the claimed, unclaimed, and claimable
+	/// rewards associated with the account and reward ID.
+	pub fn account_info(
+		account_id: T::AccountId,
+		reward_id: u32,
+	) -> Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError>
+	{
+		if let Some(user_reward_info) = <Distributor<T>>::get(reward_id, account_id) {
+			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
+				let mut rewards_claimable: u128 = 0_u128.saturated_into();
+
+				//if initial rewards are not claimed add it to claimable rewards
+				if !user_reward_info.is_initial_rewards_claimed {
+					rewards_claimable =
+						user_reward_info.initial_rewards_claimable.saturated_into::<u128>();
+				}
+
+				//calculate the number of blocks the user can claim rewards
+				let current_block_no: u128 =
+					<frame_system::Pallet<T>>::block_number().saturated_into();
+				let last_reward_claimed_block_no: u128 =
+					user_reward_info.last_block_rewards_claim.saturated_into();
+				let unclaimed_blocks: u128 =
+					min(current_block_no, reward_info.end_block.saturated_into::<u128>())
+						.saturating_sub(last_reward_claimed_block_no);
+
+				// add the unclaimed block rewards to claimable rewards
+				rewards_claimable = rewards_claimable.saturating_add(
+					user_reward_info
+						.factor
+						.saturated_into::<u128>()
+						.saturating_mul(unclaimed_blocks),
+				);
+
+				let reward_info = polkadex_primitives::rewards::RewardsInfoByAccount {
+					claimed: user_reward_info.claim_amount.saturated_into::<u128>(),
+					unclaimed: user_reward_info
+						.total_reward_amount
+						.saturating_sub(user_reward_info.claim_amount)
+						.saturated_into::<u128>(),
+					claimable: rewards_claimable,
+				};
+				return Ok(reward_info)
+			}
+		}
+		Err(Error::<T>::UserNotEligible.into())
 	}
 }

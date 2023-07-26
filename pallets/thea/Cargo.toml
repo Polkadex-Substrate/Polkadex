@@ -1,70 +1,60 @@
 [package]
-authors = ["Polkadex Authors"]
-description = "Pallet for Trustless bridging between Chains"
-edition = "2021"
-homepage = "https://polkadex.trade"
 name = "thea"
-version = "1.0.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+version = "5.3.0"
+edition = "2021"
 
 [dependencies]
-parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
+log = { workspace = true, default-features = false }
+parity-scale-codec = { workspace = true, default-features = false }
+serde = { workspace = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
-frame-support = { workspace = true, default-features = false }
-frame-system = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
+frame-support = { default-features = false, workspace = true }
+frame-system = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
-sp-runtime = { workspace = true, default-features = false }
-asset-handler = {path = "../asset-handler", default-features = false}
-thea-primitives = { path = "../../thea-primitives", default-features = false }
-thea-staking = { path = "../thea-staking", default-features = false }
-xcm = { workspace = true, default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
-pallet-assets = { workspace = true, default-features = false, optional = true }
-pallet-balances = { workspace = true, default-features = false, optional = true }
+sp-core = { workspace = true, default-features = false, features = ["serde"] }
+thea-primitives = { path = "../../primitives/thea", default-features = false }
+sp-application-crypto = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+hex = { workspace = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
-pallet-staking = { workspace = true }
-pallet-staking-reward-curve = { workspace = true }
-pallet-assets = { workspace = true }
-pallet-balances = { workspace = true }
-chainbridge = { path = "../chainbridge" }
-asset-handler = { path = "../asset-handler" }
-sp-io = { workspace = true }
+pallet-assets = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
-sp-application-crypto = { workspace = true }
-blst = "0.3.10"
+thea-executor = { path = "../thea-executor", features = ["std"] }
+env_logger = { workspace = true }
+
 
 [features]
 default = ["std"]
 std = [
-    "sp-io/std",
-    "chainbridge/std",
-    "pallet-staking/std",
-    "parity-scale-codec/std",
-    "scale-info/std",
-    "frame-support/std",
-    "frame-system/std",
-    "sp-core/std",
-    "sp-std/std",
-    "sp-runtime/std",
-    "asset-handler/std",
-    "thea-primitives/std",
-    "xcm/std",
-    "thea-staking/std"
+  "hex/std",
+  "log/std",
+  "serde_json/std",
+  "serde/std",
+  "sp-application-crypto/std",
+  "thea-primitives/std",
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "sp-io/std",
+  "polkadex-primitives/std",
+  "pallet-timestamp/std",
+  "sp-core/std",
+  "frame-benchmarking?/std",
 ]
 runtime-benchmarks = [
-    "frame-benchmarking/runtime-benchmarks",
-    "pallet-balances/runtime-benchmarks",
-    "asset-handler/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "chainbridge/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
-    "pallet-assets",
+  "sp-runtime/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

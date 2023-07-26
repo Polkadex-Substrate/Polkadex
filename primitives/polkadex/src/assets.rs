@@ -1,31 +1,141 @@
 // This file is part of Polkadex.
-
-// Copyright (C) 2020-2023 Polkadex oü.
+//
+// Copyright (c) 2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
-
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::Balance;
+#[cfg(not(feature = "std"))]
+use codec::alloc::string::ToString;
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{
+	ensure,
+	traits::{
+		tokens::{Fortitude, Precision, Preservation},
+		Get,
+	},
+};
+#[cfg(not(feature = "std"))]
+use scale_info::prelude::{format, string::String};
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::de::{Error, MapAccess, Unexpected, Visitor};
-#[cfg(feature = "std")]
-use serde::Deserializer;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{
+	de::{Error, MapAccess, Unexpected, Visitor},
+	Deserialize, Deserializer, Serialize, Serializer,
+};
 use sp_core::RuntimeDebug;
+use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::fmt::{Display, Formatter};
+
+/// Resolver trait for handling different types of assets for deposit and withdrawal operations
+pub trait Resolver<
+	AccountId,
+	Native: frame_support::traits::tokens::fungible::Mutate<AccountId>
+		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
+	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
+		+ frame_support::traits::tokens::fungibles::Inspect<AccountId>
+		+ frame_support::traits::tokens::fungibles::Create<AccountId>,
+	AssetId: Into<Others::AssetId> + sp_std::cmp::PartialEq + Copy,
+	NativeAssetId: Get<AssetId>,
+>
+{
+	/// Deposit will mint new tokens if asset is non native and in case of native, will transfer
+	/// native tokens from `NativeLockingAccount` to `who`
+	fn resolver_deposit(
+		asset: AssetId,
+		amount: Balance,
+		who: &AccountId,
+		admin: AccountId,
+		min_balance: Balance,
+		locking_account: AccountId,
+	) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			Native::transfer(
+				&locking_account,
+				who,
+				amount.saturated_into(),
+				Preservation::Preserve,
+			)?;
+		} else {
+			if !Others::asset_exists(asset.into()) {
+				Others::create(asset.into(), admin, true, min_balance.saturated_into())?;
+			}
+			Others::mint_into(asset.into(), who, amount.saturated_into())?;
+		}
+		Ok(())
+	}
+
+	/// Deposit will burn tokens if asset is non native and in case of native, will transfer
+	/// native tokens from `who` to `NativeLockingAccount`
+	fn resolver_withdraw(
+		asset: AssetId,
+		amount: Balance,
+		who: &AccountId,
+		locking_account: AccountId,
+	) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			Native::transfer(
+				who,
+				&locking_account,
+				amount.saturated_into(),
+				Preservation::Preserve,
+			)?;
+		} else {
+			Others::burn_from(
+				asset.into(),
+				who,
+				amount.saturated_into(),
+				Precision::Exact,
+				Fortitude::Polite,
+			)?;
+		}
+		Ok(())
+	}
+
+	/// Create New Asset
+	fn resolve_create(
+		asset: AssetId,
+		admin: AccountId,
+		min_balance: Balance,
+	) -> Result<(), DispatchError> {
+		ensure!(asset != NativeAssetId::get(), DispatchError::Other("Cannot create Native Asset"));
+		ensure!(!Others::asset_exists(asset.into()), DispatchError::Other("Asset already exists"));
+		Others::create(asset.into(), admin, true, min_balance.saturated_into())?;
+		Ok(())
+	}
+
+	///Transfer Asset
+	fn resolve_transfer(
+		asset: AssetId,
+		from: &AccountId,
+		to: &AccountId,
+		amount: Balance,
+	) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			Native::transfer(from, to, amount.saturated_into(), Preservation::Preserve)?;
+		} else {
+			Others::transfer(
+				asset.into(),
+				from,
+				to,
+				amount.saturated_into(),
+				Preservation::Preserve,
+			)?;
+		}
+		Ok(())
+	}
+}
 
 /// Enumerated asset on chain
 #[derive(
@@ -48,7 +158,6 @@ pub enum AssetId {
 	Polkadex,
 }
 
-#[cfg(feature = "std")]
 impl Serialize for AssetId {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
@@ -63,7 +172,6 @@ impl Serialize for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
 impl<'de> Deserialize<'de> for AssetId {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
@@ -73,11 +181,10 @@ impl<'de> Deserialize<'de> for AssetId {
 	}
 }
 
-#[cfg(feature = "std")]
 impl<'de> Visitor<'de> for AssetId {
 	type Value = Self;
 
-	fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+	fn expecting(&self, formatter: &mut Formatter) -> sp_std::fmt::Result {
 		formatter.write_str("expecting an asset id map in the for {\"asset\":\"123\"}")
 	}
 
@@ -102,7 +209,7 @@ impl<'de> Visitor<'de> for AssetId {
 					match u128::from_str_radix(&value, radix) {
 						Err(_) => Err(A::Error::invalid_type(
 							Unexpected::Unsigned(128),
-							&format!("Expected an u128 string: recv {:?}", value).as_str(),
+							&format!("Expected an u128 string: recv {value:?}").as_str(),
 						)),
 						Ok(id) => Ok(AssetId::Asset(id)),
 					}
@@ -124,20 +231,17 @@ impl TryFrom<String> for AssetId {
 
 		match value.parse::<u128>() {
 			Ok(id) => Ok(AssetId::Asset(id)),
-			Err(_) => Err(anyhow::Error::msg::<String>(format!(
-				"Could not parse 'AssetId' from {}",
-				value
-			))),
+			Err(_) =>
+				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}"))),
 		}
 	}
 }
 
-#[cfg(feature = "std")]
 impl Display for AssetId {
 	fn fmt(&self, f: &mut Formatter<'_>) -> sp_std::fmt::Result {
 		match self {
 			AssetId::Polkadex => write!(f, "PDEX"),
-			AssetId::Asset(id) => write!(f, "{:?}", id),
+			AssetId::Asset(id) => write!(f, "{id:?}"),
 		}
 	}
 }

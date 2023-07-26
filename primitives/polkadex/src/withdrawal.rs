@@ -1,66 +1,66 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! This module contains withdrawals related structures definition.
+
 use crate::assets::AssetId;
 use codec::{Decode, Encode, MaxEncodedLen};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
-use crate::{AccountId, BlockNumber, Header};
-#[cfg(feature = "std")]
+use crate::AccountId;
 use serde::{Deserialize, Serialize};
-use sp_core::H256;
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+/// Defines withdrawal structure.
+#[derive(
+	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
+)]
 pub struct Withdrawal<AccountId> {
+	/// Main account identifier.
 	pub main_account: AccountId,
+	/// Amount of withdrawal.
 	pub amount: Decimal,
+	/// Asset identifier.
 	pub asset: AssetId,
+	/// Fees of the withdraw operation.
 	pub fees: Decimal,
+	/// State change identifier.
+	pub stid: u64,
 }
 
+/// Defines payload item structure collected in `Withdrawals` structure.
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct WithdrawalPayload {
+	/// Asset identifier.
 	pub asset_id: AssetId,
+	/// Amount of withdrawal.
 	pub amount: Decimal,
+	/// User's account identifier.
 	pub user: AccountId,
 }
 
+/// Withdrawals collection wrapper structure definition.
 #[derive(Encode, Decode, Debug, Clone, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Withdrawals {
+	/// Collection of withdrawals payloads.
 	pub withdrawals: sp_std::vec::Vec<WithdrawalPayload>,
+	/// Nonce (identifier).
 	pub nonce: u32,
-}
-
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct SnapshotSummary {
-	// Last synced blocknumber
-	pub last_block: BlockNumber,
-	// Snapshot Number
-	pub snapshot_number: u64,
-	// Hash of the enclave state
-	pub enclave_state_hash: H256,
-	// The header that was used to initialise the enclave
-	pub initialization_header: Header,
-	// Pending Withdrawals
-	pub withdrawals_processed: Withdrawals,
-}
-
-impl Default for SnapshotSummary {
-	fn default() -> Self {
-		Self {
-			last_block: 0,
-			snapshot_number: 0,
-			enclave_state_hash: Default::default(),
-			initialization_header: Header {
-				parent_hash: Default::default(),
-				number: 0,
-				state_root: Default::default(),
-				extrinsics_root: Default::default(),
-				digest: Default::default(),
-			},
-			withdrawals_processed: Withdrawals { withdrawals: sp_std::vec::Vec::new(), nonce: 0 },
-		}
-	}
 }

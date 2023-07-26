@@ -10,7 +10,7 @@ This guide will instruct you how to set up a validator node on the Polkadex usin
 
 ### Requirements
 
-The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using **Ubuntu 20.04**, but the instructions should be similar for other platforms.
+The most common way for a beginner to run a validator is on a cloud server running Linux. You may choose whatever VPS provider you prefer, and whichever operating system you are comfortable with. For this guide we will be using **Ubuntu 22.04**, but the instructions should be similar for other platforms.
 
 The transaction weights in Polkadex were benchmarked on standard hardware. It is recommended that validators run at least the standard hardware in order to ensure they are able to process all blocks in time. The following are not minimum requirements but if you decide to run with less than this, you may experience performance issues.
 
@@ -24,12 +24,60 @@ For the full details of the standard hardware please see [here](https://github.c
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other validators that are running the standard.
 
+### Download Parachain Binary and Spec file
+For the Polkadex decentralized bridging solution Thea to transfer tokens from Polkadot ecosystem to the Polkadex network, the validators have to run a parachain full node along with the solochain node. Please follow the below steps to run the parachain binary.
+
+Download Parachain Binary
+```
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/parachain-polkadex-node
+```
+Download Polkadex Parachain Spec File
+```
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot-parachain-raw.json
+```
+Download Polkadot Spec File
+```
+curl -O -L https://github.com/Polkadex-Substrate/parachain/releases/latest/download/polkadot.json
+```
+Make Parachain binary executable
+```
+chmod +x parachain-polkadex-node
+```
+Prepare a validator.service file
+```
+sudo vi /etc/systemd/system/parachain.service
+```
+```
+[Unit]
+Description=Polkadex Parachain Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+ExecStart=$HOME/parachain-polkadex-node --chain=$HOME/polkadot-parachain-raw.json --port 40333 --ws-port 9902 --rpc-port 8844 --bootnodes /ip4/3.108.191.170/tcp/40333/p2p/12D3KooWKi39o5WvzPTFz8W2KMqjP5c9HWoY2naYGPVF1YANCFnC -- --execution wasm --chain $HOME/polkadot.json --port 30343 --ws-port 9977 --state-pruning 256
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+```
+Run a Parachain fullnode as a service
+```
+sudo systemctl daemon-reload
+sudo systemctl enable parachain
+sudo systemctl start parachain
+sudo systemctl status parachain
+```
+
+### Download Polkadex Solochain Binary
 Once you choose your cloud service provider and set-up your new server, the first thing you will do is install the necessary dependencies.
 
 ```
 sudo apt-get install curl unzip
-curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/download/v1.0.3/PolkadexNodeUbuntu.zip ; unzip PolkadexNodeUbuntu.zip`
-
+curl -O -L https://github.com/Polkadex-Substrate/Polkadex/releases/latest/download/PolkadexNodeUbuntu.zip 
+unzip PolkadexNodeUbuntu.zip
 ```
 
 ### Synchronize Chain Data
@@ -165,7 +213,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial'
+ExecStart=$HOME/polkadex-node --chain=$HOME/customSpecRaw.json --name 'Validator-Tutorial' --validator
 Restart=on-failure
 
 [Install]
@@ -193,10 +241,10 @@ After ensuring you have connected to your node, the easiest way to set session k
 
 #### Option 2: CLI
 
-If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the default HTTP RPC port configured):
+If you are on a remote server, it is easier to run this command on the same machine (while the node is running with the default HTTP RPC port configured or the port you mentioned in --rpc-port flag):
 
 ```
-curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9933
+curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9944
 ```
 
 The output will have a hex-encoded "result" field. The result is the concatenation of the four public keys. Save this result for a later step.
