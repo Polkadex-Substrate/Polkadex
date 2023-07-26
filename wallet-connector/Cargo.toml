@@ -9,10 +9,9 @@ edition = "2021"
 log = { workspace = true, default-features = false }
 serde = { version = "1.0.136", features = ["derive"], optional = true }
 parity-util-mem = { version = "0.12.0", default-features = false, features = ["primitive-types"] }
-ethers-derive-eip712 = { version= "2.0.2", optional=true}
-ethers-core = {version= "2.0.2", optional = true, features = ["eip712", "macros"]}
-ethers-contract = {version= "2.0.2", optional = true, features = ["abigen"]}
-ethers = {version= "2.0.2", optional = true}
+ethers-core = {git ="https://github.com/gakonst/ethers-rs.git",version= "2.0.8", optional = true, features = ["eip712", "macros"]}
+ethers-contract = {git ="https://github.com/gakonst/ethers-rs.git",version= "2.0.8", optional = true, features = ["abigen"]}
+ethers = {git ="https://github.com/gakonst/ethers-rs.git", version= "2.0.8", optional = true}
 serde_json = { version="1.0.91", optional = true , default-features = false}
 hex = { version="0.4.3", optional = true, default-features = false}
 sp-std = { workspace = true, default-features = false }
@@ -29,7 +28,7 @@ sp-io = { workspace = true, default-features = false }
 default = ["std"]
 std = [
     "log/std",
-    "ethers-derive-eip712",
+#    "ethers-derive-eip712",
     "ethers-core",
     "ethers",
     "ethers-contract",

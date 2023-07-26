@@ -3,9 +3,10 @@ use sp_std::vec::Vec;
 #[cfg(feature = "std")]
 use ethers_contract::EthAbiType;
 #[cfg(feature = "std")]
-use ethers_core::types::transaction::eip712::Eip712;
+use ethers::prelude::Eip712;
 #[cfg(feature = "std")]
-use ethers_derive_eip712::*;
+use ethers::types::transaction::eip712::Eip712;
+
 use sp_runtime_interface::runtime_interface;
 
 #[derive(Debug, Clone, Eip712, EthAbiType)]
