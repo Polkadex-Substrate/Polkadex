@@ -15,4 +15,13 @@ polkadex-primitives = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
-std = ["parity-scale-codec/std", "sp-api/std", "sp-runtime/std", "sp-std/std", "orderbook-primitives/std", "sp-core/std", "polkadex-primitives/std", "rust_decimal/std"]
+std = [
+  "parity-scale-codec/std",
+  "sp-api/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "orderbook-primitives/std",
+  "sp-core/std",
+  "polkadex-primitives/std",
+  "rust_decimal/std",
+]
