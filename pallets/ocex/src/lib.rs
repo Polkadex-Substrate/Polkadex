@@ -39,7 +39,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::{assets::AssetId, AccountId};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
@@ -49,8 +49,8 @@ use sp_runtime::{
 use sp_std::prelude::*;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use orderbook_primitives::{
-	recovery::ObRecoveryState, types::TradingPair, SnapshotSummary, ValidatorSet,
-	GENESIS_AUTHORITY_SET_ID,
+	types::{AccountAsset, TradingPair},
+	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
@@ -1233,13 +1233,68 @@ pub mod pallet {
 			}
 		}
 
-		pub fn get_ob_recover_state() -> Result<ObRecoveryState, DispatchError> {
-			ObRecoveryState {}
+		pub fn get_ob_recover_state() -> Result<
+			(
+				BTreeMap<AccountId, Vec<AccountId>>,
+				BTreeMap<AccountAsset, Decimal>,
+				u64,
+				u32,
+				u64,
+				u64,
+			),
+			DispatchError,
+		> {
+			let account_id =
+				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
+					ids_accum.push((acc.clone(), acc_info.proxies));
+					ids_accum
+				});
+
+			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			let mut account_ids: BTreeMap<AccountId, Vec<AccountId>> = BTreeMap::new();
+			// all offchain balances for main accounts
+			for account in account_id {
+				let main = Self::transform_account(account.0)?;
+				let b = Self::get_offchain_balance(&main)?;
+				for (asset, balance) in b.into_iter() {
+					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
+				}
+				let proxies = account.1.into_iter().try_fold(vec![], |mut accum, proxy| {
+					accum.push(Self::transform_account(proxy)?);
+					Ok::<Vec<AccountId>, DispatchError>(accum)
+				})?;
+				account_ids.insert(main, proxies);
+			}
+
+			let state_info = Self::get_state_info();
+			let last_processed_block_number = state_info.last_block;
+			let worker_nonce = state_info.worker_nonce;
+			let snapshot_id = state_info.snapshot_id;
+			let state_change_id = state_info.stid;
+
+			Ok((
+				account_ids,
+				balances,
+				snapshot_id,
+				last_processed_block_number,
+				state_change_id,
+				worker_nonce,
+			))
 		}
 
-		pub fn get_balance(from: T::AccountId, of: u128) -> Result<String, DispatchError> {
-			Ok(serde_json::to_string(&T::OtherAssets::balance(of, &from))
-				.unwrap_or_else(|_| "failed to fetch proper balance for serialization".into()))
+		pub fn get_balance(from: T::AccountId, of: AssetId) -> Result<Decimal, DispatchError> {
+			Ok(Self::get_offchain_balance(&Self::transform_account(from)?)
+				.unwrap_or_else(|_| BTreeMap::new())
+				.get(&of)
+				.unwrap_or_else(|| &Decimal::ZERO)
+				.to_owned())
+		}
+
+		fn transform_account(
+			account: T::AccountId,
+		) -> Result<polkadex_primitives::AccountId, DispatchError> {
+			Decode::decode(&mut &account.encode()[..])
+				.map_err(|_| Error::<T>::AccountIdCannotBeDecoded.into())
 		}
 	}
 
