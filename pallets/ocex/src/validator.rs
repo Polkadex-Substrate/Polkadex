@@ -5,16 +5,17 @@ use crate::{
 	storage::store_trie_root,
 	Config, Pallet, SnapshotNonce,
 };
-
 use orderbook_primitives::{
 	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal};
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{
+	crypto::ByteArray,
 	offchain::{Duration, HttpError},
 	H256,
 };
@@ -27,7 +28,7 @@ use sp_runtime::{
 	traits::BlakeTwo256,
 	SaturatedConversion,
 };
-use sp_std::{boxed::Box, vec::Vec};
+use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use sp_trie::{LayoutV1, TrieDBMut};
 use trie_db::{TrieError, TrieMut};
 
@@ -317,6 +318,28 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		auth_index
+	}
+
+	pub(crate) fn get_offchain_balance(
+		account: &polkadex_primitives::AccountId,
+	) -> Result<BTreeMap<AssetId, Decimal>, &'static str> {
+		let mut root = crate::storage::load_trie_root();
+		let mut storage = crate::storage::State;
+		let state = crate::storage::get_state_trie(&mut storage, &mut root);
+		let balance: BTreeMap<AssetId, Decimal> =
+			match state.get(account.as_slice()).map_err(crate::validator::map_trie_error)? {
+				None => BTreeMap::new(),
+				Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+					.map_err(|_| "Unable to decode balances for account")?,
+			};
+		Ok(balance)
+	}
+
+	pub(crate) fn get_state_info() -> StateInfo {
+		let mut root = crate::storage::load_trie_root();
+		let mut storage = crate::storage::State;
+		let state = crate::storage::get_state_trie(&mut storage, &mut root);
+		Self::load_state_info(&state)
 	}
 }
 

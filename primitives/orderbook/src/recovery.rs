@@ -42,6 +42,4 @@ pub struct ObRecoveryState {
 	pub state_change_id: u64,
 	/// worker nonce
 	pub worker_nonce: u64,
-	/// State version
-	pub state_version: u16,
 }
