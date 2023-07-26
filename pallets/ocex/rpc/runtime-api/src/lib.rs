@@ -18,13 +18,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use orderbook_primitives::recovery::ObRecoveryState;
 use parity_scale_codec::Codec;
+use polkadex_primitives::AssetId;
+use rust_decimal::Decimal;
+use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec {
-		fn get_ob_recover_state() ->  Result<ObRecoveryState, sp_runtime::DispatchError>;
+		fn get_ob_recover_state() ->  Result<Vec<u8>, sp_runtime::DispatchError>;
 		// gets balance from given account of given asset
-		fn get_balance(from: AccountId, of: u128) -> Result<String, sp_runtime::DispatchError>;
+		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, sp_runtime::DispatchError>;
 	}
 }
