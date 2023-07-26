@@ -38,7 +38,7 @@ use sp_runtime::{
 	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -375,7 +375,11 @@ impl<T: Config> Pallet<T> {
 			// This should happen at the beginning of the last epoch
 			let active_networks = <ActiveNetworks<T>>::get();
 			for network in active_networks {
-				let message = Self::generate_payload(true, network, incoming.encode());
+				let message = Self::generate_payload(
+					true,
+					network,
+					ValidatorSet::new(incoming.clone(), new_id).encode(),
+				);
 				// Update nonce
 				<OutgoingNonce<T>>::insert(message.network, message.nonce);
 				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
