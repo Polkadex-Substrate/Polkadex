@@ -39,10 +39,7 @@ fn set_200_validators() -> [Pair; 200] {
 	}
 	let mut bv: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
 		BoundedVec::with_max_capacity();
-	validators
-		.clone()
-		.into_iter()
-		.for_each(|v| bv.try_push(v.public()).unwrap());
+	validators.clone().into_iter().for_each(|v| bv.try_push(v.public()).unwrap());
 	<Authorities<Test>>::insert(0, bv);
 	validators
 		.try_into()
@@ -121,10 +118,7 @@ fn test_incoming_messages_bad_inputs() {
 		);
 		// bad threshold
 		assert_err!(
-			Thea::validate_incoming_message(
-				&message.clone(),
-				&vec![(0, proper_sig.clone())]
-			),
+			Thea::validate_incoming_message(&message.clone(), &vec![(0, proper_sig.clone())]),
 			InvalidTransaction::Custom(4)
 		);
 
