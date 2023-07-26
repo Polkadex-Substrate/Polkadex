@@ -244,12 +244,8 @@ fn test_parachain_withdraw_full() {
 			100_000_000_000_000_000_000u128.saturated_into(),
 		)
 		.unwrap();
-		Assets::mint_into(
-			asset_id,
-			&account,
-			100_000_000_000_000_000_000u128.saturated_into(),
-		)
-		.unwrap();
+		Assets::mint_into(asset_id, &account, 100_000_000_000_000_000_000u128.saturated_into())
+			.unwrap();
 		<Test as Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into())
 			.unwrap();
 		Balances::set_balance(&account, 100_000_000_000_000u128.saturated_into());
