@@ -1286,7 +1286,7 @@ pub mod pallet {
 			Ok(Self::get_offchain_balance(&Self::transform_account(from)?)
 				.unwrap_or_else(|_| BTreeMap::new())
 				.get(&of)
-				.unwrap_or_else(|| &Decimal::ZERO)
+				.unwrap_or(&Decimal::ZERO)
 				.to_owned())
 		}
 
