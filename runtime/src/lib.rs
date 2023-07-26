@@ -22,6 +22,7 @@
 #![recursion_limit = "256"]
 #![deny(unused_crate_dependencies)]
 
+use constants::{currency::*, time::*};
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime,
@@ -34,8 +35,10 @@ use frame_support::{
 		LockIdentifier, OnUnbalanced, U128CurrencyToVote,
 	},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
-		ConstantMultiplier, Weight,
+		constants::{
+			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+		},
+		ConstantMultiplier, IdentityFee, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
@@ -57,16 +60,15 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
+use rust_decimal::Decimal;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::DispatchError;
-use sp_std::vec;
-
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -78,16 +80,13 @@ use sp_runtime::{
 		OpaqueKeys, SaturatedConversion, StaticLookup,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
+	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::prelude::*;
+use sp_std::{prelude::*, vec};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-
-use constants::{currency::*, time::*};
-use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1573,8 +1572,8 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
-		fn get_ob_recover_state() ->  Result<ObRecoveryState, DispatchError> { OCEX::get_ob_recover_state() }
-		fn get_balance(from: AccountId, of: u128) -> Result<String, DispatchError> { OCEX::get_balance(from, of) }
+		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
+		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
 	}
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {

@@ -26,7 +26,8 @@ use jsonrpsee::{
 };
 use orderbook_primitives::recovery::ObRecoveryState;
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
-use parity_scale_codec::Codec;
+use parity_scale_codec::{Codec, Decode};
+use polkadex_primitives::AssetId;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block as BlockT;
@@ -43,7 +44,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	fn get_balance(
 		&self,
 		account_id: AccountId,
-		of: u128,
+		of: AssetId,
 		at: Option<BlockHash>,
 	) -> RpcResult<String>;
 }
@@ -90,16 +91,22 @@ where
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		Ok(api
-			.get_ob_recover_state(at)
-			.map_err(runtime_error_into_rpc_err)?
-			.map_err(runtime_error_into_rpc_err)?)
+		// WARN: this is a hack on beating the boundry of runtime -> node
+		// with decoding tuple of underlying data into solid std type
+		Ok(Decode::decode(
+			&mut api
+				.get_ob_recover_state(at)
+				.map_err(runtime_error_into_rpc_err)?
+				.map_err(runtime_error_into_rpc_err)?
+				.as_ref(),
+		)
+		.map_err(runtime_error_into_rpc_err)?)
 	}
 
 	fn get_balance(
 		&self,
 		account_id: AccountId,
-		of: u128,
+		of: AssetId,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
 		let api = self.client.runtime_api();

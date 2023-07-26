@@ -8,9 +8,11 @@ parity-scale-codec = { workspace = true, default-features = false, features = ["
 sp-api = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../../../../primitives/orderbook" }
+orderbook-primitives = { path = "../../../../primitives/orderbook", default-features = false }
 sp-core = { workspace = true, default-features = false }
+rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
+polkadex-primitives = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
-std = ["parity-scale-codec/std", "sp-api/std", "sp-runtime/std", "sp-std/std", "orderbook-primitives/std", "sp-core/std"]
+std = ["parity-scale-codec/std", "sp-api/std", "sp-runtime/std", "sp-std/std", "orderbook-primitives/std", "sp-core/std", "polkadex-primitives/std", "rust_decimal/std"]
