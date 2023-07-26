@@ -1271,16 +1271,16 @@ pub(crate) mod tests {
 
 	#[test]
 	fn test_create_development_chain_spec() {
-		assert!(!development_config().build_storage().is_err());
+		assert!(development_config().build_storage().is_ok());
 	}
 
 	#[test]
 	fn test_create_soba_testnet_chain_spec() {
-		assert!(!soba_testnet_config().build_storage().is_err());
+		assert!(soba_testnet_config().build_storage().is_ok());
 	}
 
 	#[test]
 	fn test_staging_test_net_chain_spec() {
-		assert!(!udon_testnet_config().build_storage().is_err());
+		assert!(udon_testnet_config().build_storage().is_ok());
 	}
 }

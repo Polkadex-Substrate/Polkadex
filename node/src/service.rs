@@ -605,7 +605,7 @@ mod tests {
 		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
 		RuntimeAppPublic,
 	};
-	use sp_timestamp;
+	
 	use std::{borrow::Cow, sync::Arc};
 
 	type AccountPublic = <Signature as Verify>::Signer;
@@ -777,7 +777,7 @@ mod tests {
 				let signer = charlie.clone();
 
 				let function = RuntimeCall::Balances(BalancesCall::transfer {
-					dest: to.into(),
+					dest: to,
 					value: amount,
 				});
 
@@ -804,7 +804,7 @@ mod tests {
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
 				index += 1;
-				UncheckedExtrinsic::new_signed(function, from.into(), signature.into(), extra)
+				UncheckedExtrinsic::new_signed(function, from, signature.into(), extra)
 					.into()
 			},
 		);

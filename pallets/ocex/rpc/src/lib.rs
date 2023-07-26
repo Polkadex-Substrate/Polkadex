@@ -93,14 +93,14 @@ where
 		};
 		// WARN: this is a hack on beating the boundry of runtime -> node
 		// with decoding tuple of underlying data into solid std type
-		Ok(Decode::decode(
+		Decode::decode(
 			&mut api
 				.get_ob_recover_state(at)
 				.map_err(runtime_error_into_rpc_err)?
 				.map_err(runtime_error_into_rpc_err)?
 				.as_ref(),
 		)
-		.map_err(runtime_error_into_rpc_err)?)
+		.map_err(runtime_error_into_rpc_err)
 	}
 
 	fn get_balance(
