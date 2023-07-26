@@ -6001,6 +6001,7 @@ dependencies = [
  "node-polkadex-runtime",
  "pallet-im-online",
  "pallet-ocex-lmp",
+ "pallet-ocex-rpc",
  "pallet-rewards-rpc",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
