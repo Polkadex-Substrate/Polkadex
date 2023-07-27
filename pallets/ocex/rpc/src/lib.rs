@@ -49,8 +49,8 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	) -> RpcResult<String>;
 }
 
-/// A structure that represents the Polkadex Rewards RPC, which allows querying
-/// rewards-related information through remote procedure calls.
+/// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
+/// individual balances and recovery state data.
 ///
 /// # Type Parameters
 ///
