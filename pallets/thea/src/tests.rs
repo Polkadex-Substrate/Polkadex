@@ -62,32 +62,55 @@ use frame_support::traits::OneSessionHandler;
 #[test]
 fn test_session_change() {
 	new_test_ext().execute_with(|| {
-		let mut validators = Vec::with_capacity(200);
-		for i in 0..200 {
-			validators.push(
-				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str())).0,
-			);
+		let mut authorities: Vec<(&u64, <Test as Config>::TheaId)> = Vec::with_capacity(200);
+		for i in 0..200u64 {
+			authorities.push((
+				&1,
+				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str()))
+					.0
+					.public()
+					.into(),
+			));
 		}
 
-		let mut authorities = Vec::new();
-		validators
-			.clone()
-			.into_iter()
-			.for_each(|bls| authorities.push((&1, bls.public())));
+		let mut queued: Vec<(&u64, <Test as Config>::TheaId)> = Vec::with_capacity(200);
+		for i in 0..200u64 {
+			queued.push((
+				&1,
+				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str()))
+					.0
+					.public()
+					.into(),
+			));
+		}
+
 		let mut networks = BTreeSet::new();
 		networks.insert(1);
 		<ActiveNetworks<Test>>::put(networks);
 		assert!(Thea::validator_set_id() == 0);
 		assert!(Thea::outgoing_nonce(1) == 0);
-		let authorities_cloned: Vec<(&u64, <Test as Config>::TheaId)> = authorities.clone();
-		let auth_len = authorities_cloned.len();
-		Thea::on_new_session(false, authorities.into_iter(), authorities_cloned.into_iter());
+		let current_authorities: Vec<<Test as Config>::TheaId> =
+			authorities.iter().map(|(_, public)| public.clone()).collect();
+		<ValidatorSetId<Test>>::put(0);
+		<Authorities<Test>>::insert(0, BoundedVec::truncate_from(current_authorities));
+		// Simulating the on_new_session to last epoch of an era.
+		Thea::on_new_session(false, authorities.into_iter(), queued.clone().into_iter());
+		assert!(Thea::validator_set_id() == 0);
+		assert!(Thea::outgoing_nonce(1) == 1); // Thea validator session change message is generated here
+
+		let message = Thea::get_outgoing_messages(1, 1).unwrap();
+		assert_eq!(message.nonce, 1);
+		let validator_set: ValidatorSet<<Test as Config>::TheaId> =
+			ValidatorSet::decode(&mut &message.data[..]).unwrap();
+		let queued_validators: Vec<<Test as Config>::TheaId> =
+			queued.iter().map(|(_, public)| public.clone()).collect();
+		assert_eq!(validator_set.set_id, 1);
+		assert_eq!(validator_set.validators, queued_validators);
+
+		// Simulating the on_new_session to the first epoch of the next era.
+		Thea::on_new_session(false, queued.clone().into_iter(), queued.clone().into_iter());
 		assert!(Thea::validator_set_id() == 1);
 		assert!(Thea::outgoing_nonce(1) == 1);
-		let message = Thea::get_outgoing_messages(1, 1).unwrap();
-		let bounded_vec: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
-			BoundedVec::decode(&mut &message.data[..]).unwrap();
-		assert_eq!(bounded_vec.to_vec().len(), auth_len);
 	})
 }
 
