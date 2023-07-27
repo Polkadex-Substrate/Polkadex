@@ -374,15 +374,14 @@ impl<T: Config> Pallet<T> {
 		if incoming != queued {
 			// This should happen at the beginning of the last epoch
 			let active_networks = <ActiveNetworks<T>>::get();
-			for network in active_networks {
-				let message = Self::generate_payload(
-					true,
-					network,
-					ValidatorSet::new(incoming.clone(), new_id).encode(),
-				);
-				// Update nonce
-				<OutgoingNonce<T>>::insert(message.network, message.nonce);
-				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
+				let payload = validator_set.encode();
+				for network in active_networks {
+					let message = Self::generate_payload(true, network, payload.clone());
+					// Update nonce
+					<OutgoingNonce<T>>::insert(message.network, message.nonce);
+					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+				}
 			}
 			<NextAuthorities<T>>::put(queued);
 		}
