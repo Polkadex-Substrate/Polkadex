@@ -36,7 +36,6 @@ use sp_core::{
 	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
 	ByteArray, Pair, H256,
 };
-
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
@@ -137,14 +136,14 @@ fn test_add_balance_new_account() {
 		assert_eq!(from_fn, amount.into());
 		// test get_ob_recover_state()
 		let rs = OCEX::get_ob_recover_state().unwrap();
-		assert!(!rs.0.is_empty());
 		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
 		// account present
-		assert!(rs.0.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
 		// balance present and correct
 		let expected: Decimal = amount.into();
 		assert_eq!(
-			rs.1.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
 			&expected
 		);
 	});
@@ -189,16 +188,31 @@ fn test_add_balance_existing_account_with_balance() {
 		assert_eq!(from_fn, (amount + amount2).into());
 		// test get_ob_recover_state()
 		let rs = OCEX::get_ob_recover_state().unwrap();
-		assert!(!rs.0.is_empty());
 		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
 		// account present
-		assert!(rs.0.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
 		// balance present and correct
 		let expected: Decimal = (amount + amount2).into();
 		assert_eq!(
-			rs.1.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
 			&expected
 		);
+		// conversion test
+		let created = ObRecoveryState {
+			snapshot_id: rs.0,
+			account_ids: rs.1.clone(),
+			balances: rs.2.clone(),
+			last_processed_block_number: rs.3,
+			state_change_id: rs.4,
+			worker_nonce: rs.5,
+		};
+		let c_encoded = created.encode();
+		let encoded = rs.encode();
+		assert_eq!(c_encoded, encoded);
+		let decoded = ObRecoveryState::decode(&mut encoded.as_ref()).unwrap();
+		assert_eq!(decoded.account_ids, rs.1);
+		assert_eq!(decoded.balances, rs.2);
 	});
 }
 
@@ -271,14 +285,14 @@ fn test_sub_balance_existing_account_with_balance() {
 		assert_eq!(from_fn, (amount - amount2 - amount3).into());
 		// test get_ob_recover_state()
 		let rs = OCEX::get_ob_recover_state().unwrap();
-		assert!(!rs.0.is_empty());
 		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
 		// account present
-		assert!(rs.0.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
 		// balance present and correct
 		let expected: Decimal = (amount - amount2 - amount3).into();
 		assert_eq!(
-			rs.1.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
 			&expected
 		);
 	});
@@ -2236,6 +2250,7 @@ fn test_withdrawal() {
 }
 
 use orderbook_primitives::{
+	recovery::ObRecoveryState,
 	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
 	Fees,
 };
