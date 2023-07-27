@@ -18,9 +18,8 @@
 
 //! Tests for pallet-ocex.
 
-use crate::*;
+use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -115,6 +114,11 @@ fn test_add_balance_new_account() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
@@ -127,8 +131,22 @@ fn test_add_balance_new_account() {
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 		// test get_balance()
 		state.commit();
-		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
 		assert_eq!(from_fn, amount.into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.0.is_empty());
+		assert!(!rs.1.is_empty());
+		// account present
+		assert!(rs.0.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = amount.into();
+		assert_eq!(
+			rs.1.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
@@ -140,6 +158,11 @@ fn test_add_balance_existing_account_with_balance() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
@@ -160,8 +183,22 @@ fn test_add_balance_existing_account_with_balance() {
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
 		// test get_balance()
 		state.commit();
-		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
 		assert_eq!(from_fn, (amount + amount2).into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.0.is_empty());
+		assert!(!rs.1.is_empty());
+		// account present
+		assert!(rs.0.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = (amount + amount2).into();
+		assert_eq!(
+			rs.1.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
@@ -183,10 +220,6 @@ fn test_sub_balance_new_account() {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "Account not found in trie"),
 		}
-		// test get_balance()
-		state.commit();
-		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
-		assert_eq!(from_fn, amount.into());
 	});
 }
 
@@ -198,6 +231,11 @@ fn test_sub_balance_existing_account_with_balance() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 3000000;
 		let mut root = crate::storage::load_trie_root();
@@ -227,8 +265,22 @@ fn test_sub_balance_existing_account_with_balance() {
 		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
 		// test get_balance()
 		state.commit();
-		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
 		assert_eq!(from_fn, (amount - amount2 - amount3).into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.0.is_empty());
+		assert!(!rs.1.is_empty());
+		// account present
+		assert!(rs.0.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = (amount - amount2 - amount3).into();
+		assert_eq!(
+			rs.1.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
