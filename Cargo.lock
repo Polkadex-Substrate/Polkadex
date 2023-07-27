@@ -4600,7 +4600,7 @@ dependencies = [
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.1.1"
+version = "5.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -5289,7 +5289,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "5.1.0"
+version = "5.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5945,7 +5945,7 @@ checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
 
 [[package]]
 name = "polkadex-client"
-version = "1.1.0"
+version = "5.3.0"
 dependencies = [
  "frame-benchmarking",
  "node-polkadex-runtime",
@@ -5954,7 +5954,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.2.0"
+version = "5.3.0"
 dependencies = [
  "clap 4.3.5",
  "frame-benchmarking-cli",
@@ -9711,7 +9711,7 @@ dependencies = [
 
 [[package]]
 name = "thea"
-version = "1.1.0"
+version = "5.3.0"
 dependencies = [
  "env_logger",
  "frame-benchmarking",
@@ -9739,7 +9739,7 @@ dependencies = [
 
 [[package]]
 name = "thea-executor"
-version = "1.1.0"
+version = "5.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9764,7 +9764,7 @@ dependencies = [
 
 [[package]]
 name = "thea-message-handler"
-version = "1.1.0"
+version = "5.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
