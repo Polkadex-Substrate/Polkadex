@@ -1233,6 +1233,11 @@ pub mod pallet {
 			}
 		}
 
+		/// Collects onchain registered main and proxy accounts
+		/// for each of main accounts collects balances from offchain storage
+		/// adds other required for recovery properties
+		/// Returned tuple resembles `orderbook_primitives::recovery::ObRecoveryState`
+		/// FIXME: use solid type here instead of tuple
 		pub fn get_ob_recover_state() -> Result<
 			(
 				BTreeMap<AccountId, Vec<AccountId>>,
@@ -1282,6 +1287,8 @@ pub mod pallet {
 			))
 		}
 
+		/// Fetches balance of given `AssetId` for given `AccountId` from offchain storage
+		/// If nothing found - returns `Decimal::Zero`
 		pub fn get_balance(from: T::AccountId, of: AssetId) -> Result<Decimal, DispatchError> {
 			Ok(Self::get_offchain_balance(&Self::transform_account(from)?)
 				.unwrap_or_else(|_| BTreeMap::new())
@@ -1290,6 +1297,7 @@ pub mod pallet {
 				.to_owned())
 		}
 
+		// Converts `T::AccountId` into `polkadex_primitives::AccountId`
 		fn transform_account(
 			account: T::AccountId,
 		) -> Result<polkadex_primitives::AccountId, DispatchError> {
