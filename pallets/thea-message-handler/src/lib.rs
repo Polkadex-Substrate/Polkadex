@@ -257,11 +257,7 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(1).into()
 		}
 
-		if <ValidatorSetId<T>>::get() < payload.validator_set_id && (!payload.is_key_change) {
-			log::error!(target:"thea","Future validator set: Stored: {:?}, Given: {:?}",<ValidatorSetId<T>>::get(), payload.validator_set_id);
-			// Reject message from future validator sets
-			return InvalidTransaction::Custom(2).into()
-		}
+
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 		// Check for super majority
 		const MAJORITY: u8 = 67;
@@ -270,18 +266,18 @@ impl<T: Config> Pallet<T> {
 
 		if signatures.len() < threshold {
 			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
-			return InvalidTransaction::Custom(3).into()
+			return InvalidTransaction::Custom(2).into()
 		}
 
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
 		for (index, signature) in signatures {
 			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(4).into(),
+				None => return InvalidTransaction::Custom(3).into(),
 				Some(auth) =>
 					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
 						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
-						return InvalidTransaction::Custom(5).into()
+						return InvalidTransaction::Custom(4).into()
 					},
 			}
 		}
