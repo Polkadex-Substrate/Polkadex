@@ -1240,9 +1240,9 @@ pub mod pallet {
 		/// FIXME: use solid type here instead of tuple
 		pub fn get_ob_recover_state() -> Result<
 			(
+				u64,
 				BTreeMap<AccountId, Vec<AccountId>>,
 				BTreeMap<AccountAsset, Decimal>,
-				u64,
 				u32,
 				u64,
 				u64,
@@ -1278,9 +1278,9 @@ pub mod pallet {
 			let state_change_id = state_info.stid;
 
 			Ok((
+				snapshot_id,
 				account_ids,
 				balances,
-				snapshot_id,
 				last_processed_block_number,
 				state_change_id,
 				worker_nonce,
