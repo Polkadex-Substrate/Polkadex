@@ -257,7 +257,7 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(1).into()
 		}
 
-		if <ValidatorSetId<T>>::get() < payload.validator_set_id {
+		if <ValidatorSetId<T>>::get() < payload.validator_set_id && (!payload.is_key_change) {
 			log::error!(target:"thea","Future validator set: Stored: {:?}, Given: {:?}",<ValidatorSetId<T>>::get(), payload.validator_set_id);
 			// Reject message from future validator sets
 			return InvalidTransaction::Custom(2).into()
