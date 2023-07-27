@@ -257,7 +257,6 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(1).into()
 		}
 
-
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
 		// Check for super majority
 		const MAJORITY: u8 = 67;
