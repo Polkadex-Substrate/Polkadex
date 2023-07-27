@@ -125,6 +125,10 @@ fn test_add_balance_new_account() {
 		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+		// test get_balance()
+		state.commit();
+		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		assert_eq!(from_fn, amount.into());
 	});
 }
 
@@ -154,6 +158,10 @@ fn test_add_balance_existing_account_with_balance() {
 		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
+		// test get_balance()
+		state.commit();
+		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		assert_eq!(from_fn, (amount + amount2).into());
 	});
 }
 
@@ -175,6 +183,10 @@ fn test_sub_balance_new_account() {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "Account not found in trie"),
 		}
+		// test get_balance()
+		state.commit();
+		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		assert_eq!(from_fn, amount.into());
 	});
 }
 
@@ -213,6 +225,10 @@ fn test_sub_balance_existing_account_with_balance() {
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
 		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
+		// test get_balance()
+		state.commit();
+		let from_fn = OCEX::get_balance(account_id, asset_id).unwrap();
+		assert_eq!(from_fn, (amount - amount2 - amount3).into());
 	});
 }
 
