@@ -20,12 +20,13 @@ use crate::types::AccountAsset;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{AccountId, BlockNumber};
 use rust_decimal::Decimal;
+use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
 use std::collections::BTreeMap;
 
 /// A struct representing the recovery state of an Order Book.
 #[serde_as]
-#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
 pub struct ObRecoveryState {
 	/// The snapshot ID of the order book recovery state.
 	pub snapshot_id: u64,
@@ -41,6 +42,4 @@ pub struct ObRecoveryState {
 	pub state_change_id: u64,
 	/// worker nonce
 	pub worker_nonce: u64,
-	/// State version
-	pub state_version: u16,
 }

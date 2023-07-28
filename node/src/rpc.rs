@@ -30,14 +30,13 @@
 
 #![warn(missing_docs)]
 
-use std::sync::Arc;
-
 use jsonrpsee::RpcModule;
+use pallet_ocex_rpc::PolkadexOcexRpc;
+use pallet_rewards_rpc::PolkadexRewardsRpc;
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::BabeWorkerHandle;
-
 use sc_consensus_grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
@@ -50,6 +49,7 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::KeystorePtr;
+use std::sync::Arc;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -72,8 +72,6 @@ pub struct GrandpaDeps<B> {
 	/// Finality proof provider.
 	pub finality_provider: Arc<FinalityProofProvider<B, Block>>,
 }
-
-use pallet_rewards_rpc::PolkadexRewardsRpc;
 
 /// Full client dependencies.
 pub struct FullDeps<C, P, SC, B> {
@@ -116,8 +114,10 @@ where
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 	C::Api: rpc_assets::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
+	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
 	C: BlockchainEvents<Block>,
 {
+	use pallet_ocex_rpc::PolkadexOcexRpcApiServer;
 	use pallet_rewards_rpc::PolkadexRewardsRpcApiServer;
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
@@ -164,6 +164,7 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
+	io.merge(PolkadexOcexRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 
 	Ok(io)

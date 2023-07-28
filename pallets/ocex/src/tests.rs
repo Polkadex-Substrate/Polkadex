@@ -18,9 +18,8 @@
 
 //! Tests for pallet-ocex.
 
-use crate::*;
+use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -37,7 +36,6 @@ use sp_core::{
 	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
 	ByteArray, Pair, H256,
 };
-
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
@@ -115,6 +113,11 @@ fn test_add_balance_new_account() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
@@ -125,6 +128,24 @@ fn test_add_balance_new_account() {
 		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+		// test get_balance()
+		state.commit();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
+		assert_eq!(from_fn, amount.into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
+		// account present
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = amount.into();
+		assert_eq!(
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
@@ -136,6 +157,11 @@ fn test_add_balance_existing_account_with_balance() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
@@ -154,6 +180,39 @@ fn test_add_balance_existing_account_with_balance() {
 		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
+		// test get_balance()
+		state.commit();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
+		assert_eq!(from_fn, (amount + amount2).into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
+		// account present
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = (amount + amount2).into();
+		assert_eq!(
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
+		// conversion test
+		let created = ObRecoveryState {
+			snapshot_id: rs.0,
+			account_ids: rs.1.clone(),
+			balances: rs.2.clone(),
+			last_processed_block_number: rs.3,
+			state_change_id: rs.4,
+			worker_nonce: rs.5,
+		};
+		let c_encoded = created.encode();
+		let encoded = rs.encode();
+		assert_eq!(c_encoded, encoded);
+		let decoded = ObRecoveryState::decode(&mut encoded.as_ref()).unwrap();
+		assert_eq!(decoded.account_ids, rs.1);
+		assert_eq!(decoded.balances, rs.2);
 	});
 }
 
@@ -186,6 +245,11 @@ fn test_sub_balance_existing_account_with_balance() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 3000000;
 		let mut root = crate::storage::load_trie_root();
@@ -213,6 +277,24 @@ fn test_sub_balance_existing_account_with_balance() {
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
 		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
+		// test get_balance()
+		state.commit();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
+		assert_eq!(from_fn, (amount - amount2 - amount3).into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
+		// account present
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = (amount - amount2 - amount3).into();
+		assert_eq!(
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
@@ -2168,6 +2250,7 @@ fn test_withdrawal() {
 }
 
 use orderbook_primitives::{
+	recovery::ObRecoveryState,
 	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
 	Fees,
 };

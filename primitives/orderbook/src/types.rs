@@ -24,6 +24,7 @@ use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
 use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
+use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
@@ -50,7 +51,7 @@ pub struct AccountInfo {
 }
 
 /// Defines account to asset map DTO to be used in the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct AccountAsset {
 	/// Main account identifier.
@@ -130,7 +131,6 @@ impl Trade {
 #[cfg(feature = "std")]
 use chrono::Utc;
 use rust_decimal::prelude::FromPrimitive;
-use scale_info::TypeInfo;
 
 impl Trade {
 	/// Constructor.
