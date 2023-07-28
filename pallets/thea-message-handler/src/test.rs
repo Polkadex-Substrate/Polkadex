@@ -21,7 +21,6 @@ use crate::{
 	TransactionSource, *,
 };
 use frame_support::{assert_noop, assert_ok};
-use frame_system::EventRecord;
 use parity_scale_codec::{Decode, Encode};
 use sp_core::{ByteArray, Pair};
 use sp_runtime::traits::BadOrigin;

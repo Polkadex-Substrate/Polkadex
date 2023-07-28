@@ -25,7 +25,7 @@ use sp_runtime::DispatchError::BadOrigin;
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 use sp_std::collections::btree_set::BTreeSet;
 
-const PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
+static PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
 
 fn any_signature() -> <Test as Config>::Signature {
 	<Test as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap()
@@ -39,10 +39,7 @@ fn set_200_validators() -> [Pair; 200] {
 	}
 	let mut bv: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
 		BoundedVec::with_max_capacity();
-	validators
-		.clone()
-		.into_iter()
-		.for_each(|v| bv.try_push(v.public().into()).unwrap());
+	validators.clone().into_iter().for_each(|v| bv.try_push(v.public()).unwrap());
 	<Authorities<Test>>::insert(0, bv);
 	validators
 		.try_into()
@@ -141,16 +138,13 @@ fn test_incoming_messages_bad_inputs() {
 			Thea::incoming_message(
 				RuntimeOrigin::signed(1),
 				message.clone(),
-				vec![(0, proper_sig.clone().into())]
+				vec![(0, proper_sig.clone())]
 			),
 			BadOrigin
 		);
 		// bad threshold
 		assert_err!(
-			Thea::validate_incoming_message(
-				&message.clone(),
-				&vec![(0, proper_sig.clone().into())]
-			),
+			Thea::validate_incoming_message(&message.clone(), &vec![(0, proper_sig.clone())]),
 			InvalidTransaction::Custom(4)
 		);
 
@@ -158,7 +152,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message_for_nonce(u64::MAX),
-				&vec![(0, proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone())]
 			),
 			InvalidTransaction::Custom(1)
 		);
@@ -166,7 +160,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message_for_nonce(u64::MIN),
-				&vec![(0, proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone())]
 			),
 			InvalidTransaction::Custom(1)
 		);
@@ -175,7 +169,7 @@ fn test_incoming_messages_bad_inputs() {
 		bad_message.block_no = 1; // changing bit
 		let bad_message_call = Call::<Test>::incoming_message {
 			payload: bad_message,
-			signatures: vec![(0, proper_sig.clone().into())],
+			signatures: vec![(0, proper_sig.clone())],
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
 		// bad signature

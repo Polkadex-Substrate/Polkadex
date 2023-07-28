@@ -29,6 +29,7 @@ jsonrpsee = { version = "0.16.2", features = ["server"] }
 node-polkadex-runtime = { path = "../runtime" }
 rpc-assets = { path = "../rpc/assets" }
 pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
+pallet-ocex-rpc = { path = "../pallets/ocex/rpc" }
 polkadex-client = { path = "../client" }
 
 thea = { path = "../pallets/thea" }
