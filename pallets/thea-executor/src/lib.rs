@@ -386,9 +386,10 @@ pub mod pallet {
 				// User is ready to pay for remaining pending withdrawal for quick withdrawal
 				let extra_withdrawals_available =
 					T::WithdrawalSize::get().saturating_sub(pending_withdrawals.len() as u32);
-				total_fees = total_fees.saturating_add(
-					total_fees.saturating_mul(extra_withdrawals_available.saturated_into()),
-				)
+				total_fees =
+					total_fees.saturating_add(total_fees.saturating_mul(
+						extra_withdrawals_available.saturating_sub(1).saturated_into(),
+					))
 			}
 
 			// Pay the fees
