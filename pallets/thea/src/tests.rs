@@ -113,7 +113,10 @@ fn test_session_change() {
 		// Simulating the on_new_session to the first epoch of the next era.
 		Thea::on_new_session(false, queued.clone().into_iter(), queued.clone().into_iter());
 		assert!(Thea::validator_set_id() == 1);
-		assert!(Thea::outgoing_nonce(1) == 1);
+		assert!(Thea::outgoing_nonce(1) == 2);
+		let message = Thea::get_outgoing_messages(1, 2).unwrap();
+		assert_eq!(message.nonce, 2);
+		assert!(message.data.is_empty());
 	})
 }
 
