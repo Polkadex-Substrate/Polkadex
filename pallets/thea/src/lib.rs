@@ -391,8 +391,6 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				// TODO: Optimize this by checking if there is already another transfer
-				// that took place, so this dummy is unnecessary
 				Self::generate_payload(false, network, Vec::new())
 			}
 		}
