@@ -377,8 +377,8 @@ impl<T: Config> Pallet<T> {
 			// This should happen at the beginning of the last epoch
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
 				let payload = validator_set.encode();
-				for network in active_networks {
-					let message = Self::generate_payload(true, network, payload.clone());
+				for network in &active_networks {
+					let message = Self::generate_payload(true, *network, payload.clone());
 					// Update nonce
 					<OutgoingNonce<T>>::insert(message.network, message.nonce);
 					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
@@ -391,7 +391,9 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				Self::generate_payload(false, network, Vec::new())
+				let message = Self::generate_payload(false, network, Vec::new());
+				<OutgoingNonce<T>>::insert(network, message.nonce);
+				<OutgoingMessages<T>>::insert(network, message.nonce, message);
 			}
 		}
 	}
