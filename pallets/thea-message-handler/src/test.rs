@@ -132,7 +132,7 @@ fn test_incoming_message_full() {
 				&vs.clone(),
 				&vec![(0, signature.clone().into())]
 			),
-			InvalidTransaction::Custom(2)
+			InvalidTransaction::Custom(3)
 		);
 	})
 }
