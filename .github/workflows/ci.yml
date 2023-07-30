@@ -3,7 +3,7 @@ name: Continuous Integration
 on:
   pull_request: []
   push:
-    branches: [Develop, main-net-runtime]
+    branches: [Develop, mainnet-release]
 
 env:
   RUNNER_INSTANCE_TYPE: c5d.9xlarge
