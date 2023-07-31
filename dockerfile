@@ -18,7 +18,7 @@
 
 FROM bitnami/git:latest AS builder
 
-RUN apt-get update && apt-get install --assume-yes curl build-essential cmake clang jq
+RUN apt-get update && apt-get install --assume-yes curl build-essential cmake clang jq protobuf-compiler ca-certificates
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   export PATH="$PATH:$HOME/.cargo/bin" && \
