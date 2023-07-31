@@ -46,6 +46,7 @@ pub trait WeightInfo {
 
 #[frame_support::pallet]
 pub mod pallet {
+	use std::collections::BTreeMap;
 	use super::*;
 	use frame_support::{
 		log,
@@ -53,6 +54,9 @@ pub mod pallet {
 		sp_runtime::SaturatedConversion,
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
+	use frame_support::traits::fungible::Inspect as FungibleInspect;
+	use frame_support::traits::tokens::Fortitude;
+	use frame_system::EnsureNone;
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
@@ -63,13 +67,36 @@ pub mod pallet {
 	};
 	use xcm::VersionedMultiLocation;
 
+	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo, Default)]
+	pub struct NewAccount {
+		whitelisted_tokens: BTreeMap<u128, u128>
+	}
+
+	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
+	pub enum TokenType {
+		MoreThanNative,
+		LessThanNative
+	}
+
+	impl Default for TokenType {
+		fn default() -> Self {
+			Self::MoreThanNative
+		}
+	}
+
+	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo, Default)]
+	pub struct TokenValue {
+		pub token_type: TokenType,
+		pub value: u128
+	}
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + thea::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Balances Pallet
@@ -144,6 +171,18 @@ pub mod pallet {
 	#[pallet::getter(fn asset_metadata)]
 	pub(super) type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
 
+	/// Pending account to be created
+	#[pallet::storage]
+	#[pallet::getter(fn pending_account)]
+	pub(super) type PendingAccount<T: Config> =
+	StorageMap<_, Blake2_128Concat, T::AccountId, NewAccount, ValueQuery>;
+
+	/// Token Value
+	#[pallet::storage]
+	#[pallet::getter(fn token_value)]
+	pub(super) type TokenValues<T: Config> =
+	StorageMap<_, Blake2_128Concat, u128, TokenValue, ValueQuery>;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
@@ -208,12 +247,25 @@ pub mod pallet {
 			);
 			for (network_id, withdrawal) in pending_withdrawals {
 				// This is fine as this trait is not supposed to fail
-				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
+				if <T as pallet::Config>::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
 					log::error!("Error while executing withdrawals...");
 				}
 			}
 			//TODO: Clean Storage
 			Weight::default()
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::claim_unsigned { user, signature } =>
+					Self::validate_incoming_message(user, signature),
+				_ => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 
@@ -246,9 +298,8 @@ pub mod pallet {
 		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
+		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32, asset_id: Some<u128>) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-
 			let mut deposits = <ApprovedDeposits<T>>::get(&user);
 			let length: u32 = deposits.len().saturated_into();
 			let length: u32 = if length <= num_deposits { length } else { num_deposits };
@@ -334,6 +385,13 @@ pub mod pallet {
 			let metadata = AssetMetadata::new(decimal).ok_or(Error::<T>::InvalidDecimal)?;
 			<Metadata<T>>::insert(asset_id, metadata);
 			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));
+			Ok(())
+		}
+
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_asset_metadata(1))]
+		pub fn claim_unsigned(origin: OriginFor<T>, user: T::AccountId, signature: T::Signature) -> DispatchResult {
+			ensure_none(origin)?;
 			Ok(())
 		}
 	}
@@ -436,9 +494,19 @@ pub mod pallet {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
-				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
-					pending_deposits.push(deposit.clone())
-				});
+				if T::Currency::reducible_balance(&deposit.recipient, Preservation::Preserve, Fortitude::Polite) < T::Currency::minimum_balance() /* Also Check if token whitlisteed*/{
+					<PendingAccount<T>>::mutate(&deposit.recipient, |pending_account| {
+						if let Some(balance) = pending_account.whitelisted_tokens.get_mut(&deposit.asset_id) {
+							*balance=balance.saturating_add(deposit.amount );
+						} else {
+							pending_account.whitelisted_tokens.insert(deposit.asset_id, deposit.amount); //TODO use .entry
+						}
+					})
+				} else {
+					<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
+						pending_deposits.push(deposit.clone())
+					});
+				}
 				Self::deposit_event(Event::<T>::DepositApproved(
 					network,
 					deposit.recipient,
@@ -476,6 +544,36 @@ pub mod pallet {
 				deposit.id,
 			));
 			Ok(())
+		}
+
+		pub fn validate_incoming_message(user: &T::AccountId, signature: &T::Signature) -> TransactionValidity {
+			let pending_account = <PendingAccount<T>>::get(user);
+			let pdex_unit:u128 = 2; // Change with constant
+			for (token, amount) in pending_account.whitelisted_tokens {
+				let asset_type = <TokenValues<T>>::get(token);
+				match asset_type.token_type {
+					TokenType::MoreThanNative => {
+						// If it is more than required amount then approve it
+						if amount.saturating_mul(asset_type.value) > pdex_unit {
+							return ValidTransaction::with_tag_prefix("thea")
+								.and_provides((token, amount).encode())
+								.longevity(3)
+								.propagate(true)
+								.build();
+						}
+					}
+					TokenType::LessThanNative => {
+						if amount.saturating_div(asset_type.value) > pdex_unit {
+							return ValidTransaction::with_tag_prefix("thea")
+								.and_provides((token, amount).encode())
+								.longevity(3)
+								.propagate(true)
+								.build();
+						}
+					}
+				}
+			}
+			InvalidTransaction::Custom(1).into()
 		}
 	}
 

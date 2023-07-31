@@ -18,13 +18,14 @@ sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 xcm = { workspace = true, default-features = false }
+thea = { path = "../thea", default-features = false }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
-thea = { path = "../thea" }
+
 
 [features]
 default = ["std"]
