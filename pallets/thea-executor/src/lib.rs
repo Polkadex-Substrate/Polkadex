@@ -72,23 +72,7 @@ pub mod pallet {
 		whitelisted_tokens: BTreeMap<u128, u128>
 	}
 
-	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
-	pub enum TokenType {
-		MoreThanNative,
-		LessThanNative
-	}
-
-	impl Default for TokenType {
-		fn default() -> Self {
-			Self::MoreThanNative
-		}
-	}
-
-	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo, Default)]
-	pub struct TokenValue {
-		pub token_type: TokenType,
-		pub value: u128
-	}
+	type ForeignCurrencyAmount = u128;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -181,7 +165,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn token_value)]
 	pub(super) type TokenValues<T: Config> =
-	StorageMap<_, Blake2_128Concat, u128, TokenValue, ValueQuery>;
+	StorageMap<_, Blake2_128Concat, u128, ForeignCurrencyAmount, OptionQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
@@ -262,8 +246,13 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::claim_unsigned { user, signature } =>
-					Self::validate_incoming_message(user, signature),
+				Call::claim_deposit { _num_deposits, user, asset_id } =>
+				    if let (Some(user), Some(asset_id)) = (user, asset_id) {
+						Self::validate_incoming_message(user, asset_id)
+					} else {
+						InvalidTransaction::Custom(10).into()
+					}
+					,
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -274,7 +263,7 @@ pub mod pallet {
 		/// An example dispatch able that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::withdraw(1))]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -296,31 +285,92 @@ pub mod pallet {
 		/// * `origin`: User.
 		/// * `num_deposits`: Number of deposits to claim from available deposits,
 		/// (it's used to parametrise the weight of this extrinsic).
+		//TODO: Put transactional
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32, asset_id: Some<u128>) -> DispatchResult {
-			let user = ensure_signed(origin)?;
-			let mut deposits = <ApprovedDeposits<T>>::get(&user);
-			let length: u32 = deposits.len().saturated_into();
-			let length: u32 = if length <= num_deposits { length } else { num_deposits };
-			for _ in 0..length {
-				if let Some(deposit) = deposits.pop() {
-					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
-						deposits.push(deposit);
-						// Save it back on failure
-						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
-						return Err(err)
+		#[pallet::weight(< T as Config >::WeightInfo::claim_deposit(1))]
+		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32, user: Option<T::AccountId>, asset_id: Option<u128>) -> DispatchResult {
+			if let Some(asset_id) = asset_id {
+				ensure_none(origin)?;
+				let user = user.ok_or(Error::<T>::AssetNotRegistered)?; //TODO: User not found
+				<PendingAccount<T>>::try_mutate(user.clone(), |pending_account| {
+					if let Some(amount) = pending_account.whitelisted_tokens.get(&asset_id) {
+						if let Some(value) = <TokenValues<T>>::get(asset_id) {
+							let metadata =
+								<Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?; //TODO: Update the eror
+							let converted_amount = metadata.convert_to_native_decimals(*amount);
+							let amount_to_minted = converted_amount.saturating_sub(value);
+							let pallet_id = Self::thea_account();
+							let pdex_amount: u128 = 2; //TODO: Change to constant
+							Self::resolver_deposit(
+								T::NativeAssetId::get(),
+								pdex_amount,
+								&user,
+								Self::thea_account(),
+								1u128,
+								Self::thea_account(),
+							)?;
+							Self::resolver_deposit(
+								asset_id.into(),
+								amount_to_minted,
+								&user,
+								Self::thea_account(),
+								1u128,
+								Self::thea_account(),
+							)?;
+							Self::resolver_deposit(
+								asset_id.into(),
+								// Convert the decimals config
+								value,
+								&pallet_id,
+								Self::thea_account(),
+								1u128,
+								Self::thea_account(),
+							)?;
+							pending_account.whitelisted_tokens.remove(&asset_id);
+						}
 					}
-				} else {
-					break
-				}
-			}
-
-			if !deposits.is_empty() {
-				// If pending deposits are available, save it back
-				<ApprovedDeposits<T>>::insert(&user, deposits)
+					Ok::<(), sp_runtime::DispatchError>(())
+				})?;
 			} else {
-				<ApprovedDeposits<T>>::remove(&user);
+				let user = ensure_signed(origin)?;
+				<PendingAccount<T>>::try_mutate(user.clone(), |pending_account| {
+						while let Some((asset, amount)) = pending_account.whitelisted_tokens.pop_last() {
+							let metadata =
+								<Metadata<T>>::get(asset).ok_or(Error::<T>::AssetNotRegistered)?; //TODO: Update the error
+							let converted_amount = metadata.convert_to_native_decimals(amount);
+							Self::resolver_deposit(
+								asset.into(),
+								converted_amount,
+								&user,
+								Self::thea_account(),
+								1u128,
+								Self::thea_account(),
+							)?;
+						}
+						Ok::<(), sp_runtime::DispatchError>(())
+					})?;
+				let mut deposits = <ApprovedDeposits<T>>::get(&user);
+				let length: u32 = deposits.len().saturated_into();
+				let length: u32 = if length <= num_deposits { length } else { num_deposits };
+				for _ in 0..length {
+					if let Some(deposit) = deposits.pop() {
+						if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
+							deposits.push(deposit);
+							// Save it back on failure
+							<ApprovedDeposits<T>>::insert(&user, deposits.clone());
+							return Err(err)
+						}
+					} else {
+						break
+					}
+				}
+
+				if !deposits.is_empty() {
+					// If pending deposits are available, save it back
+					<ApprovedDeposits<T>>::insert(&user, deposits)
+				} else {
+					<ApprovedDeposits<T>>::remove(&user);
+				}
 			}
 
 			Ok(())
@@ -333,7 +383,7 @@ pub mod pallet {
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_withdrawal_fee(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::set_withdrawal_fee(1))]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -347,7 +397,7 @@ pub mod pallet {
 
 		/// Withdraws to parachain networks in Polkadot
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::parachain_withdraw(1))]
 		pub fn parachain_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -375,7 +425,7 @@ pub mod pallet {
 		/// * `asset_id`: Asset Id.
 		/// * `metadata`: AssetMetadata.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_asset_metadata(1))]
+		#[pallet::weight(< T as Config >::WeightInfo::update_asset_metadata(1))]
 		pub fn update_asset_metadata(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -385,13 +435,6 @@ pub mod pallet {
 			let metadata = AssetMetadata::new(decimal).ok_or(Error::<T>::InvalidDecimal)?;
 			<Metadata<T>>::insert(asset_id, metadata);
 			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));
-			Ok(())
-		}
-
-		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_asset_metadata(1))]
-		pub fn claim_unsigned(origin: OriginFor<T>, user: T::AccountId, signature: T::Signature) -> DispatchResult {
-			ensure_none(origin)?;
 			Ok(())
 		}
 	}
@@ -494,10 +537,10 @@ pub mod pallet {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
-				if T::Currency::reducible_balance(&deposit.recipient, Preservation::Preserve, Fortitude::Polite) < T::Currency::minimum_balance() /* Also Check if token whitlisteed*/{
+				if T::Currency::reducible_balance(&deposit.recipient, Preservation::Preserve, Fortitude::Polite) < T::Currency::minimum_balance() /* Also Check if token whitlisteed*/ {
 					<PendingAccount<T>>::mutate(&deposit.recipient, |pending_account| {
 						if let Some(balance) = pending_account.whitelisted_tokens.get_mut(&deposit.asset_id) {
-							*balance=balance.saturating_add(deposit.amount );
+							*balance = balance.saturating_add(deposit.amount);
 						} else {
 							pending_account.whitelisted_tokens.insert(deposit.asset_id, deposit.amount); //TODO use .entry
 						}
@@ -546,34 +589,28 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn validate_incoming_message(user: &T::AccountId, signature: &T::Signature) -> TransactionValidity {
+		pub fn validate_incoming_message(user: &T::AccountId, asset_id: &u128) -> TransactionValidity {
 			let pending_account = <PendingAccount<T>>::get(user);
-			let pdex_unit:u128 = 2; // Change with constant
-			for (token, amount) in pending_account.whitelisted_tokens {
-				let asset_type = <TokenValues<T>>::get(token);
-				match asset_type.token_type {
-					TokenType::MoreThanNative => {
-						// If it is more than required amount then approve it
-						if amount.saturating_mul(asset_type.value) > pdex_unit {
-							return ValidTransaction::with_tag_prefix("thea")
-								.and_provides((token, amount).encode())
-								.longevity(3)
-								.propagate(true)
-								.build();
-						}
+			if let Some(amount) = pending_account.whitelisted_tokens.get(asset_id) {
+				let metadata =
+					<Metadata<T>>::get(asset_id).ok_or(InvalidTransaction::Custom(1))?; //TODO: Fix error
+				let converted_amount = metadata.convert_to_native_decimals(*amount);
+				if let Some(value) = <TokenValues<T>>::get(asset_id) {
+					if value < converted_amount {
+						ValidTransaction::with_tag_prefix("thea")
+							.and_provides((asset_id, amount).encode())
+							.longevity(3)
+							.propagate(true)
+							.build()
+					} else {
+						InvalidTransaction::Custom(2).into()
 					}
-					TokenType::LessThanNative => {
-						if amount.saturating_div(asset_type.value) > pdex_unit {
-							return ValidTransaction::with_tag_prefix("thea")
-								.and_provides((token, amount).encode())
-								.longevity(3)
-								.propagate(true)
-								.build();
-						}
-					}
+				} else {
+					InvalidTransaction::Custom(3).into()
 				}
+			} else {
+				InvalidTransaction::Custom(4).into()
 			}
-			InvalidTransaction::Custom(1).into()
 		}
 	}
 
