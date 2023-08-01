@@ -140,15 +140,16 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
 
-		if sp_io::offchain::is_validator() {
-			// Create state hash.
-			state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-			Self::store_state_info(state_info.clone(), &mut state)?;
-			state.commit();
-			let state_hash: H256 = *state.root();
-			store_trie_root(state_hash);
-			log::info!(target:"ocex","updated trie root: {:?}", state.root());
+		// Create state hash and store it
+		state_info.stid = batch.stid;
+		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
+		Self::store_state_info(state_info.clone(), &mut state)?;
+		state.commit();
+		let state_hash: H256 = *state.root();
+		store_trie_root(state_hash);
+		log::info!(target:"ocex","updated trie root: {:?}", state.root());
 
+		if sp_io::offchain::is_validator() {
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
@@ -348,7 +349,7 @@ impl<T: Config> Pallet<T> {
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
-fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
 		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
@@ -489,7 +490,7 @@ fn map_http_err(err: HttpError) -> &'static str {
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
-	result: Vec<u8>,
+	pub(crate) result: Vec<u8>,
 	id: u64,
 }
 
