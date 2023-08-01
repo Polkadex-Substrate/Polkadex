@@ -376,8 +376,17 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: T::BlockNumber) {
 			log::debug!(target:"ocex", "offchain worker started");
-			if let Err(err) = Self::run_on_chain_validation(block_number) {
-				log::error!(target:"ocex","OCEX worker error: {}",err)
+
+			match Self::run_on_chain_validation(block_number) {
+				Ok(exit_flag) => {
+					// If exit flag is false, then another worker is online
+					if !exit_flag {
+						return
+					}
+				},
+				Err(err) => {
+					log::error!(target:"ocex","OCEX worker error: {}",err);
+				},
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);

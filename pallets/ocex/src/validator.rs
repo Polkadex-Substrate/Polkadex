@@ -45,7 +45,7 @@ pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
 	/// submits snapshot summary to aggregator endpoint
-	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
+	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<bool, &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
@@ -74,7 +74,7 @@ impl<T: Config> Pallet<T> {
 			Some(true) => {
 				// Another worker is online, so exit
 				log::info!(target:"ocex", "Another worker is online, so exit");
-				return Ok(())
+				return Ok(false)
 			},
 			None => {},
 			Some(false) => {},
@@ -98,7 +98,7 @@ impl<T: Config> Pallet<T> {
 			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
 			// resubmit the summary to aggregator
 			load_signed_summary_and_send::<T>(next_nonce);
-			return Ok(())
+			return Ok(true)
 		}
 
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
@@ -114,7 +114,7 @@ impl<T: Config> Pallet<T> {
 				let batch = match get_user_action_batch::<T>(nonce) {
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
-						return Ok(())
+						return Ok(true)
 					},
 					Some(batch) => batch,
 				};
@@ -136,7 +136,7 @@ impl<T: Config> Pallet<T> {
 				state.commit();
 				store_trie_root(*state.root());
 				log::debug!(target:"ocex","Stored state root: {:?}",state.root());
-				return Ok(())
+				return Ok(true)
 			},
 			Some(batch) => batch,
 		};
@@ -192,7 +192,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		Ok(())
+		Ok(true)
 	}
 
 	fn import_blk(
