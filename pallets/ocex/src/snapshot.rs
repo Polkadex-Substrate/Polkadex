@@ -20,7 +20,7 @@ use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::BlockNumber;
 
 // Accounts storage
-#[derive(Encode, Decode, PartialEq, Debug, Clone, Default)]
+#[derive(Encode, Decode, PartialEq, Debug, Clone)]
 pub struct StateInfo {
 	/// Last block processed
 	pub last_block: BlockNumber,
@@ -30,4 +30,10 @@ pub struct StateInfo {
 	pub stid: u64,
 	/// Last processed snapshot id
 	pub snapshot_id: u64,
+}
+
+impl Default for StateInfo {
+	fn default() -> Self {
+		Self { last_block: 4768083, worker_nonce: 0, stid: 0, snapshot_id: 0 }
+	}
 }

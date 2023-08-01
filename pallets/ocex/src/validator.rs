@@ -104,8 +104,12 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
 		if next_nonce.saturating_sub(last_processed_nonce) > 2 {
-			// We need to sync our offchain state
+			if state_info.last_block == 0 {
+				state_info.last_block = 4768083; // This is hard coded as the starting point
+			}
+			// We need to sync our off chain state
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
+				log::info!(target:"ocex","Syncing batch: {:?}",nonce);
 				// Load the next ObMessages
 				let batch = match get_user_action_batch::<T>(nonce) {
 					None => {
