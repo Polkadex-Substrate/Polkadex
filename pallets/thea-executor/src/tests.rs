@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
+use std::future::pending;
 use crate::{
 	mock::{new_test_ext, Assets, Test, *},
 	PendingWithdrawals, WithdrawalFees, *,
@@ -152,7 +154,7 @@ fn test_claim_deposit_returns_ok() {
 			extra: vec![],
 		};
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1));
+		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, None, None));
 	})
 }
 
@@ -179,7 +181,7 @@ fn test_claim_deposit_returns_asset_not_registered() {
 		};
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
 		assert_noop!(
-			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1),
+			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, None, None),
 			crate::Error::<Test>::AssetNotRegistered
 		);
 	})
@@ -333,4 +335,48 @@ fn test_update_asset_metadata_full() {
 		let md = AssetMetadata::new(u8::MAX).unwrap();
 		assert_last_event::<Test>(Event::<Test>::AssetMetadataSet(md).into());
 	})
+}
+//
+#[test]
+fn test_unsgined_claim_deposit_returns_ok() {
+	new_test_ext().execute_with(|| {
+		let recipient_account = 2u64;
+		let usdt_asset = 1984;
+		let pending_account = setup_pending_account(usdt_asset);
+		<PendingAccount<Test>>::insert(recipient_account, pending_account);
+        <TokenValues<Test>>::insert(usdt_asset, 1_000_000_000_000);
+		let asset_metadata = AssetMetadata::new(6).unwrap();
+		<Metadata<Test>>::insert(usdt_asset, asset_metadata);
+		Balances::set_balance(&TheaExecutor::thea_account(), 10_000_000_000_000u128.saturated_into());
+		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::none(), 1, Some(recipient_account), Some(usdt_asset)));
+		// Verify balances
+		assert_eq!(Balances::free_balance(recipient_account), 2_000_000_000_000);
+		assert_eq!(Balances::free_balance(TheaExecutor::thea_account()), 8_000_000_000_000);
+		assert_eq!(Assets::balance(usdt_asset ,TheaExecutor::thea_account()), 1_000_000_000_000);
+		assert_eq!(Assets::balance(usdt_asset ,recipient_account), 9_000_000_000_000);
+	})
+}
+
+fn test_unsigned_claim_deposit_returns_AccountNotProvided() {
+	new_test_ext().execute_with(|| {
+		let recipient_account = 2u64;
+		let usdt_asset = 1984;
+		let pending_account = setup_pending_account(usdt_asset);
+		<PendingAccount<Test>>::insert(recipient_account, pending_account);
+		<TokenValues<Test>>::insert(usdt_asset, 1_000_000_000_000);
+		let asset_metadata = AssetMetadata::new(6).unwrap();
+		<Metadata<Test>>::insert(usdt_asset, asset_metadata);
+		Balances::set_balance(&TheaExecutor::thea_account(), 10_000_000_000_000u128.saturated_into());
+		assert_noop!(TheaExecutor::claim_deposit(RuntimeOrigin::none(), 1, None, Some(usdt_asset)), Error::<Test>::UserDoesntHaveEnoughBalance);
+	})
+}
+
+fn test_unsigned_claim_deposit_returns_
+
+fn setup_pending_account(asset: u128) -> NewAccount {
+	let mut asset_list = BTreeMap::new();
+	let amount: u128 = 10_000_000;
+	asset_list.insert(asset, amount);
+	let pending_account: NewAccount = NewAccount{ whitelisted_tokens: asset_list };
+	pending_account
 }

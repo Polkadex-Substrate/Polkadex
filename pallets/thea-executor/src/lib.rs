@@ -70,7 +70,7 @@ pub mod pallet {
 
 	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo, Default)]
 	pub struct NewAccount {
-		whitelisted_tokens: BTreeMap<u128, u128>
+		pub(crate) whitelisted_tokens: BTreeMap<u128, u128>
 	}
 
 	type ForeignCurrencyAmount = u128;
@@ -225,7 +225,9 @@ pub mod pallet {
 		/// Wrong network
 		WrongNetwork,
 		/// Account not provided
-		AccountNotProvided
+		AccountNotProvided,
+		/// User doesnt have enough Balance
+		UserDoesntHaveEnoughBalance
 	}
 
 	#[pallet::hooks]
@@ -304,7 +306,7 @@ pub mod pallet {
 							let metadata =
 								<Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 							let converted_amount = metadata.convert_to_native_decimals(*amount);
-							let amount_to_minted = converted_amount.saturating_sub(value);
+							let amount_to_minted = converted_amount.checked_sub(value).ok_or(Error::<T>::UserDoesntHaveEnoughBalance)?;
 							let pallet_id = Self::thea_account();
 							let pdex_amount: u128 = T::TransferAmount::get();
 							Self::resolver_deposit(

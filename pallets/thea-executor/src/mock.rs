@@ -152,6 +152,7 @@ parameter_types! {
 	pub const WithdrawalSize: u32 = 10;
 	pub const PolkadexAssetId: u128 = 0;
 	pub const ParaId: u32 = 2040;
+	pub const TransferAmount: u128 = 2_000_000_000_000;
 }
 
 impl thea_executor::Config for Test {
@@ -165,6 +166,7 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type TransferAmount = TransferAmount;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
