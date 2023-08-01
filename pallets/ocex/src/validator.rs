@@ -1,5 +1,5 @@
 use crate::{
-	pallet::{Accounts, ValidatorSetId},
+	pallet::ValidatorSetId,
 	settlement::{add_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
 	storage::store_trie_root,
@@ -242,12 +242,14 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
 		log::info!(target:"ocex","Settling withdraw request...");
 		let amount = request.amount().map_err(|_| "decimal conversion error")?;
-		let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
+		// FIXME: Don't remove these comments, will be reintroduced after fixing the race condition
+		// let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
 
-		if !account_info.proxies.contains(&request.proxy) {
-			// TODO: Check Race condition
-			return Err("Proxy not found")
-		}
+		// if !account_info.proxies.contains(&request.proxy) {
+		// 	// TODO: Check Race condition
+		// 	return Err("Proxy not found")
+		// }
+
 		if !request.verify() {
 			return Err("SignatureVerificationFailed")
 		}
