@@ -66,6 +66,7 @@ pub mod pallet {
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
+	use frame_support::transactional;
 
 	#[derive(Clone, Encode, Decode, PartialEq, Debug, TypeInfo, Default)]
 	pub struct NewAccount {
@@ -112,6 +113,8 @@ pub mod pallet {
 		type WithdrawalSize: Get<u32>;
 		/// Para Id
 		type ParaId: Get<u32>;
+		/// Asset to be Transferred
+		type TransferAmount: Get<u128>;
 		/// Type representing the weight of this pallet
 		type WeightInfo: WeightInfo;
 	}
@@ -221,6 +224,8 @@ pub mod pallet {
 		NoApprovedDeposit,
 		/// Wrong network
 		WrongNetwork,
+		/// Account not provided
+		AccountNotProvided
 	}
 
 	#[pallet::hooks]
@@ -246,7 +251,7 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::claim_deposit { _num_deposits, user, asset_id } =>
+				Call::claim_deposit { num_deposits, user, asset_id } =>
 				    if let (Some(user), Some(asset_id)) = (user, asset_id) {
 						Self::validate_incoming_message(user, asset_id)
 					} else {
@@ -288,19 +293,20 @@ pub mod pallet {
 		//TODO: Put transactional
 		#[pallet::call_index(1)]
 		#[pallet::weight(< T as Config >::WeightInfo::claim_deposit(1))]
+		#[transactional]
 		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32, user: Option<T::AccountId>, asset_id: Option<u128>) -> DispatchResult {
 			if let Some(asset_id) = asset_id {
 				ensure_none(origin)?;
-				let user = user.ok_or(Error::<T>::AssetNotRegistered)?; //TODO: User not found
+				let user = user.ok_or(Error::<T>::AccountNotProvided)?;
 				<PendingAccount<T>>::try_mutate(user.clone(), |pending_account| {
 					if let Some(amount) = pending_account.whitelisted_tokens.get(&asset_id) {
 						if let Some(value) = <TokenValues<T>>::get(asset_id) {
 							let metadata =
-								<Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?; //TODO: Update the eror
+								<Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 							let converted_amount = metadata.convert_to_native_decimals(*amount);
 							let amount_to_minted = converted_amount.saturating_sub(value);
 							let pallet_id = Self::thea_account();
-							let pdex_amount: u128 = 2; //TODO: Change to constant
+							let pdex_amount: u128 = T::TransferAmount::get();
 							Self::resolver_deposit(
 								T::NativeAssetId::get(),
 								pdex_amount,
@@ -336,7 +342,7 @@ pub mod pallet {
 				<PendingAccount<T>>::try_mutate(user.clone(), |pending_account| {
 						while let Some((asset, amount)) = pending_account.whitelisted_tokens.pop_last() {
 							let metadata =
-								<Metadata<T>>::get(asset).ok_or(Error::<T>::AssetNotRegistered)?; //TODO: Update the error
+								<Metadata<T>>::get(asset).ok_or(Error::<T>::AssetNotRegistered)?;
 							let converted_amount = metadata.convert_to_native_decimals(amount);
 							Self::resolver_deposit(
 								asset.into(),
@@ -539,11 +545,9 @@ pub mod pallet {
 			for deposit in deposits {
 				if T::Currency::reducible_balance(&deposit.recipient, Preservation::Preserve, Fortitude::Polite) < T::Currency::minimum_balance() /* Also Check if token whitlisteed*/ {
 					<PendingAccount<T>>::mutate(&deposit.recipient, |pending_account| {
-						if let Some(balance) = pending_account.whitelisted_tokens.get_mut(&deposit.asset_id) {
+						pending_account.whitelisted_tokens.entry(deposit.asset_id).and_modify(|balance| {
 							*balance = balance.saturating_add(deposit.amount);
-						} else {
-							pending_account.whitelisted_tokens.insert(deposit.asset_id, deposit.amount); //TODO use .entry
-						}
+						}).or_insert(deposit.amount);
 					})
 				} else {
 					<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
