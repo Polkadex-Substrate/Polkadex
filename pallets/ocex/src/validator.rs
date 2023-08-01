@@ -198,7 +198,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
-		if blk != state_info.last_block.saturating_add(1) {
+		if blk != state_info.last_block.saturating_add(1).into() {
 			return Err("BlockOutofSequence")
 		}
 
