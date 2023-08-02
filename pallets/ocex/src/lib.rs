@@ -1280,7 +1280,7 @@ pub mod pallet {
 				account_ids.insert(main, proxies);
 			}
 
-			let state_info = Self::get_state_info();
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
 			let last_processed_block_number = state_info.last_block;
 			let worker_nonce = state_info.worker_nonce;
 			let snapshot_id = state_info.snapshot_id;

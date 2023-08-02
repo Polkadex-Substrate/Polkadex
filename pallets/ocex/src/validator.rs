@@ -88,7 +88,14 @@ impl<T: Config> Pallet<T> {
 		let mut storage = crate::storage::State;
 		let mut state = OffchainState::load(&mut storage, &mut root);
 
-		let mut state_info = Self::load_state_info(&mut state);
+		let mut state_info = match Self::load_state_info(&mut state) {
+			Ok(info) => info,
+			Err(err) => {
+				log::error!(target:"ocex","Err loading state info from storage: {:?}",err);
+				store_trie_root(H256::zero());
+				return Err(err)
+			},
+		};
 
 		let last_processed_nonce = state_info.snapshot_id;
 
@@ -292,11 +299,10 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	fn load_state_info(state: &mut OffchainState) -> StateInfo {
-		match state.get(&STATE_INFO.to_vec()) {
-			Ok(Some(data)) => StateInfo::decode(&mut &data[..]).unwrap_or_default(),
-			Ok(None) => StateInfo::default(),
-			Err(_) => StateInfo::default(),
+	fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
+		match state.get(&STATE_INFO.to_vec())? {
+			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
+			None => Ok(StateInfo::default()),
 		}
 	}
 
@@ -333,7 +339,7 @@ impl<T: Config> Pallet<T> {
 		Ok(balance)
 	}
 
-	pub(crate) fn get_state_info() -> StateInfo {
+	pub(crate) fn get_state_info() -> Result<StateInfo, &'static str> {
 		let mut root = crate::storage::load_trie_root();
 		let mut storage = crate::storage::State;
 		let mut state = OffchainState::load(&mut storage, &mut root);
