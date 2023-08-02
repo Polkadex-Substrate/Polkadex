@@ -25,11 +25,10 @@ use sp_runtime::{
 		http::{Error, PendingRequest, Response},
 		storage::StorageValueRef,
 	},
-	traits::BlakeTwo256,
 	SaturatedConversion,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
-use sp_trie::{LayoutV1, TrieDBMut};
+
 use trie_db::{TrieError, TrieMut};
 
 /// Key of the storage that stores the status of an offchain worker
@@ -87,9 +86,9 @@ impl<T: Config> Pallet<T> {
 		let mut root = crate::storage::load_trie_root();
 		log::info!(target:"ocex","block: {:?}, state_root {:?}", _block_num, root);
 		let mut storage = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut storage, &mut root);
+		let mut state = OffchainState::load(&mut storage, &mut root);
 
-		let mut state_info = Self::load_state_info(&state);
+		let mut state_info = Self::load_state_info(&mut state);
 
 		let last_processed_nonce = state_info.snapshot_id;
 
@@ -132,10 +131,10 @@ impl<T: Config> Pallet<T> {
 				// Store the last processed nonce
 				// We need to -1 from next_nonce, as it is not yet processed
 				state_info.snapshot_id = next_nonce.saturating_sub(1);
-				Self::store_state_info(state_info, &mut state)?;
-				state.commit();
-				store_trie_root(*state.root());
-				log::debug!(target:"ocex","Stored state root: {:?}",state.root());
+				Self::store_state_info(state_info, &mut state);
+				let root = state.commit()?;
+				store_trie_root(root);
+				log::debug!(target:"ocex","Stored state root: {:?}",root);
 				return Ok(true)
 			},
 			Some(batch) => batch,
@@ -147,11 +146,10 @@ impl<T: Config> Pallet<T> {
 		// Create state hash and store it
 		state_info.stid = batch.stid;
 		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-		Self::store_state_info(state_info.clone(), &mut state)?;
-		state.commit();
-		let state_hash: H256 = *state.root();
+		Self::store_state_info(state_info.clone(), &mut state);
+		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
-		log::info!(target:"ocex","updated trie root: {:?}", state.root());
+		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
 
 		if sp_io::offchain::is_validator() {
 			match available_keys.get(0) {
@@ -197,7 +195,7 @@ impl<T: Config> Pallet<T> {
 
 	fn import_blk(
 		blk: T::BlockNumber,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state: &mut OffchainState,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
@@ -226,10 +224,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn trades(
-		trades: &Vec<Trade>,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
-	) -> Result<(), &'static str> {
+	fn trades(trades: &Vec<Trade>, state: &mut OffchainState) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Settling trades...");
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
@@ -242,7 +237,7 @@ impl<T: Config> Pallet<T> {
 
 	fn withdraw(
 		request: &WithdrawalRequest<T::AccountId>,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state: &mut OffchainState,
 		stid: u64,
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
 		log::info!(target:"ocex","Settling withdraw request...");
@@ -271,7 +266,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn process_batch(
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state: &mut OffchainState,
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
 	) -> Result<Vec<Withdrawal<T::AccountId>>, &'static str> {
@@ -297,20 +292,16 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	fn load_state_info(state: &TrieDBMut<LayoutV1<BlakeTwo256>>) -> StateInfo {
-		match state.get(&STATE_INFO) {
+	fn load_state_info(state: &mut OffchainState) -> StateInfo {
+		match state.get(&STATE_INFO.to_vec()) {
 			Ok(Some(data)) => StateInfo::decode(&mut &data[..]).unwrap_or_default(),
 			Ok(None) => StateInfo::default(),
 			Err(_) => StateInfo::default(),
 		}
 	}
 
-	fn store_state_info(
-		state_info: StateInfo,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
-	) -> Result<(), &'static str> {
-		let _ = state.insert(&STATE_INFO, &state_info.encode()).map_err(map_trie_error)?;
-		Ok(())
+	fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
+		state.insert(STATE_INFO.to_vec(), state_info.encode());
 	}
 
 	fn calculate_signer_index(
@@ -345,11 +336,12 @@ impl<T: Config> Pallet<T> {
 	pub(crate) fn get_state_info() -> StateInfo {
 		let mut root = crate::storage::load_trie_root();
 		let mut storage = crate::storage::State;
-		let state = crate::storage::get_state_trie(&mut storage, &mut root);
-		Self::load_state_info(&state)
+		let mut state = OffchainState::load(&mut storage, &mut root);
+		Self::load_state_info(&mut state)
 	}
 }
 
+use crate::storage::OffchainState;
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
