@@ -122,14 +122,14 @@ fn test_add_balance_new_account() {
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 		// test get_balance()
-		state.commit();
+		state.commit().unwrap();
 		drop(state);
 		store_trie_root(root);
 		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
@@ -166,10 +166,10 @@ fn test_add_balance_existing_account_with_balance() {
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
@@ -177,11 +177,11 @@ fn test_add_balance_existing_account_with_balance() {
 		let amount2 = 2000000;
 		let result = add_balance(&mut state, &account_id, asset_id, amount2.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
 		// test get_balance()
-		state.commit();
+		state.commit().unwrap();
 		drop(state);
 		store_trie_root(root);
 		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
@@ -217,6 +217,52 @@ fn test_add_balance_existing_account_with_balance() {
 }
 
 #[test]
+fn test_two_assets() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_bytes = [1u8; 32];
+		let pablo_main = AccountId::from(account_bytes);
+
+		let account_bytes = [2u8; 32];
+		let coinalpha = AccountId::from(account_bytes);
+
+		let account_id = pablo_main.clone();
+		let asset1 = AssetId::Asset(123);
+		let amount1 = Decimal::from_str("0.05").unwrap();
+
+		let asset2 = AssetId::Asset(456);
+		let amount2 = Decimal::from_str("0.1").unwrap();
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
+		add_balance(&mut state, &account_id, asset1, amount1.into()).unwrap();
+		add_balance(&mut state, &account_id, asset2, amount2.into()).unwrap();
+		let asset123 = AssetId::Asset(123);
+		let amount123 = Decimal::from_str("25.0").unwrap();
+
+		let asset456 = AssetId::Asset(456);
+		let amount456 = Decimal::from_str("10.0").unwrap();
+		// works
+		sub_balance(&mut state, &account_id, asset1, Decimal::from_str("0.01").unwrap().into())
+			.unwrap();
+		add_balance(&mut state, &coinalpha, asset123, amount123.into()).unwrap();
+		add_balance(&mut state, &coinalpha, asset456, amount456.into()).unwrap();
+		let root = state.commit().unwrap();
+		store_trie_root(root);
+		drop(state);
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
+		sub_balance(&mut state, &account_id, asset1, Decimal::from_str("0.01").unwrap().into())
+			.unwrap();
+		sub_balance(&mut state, &account_id, asset1, Decimal::from_str("0.01").unwrap().into())
+			.unwrap();
+	});
+}
+
+#[test]
 // check if balance can be subtracted from a new account
 fn test_sub_balance_new_account() {
 	let mut ext = new_test_ext();
@@ -228,7 +274,7 @@ fn test_sub_balance_new_account() {
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = sub_balance(&mut state, &account_id, asset_id, amount.into());
 		match result {
 			Ok(_) => assert!(false),
@@ -254,10 +300,10 @@ fn test_sub_balance_existing_account_with_balance() {
 		let amount = 3000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
@@ -265,7 +311,7 @@ fn test_sub_balance_existing_account_with_balance() {
 		let amount2 = 2000000;
 		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount - amount2).into());
 
@@ -273,12 +319,12 @@ fn test_sub_balance_existing_account_with_balance() {
 		let amount3 = amount - amount2;
 		let result = sub_balance(&mut state, &account_id, asset_id, amount3.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
 		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
 		// test get_balance()
-		state.commit();
+		state.commit().unwrap();
 		drop(state);
 		store_trie_root(root);
 		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
@@ -306,24 +352,24 @@ fn test_trie_update() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		assert!(state.is_empty());
 
-		state.insert(b"a", b"1").unwrap();
-		state.insert(b"b", b"2").unwrap();
-		state.insert(b"c", b"3").unwrap();
+		state.insert(b"a".to_vec(), b"1".to_vec());
+		state.insert(b"b".to_vec(), b"2".to_vec());
+		state.insert(b"c".to_vec(), b"3".to_vec());
 		assert!(!state.is_empty());
-		let root = state.root(); // This should flush everything to db.
-		crate::storage::store_trie_root(*root);
+		let root = state.commit().unwrap(); // This should flush everything to db.
+		crate::storage::store_trie_root(root);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
-		assert_eq!(state.get(b"a").unwrap().unwrap(), b"1");
-		assert_eq!(state.get(b"b").unwrap().unwrap(), b"2");
-		assert_eq!(state.get(b"c").unwrap().unwrap(), b"3");
+		assert_eq!(state.get(&b"a".to_vec()).unwrap().unwrap(), b"1");
+		assert_eq!(state.get(&b"b".to_vec()).unwrap().unwrap(), b"2");
+		assert_eq!(state.get(&b"c".to_vec()).unwrap().unwrap(), b"3");
 
-		state.insert(b"d", b"4").unwrap(); // This will not be in DB, as neither root() or commit() is called
+		state.insert(b"d".to_vec(), b"4".to_vec()); // This will not be in DB, as neither root() or commit() is called
 
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
@@ -346,7 +392,7 @@ fn test_balance_update_depost_first_then_trade() {
 		let amount = 20;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		let result = add_balance(
 			&mut state,
@@ -380,10 +426,10 @@ fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
 		let amount = 3000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
@@ -406,7 +452,7 @@ fn test_trade_between_two_accounts_without_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let config = get_trading_pair_config();
 		let amount = Decimal::from_str("20").unwrap();
 		let price = Decimal::from_str("2").unwrap();
@@ -428,7 +474,7 @@ fn test_trade_between_two_accounts_with_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -466,12 +512,12 @@ fn test_trade_between_two_accounts_with_balance() {
 		assert_ok!(result);
 
 		//check has 20 pdex now
-		let encoded = state.get(alice_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&alice_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&AssetId::Polkadex).unwrap(), &20.into());
 
 		//check if bob has 20 less pdex
-		let encoded = state.get(bob_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Polkadex).unwrap(),
@@ -479,7 +525,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		);
 
 		//check if bob has 40 more asset_1
-		let encoded = state.get(bob_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Asset(1)).unwrap(),
@@ -487,7 +533,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		);
 
 		//check if alice has 40 less asset_1
-		let encoded = state.get(alice_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&alice_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Asset(1)).unwrap(),
@@ -505,7 +551,7 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -539,7 +585,7 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -573,7 +619,7 @@ fn test_trade_between_two_accounts_invalid_signature() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -2255,6 +2301,7 @@ use orderbook_primitives::{
 	Fees,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
+
 use trie_db::TrieMut;
 
 #[test]
@@ -2303,6 +2350,7 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 use crate::{
 	settlement::{add_balance, process_trade, sub_balance},
 	sr25519::AuthorityId,
+	storage::OffchainState,
 };
 use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
