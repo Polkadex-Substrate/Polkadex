@@ -121,15 +121,19 @@ fn submit_message_to_aggregator<T: Config>(
 		log::error!(target:"thea","Error serializing approved message: {:?}",err);
 		"Error serializing approved message"
 	})?;
-	send_request("thea_aggregator_link", AGGREGRATOR_URL, body.as_str())?;
+	send_request("thea_aggregator_link", Destination::Aggregator, body.as_str())?;
 	Ok(())
 }
 
 fn get_latest_incoming_nonce_parachain() -> u64 {
 	let storage_key = create_para_incoming_nonce_key();
-	get_storage_at_latest_finalized_head::<u64>("para_incoming_nonce", PARACHAIN_URL, storage_key)
-		.unwrap_or_default()
-		.unwrap_or_default()
+	get_storage_at_latest_finalized_head::<u64>(
+		"para_incoming_nonce",
+		Destination::Parachain,
+		storage_key,
+	)
+	.unwrap_or_default()
+	.unwrap_or_default()
 }
 
 fn get_payload_for_nonce(
@@ -142,22 +146,36 @@ fn get_payload_for_nonce(
 		Destination::Solochain => {
 			// Get the outgoing message with nonce: `nonce` for network: `network`
 			let key = create_solo_outgoing_message_key(nonce, network);
-			get_storage_at_latest_finalized_head::<Message>(
+			match get_storage_at_latest_finalized_head::<Message>(
 				"solo_outgoing_message",
-				MAINNET_URL,
+				destination,
 				key,
-			)
-			.unwrap()
+			) {
+				Ok(message) => message,
+				Err(err) => {
+					log::error!(target:"thea","Unable to get finalized solo head: {:?}",err);
+					None
+				},
+			}
 		},
 		Destination::Parachain => {
 			// Get the outgoing message with nonce: `nonce` from network
 			let key = create_para_outgoing_message_key(nonce);
-			get_storage_at_latest_finalized_head::<Message>(
+			match get_storage_at_latest_finalized_head::<Message>(
 				"para_outgoing_message",
-				PARACHAIN_URL,
+				destination,
 				key,
-			)
-			.unwrap()
+			) {
+				Ok(message) => message,
+				Err(err) => {
+					log::error!(target:"thea","Unable to get finalized solo head: {:?}",err);
+					None
+				},
+			}
+		},
+		_ => {
+			log::warn!(target:"thea","Invalid destination provided");
+			None
 		},
 	}
 }
@@ -195,12 +213,12 @@ pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 
 fn get_storage_at_latest_finalized_head<S: Decode>(
 	log_target: &str,
-	url: &str,
+	destination: Destination,
 	storage_key: Vec<u8>,
 ) -> Result<Option<S>, &'static str> {
 	log::debug!(target:"thea","getting storage for {}",log_target);
 	// 1. Get finalized head ( Fh )
-	let finalized_head = get_finalized_head(url)?;
+	let finalized_head = get_finalized_head(destination)?;
 
 	let storage_key = "0x".to_owned() + &hex::encode(storage_key);
 
@@ -213,7 +231,7 @@ fn get_storage_at_latest_finalized_head<S: Decode>(
 	})
 	.to_string();
 
-	let storage_bytes = send_request(log_target, url, body.as_str())?;
+	let storage_bytes = send_request(log_target, destination, body.as_str())?;
 
 	if storage_bytes.is_null() {
 		log::debug!(target:"thea","Storage query returned null response");
@@ -228,7 +246,8 @@ fn get_storage_at_latest_finalized_head<S: Decode>(
 	Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
 }
 use scale_info::prelude::string::String;
-fn get_finalized_head(url: &str) -> Result<String, &'static str> {
+
+fn get_finalized_head(destination: Destination) -> Result<String, &'static str> {
 	// This body will work for most substrate chains
 	let body = serde_json::json!({
 	"id":1,
@@ -237,16 +256,51 @@ fn get_finalized_head(url: &str) -> Result<String, &'static str> {
 	"params": []
 	});
 	let mut result =
-		send_request("get_finalized_head", url, body.to_string().as_str())?.to_string();
+		send_request("get_finalized_head", destination, body.to_string().as_str())?.to_string();
 	result = result.replace('\"', "");
 	log::debug!(target:"thea","Finalized head: {:?}",result);
 	Ok(result)
 }
 
+pub fn resolve_destination_url(destination: Destination, counter: i32) -> String {
+	if destination == Destination::Aggregator {
+		return AGGREGRATOR_URL.to_string()
+	}
+	let url = match (destination, counter) {
+		(Destination::Solochain, 0) => "http://localhost:9944",
+		(Destination::Solochain, 1) => MAINNET_URL,
+		(Destination::Parachain, 0) => "http://localhost:8844",
+		(Destination::Parachain, 1) => PARACHAIN_URL,
+		_ => AGGREGRATOR_URL,
+	};
+	log::debug!(target:"thea","Resolving {:?}: {:?} to {:?}",destination,counter,url);
+	url.to_string()
+}
+
 pub fn send_request(
 	log_target: &str,
-	url: &str,
+	destination: Destination,
 	body: &str,
+) -> Result<serde_json::Value, &'static str> {
+	for try_counter in 0..2 {
+		match create_and_send_request(
+			log_target,
+			body,
+			&resolve_destination_url(destination, try_counter),
+		) {
+			Ok(value) => return Ok(value),
+			Err(err) => {
+				log::error!(target:"thea","Error querying {:?}: {:?}",log_target, err);
+			},
+		}
+	}
+	return Err("request failed")
+}
+
+fn create_and_send_request(
+	log_target: &str,
+	body: &str,
+	url: &str,
 ) -> Result<serde_json::Value, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
@@ -270,7 +324,7 @@ pub fn send_request(
 
 	if response.code != 200u16 {
 		log::warn!(target:"thea","Unexpected status code for {}: {:?}",log_target,response.code);
-		return Err("request failed")
+		return Err("Unexpected status code")
 	}
 
 	let body = response.body().collect::<Vec<u8>>();
@@ -283,7 +337,7 @@ pub fn send_request(
 	log::debug!(target:"thea","{} response: {:?}",log_target,body_str);
 	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(body_str)
 		.map_err(|_| "Response failed deserialize")?;
-	Ok(response.result)
+	return Ok(response.result)
 }
 
 fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
