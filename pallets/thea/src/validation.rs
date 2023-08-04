@@ -262,6 +262,10 @@ fn get_finalized_head(destination: Destination) -> Result<String, &'static str> 
 	Ok(result)
 }
 
+/// Returns the url based on destination and counter
+///
+/// Counter value 0 means return the local address
+/// Counter value 1 means returns the fallback address.
 pub fn resolve_destination_url(destination: Destination, counter: i32) -> String {
 	if destination == Destination::Aggregator {
 		return AGGREGRATOR_URL.to_string()
