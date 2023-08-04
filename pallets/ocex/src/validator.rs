@@ -1,5 +1,5 @@
 use crate::{
-	pallet::{Accounts, ValidatorSetId},
+	pallet::ValidatorSetId,
 	settlement::{add_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
 	storage::store_trie_root,
@@ -25,11 +25,10 @@ use sp_runtime::{
 		http::{Error, PendingRequest, Response},
 		storage::StorageValueRef,
 	},
-	traits::BlakeTwo256,
 	SaturatedConversion,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
-use sp_trie::{LayoutV1, TrieDBMut};
+
 use trie_db::{TrieError, TrieMut};
 
 /// Key of the storage that stores the status of an offchain worker
@@ -45,7 +44,7 @@ pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
 	/// submits snapshot summary to aggregator endpoint
-	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<(), &'static str> {
+	pub fn run_on_chain_validation(_block_num: T::BlockNumber) -> Result<bool, &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
@@ -74,7 +73,7 @@ impl<T: Config> Pallet<T> {
 			Some(true) => {
 				// Another worker is online, so exit
 				log::info!(target:"ocex", "Another worker is online, so exit");
-				return Ok(())
+				return Ok(false)
 			},
 			None => {},
 			Some(false) => {},
@@ -87,9 +86,16 @@ impl<T: Config> Pallet<T> {
 		let mut root = crate::storage::load_trie_root();
 		log::info!(target:"ocex","block: {:?}, state_root {:?}", _block_num, root);
 		let mut storage = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut storage, &mut root);
+		let mut state = OffchainState::load(&mut storage, &mut root);
 
-		let mut state_info = Self::load_state_info(&state);
+		let mut state_info = match Self::load_state_info(&mut state) {
+			Ok(info) => info,
+			Err(err) => {
+				log::error!(target:"ocex","Err loading state info from storage: {:?}",err);
+				store_trie_root(H256::zero());
+				return Err(err)
+			},
+		};
 
 		let last_processed_nonce = state_info.snapshot_id;
 
@@ -98,19 +104,23 @@ impl<T: Config> Pallet<T> {
 			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
 			// resubmit the summary to aggregator
 			load_signed_summary_and_send::<T>(next_nonce);
-			return Ok(())
+			return Ok(true)
 		}
 
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
 		if next_nonce.saturating_sub(last_processed_nonce) > 2 {
-			// We need to sync our offchain state
+			if state_info.last_block == 0 {
+				state_info.last_block = 4768083; // This is hard coded as the starting point
+			}
+			// We need to sync our off chain state
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
+				log::info!(target:"ocex","Syncing batch: {:?}",nonce);
 				// Load the next ObMessages
 				let batch = match get_user_action_batch::<T>(nonce) {
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
-						return Ok(())
+						return Ok(true)
 					},
 					Some(batch) => batch,
 				};
@@ -128,11 +138,11 @@ impl<T: Config> Pallet<T> {
 				// Store the last processed nonce
 				// We need to -1 from next_nonce, as it is not yet processed
 				state_info.snapshot_id = next_nonce.saturating_sub(1);
-				Self::store_state_info(state_info, &mut state)?;
-				state.commit();
-				store_trie_root(*state.root());
-				log::debug!(target:"ocex","Stored state root: {:?}",state.root());
-				return Ok(())
+				Self::store_state_info(state_info, &mut state);
+				let root = state.commit()?;
+				store_trie_root(root);
+				log::debug!(target:"ocex","Stored state root: {:?}",root);
+				return Ok(true)
 			},
 			Some(batch) => batch,
 		};
@@ -140,15 +150,15 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
 
-		if sp_io::offchain::is_validator() {
-			// Create state hash.
-			state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-			Self::store_state_info(state_info.clone(), &mut state)?;
-			state.commit();
-			let state_hash: H256 = *state.root();
-			store_trie_root(state_hash);
-			log::info!(target:"ocex","updated trie root: {:?}", state.root());
+		// Create state hash and store it
+		state_info.stid = batch.stid;
+		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
+		Self::store_state_info(state_info.clone(), &mut state);
+		let state_hash: H256 = state.commit()?;
+		store_trie_root(state_hash);
+		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
 
+		if sp_io::offchain::is_validator() {
 			match available_keys.get(0) {
 				None => return Err("No active keys found"),
 				Some(key) => {
@@ -187,17 +197,17 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		Ok(())
+		Ok(true)
 	}
 
 	fn import_blk(
 		blk: T::BlockNumber,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state: &mut OffchainState,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
-		if blk <= state_info.last_block.saturated_into() {
+		if blk != state_info.last_block.saturating_add(1).into() {
 			return Err("BlockOutofSequence")
 		}
 
@@ -221,10 +231,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn trades(
-		trades: &Vec<Trade>,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
-	) -> Result<(), &'static str> {
+	fn trades(trades: &Vec<Trade>, state: &mut OffchainState) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Settling trades...");
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
@@ -237,17 +244,19 @@ impl<T: Config> Pallet<T> {
 
 	fn withdraw(
 		request: &WithdrawalRequest<T::AccountId>,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state: &mut OffchainState,
 		stid: u64,
 	) -> Result<Withdrawal<T::AccountId>, &'static str> {
 		log::info!(target:"ocex","Settling withdraw request...");
 		let amount = request.amount().map_err(|_| "decimal conversion error")?;
-		let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
+		// FIXME: Don't remove these comments, will be reintroduced after fixing the race condition
+		// let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
 
-		if !account_info.proxies.contains(&request.proxy) {
-			// TODO: Check Race condition
-			return Err("Proxy not found")
-		}
+		// if !account_info.proxies.contains(&request.proxy) {
+		// 	// TODO: Check Race condition
+		// 	return Err("Proxy not found")
+		// }
+
 		if !request.verify() {
 			return Err("SignatureVerificationFailed")
 		}
@@ -264,7 +273,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn process_batch(
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+		state: &mut OffchainState,
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
 	) -> Result<Vec<Withdrawal<T::AccountId>>, &'static str> {
@@ -290,20 +299,15 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	fn load_state_info(state: &TrieDBMut<LayoutV1<BlakeTwo256>>) -> StateInfo {
-		match state.get(&STATE_INFO) {
-			Ok(Some(data)) => StateInfo::decode(&mut &data[..]).unwrap_or_default(),
-			Ok(None) => StateInfo::default(),
-			Err(_) => StateInfo::default(),
+	fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
+		match state.get(&STATE_INFO.to_vec())? {
+			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
+			None => Ok(StateInfo::default()),
 		}
 	}
 
-	fn store_state_info(
-		state_info: StateInfo,
-		state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
-	) -> Result<(), &'static str> {
-		let _ = state.insert(&STATE_INFO, &state_info.encode()).map_err(map_trie_error)?;
-		Ok(())
+	fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
+		state.insert(STATE_INFO.to_vec(), state_info.encode());
 	}
 
 	fn calculate_signer_index(
@@ -335,18 +339,19 @@ impl<T: Config> Pallet<T> {
 		Ok(balance)
 	}
 
-	pub(crate) fn get_state_info() -> StateInfo {
+	pub(crate) fn get_state_info() -> Result<StateInfo, &'static str> {
 		let mut root = crate::storage::load_trie_root();
 		let mut storage = crate::storage::State;
-		let state = crate::storage::get_state_trie(&mut storage, &mut root);
-		Self::load_state_info(&state)
+		let mut state = OffchainState::load(&mut storage, &mut root);
+		Self::load_state_info(&mut state)
 	}
 }
 
+use crate::storage::OffchainState;
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
-fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
 		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
@@ -487,7 +492,7 @@ fn map_http_err(err: HttpError) -> &'static str {
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
-	result: Vec<u8>,
+	pub(crate) result: Vec<u8>,
 	id: u64,
 }
 

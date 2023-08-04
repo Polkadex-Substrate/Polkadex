@@ -67,6 +67,7 @@ pub struct Message {
 pub enum Destination {
 	Solochain,
 	Parachain,
+	Aggregator,
 }
 
 /// Defines structure of the deposit.

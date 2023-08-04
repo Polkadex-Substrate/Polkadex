@@ -328,37 +328,55 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On idle, use the remaining weight to withdraw finalization
 		/// Automated (but much delayed) `claim_withdraw()` extrinsic
-		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
-			let snapshot_id = <SnapshotNonce<T>>::get();
-			while remaining_weight.ref_time() >
-				<T as Config>::WeightInfo::claim_withdraw(1).ref_time()
-			{
-				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
-					// Get mutable reference to the withdrawals vector
-					if let Some(account) = btree_map.clone().keys().nth(1) {
-						let mut accounts_to_clean = vec![];
-						if let Some(withdrawal_vector) = btree_map.get_mut(account) {
-							if let Some(withdrawal) = withdrawal_vector.pop() {
-								if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
-									withdrawal_vector.push(withdrawal.clone());
-									Self::deposit_event(Event::WithdrawalFailed(withdrawal));
-								}
-							} else {
-								// this user has no withdrawals left - remove from map
-								accounts_to_clean.push(account.clone());
-							}
-						}
-						for user in accounts_to_clean {
-							btree_map.remove(&user);
-						}
-					}
-					// we drain weight ALWAYS
-					remaining_weight = remaining_weight
-						.saturating_sub(<T as Config>::WeightInfo::claim_withdraw(1));
-				});
-			}
-			remaining_weight
-		}
+		// fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
+		// 	let snapshot_id = <SnapshotNonce<T>>::get();
+		// 	while remaining_weight.ref_time() >
+		// 		<T as Config>::WeightInfo::claim_withdraw(1).ref_time()
+		// 	{
+		// 		<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+		// 			// Get mutable reference to the withdrawals vector
+		// 			if let Some(account) = btree_map.clone().keys().nth(1) {
+		// 				let mut accounts_to_clean = vec![];
+		// 				if let Some(withdrawal_vector) = btree_map.get_mut(account) {
+		// 					if let Some(withdrawal) = withdrawal_vector.pop() {
+		// 						if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
+		// 							withdrawal_vector.push(withdrawal.clone());
+		// 							Self::deposit_event(Event::WithdrawalFailed(withdrawal));
+		// 						}else{
+		// 							// TODO: enable this only after testing
+		// 							// Update events on successful withdrawal
+		// 							// let processed_withdrawls =
+		//                             // // Deposit event about successful withdraw
+		// 							// Self::deposit_event(Event::WithdrawalClaimed {
+		// 							// 	main: account.clone(),
+		// 							// 	withdrawals: processed_withdrawals.clone(),
+		// 							// });
+		// 							// <OnChainEvents<T>>::mutate(|onchain_events| {
+		// 							// 	onchain_events.push(
+		// 							// 		polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+		// 							// 			snapshot_id,
+		// 							// 			account.clone(),
+		// 							// 			processed_withdrawals,
+		// 							// 		),
+		// 							// 	);
+		// 							// });
+		//                         }
+		// 					} else {
+		// 						// this user has no withdrawals left - remove from map
+		// 						accounts_to_clean.push(account.clone());
+		// 					}
+		// 				}
+		// 				for user in accounts_to_clean {
+		// 					btree_map.remove(&user);
+		// 				}
+		// 			}
+		// 			// we drain weight ALWAYS
+		// 			remaining_weight = remaining_weight
+		// 				.saturating_sub(<T as Config>::WeightInfo::claim_withdraw(1));
+		// 		});
+		// 	}
+		// 	remaining_weight
+		// }
 		/// What to do at the end of each block.
 		///
 		/// Clean OnCHainEvents
@@ -376,8 +394,17 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: T::BlockNumber) {
 			log::debug!(target:"ocex", "offchain worker started");
-			if let Err(err) = Self::run_on_chain_validation(block_number) {
-				log::error!(target:"ocex","OCEX worker error: {}",err)
+
+			match Self::run_on_chain_validation(block_number) {
+				Ok(exit_flag) => {
+					// If exit flag is false, then another worker is online
+					if !exit_flag {
+						return
+					}
+				},
+				Err(err) => {
+					log::error!(target:"ocex","OCEX worker error: {}",err);
+				},
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
@@ -1271,7 +1298,7 @@ pub mod pallet {
 				account_ids.insert(main, proxies);
 			}
 
-			let state_info = Self::get_state_info();
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
 			let last_processed_block_number = state_info.last_block;
 			let worker_nonce = state_info.worker_nonce;
 			let snapshot_id = state_info.snapshot_id;
