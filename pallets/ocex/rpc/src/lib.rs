@@ -47,6 +47,12 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 		of: AssetId,
 		at: Option<BlockHash>,
 	) -> RpcResult<String>;
+
+	#[method(name = "ob_inventoryDeviation")]
+	fn calculate_inventory_deviation(
+		&self,
+		at: Option<BlockHash>,
+	) -> RpcResult<String>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -118,6 +124,24 @@ where
 			api.get_balance(at, account_id, of).map_err(runtime_error_into_rpc_err)?;
 		let json =
 			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
+		Ok(json)
+	}
+
+	fn calculate_inventory_deviation(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<String> {
+		let api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+		let runtime_api_result =
+			api.calculate_inventory_deviation(at)
+				.map_err(runtime_error_into_rpc_err)?;
+		let json =
+			serde_json::to_string(&runtime_api_result)
+				.map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
 	}
 }

@@ -1574,6 +1574,8 @@ impl_runtime_apis! {
 	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
 		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
 		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
+		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
+		DispatchError> { OCEX::calculate_inventory_deviation() }
 	}
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
