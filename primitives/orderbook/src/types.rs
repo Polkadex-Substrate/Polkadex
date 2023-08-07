@@ -231,12 +231,15 @@ impl ObMessage {
 pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
+	#[deprecated(note = "This variant will be removed in the future, use WithdrawV1")]
 	/// Withdraw operation requested.
 	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
 	BlockImport(u32),
 	/// Reset Flag
 	Reset,
+	/// Withdraw operation requested.( request, stid)
+	WithdrawV1(WithdrawalRequest<AccountId>, u64),
 }
 
 /// Defines withdraw request DTO.
