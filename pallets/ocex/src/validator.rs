@@ -355,7 +355,7 @@ use crate::storage::OffchainState;
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
-pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
 		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
