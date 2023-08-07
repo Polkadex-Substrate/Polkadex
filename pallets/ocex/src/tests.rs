@@ -2302,6 +2302,7 @@ use orderbook_primitives::{
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
 
+use orderbook_primitives::types::{UserActionBatch, UserActions};
 use trie_db::TrieMut;
 
 #[test]
@@ -2561,6 +2562,21 @@ fn test_whitelist_orderbook_operator_full() {
 	})
 }
 
+#[test]
+fn test_old_user_action_enum_payload_with_new_enum_returns_ok() {
+	let payload = r#"{"actions":[{"BlockImport":4842070},{"BlockImport":4842071},{"BlockImport":4842072},{"Withdraw":{"signature":{"Sr25519":"1ce02504db86d6c40826737a0616248570274d6fc880d1294585da3663efb41a8cd7f66db1666edbf0037e193ddf9597ec567e875ccb84b1187bbe6e5d1b5c88"},"payload":{"asset_id":{"asset":"95930534000017180603917534864279132680"},"amount":"0.01","timestamp":1690900017685},"main":"5GLQUnNXayJGG6AZ6ht2MFigMHLKPWZjZqbko2tYQ7GJxi6A","proxy":"5GeYN9KaGkxEzaP2gpefqpCp18a9MEMosPCintz83CGRpKGa"}},{"BlockImport":4842073},{"BlockImport":4842074},{"BlockImport":4842075},{"BlockImport":4842076},{"BlockImport":4842077},{"BlockImport":4842078},{"Withdraw":{"signature":{"Sr25519":"b8a7bb383882379a5cb3796c1fb362a9efca5c224c60e2bb91bfed7a9f94bb620620e32dcecbc7e64011e3d3d073b1290e46b3cb97cf0b96c49ba5b0e9e1548f"},"payload":{"asset_id":{"asset":"123"},"amount":"10","timestamp":1690900085111},"main":"5GLFKUxSXTf8MDDKM1vqEFb5TuV1q642qpQT964mrmjeKz4w","proxy":"5ExtoLVQaef9758mibzLhaxK4GBk7qoysSWo7FKt2nrV26i8"}},{"BlockImport":4842079},{"BlockImport":4842080},{"BlockImport":4842081},{"BlockImport":4842082},{"Withdraw":{"signature":{"Sr25519":"4e589e61b18815abcc3fe50626e54844d1e2fd9bb0575fce8eabb5af1ba4b42fba060ad3067bef341e8d5973d932f30d9113c0abbbd65e96e2dd5cbaf94d4581"},"payload":{"asset_id":{"asset":"456"},"amount":"4","timestamp":1690900140296},"main":"5GLFKUxSXTf8MDDKM1vqEFb5TuV1q642qpQT964mrmjeKz4w","proxy":"5ExtoLVQaef9758mibzLhaxK4GBk7qoysSWo7FKt2nrV26i8"}},{"BlockImport":4842083},{"BlockImport":4842084},{"BlockImport":4842085},{"BlockImport":4842086},{"BlockImport":4842087},{"BlockImport":4842088},{"BlockImport":4842089},{"BlockImport":4842090},{"BlockImport":4842091},{"BlockImport":4842092},{"BlockImport":4842093},{"BlockImport":4842094},{"BlockImport":4842095},{"BlockImport":4842096},{"BlockImport":4842097},{"BlockImport":4842098},{"BlockImport":4842099},{"BlockImport":4842100},{"BlockImport":4842101}],"stid":74132,"snapshot_id":10147,"signature":"901dc6972f94d69f253b9ca5a83410a5bc729e5c30c68cba3e68ea4860ca73e447d06c41d3bad05aca4e031f0fa46b1f64fac70159cec68151fef534e48515de00"}"#;
+	let payload: Result<UserActionBatch<AccountId>, serde_json::error::Error> =
+		serde_json::from_str(payload);
+	assert!(payload.is_ok());
+}
+
+#[test]
+fn test_scale_encode_with_old_user_action_enum_with_new_returns_ok() {
+	let actual_payload = fixture_old_user_action::get_old_user_action_fixture();
+	let expected_payload: UserActions<AccountId> = UserActions::BlockImport(24);
+	assert_eq!(actual_payload, expected_payload.encode());
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
@@ -2723,4 +2739,28 @@ pub fn get_random_signature() -> Signature {
 fn create_max_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
 	return fees
+}
+
+pub mod fixture_old_user_action {
+	use orderbook_primitives::types::{Trade, WithdrawalRequest};
+	use parity_scale_codec::{Codec, Decode, Encode};
+	use polkadex_primitives::AccountId;
+	use scale_info::TypeInfo;
+
+	#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
+	pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
+		/// Trade operation requested.
+		Trade(Vec<Trade>),
+		/// Withdraw operation requested.
+		Withdraw(WithdrawalRequest<AccountId>),
+		/// Block import requested.
+		BlockImport(u32),
+		/// Reset Flag
+		Reset,
+	}
+
+	pub fn get_old_user_action_fixture() -> Vec<u8> {
+		let block_import: UserActions<AccountId> = UserActions::BlockImport(24);
+		block_import.encode()
+	}
 }
