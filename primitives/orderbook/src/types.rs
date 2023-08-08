@@ -237,6 +237,8 @@ pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	BlockImport(u32),
 	/// Reset Flag
 	Reset,
+	/// Withdraw operation requested.( request, stid)
+	WithdrawV1(WithdrawalRequest<AccountId>, u64),
 }
 
 /// Defines withdraw request DTO.

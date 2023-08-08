@@ -293,6 +293,10 @@ impl<T: Config> Pallet<T> {
 				UserActions::BlockImport(blk) =>
 					Self::import_blk((*blk).saturated_into(), state, state_info)?,
 				UserActions::Reset => {}, // Not for offchain worker
+				UserActions::WithdrawV1(request, stid) => {
+					let withdrawal = Self::withdraw(request, state, *stid)?;
+					withdrawals.push(withdrawal);
+				},
 			}
 		}
 
@@ -351,7 +355,7 @@ use crate::storage::OffchainState;
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
-pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
 		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
@@ -421,7 +425,7 @@ fn store_summary<T: Config>(
 	summay_ref.set(&(summary, signature, auth_index));
 }
 
-fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
 	let body_len =
