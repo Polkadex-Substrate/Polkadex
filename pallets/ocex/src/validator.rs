@@ -208,6 +208,7 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
 		if blk != state_info.last_block.saturating_add(1).into() {
+			log::error!(target:"ocex","Last processed blk: {:?},  given: {:?}",state_info.last_block, blk);
 			return Err("BlockOutofSequence")
 		}
 
