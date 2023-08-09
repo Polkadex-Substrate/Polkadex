@@ -109,7 +109,7 @@ impl<T: Config> Pallet<T> {
 
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
-		if next_nonce.saturating_sub(last_processed_nonce) > 2 {
+		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
 				state_info.last_block = 4768083; // This is hard coded as the starting point
 			}
