@@ -93,7 +93,13 @@ pub fn create_extrinsic(
 		)),
 		frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-		pallet_transaction_payment::ChargeTransactionPayment::<node_polkadex_runtime::Runtime>::from(tip),
+		pallet_assets_transaction_payment::ChargeAssetTransactionPayment::<
+			node_polkadex_runtime::Runtime,
+		> {
+			signature_scheme: 0,
+			asset_id: 0,
+			tip,
+		},
 	);
 
 	let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
@@ -107,7 +113,7 @@ pub fn create_extrinsic(
 			best_hash,
 			(),
 			(),
-			(),
+			0,
 		),
 	);
 	use codec::Encode;
@@ -790,14 +796,18 @@ mod tests {
 					),
 					frame_system::CheckNonce::<node_polkadex_runtime::Runtime>::from(index),
 					frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
-					pallet_transaction_payment::ChargeTransactionPayment::<
+					pallet_assets_transaction_payment::ChargeAssetTransactionPayment::<
 						node_polkadex_runtime::Runtime,
-					>::from(tip),
+					> {
+						asset_id: 0,
+						tip: 0,
+						signature_scheme: 0,
+					},
 				);
 				let raw_payload = SignedPayload::from_raw(
 					function,
 					extra,
-					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
+					(spec_version, transaction_version, genesis_hash, genesis_hash, (), (), 0),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();

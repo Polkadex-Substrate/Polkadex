@@ -93,6 +93,7 @@ pub mod impls;
 
 /// Constant values used within the runtime.
 pub mod constants;
+use wallet_connector::{signed_payload, unchecked_extrinsic};
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -253,9 +254,11 @@ parameter_types! {
 	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 	pub const MaxPending: u16 = 32;
 }
+use pallet_assets_transaction_payment::payment::{HandleSwap, NegativeImbalanceOf};
 use scale_info::TypeInfo;
 use sp_core::crypto::AccountId32;
 use sp_npos_elections::ExtendedBalance;
+use sp_runtime::traits::ConvertInto;
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
@@ -1055,7 +1058,11 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			pallet_assets_transaction_payment::ChargeAssetTransactionPayment::<Runtime> {
+				signature_scheme: 0,
+				asset_id: 0,
+				tip,
+			},
 		);
 		let raw_payload = SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1459,6 +1466,7 @@ construct_runtime!(
 		Rewards: pallet_rewards::{Pallet, Call, Storage, Event<T>} = 40,
 		Liquidity: liquidity::{Pallet, Call, Storage, Event<T>} = 41,
 		TheaExecutor: thea_executor::pallet::{Pallet, Call, Storage, Event<T>} = 44,
+		AssetsTransactionPayment: pallet_assets_transaction_payment::pallet::{Pallet, Call, Storage, Event<T>} = 45,
 	}
 );
 /// Digest item type.
@@ -1485,13 +1493,16 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_assets_transaction_payment::ChargeAssetTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
+// pub type UncheckedExtrinsic =
+//	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+	unchecked_extrinsic::UncheckedExtrinsic<Address, RuntimeCall, SignedExtra>;
 /// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
+// pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
+pub type SignedPayload = signed_payload::SignedPayload<RuntimeCall, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
@@ -1756,6 +1767,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, thea_executor, TheaExecutor);
 			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, thea_message_handler, TheaMH);
+			list_benchmark!(list, extra, pallet_assets_transaction_payment, AssetsTransactionPayment);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1792,6 +1804,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, thea_executor, TheaExecutor);  //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);
+			add_benchmark!(params, batches, pallet_assets_transaction_payment, AssetsTransactionPayment);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}

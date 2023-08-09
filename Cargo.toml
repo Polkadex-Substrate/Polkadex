@@ -32,6 +32,7 @@ members = [
   "pallets/ocex/rpc",
   "pallets/ocex/rpc/runtime-api",
   "pallets/rewards",
+    "pallets/assets-transaction-payment",
   "primitives/orderbook",
   "primitives/polkadex",
   "primitives/thea",
@@ -43,6 +44,7 @@ members = [
   "pallets/rewards/rpc/runtime-api",
   "misc/load-testing",
   "misc/crowdloan-verifier",
+  "wallet-connector"
 ]
 
 default-members = [
@@ -50,7 +52,7 @@ default-members = [
   "node",
   "runtime",
   "pallets/pdex-migration",
-  "pallets/pdex-migration",
+    "pallets/assets-transaction-payment",
   "pallets/ocex",
   "pallets/ocex/rpc",
   "pallets/ocex/rpc/runtime-api",
@@ -63,6 +65,7 @@ default-members = [
   "pallets/thea-executor",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
+  "wallet-connector"
 ]
 
 [workspace.dependencies]

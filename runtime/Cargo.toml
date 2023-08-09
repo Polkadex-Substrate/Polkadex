@@ -91,8 +91,9 @@ orml-vesting = { workspace = true, default-features = false }
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
-
-# Orderbook 
+pallet-assets-transaction-payment = { path= "../pallets/assets-transaction-payment", default-features = false }
+wallet-connector = { path = "../wallet-connector", default-features = false  }
+# Orderbook
 pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
 
 # Thea
@@ -183,7 +184,9 @@ std = [
   "thea/std",
   "liquidity/std",
   "pallet-rewards/std",
+    "pallet-assets-transaction-payment/std",
   "thea-executor/std",
+    "wallet-connector/std",
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
 ]

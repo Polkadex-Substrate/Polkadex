@@ -1,0 +1,57 @@
+[package]
+authors = ["Polkadex Authors"]
+description = "FRAME pallet for migrating ERC20 PDEX to Native PDEX"
+edition = "2021"
+homepage = "https://polkadex.trade"
+name = "pallet-assets-transaction-payment"
+version = "1.1.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+parity-scale-codec = { workspace = true, default-features = false, features = ["max-encoded-len"] }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+pallet-balances = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false }
+pallet-transaction-payment = { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
+wallet-connector = { path = "../../wallet-connector", default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+smallvec = { workspace = true }
+
+[dev-dependencies]
+sp-application-crypto = { workspace = true }
+polkadex-primitives = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"parity-scale-codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"frame-system/std",
+	"sp-io/std",
+	"sp-core/std",
+	"sp-std/std",
+	"sp-runtime/std",
+	"pallet-balances/std",
+	"pallet-assets/std",
+	"pallet-transaction-payment/std",
+	"pallet-timestamp/std",
+	"wallet-connector/std",
+]
+runtime-benchmarks = [
+    "sp-runtime/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+
