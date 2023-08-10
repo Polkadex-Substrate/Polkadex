@@ -3,7 +3,7 @@ use crate::{
 	settlement::{add_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
 	storage::store_trie_root,
-	Config, Pallet, SnapshotNonce,
+	Config, Pallet, SnapshotNonce, Snapshots,
 };
 use orderbook_primitives::{
 	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
@@ -126,7 +126,26 @@ impl<T: Config> Pallet<T> {
 				};
 				sp_runtime::print("Processing nonce");
 				sp_runtime::print(nonce);
-				Self::process_batch(&mut state, &batch, &mut state_info)?;
+				match Self::process_batch(&mut state, &batch, &mut state_info) {
+					Ok(_) => {
+						Self::store_state_info(state_info, &mut state);
+						let computed_root = state.commit()?;
+						let expected_root = <Snapshots<T>>::get(batch.snapshot_id)
+							.ok_or("Unable to load snapshot summary from runtime")?
+							.state_hash;
+						if computed_root != expected_root {
+							log::error!(target:"ocex","Computed: {:?}, expected: {:?}, batch: {:?}",computed_root,expected_root,batch.snapshot_id);
+							return Err("Sync failed")
+						} else {
+							store_trie_root(computed_root);
+							log::debug!(target:"ocex","Stored state root: {:?}",computed_root);
+						}
+					},
+					Err(err) => {
+						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
+						return Err("Sync failed")
+					},
+				}
 			}
 		}
 

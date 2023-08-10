@@ -55,7 +55,7 @@ impl<'a> OffchainState<'a> {
 		for (key, value) in self.cache.iter() {
 			self.trie.insert(key, value).map_err(map_trie_error)?;
 		}
-
+		self.cache.clear();
 		self.trie.commit();
 		Ok(*self.trie.root())
 	}
@@ -244,9 +244,43 @@ mod tests {
 
 	use crate::{
 		mock::new_test_ext,
-		storage::{get_state_trie, load_trie_root, store_trie_root, State},
+		storage::{get_state_trie, load_trie_root, store_trie_root, OffchainState, State},
 		tests::register_offchain_ext,
 	};
+
+	#[test]
+	pub fn test_commit_change_revert_pattern() {
+		let mut ext = new_test_ext();
+		register_offchain_ext(&mut ext);
+		log::trace!(target:"ocex","test_trie_storage test starting..");
+		ext.execute_with(|| {
+			let mut root = load_trie_root();
+			{
+				let mut storage = State;
+
+				let mut state = OffchainState::load(&mut storage, &mut root);
+
+				state.insert(b"1".to_vec(), b"a".to_vec());
+				state.insert(b"2".to_vec(), b"b".to_vec());
+				state.insert(b"3".to_vec(), b"c".to_vec());
+
+				state.commit().unwrap();
+				state.insert(b"4".to_vec(), b"d".to_vec());
+				state.commit().unwrap();
+				state.insert(b"5".to_vec(), b"e".to_vec());
+			}
+			{
+				let mut storage = State;
+
+				let mut state = OffchainState::load(&mut storage, &mut root);
+				state.get(&b"1".to_vec()).unwrap().unwrap();
+				state.get(&b"2".to_vec()).unwrap().unwrap();
+				state.get(&b"3".to_vec()).unwrap().unwrap();
+				state.get(&b"4".to_vec()).unwrap().unwrap();
+				assert!(state.get(&b"5".to_vec()).unwrap().is_none());
+			}
+		});
+	}
 
 	#[test]
 	pub fn test_trie_storage() {
