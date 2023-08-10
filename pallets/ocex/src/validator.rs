@@ -172,7 +172,7 @@ impl<T: Config> Pallet<T> {
 		// Create state hash and store it
 		state_info.stid = batch.stid;
 		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-		Self::store_state_info(state_info.clone(), &mut state);
+		Self::store_state_info(state_info, &mut state);
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
