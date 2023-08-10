@@ -128,6 +128,8 @@ impl<T: Config> Pallet<T> {
 				sp_runtime::print(nonce);
 				match Self::process_batch(&mut state, &batch, &mut state_info) {
 					Ok(_) => {
+						state_info.stid = batch.stid;
+						state_info.snapshot_id = batch.snapshot_id;
 						Self::store_state_info(state_info, &mut state);
 						let computed_root = state.commit()?;
 						store_trie_root(computed_root);
