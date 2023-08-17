@@ -86,6 +86,7 @@ pub mod sr25519 {
 	pub type AuthorityId = app_sr25519::Public;
 }
 
+pub mod aggregator;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 mod settlement;
