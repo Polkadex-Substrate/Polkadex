@@ -375,7 +375,7 @@ pub fn map_trie_error<T, E>(err: Box<TrieError<T, E>>) -> &'static str {
 #[derive(Serialize, Deserialize)]
 pub struct JSONRPCResponse {
 	jsonrpc: serde_json::Value,
-	pub(crate) result: Vec<u8>,
+	pub result: Vec<u8>,
 	id: u64,
 }
 
