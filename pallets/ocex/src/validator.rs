@@ -98,7 +98,7 @@ impl<T: Config> Pallet<T> {
 
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
-		if next_nonce.saturating_sub(last_processed_nonce) > 2 {
+		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
 				state_info.last_block = 4768083; // This is hard coded as the starting point
 			}
@@ -115,7 +115,19 @@ impl<T: Config> Pallet<T> {
 				};
 				sp_runtime::print("Processing nonce");
 				sp_runtime::print(nonce);
-				Self::process_batch(&mut state, &batch, &mut state_info)?;
+				match Self::process_batch(&mut state, &batch, &mut state_info) {
+					Ok(_) => {
+						state_info.stid = batch.stid;
+						state_info.snapshot_id = batch.snapshot_id;
+						Self::store_state_info(state_info, &mut state);
+						let computed_root = state.commit()?;
+						store_trie_root(computed_root);
+					},
+					Err(err) => {
+						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
+						return Err("Sync failed")
+					},
+				}
 			}
 		}
 
@@ -142,7 +154,7 @@ impl<T: Config> Pallet<T> {
 		// Create state hash and store it
 		state_info.stid = batch.stid;
 		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-		Self::store_state_info(state_info.clone(), &mut state);
+		Self::store_state_info(state_info, &mut state);
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
@@ -197,6 +209,7 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
 		if blk != state_info.last_block.saturating_add(1).into() {
+			log::error!(target:"ocex","Last processed blk: {:?},  given: {:?}",state_info.last_block, blk);
 			return Err("BlockOutofSequence")
 		}
 
@@ -282,6 +295,10 @@ impl<T: Config> Pallet<T> {
 				UserActions::BlockImport(blk) =>
 					Self::import_blk((*blk).saturated_into(), state, state_info)?,
 				UserActions::Reset => {}, // Not for offchain worker
+				UserActions::WithdrawV1(request, stid) => {
+					let withdrawal = Self::withdraw(request, state, *stid)?;
+					withdrawals.push(withdrawal);
+				},
 			}
 		}
 
@@ -340,7 +357,7 @@ use crate::storage::OffchainState;
 use parity_scale_codec::alloc::string::ToString;
 use sp_std::borrow::ToOwned;
 
-pub fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+fn get_user_action_batch<T: Config>(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 	let body = serde_json::json!({ "id": id }).to_string();
 	let result =
 		match send_request("user_actions_batch", &(AGGREGATOR.to_owned() + "/snapshots"), &body) {
@@ -410,7 +427,7 @@ fn store_summary<T: Config>(
 	summay_ref.set(&(summary, signature, auth_index));
 }
 
-fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
 	let body_len =

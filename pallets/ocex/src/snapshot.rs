@@ -20,7 +20,7 @@ use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::BlockNumber;
 
 // Accounts storage
-#[derive(Encode, Decode, PartialEq, Debug, Clone)]
+#[derive(Encode, Decode, PartialEq, Debug, Clone, Copy)]
 pub struct StateInfo {
 	/// Last block processed
 	pub last_block: BlockNumber,

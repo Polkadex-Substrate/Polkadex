@@ -298,7 +298,7 @@ pub fn send_request(
 			},
 		}
 	}
-	return Err("request failed")
+	Err("request failed")
 }
 
 fn create_and_send_request(
@@ -341,7 +341,7 @@ fn create_and_send_request(
 	log::debug!(target:"thea","{} response: {:?}",log_target,body_str);
 	let response: JSONRPCResponse = serde_json::from_str::<JSONRPCResponse>(body_str)
 		.map_err(|_| "Response failed deserialize")?;
-	return Ok(response.result)
+	Ok(response.result)
 }
 
 fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
