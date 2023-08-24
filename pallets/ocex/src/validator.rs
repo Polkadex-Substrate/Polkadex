@@ -126,7 +126,19 @@ impl<T: Config> Pallet<T> {
 				};
 				sp_runtime::print("Processing nonce");
 				sp_runtime::print(nonce);
-				Self::process_batch(&mut state, &batch, &mut state_info)?;
+				match Self::process_batch(&mut state, &batch, &mut state_info) {
+					Ok(_) => {
+						state_info.stid = batch.stid;
+						state_info.snapshot_id = batch.snapshot_id;
+						Self::store_state_info(state_info, &mut state);
+						let computed_root = state.commit()?;
+						store_trie_root(computed_root);
+					},
+					Err(err) => {
+						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
+						return Err("Sync failed")
+					},
+				}
 			}
 		}
 
@@ -153,7 +165,7 @@ impl<T: Config> Pallet<T> {
 		// Create state hash and store it
 		state_info.stid = batch.stid;
 		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-		Self::store_state_info(state_info.clone(), &mut state);
+		Self::store_state_info(state_info, &mut state);
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
