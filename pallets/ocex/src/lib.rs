@@ -325,7 +325,7 @@ pub mod pallet {
 		/// Dispute Interval not set
 		DisputeIntervalNotSet,
 		/// Worker not Idle
-		WorkerNotIdle
+		WorkerNotIdle,
 	}
 
 	#[pallet::hooks]
@@ -1331,7 +1331,7 @@ pub mod pallet {
 				let main = Self::transform_account(account.0)?;
 				// Check if worker is active or not
 				if !Self::get_worker_status().is_idle() {
-					return Err(Error::<T>::WorkerNotIdle.into());
+					return Err(Error::<T>::WorkerNotIdle.into())
 				}
 				let b = Self::get_offchain_balance(&main)?;
 				for (asset, balance) in b.into_iter() {

@@ -24,6 +24,8 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "std")]
+use crate::recovery::ObCheckpoint;
 use crate::types::AccountAsset;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
@@ -33,8 +35,6 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
-#[cfg(feature = "std")]
-use crate::recovery::ObCheckpoint;
 
 pub mod constants;
 pub mod types;

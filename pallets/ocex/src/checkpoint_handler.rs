@@ -21,7 +21,7 @@ impl CheckpointHandler {
 	}
 
 	fn set_checkpoint_flag(flag: bool) {
-		let mut s_w = StorageValueRef::persistent(&CHECKPOINT_FLAG);
+		let s_w = StorageValueRef::persistent(&CHECKPOINT_FLAG);
 		s_w.set(&flag);
 	}
 }

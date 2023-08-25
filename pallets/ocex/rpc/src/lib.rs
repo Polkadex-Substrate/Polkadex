@@ -26,29 +26,20 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::error::{CallError, ErrorObject},
 };
-use orderbook_primitives::{
-	recovery::{ObCheckpoint, ObRecoveryState},
-	ObCheckpointRaw,
-};
+use orderbook_primitives::recovery::{ObCheckpoint, ObRecoveryState};
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
 use parking_lot::RwLock;
-use polkadex_primitives::{AccountId, AssetId, Balance, Block, BlockNumber, Hash, Index};
-use sc_rpc::offchain::OffchainApiServer;
+use polkadex_primitives::AssetId;
+
+use crate::offchain::OffchainStorageAdapter;
 use sc_rpc_api::offchain::error::Error;
 pub use sc_rpc_api::DenyUnsafe;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::{
-	offchain::{OffchainStorage, StorageKind},
-	Bytes, Hasher,
-};
-use sp_runtime::{
-	offchain::storage::StorageValueRef,
-	traits::{BlakeTwo256, Block as BlockT},
-};
+use sp_core::offchain::OffchainStorage;
+use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
-use crate::offchain::OffchainStorageAdapter;
 
 const RUNTIME_ERROR: i32 = 1;
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
