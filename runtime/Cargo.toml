@@ -90,6 +90,7 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
+orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 
 # Orderbook 
@@ -186,6 +187,7 @@ std = [
   "thea-executor/std",
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
+  "orderbook-primitives/std"
 ]
 runtime-benchmarks = [
   #theirs

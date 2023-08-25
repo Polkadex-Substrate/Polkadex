@@ -7,6 +7,9 @@ use thea_primitives::{types::Destination, Message, Network};
 pub struct AggregatorClient<S: Decode, T: Config>(pub PhantomData<(S, T)>);
 
 impl<S: Decode, T: Config> AggregatorClient<S, T> {
+	/// Returns the latest incoming nonce for parachain
+	/// # Returns
+	/// * `u64`: Latest incoming nonce for parachain
 	pub fn get_latest_incoming_nonce_parachain() -> u64 {
 		let storage_key = Self::create_para_incoming_nonce_key();
 		Self::get_storage_at_latest_finalized_head::<u64>(
@@ -18,6 +21,9 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		.unwrap_or_default()
 	}
 
+	/// Returns the latest incoming nonce for solochain
+	/// # Returns
+	/// * `u64`: Latest incoming nonce for solochain
 	pub fn get_payload_for_nonce(
 		nonce: u64,
 		network: Network,
@@ -62,6 +68,12 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		}
 	}
 
+	/// Returns the encoded key for outgoing message for given nonce
+	/// # Parameters
+	/// * `nonce`: Nonce of the outgoing message
+	/// * `network`: Network of the outgoing message
+	/// # Returns
+	/// * `Vec<u8>`: Encoded key for outgoing message for given nonce
 	fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8> {
 		let module_name = sp_io::hashing::twox_128(b"Thea");
 		let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
@@ -73,7 +85,11 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		key
 	}
 
-	/// Returns the encoded key for outgoing message for given nonce in TheaMessageHandler pallet
+	/// Returns the encoded key for outgoing message for given nonce for parachain
+	/// # Parameters
+	/// * `nonce`: Nonce of the outgoing message
+	/// # Returns
+	/// * `Vec<u8>`: Encoded key for outgoing message for given nonce for parachain
 	pub fn create_para_outgoing_message_key(nonce: u64) -> Vec<u8> {
 		let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
 		let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
@@ -84,6 +100,9 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		key
 	}
 
+	/// Returns the encoded key for incoming nonce for parachain
+	/// # Returns
+	/// * `Vec<u8>`: Encoded key for incoming nonce for parachain
 	fn create_para_incoming_nonce_key() -> Vec<u8> {
 		let module_name = sp_io::hashing::twox_128(b"TheaMessageHandler");
 		let storage_prefix = sp_io::hashing::twox_128(b"IncomingNonce");
@@ -93,6 +112,10 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		key
 	}
 
+	/// Returns the storage value for given key at latest finalized head
+	/// # Parameters
+	/// * `log_target`: Log target for debug logs
+	/// * `destination`: Message destination
 	fn get_storage_at_latest_finalized_head<A: Decode>(
 		log_target: &str,
 		destination: Destination,
@@ -123,6 +146,9 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		Ok(Some(Decode::decode(&mut &storage_bytes[..]).map_err(|_| "Decode failure")?))
 	}
 
+	/// Returns the latest finalized head
+	/// # Parameters
+	/// * `destination`: Message destination
 	fn get_finalized_head(destination: Destination) -> Result<String, &'static str> {
 		let body = serde_json::json!({
 		"id":1,

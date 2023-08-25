@@ -30,9 +30,14 @@
 
 #![warn(missing_docs)]
 
-use jsonrpsee::RpcModule;
+use self::error::Error;
+use jsonrpsee::{
+	core::{async_trait, Error as JsonRpseeError, RpcResult},
+	RpcModule,
+};
 use pallet_ocex_rpc::PolkadexOcexRpc;
 use pallet_rewards_rpc::PolkadexRewardsRpc;
+use parking_lot::RwLock;
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
@@ -40,7 +45,9 @@ use sc_consensus_babe::BabeWorkerHandle;
 use sc_consensus_grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-use sc_rpc::SubscriptionTaskExecutor;
+use sc_rpc::{offchain::OffchainApiServer, SubscriptionTaskExecutor};
+/// Re-export the API for backward compatibility.
+pub use sc_rpc_api::offchain::*;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -48,6 +55,10 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
+use sp_core::{
+	offchain::{OffchainStorage, StorageKind},
+	Bytes,
+};
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
@@ -89,6 +100,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+	/// The backend used by the node.
+	pub backend: Arc<B>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -128,7 +141,8 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa } = deps;
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, backend } =
+		deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
 	let GrandpaDeps {
@@ -164,8 +178,58 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
-	io.merge(PolkadexOcexRpc::new(client.clone()).into_rpc())?;
-	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
-
+	io.merge(
+		PolkadexOcexRpc::new(
+			client.clone(),
+			backend
+				.offchain_storage()
+				.ok_or_else(|| "Backend doesn't provide an offchain storage")?,
+			deny_unsafe,
+		)
+		.into_rpc(),
+	)?;
+	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	//io.merge(Offchain::new(backend.offchain_storage().ok_or_else(|| "Backend doesn't provide an
+	// offchain storage")?, deny_unsafe).into_rpc())?;
 	Ok(io)
+}
+
+/// Offchain API
+#[derive(Debug)]
+pub struct Offchain<T: OffchainStorage> {
+	/// Offchain storage
+	storage: Arc<RwLock<T>>,
+	deny_unsafe: DenyUnsafe,
+}
+
+impl<T: OffchainStorage> Offchain<T> {
+	/// Create new instance of Offchain API.
+	pub fn new(storage: T, deny_unsafe: DenyUnsafe) -> Self {
+		Offchain { storage: Arc::new(RwLock::new(storage)), deny_unsafe }
+	}
+}
+
+#[async_trait]
+impl<T: OffchainStorage + 'static> OffchainApiServer for Offchain<T> {
+	fn set_local_storage(&self, kind: StorageKind, key: Bytes, value: Bytes) -> RpcResult<()> {
+		self.deny_unsafe.check_if_safe()?;
+
+		let prefix = match kind {
+			StorageKind::PERSISTENT => sp_offchain::STORAGE_PREFIX,
+			StorageKind::LOCAL => return Err(JsonRpseeError::from(Error::UnavailableStorageKind)),
+		};
+		self.storage.write().set(prefix, &key, &value);
+		Ok(())
+	}
+
+	fn get_local_storage(&self, kind: StorageKind, key: Bytes) -> RpcResult<Option<Bytes>> {
+		self.deny_unsafe.check_if_safe()?;
+
+		let prefix = match kind {
+			StorageKind::PERSISTENT => sp_offchain::STORAGE_PREFIX,
+			StorageKind::LOCAL => return Err(JsonRpseeError::from(Error::UnavailableStorageKind)),
+		};
+
+		Ok(self.storage.read().get(prefix, &key).map(Into::into))
+	}
 }

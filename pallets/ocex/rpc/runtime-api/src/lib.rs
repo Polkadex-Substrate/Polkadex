@@ -18,6 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use orderbook_primitives::ObCheckpointRaw;
 use parity_scale_codec::Codec;
 use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
@@ -28,5 +29,6 @@ sp_api::decl_runtime_apis! {
 		fn get_ob_recover_state() ->  Result<Vec<u8>, sp_runtime::DispatchError>;
 		// gets balance from given account of given asset
 		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, sp_runtime::DispatchError>;
+		fn fetch_checkpoint() -> Result<ObCheckpointRaw, sp_runtime::DispatchError>;
 	}
 }

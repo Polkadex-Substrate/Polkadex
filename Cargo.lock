@@ -4613,6 +4613,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "liquidity",
  "log",
+ "orderbook-primitives",
  "orml-vesting",
  "pallet-assets",
  "pallet-authority-discovery",
@@ -5323,17 +5324,25 @@ dependencies = [
 name = "pallet-ocex-rpc"
 version = "0.1.0"
 dependencies = [
+ "hash-db",
  "jsonrpsee",
  "orderbook-primitives",
  "pallet-ocex-runtime-api",
  "parity-scale-codec",
+ "parking_lot 0.12.1",
  "polkadex-primitives",
+ "sc-rpc",
+ "sc-rpc-api",
  "serde",
  "serde_json",
  "sp-api",
  "sp-blockchain",
+ "sp-core",
+ "sp-offchain",
  "sp-rpc",
  "sp-runtime",
+ "sp-trie",
+ "trie-db",
 ]
 
 [[package]]
@@ -6006,6 +6015,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
+ "parking_lot 0.12.1",
  "polkadex-client",
  "polkadex-primitives",
  "rpc-assets",
@@ -6048,6 +6058,7 @@ dependencies = [
  "sp-inherents",
  "sp-keyring",
  "sp-keystore",
+ "sp-offchain",
  "sp-runtime",
  "sp-timestamp",
  "sp-tracing",

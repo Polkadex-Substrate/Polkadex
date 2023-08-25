@@ -89,6 +89,7 @@ pub mod sr25519 {
 pub mod aggregator;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+mod checkpoint_handler;
 mod settlement;
 mod snapshot;
 pub mod storage;
@@ -143,7 +144,7 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{Fees, SnapshotSummary};
+	use orderbook_primitives::{Fees, ObCheckpointRaw, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -323,6 +324,8 @@ pub mod pallet {
 		CannotFindCloseBlockForSnapshot,
 		/// Dispute Interval not set
 		DisputeIntervalNotSet,
+		/// Worker not Idle
+		WorkerNotIdle
 	}
 
 	#[pallet::hooks]
@@ -1312,6 +1315,38 @@ pub mod pallet {
 				last_processed_block_number,
 				state_change_id,
 				worker_nonce,
+			))
+		}
+
+		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			let account_id =
+				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
+					ids_accum.push((acc.clone(), acc_info.proxies));
+					ids_accum
+				});
+
+			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			// all offchain balances for main accounts
+			for account in account_id {
+				let main = Self::transform_account(account.0)?;
+				// Check if worker is active or not
+				if !Self::get_worker_status().is_idle() {
+					return Err(Error::<T>::WorkerNotIdle.into());
+				}
+				let b = Self::get_offchain_balance(&main)?;
+				for (asset, balance) in b.into_iter() {
+					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
+				}
+			}
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
+			let last_processed_block_number = state_info.last_block;
+			let snapshot_id = state_info.snapshot_id;
+			let state_change_id = state_info.stid;
+			Ok(ObCheckpointRaw::new(
+				snapshot_id,
+				balances,
+				last_processed_block_number,
+				state_change_id,
 			))
 		}
 
