@@ -21,9 +21,13 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		.unwrap_or_default()
 	}
 
-	/// Returns the latest incoming nonce for solochain
+	/// Returns the payload for given nonce for given network and destination
+	/// # Parameters
+	/// * `nonce`: Nonce of the outgoing message
+	/// * `network`: Network of the outgoing message
+	/// * `destination`: Message destination
 	/// # Returns
-	/// * `u64`: Latest incoming nonce for solochain
+	/// * `Option<Message>`: Payload for given nonce for given network and destination
 	pub fn get_payload_for_nonce(
 		nonce: u64,
 		network: Network,

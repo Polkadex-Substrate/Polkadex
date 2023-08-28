@@ -180,24 +180,23 @@ impl<T: Config> Pallet<T> {
 		Ok(true)
 	}
 
+	/// Returns the offchain state
 	pub fn get_worker_status() -> OrderbookWorkerStatus {
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 		match s_info
 			.get::<bool>()
-			.map_err(|err| {
-				log::error!(target:"ocex","Error while loading worker status: {:?}",err);
-				"Unable to load worker status"
-			})
-			.unwrap()
 		{
-			//TODO: Fix this unwrap
-			Some(true) => {
+			Ok(Some(true)) => {
 				// Another worker is online, so exit
 				log::info!(target:"ocex", "Another worker is online, so exit");
 				return OrderbookWorkerStatus::InProgress
 			},
-			None => OrderbookWorkerStatus::NotStarted,
-			Some(false) => OrderbookWorkerStatus::Idle,
+			Ok(None) => OrderbookWorkerStatus::NotStarted,
+			Ok(Some(false)) => OrderbookWorkerStatus::Idle,
+			Err(err) => {
+				log::error!(target:"ocex","Error while loading worker status: {:?}",err);
+				OrderbookWorkerStatus::Error
+			},
 		}
 	}
 

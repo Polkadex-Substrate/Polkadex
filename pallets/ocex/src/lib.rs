@@ -1318,6 +1318,7 @@ pub mod pallet {
 			))
 		}
 
+		/// Fetch checkpoint for recovery
 		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
 			let account_id =
 				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {

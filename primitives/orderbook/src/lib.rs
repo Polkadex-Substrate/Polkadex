@@ -142,6 +142,15 @@ pub struct ObCheckpointRaw {
 }
 
 impl ObCheckpointRaw {
+
+	/// Create a new `ObCheckpointRaw` instance.
+	/// # Parameters
+	/// * `snapshot_id`: The snapshot ID of the order book recovery state.
+	/// * `balances`: A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
+	/// * `last_processed_block_number`: The last block number that was processed by validator.
+	/// * `state_change_id`: State change id
+	/// # Returns
+	/// * `ObCheckpointRaw`: A new `ObCheckpointRaw` instance.
 	pub fn new(
 		snapshot_id: u64,
 		balances: BTreeMap<AccountAsset, Decimal>,
@@ -151,6 +160,9 @@ impl ObCheckpointRaw {
 		Self { snapshot_id, balances, last_processed_block_number, state_change_id }
 	}
 
+	/// Convert `ObCheckpointRaw` to `ObCheckpoint`.
+	/// # Returns
+	/// * `ObCheckpoint`: A new `ObCheckpoint` instance.
 	#[cfg(feature = "std")]
 	pub fn to_checkpoint(&self) -> ObCheckpoint {
 		ObCheckpoint {
@@ -162,13 +174,19 @@ impl ObCheckpointRaw {
 	}
 }
 
+/// Orderbook offchain worker status
 pub enum OrderbookWorkerStatus {
 	Idle,
 	InProgress,
 	NotStarted,
+	Error
 }
 
 impl OrderbookWorkerStatus {
+
+	/// Check if the status is idle
+	/// # Returns
+	/// * `bool`: True if the status is idle
 	pub fn is_idle(&self) -> bool {
 		match self {
 			OrderbookWorkerStatus::Idle => true,

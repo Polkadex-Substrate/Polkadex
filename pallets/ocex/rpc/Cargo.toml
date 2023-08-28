@@ -16,10 +16,10 @@ orderbook-primitives = { path = "../../../primitives/orderbook" }
 pallet-ocex-runtime-api = { path = "runtime-api" }
 serde_json = { workspace = true, default-features = true }
 polkadex-primitives = { workspace = true }
-sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
-sp-offchain = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
-parking_lot = "0.12.1"
+sc-rpc-api = { workspace = true, default-features = true }
+sc-rpc = { workspace = true, default-features = true }
+sp-offchain = { workspace = true, default-features = true }
+parking_lot = { workspace = true }
 hash-db = { workspace = true }
 trie-db = { workspace = true }
 sp-trie = { workspace = true }

@@ -149,7 +149,7 @@ where
 		};
 		let offchain_worker = OffchainStorageAdapter::new(self.storage.clone());
 		while offchain_worker.get_worker_status() {
-			std::thread::sleep(std::time::Duration::from_millis(100));
+			std::thread::sleep(std::time::Duration::from_millis(100)); // 1 sec waiting time & break after 3rd attempt
 		}
 		offchain_worker.update_worker_status(true);
 		return if let Ok(Ok(ob_checkpoint_raw)) = api.fetch_checkpoint(at) {
