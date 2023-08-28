@@ -9,30 +9,36 @@ use polkadex_primitives::{AccountId, AssetId};
 use rust_decimal::Decimal;
 use sp_core::ByteArray;
 use sp_runtime::{offchain::storage::StorageValueRef, traits::BlockNumberProvider, DispatchError, Saturating, SaturatedConversion};
+use sp_runtime::offchain::storage::StorageRetrievalError;
 use sp_std::collections::btree_map::BTreeMap;
 
 impl<T: Config> Pallet<T> {
-	/// Returns Some(()), if lock is acquired else, None.
-	pub fn acquire_offchain_lock() -> Option<()> {
+	/// Try to acquire the offchain storage lock ( tries for 3 times )
+	/// Return OK(()) if lock is acquired else , Err(())
+	pub fn acquire_offchain_lock() -> Result<(),()> {
 		// Check if another worker is already running or not
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info.get::<bool>().map_err(|err| {
-			log::error!(target:"ocex","Error while loading worker status: {:?}",err);
-			"Unable to load worker status"
-		}).ok()? {
-			Some(true) => {
-				// Another worker is online, so exit
-				log::info!(target:"ocex", "Another worker is online, so exit");
-				return None
-			},
-			None => {},
-			Some(false) => {},
+		for _ in 0..3{
+			if let Ok(_) = s_info.mutate(|value: Result<Option<bool>,StorageRetrievalError>| -> Result<bool,()>{
+				match value {
+					Ok(Some(true)) => {
+						log::warn!(target:"ocex","Another worker is online, retrying after 1 sec");
+						Err(())
+					},
+					Ok(Some(false)) | Ok(None) => Ok(true),
+					Err(x) => {
+						log::error!(target:"ocex","Error while acquiring lock: {:?}",x);
+						Err(())
+					}
+				}
+			}){
+				return Ok(())
+			}
 		}
-		s_info.set(&true); // Set WORKER_STATUS to true
-		Some(())
+		Err(())
 	}
 
-	/// Release offchain lock
+	/// Release offchain storage lock
 	pub fn release_offchain_lock() {
 		// Check if another worker is already running or not
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
@@ -55,7 +61,7 @@ impl<T: Config> Pallet<T> {
 	/// This is a blocking call for offchain worker.
 	pub fn calculate_inventory_deviation() -> Result<BTreeMap<AssetId, Decimal>, DispatchError> {
 		// Acquire the lock to run off-chain worker
-		if let Some(_) = Self::acquire_offchain_lock() {
+		if let Ok(_) = Self::acquire_offchain_lock() {
 			//      2. Load last processed blk
 			let mut root = crate::storage::load_trie_root();
 			log::info!(target:"ocex-rpc","state_root {:?}", root);
@@ -81,6 +87,7 @@ impl<T: Config> Pallet<T> {
 			let assets = <AllowlistedToken<T>>::get();
 			let mut onchain_inventory = BTreeMap::new();
 			for asset in assets {
+				// There is no race condition here, as it will be computed for a given block
 				let total = Self::get_onchain_balance(asset);
 				onchain_inventory
 					.entry(asset)
@@ -122,9 +129,10 @@ impl<T: Config> Pallet<T> {
 					.saturating_sub(*offchain_inventory.get(&asset).unwrap_or_default());
 				deviation.insert(asset, diff);
 			}
+			Self::release_offchain_lock();
 			return Ok(deviation)
+		}else{
+			return Err(DispatchError::Other("Unable to acquire offchain storage lock"))
 		}
-		Self::release_offchain_lock();
-		Err(DispatchError::Other("Unable to calculate deviation"))
 	}
 }

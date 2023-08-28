@@ -49,10 +49,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	) -> RpcResult<String>;
 
 	#[method(name = "ob_inventoryDeviation")]
-	fn calculate_inventory_deviation(
-		&self,
-		at: Option<BlockHash>,
-	) -> RpcResult<String>;
+	fn calculate_inventory_deviation(&self, at: Option<BlockHash>) -> RpcResult<String>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -137,11 +134,9 @@ where
 			None => self.client.info().best_hash,
 		};
 		let runtime_api_result =
-			api.calculate_inventory_deviation(at)
-				.map_err(runtime_error_into_rpc_err)?;
+			api.calculate_inventory_deviation(at).map_err(runtime_error_into_rpc_err)?;
 		let json =
-			serde_json::to_string(&runtime_api_result)
-				.map_err(runtime_error_into_rpc_err)?;
+			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
 	}
 }
