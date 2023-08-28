@@ -54,13 +54,10 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Check if another worker is already running or not
-		match Self::check_worker_status() {
-			Ok(false) => return Ok(false),
-			Err(err) => return Err(err),
-			_ => {
-				log::info!(target:"ocex", "Checked worker status");
-			},
+		if Self::acquire_offchain_lock().is_err() {
+			return Ok(false)
 		}
+		// Check the next batch to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 
 		let mut root = crate::storage::load_trie_root();
@@ -106,7 +103,19 @@ impl<T: Config> Pallet<T> {
 				};
 				sp_runtime::print("Processing nonce");
 				sp_runtime::print(nonce);
-				Self::process_batch(&mut state, &batch, &mut state_info)?;
+				match Self::process_batch(&mut state, &batch, &mut state_info) {
+					Ok(_) => {
+						state_info.stid = batch.stid;
+						state_info.snapshot_id = batch.snapshot_id;
+						Self::store_state_info(state_info, &mut state);
+						let computed_root = state.commit()?;
+						store_trie_root(computed_root);
+					},
+					Err(err) => {
+						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
+						return Err("Sync failed")
+					},
+				}
 			}
 		}
 
@@ -133,7 +142,7 @@ impl<T: Config> Pallet<T> {
 		// Create state hash and store it
 		state_info.stid = batch.stid;
 		state_info.snapshot_id = batch.snapshot_id; // Store the processed nonce
-		Self::store_state_info(state_info.clone(), &mut state);
+		Self::store_state_info(state_info, &mut state);
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
@@ -309,7 +318,7 @@ impl<T: Config> Pallet<T> {
 			match action {
 				UserActions::Trade(trades) => Self::trades(trades, state)?,
 				UserActions::Withdraw(request) => {
-					let withdrawal = Self::withdraw(request, state, batch.stid)?;
+					let withdrawal = Self::withdraw(request, state, 0)?;
 					withdrawals.push(withdrawal);
 				},
 				UserActions::BlockImport(blk) =>
@@ -325,8 +334,8 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	/// Loads the state info from the offchain state
-	fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
+		/// Loads the state info from the offchain state
+	pub fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
 		match state.get(&STATE_INFO.to_vec())? {
 			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
 			None => Ok(StateInfo::default()),

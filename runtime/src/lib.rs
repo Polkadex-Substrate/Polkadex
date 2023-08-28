@@ -117,7 +117,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 305,
+	spec_version: 308,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1575,7 +1575,20 @@ impl_runtime_apis! {
 	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
 		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
 		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
-		fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> { OCEX::fetch_checkpoint() }
+		fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			OCEX::acquire_offchain_lock()?;
+			let result = OCEX::fetch_checkpoint();
+			OCEX::release_offchain_lock();
+			result
+		}
+		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
+		DispatchError> {
+			// 1. Acquire the lock to run off-chain worker
+			OCEX::acquire_offchain_lock()?;
+			let result = OCEX::calculate_inventory_deviation();
+			OCEX::release_offchain_lock();
+			result
+		}
 	}
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {

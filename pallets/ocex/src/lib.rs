@@ -31,22 +31,24 @@ use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
 	traits::{
-		fungibles::Mutate, tokens::Preservation, Currency, ExistenceRequirement, Get,
-		OneSessionHandler,
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Preservation},
+		Currency, ExistenceRequirement, Get, OneSessionHandler,
 	},
 	BoundedVec,
 };
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{assets::AssetId, AccountId};
+use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE};
+use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	Percent,
+	Percent, SaturatedConversion,
 };
-use sp_std::prelude::*;
+use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
@@ -89,7 +91,7 @@ pub mod sr25519 {
 pub mod aggregator;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod checkpoint_handler;
+pub mod rpc;
 mod settlement;
 mod snapshot;
 pub mod storage;
@@ -1330,10 +1332,6 @@ pub mod pallet {
 			// all offchain balances for main accounts
 			for account in account_id {
 				let main = Self::transform_account(account.0)?;
-				// Check if worker is active or not
-				if !Self::get_worker_status().is_idle() {
-					return Err(Error::<T>::WorkerNotIdle.into())
-				}
 				let b = Self::get_offchain_balance(&main)?;
 				for (asset, balance) in b.into_iter() {
 					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
@@ -1655,6 +1653,21 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			},
 		}
 		Ok(())
+	}
+
+	fn get_onchain_balance(asset: AssetId) -> Decimal {
+		let balance = match asset {
+			AssetId::Polkadex => T::NativeCurrency::free_balance(&Self::get_pallet_account()),
+			AssetId::Asset(id) => T::OtherAssets::reducible_balance(
+				id,
+				&Self::get_pallet_account(),
+				Preservation::Expendable,
+				Fortitude::Force,
+			),
+		};
+
+		// div will not panic since denominator is a constant
+		Decimal::from(balance.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE))
 	}
 }
 
