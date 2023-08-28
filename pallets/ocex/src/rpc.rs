@@ -1,6 +1,5 @@
 use crate::{
 	pallet::{Accounts, AllowlistedToken, IngressMessages},
-	snapshot::StateInfo,
 	storage::OffchainState,
 	validator::WORKER_STATUS,
 	Config, Pallet,
