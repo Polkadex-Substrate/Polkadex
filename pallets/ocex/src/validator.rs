@@ -65,21 +65,10 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Check if another worker is already running or not
-		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info.get::<bool>().map_err(|err| {
-			log::error!(target:"ocex","Error while loading worker status: {:?}",err);
-			"Unable to load worker status"
-		})? {
-			Some(true) => {
-				// Another worker is online, so exit
-				log::info!(target:"ocex", "Another worker is online, so exit");
-				return Ok(false)
-			},
-			None => {},
-			Some(false) => {},
+		if let Err(_) = Self::acquire_offchain_lock() {
+			return Ok(false)
 		}
-		s_info.set(&true); // Set WORKER_STATUS to true
-				   // Check the next batch to process
+		// Check the next batch to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
 
 		// Load the state to memory
@@ -300,7 +289,7 @@ impl<T: Config> Pallet<T> {
 			match action {
 				UserActions::Trade(trades) => Self::trades(trades, state)?,
 				UserActions::Withdraw(request) => {
-					let withdrawal = Self::withdraw(request, state, batch.stid)?;
+					let withdrawal = Self::withdraw(request, state, 0)?;
 					withdrawals.push(withdrawal);
 				},
 				UserActions::BlockImport(blk) =>
@@ -316,7 +305,7 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
+	pub(crate) fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
 		match state.get(&STATE_INFO.to_vec())? {
 			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
 			None => Ok(StateInfo::default()),

@@ -21,12 +21,14 @@
 use parity_scale_codec::Codec;
 use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
-use sp_std::vec::Vec;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec {
 		fn get_ob_recover_state() ->  Result<Vec<u8>, sp_runtime::DispatchError>;
 		// gets balance from given account of given asset
 		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, sp_runtime::DispatchError>;
+		// Returns the asset inventory deviation in the offchain State
+		fn calculate_inventory_deviation() -> Result<BTreeMap<AssetId,Decimal>, sp_runtime::DispatchError>;
 	}
 }

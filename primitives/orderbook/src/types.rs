@@ -231,7 +231,7 @@ impl ObMessage {
 pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
-	/// Withdraw operation requested.
+	/// Withdraw operation requested. ( payload, stid)
 	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
 	BlockImport(u32),
