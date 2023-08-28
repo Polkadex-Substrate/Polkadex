@@ -187,7 +187,7 @@ std = [
   "thea-executor/std",
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
-  "orderbook-primitives/std"
+  "orderbook-primitives/std",
 ]
 runtime-benchmarks = [
   #theirs
