@@ -22,8 +22,8 @@ impl<T: Config> Pallet<T> {
 		// Check if another worker is already running or not
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 		for _ in 0..3 {
-			if let Ok(_) = s_info.mutate(
-				|value: Result<Option<bool>, StorageRetrievalError>| -> Result<bool, ()> {
+			if s_info
+				.mutate(|value: Result<Option<bool>, StorageRetrievalError>| -> Result<bool, ()> {
 					match value {
 						Ok(Some(true)) => {
 							log::warn!(target:"ocex","Another worker is online, retrying after 1 sec");
@@ -35,8 +35,9 @@ impl<T: Config> Pallet<T> {
 							Err(())
 						},
 					}
-				},
-			) {
+				})
+				.is_ok()
+			{
 				return Ok(())
 			}
 		}
@@ -107,16 +108,15 @@ impl<T: Config> Pallet<T> {
 				let ingress_msgs =
 					<IngressMessages<T>>::get(blk.saturated_into::<T::BlockNumber>());
 				for msg in ingress_msgs {
-					match msg {
-						polkadex_primitives::ingress::IngressMessages::Deposit(_, asset, amt) => {
-							onchain_inventory
-								.entry(asset)
-								.and_modify(|total_balance| {
-									*total_balance = (*total_balance).saturating_add(amt)
-								})
-								.or_insert(amt);
-						},
-						_ => {},
+					if let polkadex_primitives::ingress::IngressMessages::Deposit(_, asset, amt) =
+						msg
+					{
+						onchain_inventory
+							.entry(asset)
+							.and_modify(|total_balance| {
+								*total_balance = (*total_balance).saturating_add(amt)
+							})
+							.or_insert(amt);
 					}
 				}
 			}
@@ -128,7 +128,7 @@ impl<T: Config> Pallet<T> {
 				.get(asset)
 				.cloned()
 				.unwrap_or_default()
-				.saturating_sub(offchain_inventory.get(&asset).cloned().unwrap_or_default());
+				.saturating_sub(offchain_inventory.get(asset).cloned().unwrap_or_default());
 			deviation.insert(*asset, diff);
 		}
 		Ok(deviation)

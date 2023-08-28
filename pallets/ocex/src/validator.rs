@@ -65,7 +65,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Check if another worker is already running or not
-		if let Err(_) = Self::acquire_offchain_lock() {
+		if Self::acquire_offchain_lock().is_err() {
 			return Ok(false)
 		}
 		// Check the next batch to process
