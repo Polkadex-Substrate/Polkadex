@@ -1575,7 +1575,13 @@ impl_runtime_apis! {
 		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
 		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
 		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
-		DispatchError> { OCEX::calculate_inventory_deviation() }
+		DispatchError> {
+			// 1. Acquire the lock to run off-chain worker
+			OCEX::acquire_offchain_lock()?;
+			let result = OCEX::calculate_inventory_deviation();
+			OCEX::release_offchain_lock();
+			result
+		}
 	}
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
