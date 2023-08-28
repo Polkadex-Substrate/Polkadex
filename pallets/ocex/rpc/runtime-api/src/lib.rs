@@ -21,8 +21,7 @@
 use parity_scale_codec::Codec;
 use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
-use sp_std::vec::Vec;
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec {

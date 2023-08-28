@@ -48,8 +48,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
 	Percent, SaturatedConversion,
 };
-use sp_std::prelude::*;
-use std::ops::{Div, DivAssign};
+use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
@@ -1626,17 +1625,17 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 	fn get_onchain_balance(asset: AssetId) -> Decimal {
 		let balance = match asset {
-			AssetId::Polkadex => T::NativeCurrency::free_balance(Self::get_pallet_account()),
+			AssetId::Polkadex => T::NativeCurrency::free_balance(&Self::get_pallet_account()),
 			AssetId::Asset(id) => T::OtherAssets::reducible_balance(
 				id,
-				Self::get_pallet_account(),
+				&Self::get_pallet_account(),
 				Preservation::Expendable,
 				Fortitude::Force,
 			),
 		};
 
 		// div will not panic since denominator is a constant
-		Decimal::from(balance.saturated_into::<u128>()).div(&mut Decimal::from(UNIT_BALANCE))
+		Decimal::from(balance.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE))
 	}
 }
 

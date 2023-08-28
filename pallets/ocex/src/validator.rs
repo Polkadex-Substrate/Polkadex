@@ -65,7 +65,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		// Check if another worker is already running or not
-		if let None = Self::acquire_offchain_lock() {
+		if let Err(_) = Self::acquire_offchain_lock() {
 			return Ok(false)
 		}
 		// Check the next batch to process
@@ -288,8 +288,8 @@ impl<T: Config> Pallet<T> {
 		for action in &batch.actions {
 			match action {
 				UserActions::Trade(trades) => Self::trades(trades, state)?,
-				UserActions::Withdraw(request,stid) => {
-					let withdrawal = Self::withdraw(request, state, stid)?;
+				UserActions::Withdraw(request, stid) => {
+					let withdrawal = Self::withdraw(request, state, *stid)?;
 					withdrawals.push(withdrawal);
 				},
 				UserActions::BlockImport(blk) =>
