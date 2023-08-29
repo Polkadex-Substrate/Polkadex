@@ -11,7 +11,6 @@ pub struct OffchainStorageAdapter<T: OffchainStorage> {
 }
 
 impl<T: OffchainStorage> OffchainStorageAdapter<T> {
-
 	/// Create a new `OffchainStorageAdapter` instance.
 	/// # Parameters
 	/// * `storage`: Offchain storage
@@ -31,8 +30,13 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 		let old_value = Encode::encode(&false);
 		let new_value = Encode::encode(&true);
 		for _ in 0..tries {
-			if self.storage.write().compare_and_set(prefix, &WORKER_STATUS, Some(&old_value), &new_value) {
-				return true;
+			if self.storage.write().compare_and_set(
+				prefix,
+				&WORKER_STATUS,
+				Some(&old_value),
+				&new_value,
+			) {
+				return true
 			}
 			// Wait for 1 sec
 			std::thread::sleep(std::time::Duration::from_secs(1));

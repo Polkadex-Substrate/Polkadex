@@ -192,9 +192,7 @@ impl<T: Config> Pallet<T> {
 	/// Returns the offchain state
 	pub fn get_worker_status() -> OrderbookWorkerStatus {
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info
-			.get::<bool>()
-		{
+		match s_info.get::<bool>() {
 			Ok(Some(true)) => {
 				// Another worker is online, so exit
 				log::info!(target:"ocex", "Another worker is online, so exit");
@@ -334,7 +332,7 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-		/// Loads the state info from the offchain state
+	/// Loads the state info from the offchain state
 	pub fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
 		match state.get(&STATE_INFO.to_vec())? {
 			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),

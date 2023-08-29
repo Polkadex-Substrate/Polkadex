@@ -29,14 +29,14 @@ use jsonrpsee::{
 use orderbook_primitives::recovery::{ObCheckpoint, ObRecoveryState};
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
+use parking_lot::RwLock;
 use polkadex_primitives::AssetId;
+use sc_rpc_api::DenyUnsafe;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
+use sp_core::offchain::OffchainStorage;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use sc_rpc_api::DenyUnsafe;
-use sp_core::offchain::OffchainStorage;
 
 const RUNTIME_ERROR: i32 = 1;
 
@@ -93,15 +93,15 @@ impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
 
 #[async_trait]
 impl<Client, Block, AccountId, Hash, T>
-PolkadexOcexRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
-for PolkadexOcexRpc<Client, Block, T>
-	where
-		Block: BlockT,
-		Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-		Client::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
-		AccountId: Codec,
-		Hash: Codec,
-        T: OffchainStorage + 'static
+	PolkadexOcexRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
+	for PolkadexOcexRpc<Client, Block, T>
+where
+	Block: BlockT,
+	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+	Client::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
+	AccountId: Codec,
+	Hash: Codec,
+	T: OffchainStorage + 'static,
 {
 	fn get_ob_recover_state(
 		&self,
@@ -121,7 +121,7 @@ for PolkadexOcexRpc<Client, Block, T>
 				.map_err(runtime_error_into_rpc_err)?
 				.as_ref(),
 		)
-			.map_err(runtime_error_into_rpc_err)
+		.map_err(runtime_error_into_rpc_err)
 	}
 
 	fn get_balance(
@@ -154,7 +154,7 @@ for PolkadexOcexRpc<Client, Block, T>
 		};
 		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
 		if !offchain_storage.acquire_offchain_lock(3) {
-			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"));
+			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
 		let runtime_api_result =
 			api.calculate_inventory_deviation(at).map_err(runtime_error_into_rpc_err)?;
@@ -170,12 +170,14 @@ for PolkadexOcexRpc<Client, Block, T>
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-        let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
 		if !offchain_storage.acquire_offchain_lock(3) {
-			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"));
+			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
-		let ob_checkpoint_raw =
-			api.fetch_checkpoint(at).map_err(runtime_error_into_rpc_err)?.map_err(runtime_error_into_rpc_err)?;
+		let ob_checkpoint_raw = api
+			.fetch_checkpoint(at)
+			.map_err(runtime_error_into_rpc_err)?
+			.map_err(runtime_error_into_rpc_err)?;
 		let ob_checkpoint = ob_checkpoint_raw.to_checkpoint();
 		Ok(ob_checkpoint)
 	}

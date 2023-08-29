@@ -142,7 +142,6 @@ pub struct ObCheckpointRaw {
 }
 
 impl ObCheckpointRaw {
-
 	/// Create a new `ObCheckpointRaw` instance.
 	/// # Parameters
 	/// * `snapshot_id`: The snapshot ID of the order book recovery state.
@@ -179,11 +178,10 @@ pub enum OrderbookWorkerStatus {
 	Idle,
 	InProgress,
 	NotStarted,
-	Error
+	Error,
 }
 
 impl OrderbookWorkerStatus {
-
 	/// Check if the status is idle
 	/// # Returns
 	/// * `bool`: True if the status is idle
