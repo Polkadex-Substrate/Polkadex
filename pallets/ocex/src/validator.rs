@@ -8,7 +8,7 @@ use crate::{
 };
 use orderbook_primitives::{
 	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
-	OrderbookWorkerStatus, SnapshotSummary,
+	SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId};
@@ -187,24 +187,6 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(true)
-	}
-
-	/// Returns the offchain state
-	pub fn get_worker_status() -> OrderbookWorkerStatus {
-		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info.get::<bool>() {
-			Ok(Some(true)) => {
-				// Another worker is online, so exit
-				log::info!(target:"ocex", "Another worker is online, so exit");
-				return OrderbookWorkerStatus::InProgress
-			},
-			Ok(None) => OrderbookWorkerStatus::NotStarted,
-			Ok(Some(false)) => OrderbookWorkerStatus::Idle,
-			Err(err) => {
-				log::error!(target:"ocex","Error while loading worker status: {:?}",err);
-				OrderbookWorkerStatus::Error
-			},
-		}
 	}
 
 	/// Checks if another worker is already running or not

@@ -1580,8 +1580,7 @@ impl_runtime_apis! {
 		}
 		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
 		DispatchError> {
-			let result = OCEX::calculate_inventory_deviation();
-			result
+			OCEX::calculate_inventory_deviation()
 		}
 	}
 

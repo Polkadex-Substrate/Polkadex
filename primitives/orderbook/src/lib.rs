@@ -172,23 +172,3 @@ impl ObCheckpointRaw {
 		}
 	}
 }
-
-/// Orderbook offchain worker status
-pub enum OrderbookWorkerStatus {
-	Idle,
-	InProgress,
-	NotStarted,
-	Error,
-}
-
-impl OrderbookWorkerStatus {
-	/// Check if the status is idle
-	/// # Returns
-	/// * `bool`: True if the status is idle
-	pub fn is_idle(&self) -> bool {
-		match self {
-			OrderbookWorkerStatus::Idle => true,
-			_ => false,
-		}
-	}
-}
