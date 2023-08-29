@@ -19,6 +19,8 @@
 //! This crate provides an RPC methods for OCEX pallet - balances state and onchain/offchain
 //! recovery data.
 
+pub mod offchain;
+
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
@@ -32,6 +34,9 @@ use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
+use parking_lot::RwLock;
+use sc_rpc_api::DenyUnsafe;
+use sp_core::offchain::OffchainStorage;
 
 const RUNTIME_ERROR: i32 = 1;
 
@@ -62,31 +67,41 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 ///
 /// * `Client`: The client API used to interact with the Substrate runtime.
 /// * `Block`: The block type of the Substrate runtime.
-pub struct PolkadexOcexRpc<Client, Block> {
+pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 	/// An `Arc` reference to the client API for accessing runtime functionality.
 	client: Arc<Client>,
+
+	/// Offchain storage
+	storage: Arc<RwLock<T>>,
+	_deny_unsafe: DenyUnsafe,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct
 	/// is covariant with respect to the block type.
 	_marker: std::marker::PhantomData<Block>,
 }
 
-impl<Client, Block> PolkadexOcexRpc<Client, Block> {
-	pub fn new(client: Arc<Client>) -> Self {
-		Self { client, _marker: Default::default() }
+impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
+	pub fn new(client: Arc<Client>, storage: T, deny_unsafe: DenyUnsafe) -> Self {
+		Self {
+			client,
+			storage: Arc::new(RwLock::new(storage)),
+			_deny_unsafe: deny_unsafe,
+			_marker: Default::default(),
+		}
 	}
 }
 
 #[async_trait]
-impl<Client, Block, AccountId, Hash>
+impl<Client, Block, AccountId, Hash, T>
 PolkadexOcexRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
-for PolkadexOcexRpc<Client, Block>
+for PolkadexOcexRpc<Client, Block, T>
 	where
 		Block: BlockT,
 		Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 		Client::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
 		AccountId: Codec,
 		Hash: Codec,
+        T: OffchainStorage + 'static
 {
 	fn get_ob_recover_state(
 		&self,
@@ -136,19 +151,23 @@ for PolkadexOcexRpc<Client, Block>
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
+		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+		offchain_storage.acquire_offchain_lock(3);
 		let runtime_api_result =
 			api.calculate_inventory_deviation(at).map_err(runtime_error_into_rpc_err)?;
 		let json =
 			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
 	}
+
 	fn fetch_checkpoint(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<ObCheckpoint> {
 		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-
+        let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+		offchain_storage.acquire_offchain_lock(3);
 		let ob_checkpoint_raw =
 			api.fetch_checkpoint(at).map_err(runtime_error_into_rpc_err)?.map_err(runtime_error_into_rpc_err)?;
 		let ob_checkpoint = ob_checkpoint_raw.to_checkpoint();

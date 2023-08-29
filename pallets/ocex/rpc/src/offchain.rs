@@ -39,6 +39,20 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 		}
 	}
 
+	pub fn acquire_offchain_lock(&self, tries: u8) -> bool {
+		let prefix = sp_offchain::STORAGE_PREFIX;
+		let old_value = Encode::encode(&false);
+		let new_value = Encode::encode(&true);
+		for _ in 0..tries {
+			if self.storage.write().compare_and_set(prefix, &WORKER_STATUS, Some(&old_value), &new_value) {
+				return true;
+			}
+			// Wait for 1 sec
+			std::thread::sleep(std::time::Duration::from_secs(1));
+		}
+		false
+	}
+
 	/// Update worker status
 	/// # Parameters
 	/// * `status`: Worker status
@@ -46,5 +60,11 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 		let prefix = sp_offchain::STORAGE_PREFIX;
 		let encoded_value = Encode::encode(&status);
 		self.storage.write().set(prefix, &WORKER_STATUS, &encoded_value);
+	}
+}
+
+impl<T: OffchainStorage> Drop for OffchainStorageAdapter<T> {
+	fn drop(&mut self) {
+		self.update_worker_status(false);
 	}
 }

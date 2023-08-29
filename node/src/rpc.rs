@@ -134,7 +134,7 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, backend:_ } =
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, backend } =
 		deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
@@ -173,7 +173,11 @@ where
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
 	io.merge(
 		PolkadexOcexRpc::new(
-			client.clone()
+			client.clone(),
+			backend
+				.offchain_storage()
+				.ok_or_else(|| "Backend doesn't provide an offchain storage")?,
+			deny_unsafe,
 		)
 		.into_rpc(),
 	)?;
