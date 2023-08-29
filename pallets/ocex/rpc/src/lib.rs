@@ -73,7 +73,7 @@ pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 
 	/// Offchain storage
 	storage: Arc<RwLock<T>>,
-	_deny_unsafe: DenyUnsafe,
+	deny_unsafe: DenyUnsafe,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct
 	/// is covariant with respect to the block type.
@@ -85,7 +85,7 @@ impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
 		Self {
 			client,
 			storage: Arc::new(RwLock::new(storage)),
-			_deny_unsafe: deny_unsafe,
+			deny_unsafe,
 			_marker: Default::default(),
 		}
 	}
@@ -146,6 +146,7 @@ for PolkadexOcexRpc<Client, Block, T>
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
+		self.deny_unsafe.check_if_safe()?;
 		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
@@ -163,6 +164,7 @@ for PolkadexOcexRpc<Client, Block, T>
 	}
 
 	fn fetch_checkpoint(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<ObCheckpoint> {
+		self.deny_unsafe.check_if_safe()?;
 		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
