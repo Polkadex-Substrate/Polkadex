@@ -39,6 +39,11 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 		}
 	}
 
+	/// Acquire offchain lock
+	/// # Parameters
+	/// * `tries`: Number of tries to acquire lock
+	/// # Returns
+	/// * `bool`: True if lock is acquired else false
 	pub fn acquire_offchain_lock(&self, tries: u8) -> bool {
 		let prefix = sp_offchain::STORAGE_PREFIX;
 		let old_value = Encode::encode(&false);
