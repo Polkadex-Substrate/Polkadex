@@ -5470,6 +5470,7 @@ dependencies = [
  "sp-rpc",
  "sp-runtime",
  "sp-trie",
+ "tokio",
  "trie-db",
 ]
 

@@ -54,10 +54,10 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	) -> RpcResult<String>;
 
 	#[method(name = "ob_inventoryDeviation")]
-	fn calculate_inventory_deviation(&self, at: Option<BlockHash>) -> RpcResult<String>;
+	async fn calculate_inventory_deviation(&self, at: Option<BlockHash>) -> RpcResult<String>;
 
 	#[method(name = "ob_fetchCheckpoint")]
-	fn fetch_checkpoint(&self, at: Option<BlockHash>) -> RpcResult<ObCheckpoint>;
+	async fn fetch_checkpoint(&self, at: Option<BlockHash>) -> RpcResult<ObCheckpoint>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -142,7 +142,7 @@ where
 		Ok(json)
 	}
 
-	fn calculate_inventory_deviation(
+	async fn calculate_inventory_deviation(
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
@@ -153,7 +153,7 @@ where
 			None => self.client.info().best_hash,
 		};
 		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
-		if !offchain_storage.acquire_offchain_lock(3) {
+		if !offchain_storage.acquire_offchain_lock(3).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
 		let runtime_api_result =
@@ -163,7 +163,10 @@ where
 		Ok(json)
 	}
 
-	fn fetch_checkpoint(&self, at: Option<<Block as BlockT>::Hash>) -> RpcResult<ObCheckpoint> {
+	async fn fetch_checkpoint(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<ObCheckpoint> {
 		self.deny_unsafe.check_if_safe()?;
 		let api = self.client.runtime_api();
 		let at = match at {
@@ -171,7 +174,7 @@ where
 			None => self.client.info().best_hash,
 		};
 		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
-		if !offchain_storage.acquire_offchain_lock(3) {
+		if !offchain_storage.acquire_offchain_lock(3).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
 		let ob_checkpoint_raw = api

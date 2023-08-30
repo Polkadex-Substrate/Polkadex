@@ -25,7 +25,7 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 	/// * `tries`: Number of tries to acquire lock
 	/// # Returns
 	/// * `bool`: True if lock is acquired else false
-	pub fn acquire_offchain_lock(&self, tries: u8) -> bool {
+	pub async fn acquire_offchain_lock(&self, tries: u8) -> bool {
 		let prefix = sp_offchain::STORAGE_PREFIX;
 		let old_value = Encode::encode(&false);
 		let new_value = Encode::encode(&true);
@@ -39,7 +39,7 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 				return true
 			}
 			// Wait for 1 sec
-			std::thread::sleep(std::time::Duration::from_secs(1));
+			tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 		}
 		false
 	}
