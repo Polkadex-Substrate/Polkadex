@@ -22,7 +22,10 @@ use sp_std::{marker::PhantomData, prelude::ToOwned, vec::Vec};
 pub struct AggregatorClient<T: Config>(PhantomData<T>);
 
 impl<T: Config> AggregatorClient<T> {
-	pub(crate) fn load_signed_summary_and_send(snapshot_id: u64) {
+	/// Load signed summary and send it to the aggregator
+	/// # Parameters
+	/// * `snapshot_id`: Snapshot id for which signed summary should be loaded and sent
+	pub fn load_signed_summary_and_send(snapshot_id: u64) {
 		let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
 		key.append(&mut snapshot_id.encode());
 
@@ -61,6 +64,11 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
+	/// Load user action batch from aggregator
+	/// # Parameters
+	/// * `id`: Batch id to load
+	/// # Returns
+	/// * `Option<UserActionBatch<T::AccountId>>`: Loaded batch or None if error occured
 	pub fn get_user_action_batch(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 		let body = serde_json::json!({ "id": id }).to_string();
 		let result = match Self::send_request(
@@ -84,6 +92,13 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
+	/// Send request to aggregator
+	/// # Parameters
+	/// * `log_target`: Log target for debug logs
+	/// * `url`: Url to send request to
+	/// * `body`: Body of the request
+	/// # Returns
+	/// * `Result<Vec<u8>, &'static str>`: Response body or error message
 	pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
@@ -123,6 +138,11 @@ impl<T: Config> AggregatorClient<T> {
 		Ok(response.result)
 	}
 
+	/// Map http error to static string
+	/// # Parameters
+	/// * `err`: Http error to map
+	/// # Returns
+	/// * `&'static str`: Mapped error
 	fn map_http_err(err: HttpError) -> &'static str {
 		match err {
 			HttpError::DeadlineReached => "Deadline Reached",
@@ -131,6 +151,11 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
+	/// Map sp_runtime http error to static string
+	/// # Parameters
+	/// * `err`: Http error to map
+	/// # Returns
+	/// * `&'static str`: Mapped error
 	fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
 		match err {
 			Error::DeadlineReached => "Deadline Reached",

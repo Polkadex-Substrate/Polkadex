@@ -189,7 +189,8 @@ impl<T: Config> Pallet<T> {
 		Ok(true)
 	}
 
-	fn check_worker_status() -> Result<bool, &'static str> {
+	/// Checks if another worker is already running or not
+	pub fn check_worker_status() -> Result<bool, &'static str> {
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
 		match s_info.get::<bool>().map_err(|err| {
 			log::error!(target:"ocex","Error while loading worker status: {:?}",err);
@@ -207,6 +208,7 @@ impl<T: Config> Pallet<T> {
 		Ok(true)
 	}
 
+	/// Imports a block into the offchain state and handles the deposits
 	fn import_blk(
 		blk: T::BlockNumber,
 		state: &mut OffchainState,
@@ -238,6 +240,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Processes a trade between a maker and a taker, updating their order states and balances
 	fn trades(trades: &Vec<Trade>, state: &mut OffchainState) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Settling trades...");
 		for trade in trades {
@@ -248,6 +251,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Processes a withdrawal request, updating the account balances accordingly.
 	fn withdraw(
 		request: &WithdrawalRequest<T::AccountId>,
 		state: &mut OffchainState,
@@ -278,6 +282,7 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawal)
 	}
 
+	/// Processes a batch of user actions, updating the offchain state accordingly.
 	fn process_batch(
 		state: &mut OffchainState,
 		batch: &UserActionBatch<T::AccountId>,
@@ -309,17 +314,20 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	pub(crate) fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
+	/// Loads the state info from the offchain state
+	pub fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
 		match state.get(&STATE_INFO.to_vec())? {
 			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
 			None => Ok(StateInfo::default()),
 		}
 	}
 
+	/// Stores the state info in the offchain state
 	fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
 		state.insert(STATE_INFO.to_vec(), state_info.encode());
 	}
 
+	/// Calculates the index of the signer in the authorities array
 	fn calculate_signer_index(
 		authorities: &[T::AuthorityId],
 		expected_signer: &T::AuthorityId,
@@ -334,6 +342,7 @@ impl<T: Config> Pallet<T> {
 		auth_index
 	}
 
+	/// Returns the offchain state
 	pub fn get_offchain_balance(
 		account: &polkadex_primitives::AccountId,
 	) -> Result<BTreeMap<AssetId, Decimal>, &'static str> {
@@ -349,7 +358,8 @@ impl<T: Config> Pallet<T> {
 		Ok(balance)
 	}
 
-	pub(crate) fn get_state_info() -> Result<StateInfo, &'static str> {
+	/// Returns the offchain state
+	pub fn get_state_info() -> Result<StateInfo, &'static str> {
 		let mut root = crate::storage::load_trie_root();
 		let mut storage = crate::storage::State;
 		let mut state = OffchainState::load(&mut storage, &mut root);
@@ -357,6 +367,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+/// Stores the summary in the storage
 fn store_summary<T: Config>(
 	summary: SnapshotSummary<T::AccountId>,
 	signature: <<T as Config>::AuthorityId as RuntimeAppPublic>::Signature,

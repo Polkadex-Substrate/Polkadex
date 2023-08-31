@@ -20,6 +20,11 @@ const AGGREGRATOR_URL: &str = "https://thea.aggregator.polkadex.trade";
 pub struct Resolver<T: Config>(pub PhantomData<T>);
 
 impl<T: Config> Resolver<T> {
+	/// Generate request body for the given message and send it to the destination
+	/// # Parameters
+	/// * `log_target`: Log target for the request
+	/// * `destination`: Destination to which request should be sent
+	/// * `body`: Body of the request
 	pub fn send_request(
 		log_target: &str,
 		destination: Destination,
@@ -40,6 +45,7 @@ impl<T: Config> Resolver<T> {
 		Err("request failed")
 	}
 
+	///
 	pub(crate) fn compute_signer_and_submit(
 		message: Message,
 		destination: Destination,
@@ -91,6 +97,15 @@ impl<T: Config> Resolver<T> {
 		Ok(())
 	}
 
+	/// Submit message to aggregator
+	/// # Parameters
+	/// * `message`: Message to submit
+	/// * `signature`: Signed Message
+	/// * `destination`: Destination to which request should be sent
+	/// * `auth_index`: Index of the signer in the authorities
+	/// # Returns
+	/// * `Result<(), &'static str>`: Ok if message was submitted successfully, error message
+	///   otherwise
 	fn submit_message_to_aggregator(
 		message: Message,
 		signature: T::Signature,
@@ -112,6 +127,13 @@ impl<T: Config> Resolver<T> {
 		Ok(())
 	}
 
+	/// Create and send request to the given url
+	/// # Parameters
+	/// * `log_target`: Log target for the request
+	/// * `body`: Body of the request
+	/// * `url`: Url to send request to
+	/// # Returns
+	/// * `Result<serde_json::Value, &'static str>`: Response body or error message
 	fn create_and_send_request(
 		log_target: &str,
 		body: &str,
@@ -155,6 +177,12 @@ impl<T: Config> Resolver<T> {
 		Ok(response.result)
 	}
 
+	/// Resolve destination url for the given destination
+	/// # Parameters
+	/// * `destination`: Destination to resolve
+	/// * `counter`: Counter to resolve
+	/// # Returns
+	/// * `String`: Resolved url
 	pub fn resolve_destination_url(destination: Destination, counter: i32) -> String {
 		if destination == Destination::Aggregator {
 			return AGGREGRATOR_URL.to_string()
@@ -170,6 +198,11 @@ impl<T: Config> Resolver<T> {
 		url.to_string()
 	}
 
+	/// Map http error to static string
+	/// # Parameters
+	/// * `err`: Http error to map
+	/// # Returns
+	/// * `&'static str`: Mapped error
 	fn map_http_err(err: HttpError) -> &'static str {
 		match err {
 			HttpError::DeadlineReached => "Deadline Reached",
@@ -178,6 +211,11 @@ impl<T: Config> Resolver<T> {
 		}
 	}
 
+	/// Map sp_runtime http error to static string
+	/// # Parameters
+	/// * `err`: Http error to map
+	/// # Returns
+	/// * `&'static str`: Mapped error
 	fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
 		match err {
 			Error::DeadlineReached => "Deadline Reached",

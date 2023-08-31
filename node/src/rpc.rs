@@ -33,6 +33,7 @@
 use jsonrpsee::RpcModule;
 use pallet_ocex_rpc::PolkadexOcexRpc;
 use pallet_rewards_rpc::PolkadexRewardsRpc;
+
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
@@ -41,6 +42,8 @@ use sc_consensus_grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
 use sc_rpc::SubscriptionTaskExecutor;
+/// Re-export the API for backward compatibility.
+pub use sc_rpc_api::offchain::*;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -48,6 +51,7 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
+
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
@@ -89,6 +93,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+	/// The backend used by the node.
+	pub backend: Arc<B>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -128,7 +134,8 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa } = deps;
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, backend } =
+		deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
 	let GrandpaDeps {
@@ -164,8 +171,16 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
-	io.merge(PolkadexOcexRpc::new(client.clone()).into_rpc())?;
-	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
-
+	io.merge(
+		PolkadexOcexRpc::new(
+			client.clone(),
+			backend
+				.offchain_storage()
+				.ok_or("Backend doesn't provide an offchain storage")?,
+			deny_unsafe,
+		)
+		.into_rpc(),
+	)?;
+	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	Ok(io)
 }
