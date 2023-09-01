@@ -39,6 +39,7 @@ use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 const RUNTIME_ERROR: i32 = 1;
+const RETRIES: u8 = 3;
 
 #[rpc(client, server)]
 pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
@@ -174,7 +175,7 @@ where
 			None => self.client.info().best_hash,
 		};
 		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
-		if !offchain_storage.acquire_offchain_lock(3).await {
+		if !offchain_storage.acquire_offchain_lock(RETRIES).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
 		let ob_checkpoint_raw = api

@@ -12,7 +12,6 @@ impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
 	/// for both solochain and parachain, signs it and submits to aggregator
 	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
-		//TODO: Find better way to replace u64
 		if !sp_io::offchain::is_validator() {
 			return Ok(())
 		}
@@ -25,7 +24,7 @@ impl<T: Config> Pallet<T> {
 			// state
 			let next_incoming_nonce = <IncomingNonce<T>>::get(network).saturating_add(1);
 			let next_outgoing_nonce =
-				AggregatorClient::<u64, T>::get_latest_incoming_nonce_parachain().saturating_add(1); //TODO: Replace with Parachain Struct object
+				AggregatorClient::<u64, T>::get_latest_incoming_nonce_parachain().saturating_add(1);
 			log::debug!(target:"thea","Next Incoming nonce: {:?}, Outgoing nonce: {:?} for network: {:?}",
 				next_incoming_nonce,next_outgoing_nonce,network);
 			//		b. Check if payload for N is available at source and destination on its finalized
@@ -34,23 +33,23 @@ impl<T: Config> Pallet<T> {
 				next_incoming_nonce,
 				network,
 				Destination::Parachain,
-			); //TODO: Replace with Parachain Struct object
+			);
 			let next_outgoing_message = AggregatorClient::<u64, T>::get_payload_for_nonce(
 				next_outgoing_nonce,
 				network,
 				Destination::Solochain,
-			); //TODO: Replace with Parachain Struct object
+			);
    //		c. Compute who should sign this and if its us then sign the payload
 			if let Some(message) = next_incoming_message {
 				//  d. store the signed payload on-chain for relayers to relay it to destination
-				Resolver::<T>::compute_signer_and_submit(message, Destination::Solochain)?; //TODO: Replace with
+				Resolver::<T>::compute_signer_and_submit(message, Destination::Solochain)?;
 				                                                            // Resolver Struct
 				                                                            // object
 			} else {
 				log::debug!(target:"thea","No incoming message with nonce: {:?} from network: {:?}",next_incoming_nonce,network);
 			}
 			if let Some(message) = next_outgoing_message {
-				Resolver::<T>::compute_signer_and_submit(message, Destination::Parachain)?; //TODO: Replace with
+				Resolver::<T>::compute_signer_and_submit(message, Destination::Parachain)?;
 				                                                            // Resolver Struct
 				                                                            // object
 			} else {

@@ -163,10 +163,10 @@ impl ObCheckpointRaw {
 	/// # Returns
 	/// * `ObCheckpoint`: A new `ObCheckpoint` instance.
 	#[cfg(feature = "std")]
-	pub fn to_checkpoint(&self) -> ObCheckpoint {
+	pub fn to_checkpoint(self) -> ObCheckpoint {
 		ObCheckpoint {
 			snapshot_id: self.snapshot_id,
-			balances: self.balances.clone(),
+			balances: self.balances,
 			last_processed_block_number: self.last_processed_block_number,
 			state_change_id: self.state_change_id,
 		}
