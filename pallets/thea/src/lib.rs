@@ -48,6 +48,8 @@ mod session;
 #[cfg(test)]
 mod tests;
 
+pub mod aggregator;
+pub mod resolver;
 pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
@@ -87,6 +89,7 @@ pub trait TheaWeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
 	use sp_std::collections::btree_set::BTreeSet;

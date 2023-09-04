@@ -244,6 +244,7 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.keystore();
 		let chain_spec = config.chain_spec.cloned_box();
+		let rpc_backend = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -262,6 +263,7 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
+				backend: rpc_backend.clone(),
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
