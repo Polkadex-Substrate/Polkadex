@@ -16,6 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Offchain Storage Adapter
+//! This module provides an adapter to access offchain storage.
+//! This adapter is used by `function_handler` to access offchain storage.
+
 use parity_scale_codec::Encode;
 use parking_lot::RwLock;
 use sp_core::offchain::OffchainStorage;
