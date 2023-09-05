@@ -20,10 +20,7 @@ use crate::{
 	validator::{JSONRPCResponse, AGGREGATOR, LAST_PROCESSED_SNAPSHOT},
 	Config,
 };
-use orderbook_primitives::{
-	types::{ApprovedSnapshot, UserActionBatch},
-	SnapshotSummary,
-};
+use orderbook_primitives::{types::{ApprovedSnapshot, UserActionBatch}, SnapshotSummary, ObCheckpointRaw};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::offchain::{Duration, HttpError};
@@ -105,6 +102,29 @@ impl<T: Config> AggregatorClient<T> {
 			Ok(batch) => Some(batch),
 			Err(_) => {
 				log::error!(target:"ocex","Unable to decode batch");
+				None
+			},
+		}
+	}
+
+	pub fn get_checkpoint() -> Option<ObCheckpointRaw> {
+		let body = serde_json::json!({}).to_string();
+		let result = match Self::send_request(
+			"checkpoint",
+			&(AGGREGATOR.to_owned() + "/checkpoint"),
+			&body,
+		) {
+			Ok(encoded_checkpoint) => encoded_checkpoint,
+			Err(err) => {
+				log::error!(target:"ocex","Error fetching checkpoint: {:?}",err);
+				return None
+			},
+		};
+
+		match ObCheckpointRaw::decode(&mut &result[..]) {
+			Ok(checkpoint) => Some(checkpoint),
+			Err(_) => {
+				log::error!(target:"ocex","Unable to decode checkpoint");
 				None
 			},
 		}

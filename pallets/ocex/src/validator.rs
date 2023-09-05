@@ -16,18 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{
-	aggregator::AggregatorClient,
-	pallet::ValidatorSetId,
-	settlement::{add_balance, process_trade, sub_balance},
-	snapshot::StateInfo,
-	storage::{store_trie_root, OffchainState},
-	Config, Pallet, SnapshotNonce,
-};
-use orderbook_primitives::{
-	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
-	SnapshotSummary,
-};
+use crate::{aggregator::AggregatorClient, pallet::ValidatorSetId, settlement::{add_balance, process_trade, sub_balance}, snapshot::StateInfo, storage::{store_trie_root, OffchainState}, Config, Pallet, SnapshotNonce, Snapshots};
+use orderbook_primitives::{types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest}, SnapshotSummary, ObCheckpointRaw};
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId};
 use rust_decimal::Decimal;
@@ -47,6 +37,7 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
 pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
+pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
@@ -92,7 +83,7 @@ impl<T: Config> Pallet<T> {
 			},
 		};
 
-		let last_processed_nonce = state_info.snapshot_id;
+		let mut last_processed_nonce = state_info.snapshot_id;
 
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
@@ -103,6 +94,37 @@ impl<T: Config> Pallet<T> {
 		}
 
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
+
+		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
+			let checkpoint = AggregatorClient::<T>::get_checkpoint();
+            let (computed_root, checkpoint) = match checkpoint {
+				None => {
+					log::error!(target:"ocex","No checkpoint found");
+					return Err("No checkpoint found")
+				},
+				Some(checkpoint) => {
+					match Self::process_checkpoint(&mut state, checkpoint.clone()) {
+						Ok(_) => {
+							let computed_root = state.commit()?;
+							(computed_root, checkpoint)
+						},
+						Err(err) => {
+							log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
+							return Err("Sync failed")
+						},
+					}
+				},
+			};
+			let snapshot_summary = <Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
+			if snapshot_summary.state_hash != computed_root {
+				log::error!(target:"ocex","State root mismatch: {:?} != {:?}",snapshot_summary.state_hash, computed_root);
+				return Err("State root mismatch")
+			}
+			store_trie_root(computed_root);
+			last_processed_nonce = snapshot_summary.snapshot_id;
+			// Update params from checkpoint
+			Self::update_state_info(&mut state_info, checkpoint);
+		}
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
@@ -330,6 +352,28 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(withdrawals)
+	}
+
+	pub fn process_checkpoint(state: &mut OffchainState, checkpoint: ObCheckpointRaw) -> Result<(), &'static str> {
+		log::info!(target:"ocex","Processing checkpoint: {:?}",checkpoint.snapshot_id);
+		for (account_asset, balance) in checkpoint.balances {
+			let key = account_asset.main.to_raw_vec();
+			let mut value = match state.get(&key)? {
+				None => BTreeMap::new(),
+				Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+					.map_err(|_| "Unable to decode balances for account")?,
+			};
+			value.insert(account_asset.asset, balance);
+			state.insert(key, value.encode());
+		}
+		Ok(())
+	}
+
+	pub fn update_state_info(state_info: &mut StateInfo, checkpoint: ObCheckpointRaw) {
+		state_info.snapshot_id = checkpoint.snapshot_id;
+		state_info.stid = checkpoint.state_change_id;
+		state_info.last_block = checkpoint.last_processed_block_number;
+
 	}
 
 	/// Loads the state info from the offchain state
