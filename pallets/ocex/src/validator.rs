@@ -16,8 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{aggregator::AggregatorClient, pallet::ValidatorSetId, settlement::{add_balance, process_trade, sub_balance}, snapshot::StateInfo, storage::{store_trie_root, OffchainState}, Config, Pallet, SnapshotNonce, Snapshots};
-use orderbook_primitives::{types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest}, SnapshotSummary, ObCheckpointRaw};
+use crate::{
+	aggregator::AggregatorClient,
+	pallet::ValidatorSetId,
+	settlement::{add_balance, process_trade, sub_balance},
+	snapshot::StateInfo,
+	storage::{store_trie_root, OffchainState},
+	Config, Pallet, SnapshotNonce, Snapshots,
+};
+use orderbook_primitives::{
+	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
+	ObCheckpointRaw, SnapshotSummary,
+};
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId};
 use rust_decimal::Decimal;
@@ -68,7 +78,6 @@ impl<T: Config> Pallet<T> {
 		}
 		// Check the next batch to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
-
 		let mut root = crate::storage::load_trie_root();
 		log::info!(target:"ocex","block: {:?}, state_root {:?}", block_num, root);
 		let mut storage = crate::storage::State;
@@ -97,12 +106,12 @@ impl<T: Config> Pallet<T> {
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
-            let (computed_root, checkpoint) = match checkpoint {
+			let (computed_root, checkpoint) = match checkpoint {
 				None => {
 					log::error!(target:"ocex","No checkpoint found");
 					return Err("No checkpoint found")
 				},
-				Some(checkpoint) => {
+				Some(checkpoint) =>
 					match Self::process_checkpoint(&mut state, checkpoint.clone()) {
 						Ok(_) => {
 							let computed_root = state.commit()?;
@@ -112,10 +121,10 @@ impl<T: Config> Pallet<T> {
 							log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
 							return Err("Sync failed")
 						},
-					}
-				},
+					},
 			};
-			let snapshot_summary = <Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
+			let snapshot_summary =
+				<Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
 			if snapshot_summary.state_hash != computed_root {
 				log::error!(target:"ocex","State root mismatch: {:?} != {:?}",snapshot_summary.state_hash, computed_root);
 				return Err("State root mismatch")
@@ -125,7 +134,6 @@ impl<T: Config> Pallet<T> {
 			// Update params from checkpoint
 			Self::update_state_info(&mut state_info, checkpoint);
 		}
-
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
 				state_info.last_block = 4768083; // This is hard coded as the starting point
@@ -354,7 +362,11 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawals)
 	}
 
-	pub fn process_checkpoint(state: &mut OffchainState, checkpoint: ObCheckpointRaw) -> Result<(), &'static str> {
+	/// Processes a checkpoint, updating the offchain state accordingly.
+	pub fn process_checkpoint(
+		state: &mut OffchainState,
+		checkpoint: ObCheckpointRaw,
+	) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Processing checkpoint: {:?}",checkpoint.snapshot_id);
 		for (account_asset, balance) in checkpoint.balances {
 			let key = account_asset.main.to_raw_vec();
@@ -369,11 +381,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Updates the state info
 	pub fn update_state_info(state_info: &mut StateInfo, checkpoint: ObCheckpointRaw) {
 		state_info.snapshot_id = checkpoint.snapshot_id;
 		state_info.stid = checkpoint.state_change_id;
 		state_info.last_block = checkpoint.last_processed_block_number;
-
 	}
 
 	/// Loads the state info from the offchain state

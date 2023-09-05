@@ -69,7 +69,10 @@ impl<'a> OffchainState<'a> {
 		self.cache.insert(key, value);
 	}
 
-	pub fn insert_all(&mut self, cache: sp_std::collections::btree_map::BTreeMap<Vec<u8>, Vec<u8>>) {
+	pub fn insert_all(
+		&mut self,
+		cache: sp_std::collections::btree_map::BTreeMap<Vec<u8>, Vec<u8>>,
+	) {
 		self.cache = cache;
 	}
 

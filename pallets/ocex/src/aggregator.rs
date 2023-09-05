@@ -20,7 +20,10 @@ use crate::{
 	validator::{JSONRPCResponse, AGGREGATOR, LAST_PROCESSED_SNAPSHOT},
 	Config,
 };
-use orderbook_primitives::{types::{ApprovedSnapshot, UserActionBatch}, SnapshotSummary, ObCheckpointRaw};
+use orderbook_primitives::{
+	types::{ApprovedSnapshot, UserActionBatch},
+	ObCheckpointRaw, SnapshotSummary,
+};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::offchain::{Duration, HttpError};
@@ -107,11 +110,14 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
+	/// Load checkpoint from aggregator
+	/// # Returns
+	/// * `Option<ObCheckpointRaw>`: Loaded checkpoint or None if error occured
 	pub fn get_checkpoint() -> Option<ObCheckpointRaw> {
 		let body = serde_json::json!({}).to_string();
 		let result = match Self::send_request(
 			"checkpoint",
-			&(AGGREGATOR.to_owned() + "/checkpoint"),
+			&(AGGREGATOR.to_owned() + "/latest_checkpoint"),
 			&body,
 		) {
 			Ok(encoded_checkpoint) => encoded_checkpoint,
