@@ -69,13 +69,6 @@ impl<'a> OffchainState<'a> {
 		self.cache.insert(key, value);
 	}
 
-	pub fn insert_all(
-		&mut self,
-		cache: sp_std::collections::btree_map::BTreeMap<Vec<u8>, Vec<u8>>,
-	) {
-		self.cache = cache;
-	}
-
 	pub fn commit(&mut self) -> Result<H256, &'static str> {
 		for (key, value) in self.cache.iter() {
 			self.trie.insert(key, value).map_err(map_trie_error)?;
