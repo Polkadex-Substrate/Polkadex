@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::types::AccountAsset;
+use crate::{types::AccountAsset, ObCheckpointRaw};
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{AccountId, BlockNumber};
 use rust_decimal::Decimal;
@@ -56,4 +56,16 @@ pub struct ObCheckpoint {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
+}
+
+impl ObCheckpoint {
+	/// Convert to raw checkpoint
+	pub fn to_raw(&self) -> ObCheckpointRaw {
+		ObCheckpointRaw {
+			snapshot_id: self.snapshot_id,
+			balances: self.balances.clone(),
+			last_processed_block_number: self.last_processed_block_number,
+			state_change_id: self.state_change_id,
+		}
+	}
 }
