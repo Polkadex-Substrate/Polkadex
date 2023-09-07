@@ -105,6 +105,7 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
+			log::debug!(target:"ocex","Fetching checkpoint from Aggregator");
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
 			// We load a new trie when the state is stale.
 			drop(state);
@@ -130,12 +131,14 @@ impl<T: Config> Pallet<T> {
 					},
 				},
 			};
+			log::debug!(target:"ocex","Checkpoint processed: {:?}",checkpoint.snapshot_id);
 			let snapshot_summary =
 				<Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
 			if snapshot_summary.state_hash != computed_root {
 				log::error!(target:"ocex","State root mismatch: {:?} != {:?}",snapshot_summary.state_hash, computed_root);
 				return Err("State root mismatch")
 			}
+			log::debug!(target:"ocex","State root matched: {:?}",snapshot_summary.state_hash);
 			store_trie_root(computed_root);
 			last_processed_nonce = snapshot_summary.snapshot_id;
 		}
@@ -400,6 +403,7 @@ impl<T: Config> Pallet<T> {
 		state_info.snapshot_id = checkpoint.snapshot_id;
 		state_info.stid = checkpoint.state_change_id;
 		state_info.last_block = checkpoint.last_processed_block_number;
+		log::debug!(target:"ocex","Updated state_info");
 	}
 
 	/// Loads the state info from the offchain state
