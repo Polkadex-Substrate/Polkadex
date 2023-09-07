@@ -111,17 +111,19 @@ impl<T: Config> Pallet<T> {
 					log::error!(target:"ocex","No checkpoint found");
 					return Err("No checkpoint found")
 				},
-				Some(checkpoint) =>
-					match Self::process_checkpoint(&mut state, checkpoint.clone()) {
-						Ok(_) => {
-							let computed_root = state.commit()?;
-							(computed_root, checkpoint)
-						},
-						Err(err) => {
-							log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
-							return Err("Sync failed")
-						},
+				Some(checkpoint) => match Self::process_checkpoint(&mut state, &checkpoint) {
+					Ok(_) => {
+						// Update params from checkpoint
+						Self::update_state_info(&mut state_info, &checkpoint);
+						Self::store_state_info(state_info, &mut state);
+						let computed_root = state.commit()?; //TODO: Reset state, if it is stale
+						(computed_root, checkpoint)
 					},
+					Err(err) => {
+						log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
+						return Err("Sync failed")
+					},
+				},
 			};
 			let snapshot_summary =
 				<Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
@@ -131,8 +133,6 @@ impl<T: Config> Pallet<T> {
 			}
 			store_trie_root(computed_root);
 			last_processed_nonce = snapshot_summary.snapshot_id;
-			// Update params from checkpoint
-			Self::update_state_info(&mut state_info, checkpoint);
 		}
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
@@ -330,6 +330,15 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawal)
 	}
 
+	// Process bacth
+	// Commit
+	// Process B2
+	// Commit
+
+	//Fetch checkpoint
+	//Processing It
+	//Commting
+
 	/// Processes a batch of user actions, updating the offchain state accordingly.
 	fn process_batch(
 		state: &mut OffchainState,
@@ -365,24 +374,24 @@ impl<T: Config> Pallet<T> {
 	/// Processes a checkpoint, updating the offchain state accordingly.
 	pub fn process_checkpoint(
 		state: &mut OffchainState,
-		checkpoint: ObCheckpointRaw,
+		checkpoint: &ObCheckpointRaw,
 	) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Processing checkpoint: {:?}",checkpoint.snapshot_id);
-		for (account_asset, balance) in checkpoint.balances {
+		for (account_asset, balance) in &checkpoint.balances {
 			let key = account_asset.main.to_raw_vec();
 			let mut value = match state.get(&key)? {
 				None => BTreeMap::new(),
 				Some(encoded) => BTreeMap::decode(&mut &encoded[..])
 					.map_err(|_| "Unable to decode balances for account")?,
 			};
-			value.insert(account_asset.asset, balance);
+			value.insert(account_asset.asset, *balance);
 			state.insert(key, value.encode());
 		}
 		Ok(())
 	}
 
 	/// Updates the state info
-	pub fn update_state_info(state_info: &mut StateInfo, checkpoint: ObCheckpointRaw) {
+	pub fn update_state_info(state_info: &mut StateInfo, checkpoint: &ObCheckpointRaw) {
 		state_info.snapshot_id = checkpoint.snapshot_id;
 		state_info.stid = checkpoint.state_change_id;
 		state_info.last_block = checkpoint.last_processed_block_number;
