@@ -18,7 +18,7 @@
 
 use crate::{types::AccountAsset, ObCheckpointRaw};
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, BlockNumber};
+use polkadex_primitives::{AccountId, AssetId, BlockNumber};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
@@ -67,5 +67,18 @@ impl ObCheckpoint {
 			last_processed_block_number: self.last_processed_block_number,
 			state_change_id: self.state_change_id,
 		}
+	}
+}
+
+#[serde_as]
+#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
+pub struct DeviationMap {
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	map: BTreeMap<AssetId, Decimal>,
+}
+
+impl DeviationMap {
+	pub fn new(map: BTreeMap<AssetId, Decimal>) -> Self {
+		Self { map }
 	}
 }
