@@ -106,6 +106,11 @@ impl<T: Config> Pallet<T> {
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
+			// We load a new trie when the state is stale.
+			drop(state);
+			root = H256::zero();
+			storage = crate::storage::State;
+			state = OffchainState::load(&mut storage, &mut root);
 			let (computed_root, checkpoint) = match checkpoint {
 				None => {
 					log::error!(target:"ocex","No checkpoint found");
@@ -116,7 +121,7 @@ impl<T: Config> Pallet<T> {
 						// Update params from checkpoint
 						Self::update_state_info(&mut state_info, &checkpoint);
 						Self::store_state_info(state_info, &mut state);
-						let computed_root = state.commit()?; //TODO: Reset state, if it is stale
+						let computed_root = state.commit()?;
 						(computed_root, checkpoint)
 					},
 					Err(err) => {
