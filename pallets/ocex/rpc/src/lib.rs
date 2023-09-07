@@ -168,7 +168,7 @@ where
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObCheckpoint> {
-		self.deny_unsafe.check_if_safe()?;
+		//self.deny_unsafe.check_if_safe()?;
 		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
