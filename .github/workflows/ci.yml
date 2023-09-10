@@ -64,7 +64,9 @@ jobs:
           default: true
           components: rustfmt, clippy
       - name: Install .toml files linter
-        run: cargo install taplo-cli
+        run: |
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+          | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
       - name: Checkout to the current branch
         uses: actions/checkout@v3
       - name: Cache Rust Dependencies
