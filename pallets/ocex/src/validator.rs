@@ -338,15 +338,6 @@ impl<T: Config> Pallet<T> {
 		Ok(withdrawal)
 	}
 
-	// Process bacth
-	// Commit
-	// Process B2
-	// Commit
-
-	//Fetch checkpoint
-	//Processing It
-	//Commting
-
 	/// Processes a batch of user actions, updating the offchain state accordingly.
 	fn process_batch(
 		state: &mut OffchainState,

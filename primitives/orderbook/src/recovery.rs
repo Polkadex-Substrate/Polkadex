@@ -70,6 +70,7 @@ impl ObCheckpoint {
 	}
 }
 
+/// A struct representing the deviation map to detect anomalies in the User balance.
 #[serde_as]
 #[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
 pub struct DeviationMap {
@@ -78,6 +79,9 @@ pub struct DeviationMap {
 }
 
 impl DeviationMap {
+	/// Create a new `DeviationMap` instance.
+	/// # Parameters
+	/// * `map`: A `BTreeMap` that maps `AssetId`s to `Decimal` balances.
 	pub fn new(map: BTreeMap<AssetId, Decimal>) -> Self {
 		Self { map }
 	}
