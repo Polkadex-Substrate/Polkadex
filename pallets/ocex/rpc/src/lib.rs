@@ -66,10 +66,10 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 ///
 /// # Type Parameters
 ///
-/// * `Client`: The client API used to interact with the Substrate runtime.
-/// * `Block`: The block type of the Substrate runtime.
+/// * `Client`: The client API used to interact with the Substrate polkadex-mainnet.
+/// * `Block`: The block type of the Substrate polkadex-mainnet.
 pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
-	/// An `Arc` reference to the client API for accessing runtime functionality.
+	/// An `Arc` reference to the client API for accessing polkadex-mainnet functionality.
 	client: Arc<Client>,
 
 	/// Offchain storage
@@ -113,8 +113,9 @@ where
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		// WARN: this is a hack on beating the boundry of runtime -> node
-		// with decoding tuple of underlying data into solid std type
+		// WARN: this is a hack on beating the boundry of polkadex-mainnet ->
+		// polkadex-mainnet-polkadex-parachain-node with decoding tuple of underlying data into
+		// solid std type
 		Decode::decode(
 			&mut api
 				.get_ob_recover_state(at)
@@ -187,7 +188,7 @@ where
 	}
 }
 
-/// Converts a runtime trap into an RPC error.
+/// Converts a polkadex-mainnet trap into an RPC error.
 fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
 	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
 		.into()

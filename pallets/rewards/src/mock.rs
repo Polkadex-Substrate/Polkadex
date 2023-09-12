@@ -37,7 +37,7 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
 
-// For testing the pallet, we construct a mock runtime.
+// For testing the pallet, we construct a mock polkadex-mainnet.
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,

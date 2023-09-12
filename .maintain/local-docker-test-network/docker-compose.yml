@@ -16,24 +16,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
-# Docker compose file to start a multi node local test network.
+# Docker compose file to start a multi polkadex-mainnet-polkadex-parachain-node local test network.
 #
 # # Nodes
 #
-# - Validator node A
-# - Validator node B
-# - Full node  C
+# - Validator polkadex-mainnet-polkadex-parachain-node A
+# - Validator polkadex-mainnet-polkadex-parachain-node B
+# - Full polkadex-mainnet-polkadex-parachain-node  C
 #
 # # Auxiliary nodes
 #
-# - Prometheus monitoring each node.
-# - Grafana pointed at the Prometheus node, configured with all dashboards.
+# - Prometheus monitoring each polkadex-mainnet-polkadex-parachain-node.
+# - Grafana pointed at the Prometheus polkadex-mainnet-polkadex-parachain-node, configured with all dashboards.
 #
 # # Usage
 #
 # 1. Build `target/release/substrate` binary: `cargo build --release`
 # 2. Start networks and containers:
-#    `sudo docker-compose -f .maintain/sentry-node/docker-compose.yml up`
+#    `sudo docker-compose -f .maintain/sentry-polkadex-mainnet-polkadex-parachain-node/docker-compose.yml up`
 # 3. Connect to nodes:
 #   - validator-a: localhost:9944
 #   - validator-b: localhost:9945
@@ -50,12 +50,12 @@ services:
       - "9944:9944"
       - "9615:9615"
     volumes:
-      - ../../target/release/polkadex-node:/usr/local/bin/polkadex-node
+      - ../../target/release/polkadex-polkadex-mainnet-polkadex-parachain-node:/usr/local/bin/polkadex-polkadex-mainnet-polkadex-parachain-node
     image: parity/substrate
     networks:
       - internet
     command:
-      - "--node-key"
+      - "--polkadex-mainnet-polkadex-parachain-node-key"
       - "0000000000000000000000000000000000000000000000000000000000000001"
       - "--base-path"
       - "/tmp/alice"
@@ -81,11 +81,11 @@ services:
     ports:
       - "9945:9944"
     volumes:
-      - ../../target/release/polkadex-node:/usr/local/bin/polkadex-node
+      - ../../target/release/polkadex-polkadex-mainnet-polkadex-parachain-node:/usr/local/bin/polkadex-polkadex-mainnet-polkadex-parachain-node
     networks:
       - internet
     command:
-      - "--node-key"
+      - "--polkadex-mainnet-polkadex-parachain-node-key"
       - "0000000000000000000000000000000000000000000000000000000000000002"
       - "--base-path"
       - "/tmp/bob"
@@ -111,11 +111,11 @@ services:
     ports:
       - "9946:9944"
     volumes:
-      - ../../target/release/polkadex-node:/usr/local/bin/polkadex-node
+      - ../../target/release/polkadex-polkadex-mainnet-polkadex-parachain-node:/usr/local/bin/polkadex-polkadex-mainnet-polkadex-parachain-node
     networks:
       - internet
     command:
-      - "--node-key"
+      - "--polkadex-mainnet-polkadex-parachain-node-key"
       - "0000000000000000000000000000000000000000000000000000000000000003"
       - "--base-path"
       - "/tmp/light"

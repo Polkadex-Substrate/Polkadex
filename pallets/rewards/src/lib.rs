@@ -66,7 +66,7 @@ pub mod weights;
 
 const MIN_REWARDS_CLAIMABLE_AMOUNT: u128 = polkadex_primitives::UNIT_BALANCE;
 pub const REWARDS_LOCK_ID: LockIdentifier = *b"REWARDID";
-// Definition of the pallet logic, to be aggregated at runtime definition through
+// Definition of the pallet logic, to be aggregated at polkadex-mainnet definition through
 // `construct_runtime`.
 #[frame_support::pallet]
 pub mod pallet {

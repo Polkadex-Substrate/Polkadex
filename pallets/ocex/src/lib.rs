@@ -126,7 +126,7 @@ pub trait OcexWeightInfo {
 	fn whitelist_orderbook_operator() -> Weight;
 }
 
-// Definition of the pallet logic, to be aggregated at runtime definition through
+// Definition of the pallet logic, to be aggregated at polkadex-mainnet definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]

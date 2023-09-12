@@ -78,10 +78,10 @@ frame-election-provider-support = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
 #end added
 
-# Used for the node template"s RPCs
+# Used for the polkadex-mainnet-polkadex-parachain-node template"s RPCs
 frame-system-rpc-runtime-api = { default-features = false, workspace = true }
 
-# Used for runtime benchmarking
+# Used for polkadex-mainnet benchmarking
 frame-benchmarking = { default-features = false, workspace = true, optional = true }
 frame-system-benchmarking = { default-features = false, workspace = true, optional = true }
 
@@ -90,28 +90,28 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
-pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
+orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
+pdex-migration = { path = "../../pallets/pdex-migration", default-features = false }
 
 # Orderbook 
-pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
+pallet-ocex-lmp = { path = "../../pallets/ocex", default-features = false }
 
 # Thea
-thea = { path = "../pallets/thea", default-features = false }
-thea-executor = { path = "../pallets/thea-executor", default-features = false }
-thea-message-handler = { path = "../pallets/thea-message-handler", default-features = false, optional = true }
+thea = { path = "../../pallets/thea", default-features = false }
+thea-executor = { path = "../../pallets/thea-executor", default-features = false }
+thea-message-handler = { path = "../../pallets/thea-message-handler", default-features = false, optional = true }
 
 # Liquidity Pallet
-liquidity = { path = "../pallets/liquidity", default-features = false }
+liquidity = { path = "../../pallets/liquidity", default-features = false }
 
 # Parachain Rewards
-pallet-rewards = { path = "../pallets/rewards", default-features = false }
+pallet-rewards = { path = "../../pallets/rewards", default-features = false }
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
-rpc-assets-runtime-api = { path = "../rpc/assets/runtime-api", default-features = false }
-pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
-pallet-ocex-runtime-api = { path = "../pallets/ocex/rpc/runtime-api", default-features = false }
+rpc-assets-runtime-api = { path = "../../rpc/assets/runtime-api", default-features = false }
+pallet-rewards-runtime-api = { path = "../../pallets/rewards/rpc/runtime-api", default-features = false }
+pallet-ocex-runtime-api = { path = "../../pallets/ocex/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -243,7 +243,7 @@ try-runtime = [
   "pdex-migration/try-runtime",
   "pallet-democracy/try-runtime",
   "pallet-preimage/try-runtime",
-  #"pallet-randomness-collective-flip/try-runtime",
+  #"pallet-randomness-collective-flip/try-polkadex-mainnet",
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",

@@ -26,14 +26,14 @@ clap = { version = "4.0.9", features = ["derive"] }
 itertools = "0.10.1"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
-node-polkadex-runtime = { path = "../runtime" }
-rpc-assets = { path = "../rpc/assets" }
-pallet-rewards-rpc = { path = "../pallets/rewards/rpc" }
-pallet-ocex-rpc = { path = "../pallets/ocex/rpc" }
-polkadex-client = { path = "../client" }
+node-polkadex-runtime = { path = "../../runtimes/polkadex-mainnet" }
+rpc-assets = { path = "../../rpc/assets" }
+pallet-rewards-rpc = { path = "../../pallets/rewards/rpc" }
+pallet-ocex-rpc = { path = "../../pallets/ocex/rpc" }
+polkadex-client = { path = "../../client" }
 
-thea = { path = "../pallets/thea" }
-pallet-ocex-lmp = { path = "../pallets/ocex" }
+thea = { path = "../../pallets/thea" }
+pallet-ocex-lmp = { path = "../../pallets/ocex" }
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
@@ -78,7 +78,7 @@ sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", bra
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 
 #Primitives
-polkadex-primitives = { path = "../primitives/polkadex" }
+polkadex-primitives = { path = "../../primitives/polkadex" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-network-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }

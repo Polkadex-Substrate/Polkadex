@@ -289,17 +289,17 @@ pub fn new_partial(
 pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
 
 pub struct NewFullBase {
-	/// The task manager of the node.
+	/// The task manager of the polkadex-mainnet-polkadex-parachain-node.
 	pub task_manager: TaskManager,
-	/// The client instance of the node.
+	/// The client instance of the polkadex-mainnet-polkadex-parachain-node.
 	pub client: Arc<FullClient>,
-	/// The networking service of the node.
+	/// The networking service of the polkadex-mainnet-polkadex-parachain-node.
 	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-	/// The syncing service of the node.
+	/// The syncing service of the polkadex-mainnet-polkadex-parachain-node.
 	pub sync: Arc<SyncingService<Block>>,
-	/// The transaction pool of the node.
+	/// The transaction pool of the polkadex-mainnet-polkadex-parachain-node.
 	pub transaction_pool: Arc<TransactionPool>,
-	/// The rpc handlers of the node.
+	/// The rpc handlers of the polkadex-mainnet-polkadex-parachain-node.
 	pub rpc_handlers: RpcHandlers,
 }
 
@@ -511,8 +511,8 @@ pub fn new_full_base(
 		);
 	}
 
-	// if the node isn't actively participating in consensus then it doesn't
-	// need a keystore, regardless of which protocol we use below.
+	// if the polkadex-mainnet-polkadex-parachain-node isn't actively participating in consensus
+	// then it doesn't need a keystore, regardless of which protocol we use below.
 	let keystore = if role.is_authority() { Some(keystore_container.keystore()) } else { None };
 
 	let grandpa_config = sc_consensus_grandpa::Config {
@@ -613,8 +613,9 @@ mod tests {
 	type AccountPublic = <Signature as Verify>::Signer;
 
 	#[test]
-	// It is "ignored", but the node-cli ignored tests are running on the CI.
-	// This can be run locally with `cargo test --release -p node-cli test_sync -- --ignored`.
+	// It is "ignored", but the polkadex-mainnet-polkadex-parachain-node-cli ignored tests are
+	// running on the CI. This can be run locally with `cargo test --release -p
+	// polkadex-mainnet-polkadex-parachain-node-cli test_sync -- --ignored`.
 	#[ignore]
 	fn test_sync() {
 		sp_tracing::try_init_simple();

@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Some configurable implementations as associated type for the substrate runtime.
+//! Some configurable implementations as associated type for the substrate polkadex-mainnet.
 
 use frame_support::traits::{Currency, OnUnbalanced};
 
@@ -65,7 +65,7 @@ mod multiplier_tests {
 		TargetBlockFullness::get() * max_normal()
 	}
 
-	// update based on runtime impl.
+	// update based on polkadex-mainnet impl.
 	fn runtime_multiplier_update(fm: Multiplier) -> Multiplier {
 		TargetedFeeAdjustment::<
 			Runtime,
@@ -158,7 +158,7 @@ mod multiplier_tests {
 
 	#[test]
 	fn time_to_reach_zero() {
-		// blocks per 24h in substrate-node: 28,800 (k)
+		// blocks per 24h in substrate-polkadex-mainnet-polkadex-parachain-node: 28,800 (k)
 		// s* = 0.1875
 		// The bound from the research in an empty chain is:
 		// v <~ (p / k(0 - s*))

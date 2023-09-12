@@ -31,7 +31,7 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
 
-// Configure a mock runtime to test the pallet.
+// Configure a mock polkadex-mainnet to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -176,7 +176,7 @@ where
 	type OverarchingCall = RuntimeCall;
 }
 
-// Build genesis storage according to the mock runtime.
+// Build genesis storage according to the mock polkadex-mainnet.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	t.into()

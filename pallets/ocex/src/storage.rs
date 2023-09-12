@@ -220,7 +220,8 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 	}
 }
 
-/// Derive a database key from hash value of the node (key) and  the node prefix.
+/// Derive a database key from hash value of the polkadex-mainnet-polkadex-parachain-node (key) and
+/// the polkadex-mainnet-polkadex-parachain-node prefix.
 pub fn prefixed_key(key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> Vec<u8> {
 	let mut prefixed_key = Vec::with_capacity(key.as_ref().len() + prefix.0.len() + 1);
 	prefixed_key.extend_from_slice(prefix.0);

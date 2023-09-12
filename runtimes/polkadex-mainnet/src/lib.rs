@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! The Substrate runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+//! The Substrate polkadex-mainnet. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
@@ -88,10 +88,10 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
-/// Implementations of some helper traits passed into runtime modules as associated types.
+/// Implementations of some helper traits passed into polkadex-mainnet modules as associated types.
 pub mod impls;
 
-/// Constant values used within the runtime.
+/// Constant values used within the polkadex-mainnet.
 pub mod constants;
 
 // Make the WASM binary available.
@@ -110,11 +110,11 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 /// Runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node"),
+	spec_name: create_runtime_str!("polkadex-mainnet-polkadex-parachain-node"),
 	impl_name: create_runtime_str!("polkadex-official"),
 	authoring_version: 10,
-	// Per convention: if the runtime behavior changes, increment spec_version
-	// and set impl_version to 0. If only runtime
+	// Per convention: if the polkadex-mainnet behavior changes, increment spec_version
+	// and set impl_version to 0. If only polkadex-mainnet
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
 	spec_version: 308,
@@ -1465,17 +1465,18 @@ construct_runtime!(
 pub type DigestItem = generic::DigestItem;
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
-/// Block header type as expected by this runtime.
+/// Block header type as expected by this polkadex-mainnet.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
-/// Block type as expected by this runtime.
+/// Block type as expected by this polkadex-mainnet.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 /// A Block signed with a Justification
 pub type SignedBlock = generic::SignedBlock<Block>;
-/// BlockId type as expected by this runtime.
+/// BlockId type as expected by this polkadex-mainnet.
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 ///
-/// When you change this, you **MUST** modify [`sign`] in `bin/node/testing/src/keyring.rs`!
+/// When you change this, you **MUST** modify [`sign`] in
+/// `bin/polkadex-mainnet-polkadex-parachain-node/testing/src/keyring.rs`!
 ///
 /// [`sign`]: <../../testing/src/keyring.rs.html>
 pub type SignedExtra = (
@@ -1487,7 +1488,7 @@ pub type SignedExtra = (
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
-/// Unchecked extrinsic type as expected by this runtime.
+/// Unchecked extrinsic type as expected by this polkadex-mainnet.
 pub type UncheckedExtrinsic =
 	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 /// The payload being signed in transactions.
@@ -1726,7 +1727,7 @@ impl_runtime_apis! {
 	}
 
 
-	#[cfg(feature = "try-runtime")]
+	#[cfg(feature = "try-polkadex-mainnet")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
 			// NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
@@ -1748,7 +1749,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	#[cfg(feature = "runtime-benchmarks")]
+	#[cfg(feature = "polkadex-mainnet-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
