@@ -105,34 +105,42 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
+			log::debug!(target:"ocex","Fetching checkpoint from Aggregator");
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
+			// We load a new trie when the state is stale.
+			drop(state);
+			root = H256::zero();
+			storage = crate::storage::State;
+			state = OffchainState::load(&mut storage, &mut root);
 			let (computed_root, checkpoint) = match checkpoint {
 				None => {
 					log::error!(target:"ocex","No checkpoint found");
 					return Err("No checkpoint found")
 				},
-				Some(checkpoint) =>
-					match Self::process_checkpoint(&mut state, checkpoint.clone()) {
-						Ok(_) => {
-							let computed_root = state.commit()?;
-							(computed_root, checkpoint)
-						},
-						Err(err) => {
-							log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
-							return Err("Sync failed")
-						},
+				Some(checkpoint) => match Self::process_checkpoint(&mut state, &checkpoint) {
+					Ok(_) => {
+						// Update params from checkpoint
+						Self::update_state_info(&mut state_info, &checkpoint);
+						Self::store_state_info(state_info, &mut state);
+						let computed_root = state.commit()?;
+						(computed_root, checkpoint)
 					},
+					Err(err) => {
+						log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
+						return Err("Sync failed")
+					},
+				},
 			};
+			log::debug!(target:"ocex","Checkpoint processed: {:?}",checkpoint.snapshot_id);
 			let snapshot_summary =
 				<Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
 			if snapshot_summary.state_hash != computed_root {
 				log::error!(target:"ocex","State root mismatch: {:?} != {:?}",snapshot_summary.state_hash, computed_root);
 				return Err("State root mismatch")
 			}
+			log::debug!(target:"ocex","State root matched: {:?}",snapshot_summary.state_hash);
 			store_trie_root(computed_root);
 			last_processed_nonce = snapshot_summary.snapshot_id;
-			// Update params from checkpoint
-			Self::update_state_info(&mut state_info, checkpoint);
 		}
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
@@ -365,27 +373,28 @@ impl<T: Config> Pallet<T> {
 	/// Processes a checkpoint, updating the offchain state accordingly.
 	pub fn process_checkpoint(
 		state: &mut OffchainState,
-		checkpoint: ObCheckpointRaw,
+		checkpoint: &ObCheckpointRaw,
 	) -> Result<(), &'static str> {
 		log::info!(target:"ocex","Processing checkpoint: {:?}",checkpoint.snapshot_id);
-		for (account_asset, balance) in checkpoint.balances {
+		for (account_asset, balance) in &checkpoint.balances {
 			let key = account_asset.main.to_raw_vec();
 			let mut value = match state.get(&key)? {
 				None => BTreeMap::new(),
 				Some(encoded) => BTreeMap::decode(&mut &encoded[..])
 					.map_err(|_| "Unable to decode balances for account")?,
 			};
-			value.insert(account_asset.asset, balance);
+			value.insert(account_asset.asset, *balance);
 			state.insert(key, value.encode());
 		}
 		Ok(())
 	}
 
 	/// Updates the state info
-	pub fn update_state_info(state_info: &mut StateInfo, checkpoint: ObCheckpointRaw) {
+	pub fn update_state_info(state_info: &mut StateInfo, checkpoint: &ObCheckpointRaw) {
 		state_info.snapshot_id = checkpoint.snapshot_id;
 		state_info.stid = checkpoint.state_change_id;
 		state_info.last_block = checkpoint.last_processed_block_number;
+		log::debug!(target:"ocex","Updated state_info");
 	}
 
 	/// Loads the state info from the offchain state
