@@ -59,6 +59,7 @@ use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
+use frame_system::pallet_prelude::BlockNumberFor;
 
 #[cfg(test)]
 mod mock;
@@ -386,7 +387,7 @@ pub mod pallet {
 		/// What to do at the end of each block.
 		///
 		/// Clean OnCHainEvents
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			let len = <OnChainEvents<T>>::get().len();
 			if len > 0 {
 				<OnChainEvents<T>>::kill();
@@ -398,7 +399,7 @@ pub mod pallet {
 			}
 		}
 
-		fn offchain_worker(block_number: T::BlockNumber) {
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::debug!(target:"ocex", "offchain worker started");
 
 			match Self::run_on_chain_validation(block_number) {
@@ -1429,7 +1430,7 @@ pub mod pallet {
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
 		/// DisputePeriod has been updated
-		DisputePeriodUpdated(T::BlockNumber),
+		DisputePeriodUpdated(BlockNumberFor<T>),
 		/// Withdraw Assets from Orderbook
 		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
 		/// Orderbook Operator Key Whitelisted
@@ -1500,7 +1501,7 @@ pub mod pallet {
 	pub(super) type IngressMessages<T: Config> = StorageMap<
 		_,
 		Identity,
-		T::BlockNumber,
+		BlockNumberFor<T>,
 		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;

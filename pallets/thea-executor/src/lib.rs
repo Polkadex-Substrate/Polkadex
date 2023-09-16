@@ -48,11 +48,11 @@ pub trait WeightInfo {
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
+	use frame_support::__private::log;
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
@@ -128,7 +128,7 @@ pub mod pallet {
 	pub(super) type ReadyWithdrawals<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		T::BlockNumber,
+		BlockNumberFor<T>,
 		Blake2_128Concat,
 		Network,
 		Vec<Withdraw>,
@@ -203,9 +203,9 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(block_no: T::BlockNumber) -> Weight {
+		fn on_initialize(block_no: BlockNumberFor<T>) -> Weight {
 			let pending_withdrawals = <ReadyWithdrawals<T>>::iter_prefix(
-				block_no.saturating_sub(T::BlockNumber::from(1u8)),
+				block_no.saturating_sub(1u8.into()),
 			);
 			for (network_id, withdrawal) in pending_withdrawals {
 				// This is fine as this trait is not supposed to fail

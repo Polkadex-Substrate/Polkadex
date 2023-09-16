@@ -45,6 +45,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+	use frame_support::traits::GenesisBuild;
 	use scale_info::TypeInfo;
 	use sp_runtime::{
 		traits::{BlockNumberProvider, Saturating, Zero},
@@ -79,7 +80,7 @@ pub mod pallet {
 		type MaxRelayers: Get<u32>;
 		/// Lock Period
 		#[pallet::constant]
-		type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
+		type LockPeriod: Get<BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -105,7 +106,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn locked_holders)]
 	pub(super) type LockedTokenHolders<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, BlockNumberFor<T>, OptionQuery>;
 
 	/// Processed Eth Burn Transactions
 	#[pallet::storage]
@@ -343,7 +344,7 @@ pub mod pallet {
 							amount.saturating_add(previous_balance),
 							reasons,
 						);
-						let current_blocknumber: T::BlockNumber =
+						let current_blocknumber: BlockNumberFor<T> =
 							frame_system::Pallet::<T>::current_block_number();
 						LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
 						// Reduce possible mintable tokens

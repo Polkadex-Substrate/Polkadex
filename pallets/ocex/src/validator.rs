@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use frame_system::pallet_prelude::BlockNumberFor;
 use crate::{
 	aggregator::AggregatorClient,
 	pallet::ValidatorSetId,
@@ -51,7 +52,7 @@ pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
 	/// submits snapshot summary to aggregator endpoint
-	pub fn run_on_chain_validation(block_num: T::BlockNumber) -> Result<bool, &'static str> {
+	pub fn run_on_chain_validation(block_num: BlockNumberFor<T>) -> Result<bool, &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
@@ -228,7 +229,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Imports a block into the offchain state and handles the deposits
 	fn import_blk(
-		blk: T::BlockNumber,
+		blk: BlockNumberFor<T>,
 		state: &mut OffchainState,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {

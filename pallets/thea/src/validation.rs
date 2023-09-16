@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use frame_system::pallet_prelude::BlockNumberFor;
 use crate::{
 	aggregator::AggregatorClient,
 	pallet::{ActiveNetworks, IncomingNonce},
@@ -29,7 +30,7 @@ use thea_primitives::types::Destination;
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
 	/// for both solochain and parachain, signs it and submits to aggregator
-	pub fn run_thea_validation(_blk: T::BlockNumber) -> Result<(), &'static str> {
+	pub fn run_thea_validation(_blk: BlockNumberFor<T>) -> Result<(), &'static str> {
 		if !sp_io::offchain::is_validator() {
 			return Ok(())
 		}

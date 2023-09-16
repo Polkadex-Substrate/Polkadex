@@ -170,6 +170,7 @@ impl xcm_executor::Config for XcmConfig {
 	type IsReserve = MultiNativeAsset<AbsoluteReserveProvider>;
 	// Teleporting is disabled.
 	type IsTeleporter = ();
+	type Aliasers = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
@@ -324,6 +325,7 @@ where
 		&mut self,
 		weight: Weight,
 		payment: Assets,
+		_context: &XcmContext,
 	) -> sp_std::result::Result<Assets, XcmError> {
 		let _fee_in_native_token = T::weight_to_fee(&weight);
 		let payment_asset = payment.fungible_assets_iter().next().ok_or(XcmError::Trap(1000))?;
@@ -373,14 +375,14 @@ where
 	}
 }
 
-pub struct TypeConv;
-impl<Source: TryFrom<Dest> + Clone, Dest: TryFrom<Source> + Clone>
-	xcm_executor::traits::Convert<Source, Dest> for TypeConv
-{
-	fn convert(value: Source) -> Result<Dest, Source> {
-		Dest::try_from(value.clone()).map_err(|_| value)
-	}
-}
+// pub struct TypeConv;
+// impl<Source: TryFrom<Dest> + Clone, Dest: TryFrom<Source> + Clone>
+// 	xcm_executor::traits::Convert<Source, Dest> for TypeConv
+// {
+// 	fn convert(value: Source) -> Result<Dest, Source> {
+// 		Dest::try_from(value.clone()).map_err(|_| value)
+// 	}
+// }
 
 pub struct RevenueCollector;
 

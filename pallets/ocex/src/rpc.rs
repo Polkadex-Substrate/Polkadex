@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use frame_system::pallet_prelude::BlockNumberFor;
 use crate::{
 	pallet::{Accounts, AllowlistedToken, IngressMessages},
 	storage::OffchainState,
@@ -124,7 +125,7 @@ impl<T: Config> Pallet<T> {
 		if current_blk > last_processed_blk {
 			for blk in last_processed_blk.saturating_add(1)..=current_blk {
 				let ingress_msgs =
-					<IngressMessages<T>>::get(blk.saturated_into::<T::BlockNumber>());
+					<IngressMessages<T>>::get(blk.saturated_into::<BlockNumberFor<T>>());
 				for msg in ingress_msgs {
 					if let polkadex_primitives::ingress::IngressMessages::Deposit(_, asset, amt) =
 						msg
