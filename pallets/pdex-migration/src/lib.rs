@@ -126,7 +126,6 @@ pub mod pallet {
 		pub max_tokens: T::Balance,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			Self {
@@ -137,7 +136,7 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			Operational::<T>::put(self.operational);
 			MintableTokens::<T>::put(self.max_tokens.saturated_into::<T::Balance>());

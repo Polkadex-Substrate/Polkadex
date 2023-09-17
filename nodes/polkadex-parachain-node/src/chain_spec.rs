@@ -192,6 +192,7 @@ fn create_genesis_config(
 			code: parachain_polkadex_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
+			..Default::default()
 		},
 		balances: parachain_polkadex_runtime::BalancesConfig {
 			balances: endowed_accounts
@@ -200,7 +201,7 @@ fn create_genesis_config(
 				.map(|k| (k, EXISTENTIAL_DEPOSIT * 16))
 				.collect(),
 		},
-		parachain_info: parachain_polkadex_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_info: parachain_polkadex_runtime::ParachainInfoConfig { parachain_id: id, ..Default::default() },
 		collator_selection: parachain_polkadex_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
@@ -225,9 +226,11 @@ fn create_genesis_config(
 		parachain_system: Default::default(),
 		polkadot_xcm: parachain_polkadex_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
+			..Default::default()
 		},
 		sudo: parachain_polkadex_runtime::SudoConfig { key: Some(root_key) },
 		assets: Default::default(),
+		transaction_payment: Default::default(),
 	}
 }
 
