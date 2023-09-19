@@ -23,16 +23,18 @@
 #![deny(unused_crate_dependencies)]
 
 use constants::{currency::*, time::*};
-use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen, bounds::ElectionBoundsBuilder};
+use frame_election_provider_support::{
+	bounds::ElectionBoundsBuilder, onchain, ElectionDataProvider, SequentialPhragmen,
+};
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
-	pallet_prelude::ConstU32,
+	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ConstU16, Currency, EitherOfDiverse, EnsureOrigin,
-		EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem,
-		LockIdentifier, OnUnbalanced,
+		AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly,
+		Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
+		OnUnbalanced,
 	},
 	weights::{
 		constants::{
@@ -40,7 +42,7 @@ use frame_support::{
 		},
 		ConstantMultiplier, IdentityFee, Weight,
 	},
-	PalletId
+	PalletId,
 };
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
@@ -48,6 +50,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
+use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -60,10 +63,10 @@ pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadex_primitives::{AssetId, Nonce};
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
+use polkadex_primitives::{AssetId, Nonce};
 use rust_decimal::Decimal;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -87,7 +90,6 @@ use sp_std::{prelude::*, vec};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-use frame_support::pallet_prelude::RuntimeDebug;
 
 /// Implementations of some helper traits passed into polkadex-mainnet modules as associated types.
 pub mod impls;
@@ -1056,7 +1058,7 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1361,6 +1363,50 @@ impl thea_message_handler::Config for Runtime {
 	type Executor = TheaExecutor;
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
 }
+use frame_support::ord_parameter_types;
+ord_parameter_types! {
+	pub const AssetConversionOrigin: AccountId = AccountIdConversion::<AccountId>::into_account_truncating(&AssetConversionPalletId::get());
+}
+
+impl pallet_asset_conversion_tx_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Fungibles = Assets;
+	type OnChargeAssetTransaction =
+		pallet_asset_conversion_tx_payment::AssetConversionAdapter<Balances, AssetConversion>;
+}
+
+parameter_types! {
+	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
+	pub AllowMultiAssetPools: bool = true;
+	pub const PoolSetupFee: Balance = 1 * DOLLARS; // should be more or equal to the existential deposit
+	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
+	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
+}
+
+impl pallet_asset_conversion::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type AssetBalance = <Self as pallet_balances::Config>::Balance;
+	type HigherPrecisionBalance = u128;
+	type Assets = Assets;
+	type Balance = u128;
+	type PoolAssets = Assets;
+	type AssetId = <Self as pallet_assets::Config>::AssetId;
+	type MultiAssetId = NativeOrAssetId<u128>;
+	type PoolAssetId = <Self as pallet_assets::Config>::AssetId;
+	type PalletId = AssetConversionPalletId;
+	type LPFee = ConstU32<3>; // means 0.3%
+	type PoolSetupFee = PoolSetupFee;
+	type PoolSetupFeeReceiver = AssetConversionOrigin;
+	type LiquidityWithdrawalFee = LiquidityWithdrawalFee;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
+	type AllowMultiAssetPools = AllowMultiAssetPools;
+	type MaxSwapPathLength = ConstU32<4>;
+	type MintMinLiquidity = MintMinLiquidity;
+	type MultiAssetIdConverter = NativeOrAssetIdConverter<u128>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
 
 #[cfg(feature = "runtime-benchmarks")]
 construct_runtime!(
@@ -1410,7 +1456,9 @@ construct_runtime!(
 		Rewards: pallet_rewards = 40,
 		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
-		TheaMH: thea_message_handler::pallet = 45
+		TheaMH: thea_message_handler::pallet = 45,
+		AssetConversion: pallet_asset_conversion = 46,
+		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 	}
 );
 
@@ -1462,6 +1510,8 @@ construct_runtime!(
 		Rewards: pallet_rewards = 40,
 		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
+		AssetConversion: pallet_asset_conversion = 46,
+		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 	}
 );
 /// Digest item type.
@@ -1489,7 +1539,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this polkadex-mainnet.
 pub type UncheckedExtrinsic =
@@ -1521,6 +1571,26 @@ impl_runtime_apis! {
 
 		fn initialize_block(header: &<Block as BlockT>::Header) {
 			Executive::initialize_block(header)
+		}
+	}
+
+	impl pallet_asset_conversion::AssetConversionApi<
+		Block,
+		Balance,
+		u128,
+		NativeOrAssetId<u128>
+	> for Runtime
+	{
+		fn quote_price_exact_tokens_for_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
+			AssetConversion::quote_price_exact_tokens_for_tokens(asset1, asset2, amount, include_fee)
+		}
+
+		fn quote_price_tokens_for_exact_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
+			AssetConversion::quote_price_tokens_for_exact_tokens(asset1, asset2, amount, include_fee)
+		}
+
+		fn get_reserves(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>) -> Option<(Balance, Balance)> {
+			AssetConversion::get_reserves(&asset1, &asset2).ok()
 		}
 	}
 
