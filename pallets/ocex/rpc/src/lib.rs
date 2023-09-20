@@ -24,9 +24,10 @@ pub mod offchain;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
+	tracing::log,
 	types::error::{CallError, ErrorObject},
 };
-use orderbook_primitives::recovery::{ObCheckpoint, ObRecoveryState};
+use orderbook_primitives::recovery::{DeviationMap, ObCheckpoint, ObRecoveryState};
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
 use parking_lot::RwLock;
@@ -158,10 +159,19 @@ where
 		if !offchain_storage.acquire_offchain_lock(3).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
-		let runtime_api_result =
-			api.calculate_inventory_deviation(at).map_err(runtime_error_into_rpc_err)?;
-		let json =
-			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
+		log::info!(target:"ocex","calculating the inventory deviation..");
+		let deviation =
+			match api.calculate_inventory_deviation(at).map_err(runtime_error_into_rpc_err)? {
+				Err(err) => {
+					log::error!(target:"ocex","Error calling calculate_inventory_deviation: {:?}",err);
+					return Err(runtime_error_into_rpc_err(
+						"Error calling calculate_inventory_deviation ",
+					))
+				},
+				Ok(deviation_map) => DeviationMap::new(deviation_map),
+			};
+		log::info!(target:"ocex","serializing the deviation map..");
+		let json = serde_json::to_string(&deviation).map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
 	}
 
@@ -169,7 +179,7 @@ where
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObCheckpoint> {
-		self.deny_unsafe.check_if_safe()?;
+		//self.deny_unsafe.check_if_safe()?; //As it is used by the aggregator, we need to allow it
 		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
@@ -190,6 +200,7 @@ where
 
 /// Converts a polkadex-mainnet trap into an RPC error.
 fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
+	log::error!(target:"ocex","runtime rpc error: {:?} ",err);
 	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
 		.into()
 }

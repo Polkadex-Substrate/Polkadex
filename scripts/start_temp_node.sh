@@ -1,0 +1,1 @@
+../target/release/polkadex-node --tmp --chain=../extras/customSpecRaw.json --sync=warp

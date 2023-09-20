@@ -1323,6 +1323,7 @@ pub mod pallet {
 
 		/// Fetch checkpoint for recovery
 		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			log::debug!(target:"ocex", "fetch_checkpoint called");
 			let account_id =
 				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
 					ids_accum.push((acc.clone(), acc_info.proxies));
@@ -1342,6 +1343,7 @@ pub mod pallet {
 			let last_processed_block_number = state_info.last_block;
 			let snapshot_id = state_info.snapshot_id;
 			let state_change_id = state_info.stid;
+			log::debug!(target:"ocex", "fetch_checkpoint returning");
 			Ok(ObCheckpointRaw::new(
 				snapshot_id,
 				balances,

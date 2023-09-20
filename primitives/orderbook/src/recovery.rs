@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::types::AccountAsset;
+use crate::{types::AccountAsset, ObCheckpointRaw};
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, BlockNumber};
+use polkadex_primitives::{AccountId, AssetId, BlockNumber};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
@@ -56,4 +56,33 @@ pub struct ObCheckpoint {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
+}
+
+impl ObCheckpoint {
+	/// Convert to raw checkpoint
+	pub fn to_raw(&self) -> ObCheckpointRaw {
+		ObCheckpointRaw {
+			snapshot_id: self.snapshot_id,
+			balances: self.balances.clone(),
+			last_processed_block_number: self.last_processed_block_number,
+			state_change_id: self.state_change_id,
+		}
+	}
+}
+
+/// A struct representing the deviation map to detect anomalies in the User balance.
+#[serde_as]
+#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
+pub struct DeviationMap {
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	map: BTreeMap<AssetId, Decimal>,
+}
+
+impl DeviationMap {
+	/// Create a new `DeviationMap` instance.
+	/// # Parameters
+	/// * `map`: A `BTreeMap` that maps `AssetId`s to `Decimal` balances.
+	pub fn new(map: BTreeMap<AssetId, Decimal>) -> Self {
+		Self { map }
+	}
 }
