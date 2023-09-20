@@ -119,7 +119,6 @@ pub use weights::*;
 pub mod pallet {
 	use frame_support::{
 		dispatch::RawOrigin,
-		log,
 		pallet_prelude::*,
 		sp_runtime::traits::AccountIdConversion,
 		traits::{
@@ -128,6 +127,7 @@ pub mod pallet {
 			tokens::{Fortitude, Preservation},
 		},
 		PalletId,
+		__private::log,
 	};
 	use frame_system::pallet_prelude::*;
 
@@ -151,7 +151,7 @@ pub mod pallet {
 		VersionedMultiAssets, VersionedMultiLocation,
 	};
 	use xcm_executor::{
-		traits::{Convert as MoreConvert, TransactAsset},
+		traits::{ConvertLocation as MoreConvert, TransactAsset},
 		Assets,
 	};
 
@@ -180,7 +180,7 @@ pub mod pallet {
 		/// event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Multilocation to AccountId Convert
-		type AccountIdConvert: MoreConvert<MultiLocation, Self::AccountId>;
+		type AccountIdConvert: MoreConvert<Self::AccountId>;
 		/// Assets
 		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
 			+ frame_support::traits::tokens::fungibles::Create<Self::AccountId>
@@ -206,7 +206,7 @@ pub mod pallet {
 		type AssetHandlerPalletId: Get<PalletId>;
 		/// Pallet Id
 		#[pallet::constant]
-		type WithdrawalExecutionBlockDiff: Get<Self::BlockNumber>;
+		type WithdrawalExecutionBlockDiff: Get<BlockNumberFor<Self>>;
 		/// PDEX Asset ID
 		#[pallet::constant]
 		type ParachainId: Get<u32>;
@@ -223,13 +223,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_pending_withdrawals)]
 	pub(super) type PendingWithdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::BlockNumber, Vec<Withdraw>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Vec<Withdraw>, ValueQuery>;
 
 	/// Failed Withdrawals
 	#[pallet::storage]
 	#[pallet::getter(fn get_failed_withdrawals)]
 	pub(super) type FailedWithdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::BlockNumber, Vec<Withdraw>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Vec<Withdraw>, ValueQuery>;
 
 	/// Asset mapping from u128 asset to multi asset.
 	#[pallet::storage]
@@ -307,8 +307,8 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(n: T::BlockNumber) -> Weight {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			let mut failed_withdrawal: Vec<Withdraw> = Vec::default();
 			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
 				while let Some(withdrawal) = withdrawals.pop() {
@@ -454,7 +454,7 @@ pub mod pallet {
 			// Create approved deposit
 			let MultiAsset { id, fun } = what;
 			let recipient =
-				T::AccountIdConvert::convert_ref(who).map_err(|_| XcmError::FailedToDecode)?;
+				T::AccountIdConvert::convert_location(who).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
 			let asset_id = Self::generate_asset_id_for_parachain(*id);
 			let deposit: Deposit<T::AccountId> = Deposit {
@@ -484,8 +484,7 @@ pub mod pallet {
 			_context: Option<&XcmContext>,
 		) -> sp_std::result::Result<Assets, XcmError> {
 			let MultiAsset { id: _, fun } = what;
-			let who =
-				T::AccountIdConvert::convert_ref(who).map_err(|_| XcmError::FailedToDecode)?;
+			let who = T::AccountIdConvert::convert_location(who).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
 			let asset_id = Self::generate_asset_id_for_parachain(what.id);
 			let pallet_account: T::AccountId =
@@ -504,8 +503,8 @@ pub mod pallet {
 		) -> sp_std::result::Result<Assets, XcmError> {
 			let MultiAsset { id, fun } = asset;
 			let from =
-				T::AccountIdConvert::convert_ref(from).map_err(|_| XcmError::FailedToDecode)?;
-			let to = T::AccountIdConvert::convert_ref(to).map_err(|_| XcmError::FailedToDecode)?;
+				T::AccountIdConvert::convert_location(from).ok_or(XcmError::FailedToDecode)?;
+			let to = T::AccountIdConvert::convert_location(to).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
 			let asset_id = Self::generate_asset_id_for_parachain(*id);
 			Self::resolve_transfer(asset_id.into(), &from, &to, amount)
@@ -624,7 +623,7 @@ pub mod pallet {
 		}
 
 		/// Block Transaction to be Executed.
-		pub fn block_by_ele(block_no: T::BlockNumber, index: u32) -> DispatchResult {
+		pub fn block_by_ele(block_no: BlockNumberFor<T>, index: u32) -> DispatchResult {
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(block_no);
 			let pending_withdrawal: &mut Withdraw =
 				pending_withdrawals.get_mut(index as usize).ok_or(Error::<T>::IndexNotFound)?;
@@ -646,13 +645,8 @@ pub mod pallet {
 			Self::generate_asset_id_for_parachain(AssetId::Concrete(location))
 		}
 
-		pub fn insert_pending_withdrawal(block_no: T::BlockNumber, withdrawal: Withdraw) {
+		pub fn insert_pending_withdrawal(block_no: BlockNumberFor<T>, withdrawal: Withdraw) {
 			<PendingWithdrawals<T>>::insert(block_no, vec![withdrawal]);
-		}
-
-		/// Converts Multilocation to AccountId
-		pub fn multi_location_to_account_converter(location: MultiLocation) -> T::AccountId {
-			T::AccountIdConvert::convert_ref(location).unwrap()
 		}
 	}
 
@@ -678,7 +672,7 @@ pub mod pallet {
 			let deposits = Vec::<Withdraw>::decode(&mut &deposits[..]).unwrap_or_default();
 			for deposit in deposits {
 				// Calculate the withdrawal execution delay
-				let withdrawal_execution_block: T::BlockNumber =
+				let withdrawal_execution_block: BlockNumberFor<T> =
 					<frame_system::Pallet<T>>::block_number()
 						.saturated_into::<u32>()
 						.saturating_add(

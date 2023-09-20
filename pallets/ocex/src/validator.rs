@@ -24,6 +24,7 @@ use crate::{
 	storage::{store_trie_root, OffchainState},
 	Config, Pallet, SnapshotNonce,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
 	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,
@@ -51,7 +52,7 @@ pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
 	/// submits snapshot summary to aggregator endpoint
-	pub fn run_on_chain_validation(block_num: T::BlockNumber) -> Result<bool, &'static str> {
+	pub fn run_on_chain_validation(block_num: BlockNumberFor<T>) -> Result<bool, &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
@@ -228,7 +229,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Imports a block into the offchain state and handles the deposits
 	fn import_blk(
-		blk: T::BlockNumber,
+		blk: BlockNumberFor<T>,
 		state: &mut OffchainState,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {

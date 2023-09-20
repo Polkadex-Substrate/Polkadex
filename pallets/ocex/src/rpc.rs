@@ -22,6 +22,7 @@ use crate::{
 	validator::WORKER_STATUS,
 	Config, Pallet,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{AccountId, AssetId};
 use rust_decimal::Decimal;
@@ -124,7 +125,7 @@ impl<T: Config> Pallet<T> {
 		if current_blk > last_processed_blk {
 			for blk in last_processed_blk.saturating_add(1)..=current_blk {
 				let ingress_msgs =
-					<IngressMessages<T>>::get(blk.saturated_into::<T::BlockNumber>());
+					<IngressMessages<T>>::get(blk.saturated_into::<BlockNumberFor<T>>());
 				for msg in ingress_msgs {
 					if let polkadex_primitives::ingress::IngressMessages::Deposit(_, asset, amt) =
 						msg

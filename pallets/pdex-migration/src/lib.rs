@@ -79,7 +79,7 @@ pub mod pallet {
 		type MaxRelayers: Get<u32>;
 		/// Lock Period
 		#[pallet::constant]
-		type LockPeriod: Get<<Self as frame_system::Config>::BlockNumber>;
+		type LockPeriod: Get<BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -105,7 +105,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn locked_holders)]
 	pub(super) type LockedTokenHolders<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::BlockNumber, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, BlockNumberFor<T>, OptionQuery>;
 
 	/// Processed Eth Burn Transactions
 	#[pallet::storage]
@@ -125,7 +125,6 @@ pub mod pallet {
 		pub max_tokens: T::Balance,
 	}
 
-	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			Self {
@@ -136,7 +135,7 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			Operational::<T>::put(self.operational);
 			MintableTokens::<T>::put(self.max_tokens.saturated_into::<T::Balance>());
@@ -343,7 +342,7 @@ pub mod pallet {
 							amount.saturating_add(previous_balance),
 							reasons,
 						);
-						let current_blocknumber: T::BlockNumber =
+						let current_blocknumber: BlockNumberFor<T> =
 							frame_system::Pallet::<T>::current_block_number();
 						LockedTokenHolders::<T>::insert(beneficiary.clone(), current_blocknumber);
 						// Reduce possible mintable tokens

@@ -231,7 +231,7 @@ pub mod pallet {
 		#[pallet::weight(T::TheaCouncilWeightInfo::delete_transaction(1))]
 		pub fn delete_transaction(
 			origin: OriginFor<T>,
-			block_no: T::BlockNumber,
+			block_no: BlockNumberFor<T>,
 			index: u32,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -244,7 +244,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: T::BlockNumber) -> Weight {
+		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			let mut removed = 0;
 			<PendingCouncilMembers<T>>::mutate(|m| {
 				let was = m.len();

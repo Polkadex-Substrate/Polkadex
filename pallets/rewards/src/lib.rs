@@ -145,8 +145,8 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::create_reward_cycle(1, 1, 1))]
 		pub fn create_reward_cycle(
 			origin: OriginFor<T>,
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 			initial_percentage: u32,
 			reward_id: u32,
 		) -> DispatchResult {
@@ -378,8 +378,8 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		RewardCycleCreated {
-			start_block: T::BlockNumber,
-			end_block: T::BlockNumber,
+			start_block: BlockNumberFor<T>,
+			end_block: BlockNumberFor<T>,
 			reward_id: u32,
 		},
 		UserUnlockedReward {
@@ -431,8 +431,8 @@ pub mod pallet {
 	#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
 	#[scale_info(bounds(), skip_type_params(T))]
 	pub struct RewardInfo<T: Config> {
-		pub start_block: T::BlockNumber,
-		pub end_block: T::BlockNumber,
+		pub start_block: BlockNumberFor<T>,
+		pub end_block: BlockNumberFor<T>,
 		pub initial_percentage: u32,
 	}
 
@@ -444,7 +444,7 @@ pub mod pallet {
 		pub is_initial_rewards_claimed: bool,
 		pub is_initialized: bool,
 		pub lock_id: [u8; 8],
-		pub last_block_rewards_claim: T::BlockNumber,
+		pub last_block_rewards_claim: BlockNumberFor<T>,
 		pub initial_rewards_claimable: BalanceOf<T>,
 		pub factor: BalanceOf<T>,
 	}

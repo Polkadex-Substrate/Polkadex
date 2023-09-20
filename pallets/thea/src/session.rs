@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{Config, Pallet};
-use frame_support::{log, traits::OneSessionHandler};
+use frame_support::traits::OneSessionHandler;
 use sp_core::{bounded::BoundedVec, Get};
 use sp_std::vec::Vec;
 
