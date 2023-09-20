@@ -50,6 +50,7 @@ use sp_runtime::{
 };
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
@@ -59,7 +60,6 @@ use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
-use frame_system::pallet_prelude::BlockNumberFor;
 
 #[cfg(test)]
 mod mock;

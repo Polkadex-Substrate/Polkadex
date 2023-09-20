@@ -1,6 +1,8 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
-use parachain_polkadex_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use parachain_polkadex_runtime::{
+	AccountId, AuraId, RuntimeGenesisConfig, Signature, EXISTENTIAL_DEPOSIT,
+};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -8,8 +10,7 @@ use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec =
-	sc_service::GenericChainSpec<parachain_polkadex_runtime::GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -186,8 +187,8 @@ fn create_genesis_config(
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 	root_key: AccountId,
-) -> parachain_polkadex_runtime::GenesisConfig {
-	parachain_polkadex_runtime::GenesisConfig {
+) -> RuntimeGenesisConfig {
+	RuntimeGenesisConfig {
 		system: parachain_polkadex_runtime::SystemConfig {
 			code: parachain_polkadex_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
@@ -201,7 +202,10 @@ fn create_genesis_config(
 				.map(|k| (k, EXISTENTIAL_DEPOSIT * 16))
 				.collect(),
 		},
-		parachain_info: parachain_polkadex_runtime::ParachainInfoConfig { parachain_id: id, ..Default::default() },
+		parachain_info: parachain_polkadex_runtime::ParachainInfoConfig {
+			parachain_id: id,
+			..Default::default()
+		},
 		collator_selection: parachain_polkadex_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,

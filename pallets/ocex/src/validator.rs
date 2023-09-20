@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use frame_system::pallet_prelude::BlockNumberFor;
 use crate::{
 	aggregator::AggregatorClient,
 	pallet::ValidatorSetId,
@@ -25,6 +24,7 @@ use crate::{
 	storage::{store_trie_root, OffchainState},
 	Config, Pallet, SnapshotNonce,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
 	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	SnapshotSummary,

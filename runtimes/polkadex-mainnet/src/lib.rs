@@ -1410,10 +1410,7 @@ impl pallet_asset_conversion::Config for Runtime {
 
 #[cfg(feature = "runtime-benchmarks")]
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = polkadex_primitives::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+	pub struct Runtime
 	{
 		System: frame_system = 0,
 		Utility: pallet_utility = 1,
@@ -1464,11 +1461,7 @@ construct_runtime!(
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = polkadex_primitives::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
-	{
+	pub struct Runtime {
 		System: frame_system = 0,
 		Utility: pallet_utility = 1,
 		Babe: pallet_babe = 2,

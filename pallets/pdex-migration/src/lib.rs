@@ -45,7 +45,6 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-	use frame_support::traits::GenesisBuild;
 	use scale_info::TypeInfo;
 	use sp_runtime::{
 		traits::{BlockNumberProvider, Saturating, Zero},

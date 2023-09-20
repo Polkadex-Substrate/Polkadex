@@ -19,7 +19,7 @@
 //! Tests for pallet-ocex.
 
 use crate::{storage::store_trie_root, *};
-use frame_support::{assert_noop, assert_ok, bounded_vec};
+use frame_support::{assert_noop, assert_ok};
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -27,6 +27,7 @@ use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
+use frame_support::testing_prelude::bounded_vec;
 use frame_system::EventRecord;
 use parity_scale_codec::Decode;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};

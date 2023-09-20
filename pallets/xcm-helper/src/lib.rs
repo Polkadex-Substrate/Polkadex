@@ -127,8 +127,8 @@ pub mod pallet {
 			tokens::{Fortitude, Preservation},
 		},
 		PalletId,
+		__private::log,
 	};
-	use frame_support::__private::log;
 	use frame_system::pallet_prelude::*;
 
 	use polkadex_primitives::Resolver;
@@ -484,8 +484,7 @@ pub mod pallet {
 			_context: Option<&XcmContext>,
 		) -> sp_std::result::Result<Assets, XcmError> {
 			let MultiAsset { id: _, fun } = what;
-			let who =
-				T::AccountIdConvert::convert_location(who).ok_or(XcmError::FailedToDecode)?;
+			let who = T::AccountIdConvert::convert_location(who).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
 			let asset_id = Self::generate_asset_id_for_parachain(what.id);
 			let pallet_account: T::AccountId =

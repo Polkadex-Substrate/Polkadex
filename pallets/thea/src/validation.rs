@@ -16,13 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use frame_system::pallet_prelude::BlockNumberFor;
 use crate::{
 	aggregator::AggregatorClient,
 	pallet::{ActiveNetworks, IncomingNonce},
 	resolver::Resolver,
 	Config, Pallet,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use serde::{Deserialize, Serialize};
 use sp_std::vec::Vec;
 use thea_primitives::types::Destination;
