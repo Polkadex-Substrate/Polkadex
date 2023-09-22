@@ -34,6 +34,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
 };
+use rpc as
 
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{

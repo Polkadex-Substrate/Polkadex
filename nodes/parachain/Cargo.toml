@@ -18,7 +18,7 @@ jsonrpsee = { version = "0.16.2", features = ["server"] }
 futures = "0.3.28"
 
 # Local
-parachain-polkadex-runtime = { path = "../../runtimes/polkadex-parachain" }
+parachain-polkadex-runtime = { path = "../../runtimes/parachain" }
 hex-literal = { workspace = true, optional = false }
 
 # Substrate

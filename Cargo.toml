@@ -23,10 +23,10 @@ panic = "unwind"
 resolver = "2"
 members = [
   "client",
-  "nodes/polkadex-mainnet-node",
-  "nodes/polkadex-parachain-node",
-  "runtimes/polkadex-mainnet",
-  "runtimes/polkadex-parachain",
+  "nodes/mainnet",
+  "nodes/parachain",
+  "runtimes/mainnet",
+  "runtimes/parachain",
   "rpc/assets",
   "rpc/assets/runtime-api",
   "pallets/pdex-migration",
@@ -51,10 +51,10 @@ members = [
 
 default-members = [
   "client",
-  "nodes/polkadex-mainnet-node",
-  "nodes/polkadex-parachain-node",
-  "runtimes/polkadex-mainnet",
-  "runtimes/polkadex-parachain",
+  "nodes/mainnet",
+  "nodes/parachain",
+  "runtimes/mainnet",
+  "runtimes/parachain",
   "pallets/pdex-migration",
   "pallets/pdex-migration",
   "pallets/ocex",
