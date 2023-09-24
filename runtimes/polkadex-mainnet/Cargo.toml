@@ -193,7 +193,7 @@ std = [
   "thea-message-handler?/std",
   "orderbook-primitives/std",
   "pallet-asset-conversion/std",
-  "pallet-asset-conversion-tx-payment/std"
+  "pallet-asset-conversion-tx-payment/std",
 ]
 runtime-benchmarks = [
   #theirs
@@ -260,5 +260,5 @@ try-runtime = [
   "liquidity/try-runtime",
   "thea-executor/try-runtime",
   "pallet-asset-conversion/try-runtime",
-  "pallet-asset-conversion-tx-payment/try-runtime"
+  "pallet-asset-conversion-tx-payment/try-runtime",
 ]
