@@ -22,11 +22,11 @@ RUN apt-get update && apt-get install --assume-yes ca-certificates
 
 COPY ./polkadex-node /usr/local/bin
 
-RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-polkadex-mainnet-polkadex-parachain-node polkadex-polkadex-mainnet-polkadex-parachain-node && \
-    mkdir -p /polkadex-polkadex-mainnet-polkadex-parachain-node/.local/share && \
+RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
+    mkdir -p /polkadex-node/.local/share && \
     mkdir /data && \
-    chown -R polkadex-polkadex-mainnet-polkadex-parachain-node:polkadex-polkadex-mainnet-polkadex-parachain-node /data && \
-    ln -s /data /polkadex-polkadex-mainnet-polkadex-parachain-node/.local/share/polkadex-polkadex-mainnet-polkadex-parachain-node && \
+    chown -R polkadex-node:polkadex-node /data && \
+    ln -s /data /polkadex-node/.local/share/polkadex-node && \
     rm -rf /usr/bin /usr/sbin
 
 COPY ./extras/customSpecRaw.json /data
