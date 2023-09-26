@@ -23,6 +23,7 @@ use itertools::Itertools;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
+use node_polkadex_runtime::RuntimeGenesisConfig;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -34,7 +35,6 @@ use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
 };
-use rpc as
 
 pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
@@ -444,8 +444,8 @@ pub fn testnet_genesis(
 	}
 	let vesting = get_vesting_terms();
 
-	GenesisConfig {
-		system: SystemConfig { code: wasm_binary_unwrap().to_vec() },
+	RuntimeGenesisConfig {
+		system: SystemConfig { code: wasm_binary_unwrap().to_vec(), ..Default::default() },
 		balances: BalancesConfig { balances: endowed_accounts },
 
 		indices: IndicesConfig { indices: vec![] },
@@ -490,14 +490,18 @@ pub fn testnet_genesis(
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			..Default::default()
 		},
 		im_online: Default::default(),
-		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		authority_discovery: Default::default(),
 		grandpa: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
 		orml_vesting: OrmlVestingConfig { vesting },
 		pdex_migration: PDEXMigrationConfig { max_tokens: ERC20_PDEX_SUPPLY, operational: false },
+		assets: Default::default(),
+		orderbook_committee: Default::default(),
+		transaction_payment: Default::default()
 	}
 }
 

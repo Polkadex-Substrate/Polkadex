@@ -38,7 +38,7 @@ use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::BabeWorkerHandle;
-use sc_consensus_grandpa::{
+use grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
 use sc_rpc::SubscriptionTaskExecutor;
@@ -51,7 +51,7 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
-
+use sc_rpc::statement::StatementApiServer;
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
@@ -93,6 +93,8 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+	/// Shared statement store reference.
+	pub statement_store: Arc<dyn sp_statement_store::StatementStore>,
 	/// The backend used by the polkadex-mainnet-polkadex-parachain-node.
 	pub backend: Arc<B>,
 }
@@ -117,7 +119,7 @@ where
 	P: TransactionPool + 'static,
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
-	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
+	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 	C::Api: rpc_assets::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
@@ -134,7 +136,7 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, backend } =
+	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, statement_store, backend } =
 		deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
@@ -182,5 +184,8 @@ where
 		.into_rpc(),
 	)?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	let statement_store =
+		sc_rpc::statement::StatementStore::new(statement_store, deny_unsafe).into_rpc();
+	io.merge(statement_store)?;
 	Ok(io)
 }
