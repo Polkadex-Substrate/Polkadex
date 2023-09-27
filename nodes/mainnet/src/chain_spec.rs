@@ -35,8 +35,6 @@ use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
 };
-
-pub use node_polkadex_runtime::GenesisConfig;
 use node_polkadex_runtime::{
 	constants::currency::PDEX, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig,
 	BalancesConfig, CouncilConfig, IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig,
@@ -64,7 +62,7 @@ pub struct Extensions {
 }
 
 /// Specialized `ChainSpec`.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 pub(crate) fn session_keys(
 	grandpa: GrandpaId,
@@ -77,7 +75,7 @@ pub(crate) fn session_keys(
 	SessionKeys { grandpa, babe, im_online, authority_discovery, orderbook, thea }
 }
 
-fn udon_testnet_config_genesis() -> GenesisConfig {
+fn udon_testnet_config_genesis() -> RuntimeGenesisConfig {
 	let seed = "owner word vocal dose decline sunset battle example forget excite gentle waste//";
 	let mut initial_authorities: Vec<(
 		AccountId,
@@ -215,7 +213,7 @@ pub fn authority_keys_from_seed(
 	)
 }
 
-fn development_config_genesis() -> GenesisConfig {
+fn development_config_genesis() -> RuntimeGenesisConfig {
 	let enclave_developement_account: AccountId =
 		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
 
@@ -245,7 +243,7 @@ pub fn development_config() -> ChainSpec {
 	)
 }
 
-fn soba_testnet_genesis() -> GenesisConfig {
+fn soba_testnet_genesis() -> RuntimeGenesisConfig {
 	let enclave_developement_account: AccountId =
 		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
 	let orderbook_test_main_account: AccountId =
@@ -274,7 +272,7 @@ pub fn soba_testnet_config() -> ChainSpec {
 	)
 }
 
-fn mainnet_genesis_constuctor() -> GenesisConfig {
+fn mainnet_genesis_constuctor() -> RuntimeGenesisConfig {
 	let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
@@ -381,7 +379,7 @@ pub fn testnet_genesis(
 	_initial_nominators: Vec<AccountId>,
 	development_accounts: Option<Vec<AccountId>>,
 	root_key: AccountId,
-) -> GenesisConfig {
+) -> RuntimeGenesisConfig {
 	const ENDOWMENT: u128 = 100 * PDEX;
 	const STASH: u128 = 2 * PDEX;
 	// Total Supply in ERC20
@@ -1233,7 +1231,7 @@ pub(crate) mod tests {
 
 	use super::*;
 
-	fn local_testnet_genesis_instant_single() -> GenesisConfig {
+	fn local_testnet_genesis_instant_single() -> RuntimeGenesisConfig {
 		testnet_genesis(
 			vec![authority_keys_from_seed("Alice")],
 			vec![],
