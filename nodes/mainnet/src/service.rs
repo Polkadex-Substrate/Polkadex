@@ -106,7 +106,7 @@ pub fn create_extrinsic(
 			frame_system::CheckWeight::<node_polkadex_runtime::Runtime>::new(),
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<
 				node_polkadex_runtime::Runtime,
-			>::from(tip, None), //TODO: @Gautham check this
+			>::from(tip, None),
 		);
 
 	let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
