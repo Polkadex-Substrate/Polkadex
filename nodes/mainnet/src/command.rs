@@ -25,11 +25,12 @@ use crate::{
 };
 
 use node_polkadex_runtime::{Block, ExistentialDeposit};
+#[cfg(feature = "try-runtime")]
 use polkadex_client::ExecutorDispatch;
 use polkadex_node::benchmarking::{
 	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
 };
-use sc_cli::{ChainSpec, Result, RuntimeVersion, SubstrateCli};
+use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 
@@ -74,10 +75,6 @@ impl SubstrateCli for Cli {
 		};
 		Ok(spec)
 	}
-
-	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&node_polkadex_runtime::VERSION
-	}
 }
 
 // Parse command line arguments into service configuration.
@@ -112,7 +109,7 @@ pub fn run() -> Result<()> {
 							)
 						}
 
-						cmd.run::<Block, ExecutorDispatch>(config)
+						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)
 					},
 					BenchmarkCmd::Block(cmd) => {
 						let PartialComponents { client, .. } = new_partial(&config)?;

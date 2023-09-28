@@ -20,10 +20,14 @@ use frame_support::PalletId;
 use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use itertools::Itertools;
+use node_polkadex_runtime::{
+	constants::currency::PDEX, wasm_binary_unwrap, BabeConfig, BalancesConfig, CouncilConfig,
+	IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig, RuntimeGenesisConfig, SessionConfig,
+	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
-use node_polkadex_runtime::RuntimeGenesisConfig;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
@@ -34,12 +38,6 @@ use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
-};
-use node_polkadex_runtime::{
-	constants::currency::PDEX, wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig,
-	BalancesConfig, CouncilConfig, IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig,
-	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig,
 };
 
 type AccountPublic = <Signature as Verify>::Signer;
@@ -499,7 +497,7 @@ pub fn testnet_genesis(
 		pdex_migration: PDEXMigrationConfig { max_tokens: ERC20_PDEX_SUPPLY, operational: false },
 		assets: Default::default(),
 		orderbook_committee: Default::default(),
-		transaction_payment: Default::default()
+		transaction_payment: Default::default(),
 	}
 }
 

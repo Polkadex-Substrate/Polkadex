@@ -34,14 +34,14 @@ use jsonrpsee::RpcModule;
 use pallet_ocex_rpc::PolkadexOcexRpc;
 use pallet_rewards_rpc::PolkadexRewardsRpc;
 
+use grandpa::{
+	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
+};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::BabeWorkerHandle;
-use grandpa::{
-	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
-};
-use sc_rpc::SubscriptionTaskExecutor;
+use sc_rpc::{statement::StatementApiServer, SubscriptionTaskExecutor};
 /// Re-export the API for backward compatibility.
 pub use sc_rpc_api::offchain::*;
 pub use sc_rpc_api::DenyUnsafe;
@@ -51,7 +51,6 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
-use sc_rpc::statement::StatementApiServer;
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
@@ -136,8 +135,17 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, statement_store, backend } =
-		deps;
+	let FullDeps {
+		client,
+		pool,
+		select_chain,
+		chain_spec,
+		deny_unsafe,
+		babe,
+		grandpa,
+		statement_store,
+		backend,
+	} = deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
 	let GrandpaDeps {
