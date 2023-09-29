@@ -48,7 +48,7 @@ type BalanceOf<T> =
 
 const LENGTH_OF_HALF_BYTES: usize = 16;
 
-// Definition of the pallet logic, to be aggregated at polkadex-mainnet definition through
+// Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 
 // Trait to add liquidity in OCEX pallet

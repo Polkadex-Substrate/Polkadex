@@ -22,7 +22,7 @@
 //! EXECUTION: None, WASM-EXECUTION: Compiled, CHAIN: None, DB CACHE: 1024
 
 // Executed Command:
-// ./parachain-polkadex-polkadex-mainnet-polkadex-parachain-node
+// ./polkadex-node
 // benchmark
 // pallet
 // --pallet

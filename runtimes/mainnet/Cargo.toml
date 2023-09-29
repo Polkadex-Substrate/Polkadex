@@ -84,10 +84,10 @@ frame-election-provider-support = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
 #end added
 
-# Used for the polkadex-mainnet-polkadex-parachain-node template"s RPCs
+# Used for the polkadex-node RPCs
 frame-system-rpc-runtime-api = { default-features = false, workspace = true }
 
-# Used for polkadex-mainnet benchmarking
+# Used for runtime benchmarking
 frame-benchmarking = { default-features = false, workspace = true, optional = true }
 frame-system-benchmarking = { default-features = false, workspace = true, optional = true }
 
@@ -254,7 +254,7 @@ try-runtime = [
   "pdex-migration/try-runtime",
   "pallet-democracy/try-runtime",
   "pallet-preimage/try-runtime",
-  #"pallet-randomness-collective-flip/try-polkadex-mainnet",
+  #"pallet-randomness-collective-flip/try-runtime",
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",

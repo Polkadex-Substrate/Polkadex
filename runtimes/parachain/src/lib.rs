@@ -126,7 +126,7 @@ pub type Executive = frame_executive::Executive<
 >;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-/// polkadex-mainnet-polkadex-parachain-node's balance type.
+/// polkadex-parachain-node's balance type.
 ///
 /// This should typically create a mapping between the following ranges:
 ///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
@@ -234,7 +234,6 @@ pub fn native_version() -> NativeVersion {
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 
-	// This part is copied from Substrate's `bin/polkadex-mainnet-polkadex-parachain-node/polkadex-parachain/src/lib.rs`.
 	//  The `RuntimeBlockLength` and `RuntimeBlockWeights` exist here because the
 	// `DeletionWeightLimit` and `DeletionQueueDepth` depend on those to parameterize
 	// the lazy contract deletion.

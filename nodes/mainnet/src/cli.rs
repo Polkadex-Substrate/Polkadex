@@ -54,19 +54,18 @@ pub enum Subcommand {
 	// /// The custom inspect subcommmand for decoding blocks and extrinsics.
 	// #[clap(
 	// name = "inspect",
-	// about = "Decode given block or extrinsic using current native polkadex-mainnet."
+	// about = "Decode given block or extrinsic using current native runtime."
 	// )]
 	// Inspect(node_inspect::cli::InspectCmd),
-	/// The custom benchmark subcommmand benchmarking polkadex-mainnet pallets.
+	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(subcommand)]
 	Benchmark(Box<frame_benchmarking_cli::BenchmarkCmd>),
 
-	/// Try some command against polkadex-mainnet state.
+	/// Try some command against runtime state.
 	#[cfg(feature = "try-runtime")]
 	TryRuntime(try_runtime_cli::TryRuntimeCmd),
 
-	/// Try some command against polkadex-mainnet state. Note: `try-polkadex-mainnet` feature must
-	/// be enabled.
+	/// Try some command against runtime state. Note: `try-runtime` feature must be enabled.
 	#[cfg(not(feature = "try-runtime"))]
 	TryRuntime,
 

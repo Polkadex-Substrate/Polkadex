@@ -101,15 +101,15 @@ pub fn run() -> Result<()> {
 				// which sub-commands it wants to support.
 				match cmd.as_ref() {
 					BenchmarkCmd::Pallet(cmd) => {
-						if !cfg!(feature = "polkadex-mainnet-benchmarks") {
+						if !cfg!(feature = "runtime-benchmarks") {
 							return Err(
-								"Runtime benchmarking wasn't enabled when building the polkadex-mainnet-polkadex-parachain-node. \
-							You can enable it with `--features polkadex-mainnet-benchmarks`."
+								"Runtime benchmarking wasn't enabled when building the node. \
+							You can enable it with `--features runtime-benchmarks`."
 									.into(),
 							)
 						}
 
-						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)
+						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config) //TODO: @Gautham - Check this
 					},
 					BenchmarkCmd::Block(cmd) => {
 						let PartialComponents { client, .. } = new_partial(&config)?;
@@ -117,7 +117,7 @@ pub fn run() -> Result<()> {
 					},
 					#[cfg(not(feature = "runtime-benchmarks"))]
 					BenchmarkCmd::Storage(_) => Err(
-						"Storage benchmarking can be enabled with `--features polkadex-mainnet-benchmarks`."
+						"Storage benchmarking can be enabled with `--features runtime-benchmarks`."
 							.into(),
 					),
 					#[cfg(feature = "runtime-benchmarks")]
@@ -226,7 +226,7 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::TryRuntime(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				// we don't need any of the components of new_partial, just a polkadex-mainnet, or a task
+				// we don't need any of the components of new_partial, just a runtime, or a task
 				// manager to do `async_run`.
 				let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
 				let task_manager =
@@ -247,8 +247,8 @@ pub fn run() -> Result<()> {
 		},
 
 		#[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the polkadex-mainnet-polkadex-parachain-node. \
-        You can enable it with `--features try-polkadex-mainnet`."
+		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
+        You can enable it with `--features try-runtime`."
 			.into()),
 	}
 }

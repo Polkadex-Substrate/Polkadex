@@ -41,7 +41,7 @@ Note that cloning master might result in an unstable build. If you want a stable
 git clone https://github.com/Polkadex-Substrate/Polkadex.git
 cd Polkadex
 
-# Build the polkadex-mainnet-polkadex-parachain-node (The first build will be long (~30min))
+# Build the node (The first build will be long (~30min))
 cargo build --release
 ```
 
@@ -54,7 +54,7 @@ source $HOME/.cargo/env
 Then, you will want to run the node in dev mode using the following command:
 
 ```bash
-./target/release/polkadex-polkadex-mainnet-polkadex-parachain-node --dev
+./target/release/polkadex-node --dev
 ```
 
 > For people not familiar with Substrate, the --dev flag is a way to run a Substrate-based node in a single node developer configuration for testing purposes. You can learn more about `--dev` in [this Substrate tutorial](https://substrate.dev/docs/en/tutorials/create-your-first-substrate-chain/interact).
@@ -62,7 +62,7 @@ Then, you will want to run the node in dev mode using the following command:
 When running a node via the binary file, data is stored in a local directory typically located in ~/.local/shared/polkadex-node/chains/development/db. If you want to start a fresh instance of the node, you can either delete the content of the folder, or run the following command inside the polkadex folder:
 
 ```bash
-./target/release/polkadex-mainnet-polkadex-parachain-node-polkadex purge-chain --dev
+./target/release/node-polkadex purge-chain --dev
 ```
 
 This will remove the data folder, note that all chain data is now lost.
@@ -84,16 +84,16 @@ Alice_Node_Key=$(subkey generate --scheme Ed25519 --output-type Json | jq -r '.s
 
 ```bash
 # Purge any chain data from previous runs
-./target/release/polkadex-polkadex-mainnet-polkadex-parachain-node purge-chain --base-path /tmp/alice --chain local
+./target/release/polkadex-node purge-chain --base-path /tmp/alice --chain local
 
-# Start Alice's polkadex-mainnet-polkadex-parachain-node
-./target/release/polkadex-polkadex-mainnet-polkadex-parachain-node --base-path /tmp/alice \
+# Start Alice's node
+./target/release/polkadex-node --base-path /tmp/alice \
   --chain local \
   --alice \
   --port 30333 \
   --ws-port 9945 \
   --rpc-port 9933 \
-  --polkadex-mainnet-polkadex-parachain-node-key $Alice_Node_Key \
+  --node-key $Alice_Node_Key \
   --telemetry-url 'wss://telemetry.polkadot.io/submit/ 0' \
   --validator
 ```
@@ -106,13 +106,13 @@ Alice_Node_Key=$(subkey generate --scheme Ed25519 --output-type Json | jq -r '.s
 2021-06-30 08:12:38 🏷 Node name: Alice    
 2021-06-30 08:12:38 👤 Role: AUTHORITY    
 2021-06-30 08:12:38 💾 Database: RocksDb at /tmp/alice/chains/local_testnet/db    
-2021-06-30 08:12:38 ⛓  Native polkadex-mainnet: polkadex-mainnet-polkadex-parachain-node-polkadex-265 (polkadex-mainnet-polkadex-parachain-node-polkadex-1.tx2.au10)    
+2021-06-30 08:12:38 ⛓  Native runtime: node-polkadex-265 (node-polkadex-1.tx2.au10)    
 2021-06-30 08:12:39 🔨 Initializing Genesis block/state (state: 0xbe0a…5ef3, header-hash: 0xa55f…7888)    
 2021-06-30 08:12:39 👴 Loading GRANDPA authority set from genesis on what appears to be first startup.    
 2021-06-30 08:12:39 ⏱  Loaded block-time = 3s from genesis on first-launch    
 2021-06-30 08:12:39 👶 Creating empty BABE epoch changes on what appears to be first startup.    
 2021-06-30 08:12:39 Using default protocol ID "sup" because none is configured in the chain specs    
-2021-06-30 08:12:39 🏷 Local polkadex-mainnet-polkadex-parachain-node identity is: 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp    
+2021-06-30 08:12:39 🏷 Local node identity is: 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp    
 2021-06-30 08:12:39 📦 Highest known block at #0    
 2021-06-30 08:12:39 〽️ Prometheus server started at 127.0.0.1:9615    
 2021-06-30 08:12:39 Listening for new connections on 127.0.0.1:9945.    
@@ -126,8 +126,8 @@ Local node identity is: 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp sho
 
 Now that Alice's node is up and running, Bob can join the network by bootstrapping from her node.
 ```bash
-./target/release/polkadex-polkadex-mainnet-polkadex-parachain-node purge-chain --base-path /tmp/bob --chain local
-./target/release/polkadex-polkadex-mainnet-polkadex-parachain-node \
+./target/release/polkadex-node purge-chain --base-path /tmp/bob --chain local
+./target/release/polkadex-node \
   --base-path /tmp/bob \
   --chain local \
   --bob \
@@ -149,18 +149,18 @@ If all is going well, after a few seconds, the nodes should peer together and st
 2021-06-30 08:16:52 🏷 Node name: Bob    
 2021-06-30 08:16:52 👤 Role: AUTHORITY    
 2021-06-30 08:16:52 💾 Database: RocksDb at /tmp/bob/chains/local_testnet/db    
-2021-06-30 08:16:52 ⛓  Native polkadex-mainnet: polkadex-mainnet-polkadex-parachain-node-polkadex-265 (polkadex-mainnet-polkadex-parachain-node-polkadex-1.tx2.au10)    
+2021-06-30 08:16:52 ⛓  Native runtime: node-polkadex-265 (node-polkadex-1.tx2.au10)    
 2021-06-30 08:16:52 🔨 Initializing Genesis block/state (state: 0xbe0a…5ef3, header-hash: 0xa55f…7888)    
 2021-06-30 08:16:52 👴 Loading GRANDPA authority set from genesis on what appears to be first startup.    
 2021-06-30 08:16:52 ⏱  Loaded block-time = 3s from genesis on first-launch    
 2021-06-30 08:16:52 👶 Creating empty BABE epoch changes on what appears to be first startup.    
 2021-06-30 08:16:52 Using default protocol ID "sup" because none is configured in the chain specs    
-2021-06-30 08:16:52 🏷 Local polkadex-mainnet-polkadex-parachain-node identity is: 12D3KooWRHDuuHg5ZQcJhvVDKud9XkFz2Dcs2GQKF9KKuTD6quq7    
+2021-06-30 08:16:52 🏷 Local node identity is: 12D3KooWRHDuuHg5ZQcJhvVDKud9XkFz2Dcs2GQKF9KKuTD6quq7    
 2021-06-30 08:16:53 📦 Highest known block at #0    
 2021-06-30 08:16:53 Listening for new connections on 127.0.0.1:9946.    
 2021-06-30 08:16:53 👶 Starting BABE Authorship worker    
-2021-06-30 08:16:53 🔍 Discovered new external address for our polkadex-mainnet-polkadex-parachain-node: /ip4/127.0.0.1/tcp/30334/p2p/12D3KooWRHDuuHg5ZQcJhvVDKud9XkFz2Dcs2GQKF9KKuTD6quq7    
-2021-06-30 08:16:53 🔍 Discovered new external address for our polkadex-mainnet-polkadex-parachain-node: /ip4/192.168.1.37/tcp/30334/p2p/12D3KooWRHDuuHg5ZQcJhvVDKud9XkFz2Dcs2GQKF9KKuTD6quq7    
+2021-06-30 08:16:53 🔍 Discovered new external address for our node: /ip4/127.0.0.1/tcp/30334/p2p/12D3KooWRHDuuHg5ZQcJhvVDKud9XkFz2Dcs2GQKF9KKuTD6quq7    
+2021-06-30 08:16:53 🔍 Discovered new external address for our node: /ip4/192.168.1.37/tcp/30334/p2p/12D3KooWRHDuuHg5ZQcJhvVDKud9XkFz2Dcs2GQKF9KKuTD6quq7    
 2021-06-30 08:16:53 Creating inherent data providers took more time than we had left for the slot.    
 2021-06-30 08:16:54 🙌 Starting consensus session on top of parent 0xa55fa19cc37ca1f8d93bc06ca1f6fee767f18200516d9e349938601a3fe97888    
 2021-06-30 08:16:54 🎁 Prepared block for proposing at 1 [hash: 0x2959db5e42a7192434d3699d335e5d920da73409963e3081ad43afd93a8cdb4b; parent_hash: 0xa55f…7888; extrinsics (1): [0x4431…4eff]]    
@@ -180,7 +180,7 @@ If all is going well, after a few seconds, the nodes should peer together and st
 The following commands will setup a local polkadex network made of 2 nodes. It's using the node key (0000000000000000000000000000000000000000000000000000000000000001). But you should generate your own node key using the subkey as the above.
 
 ```bash
-docker build . -t polkadex-polkadex-mainnet-polkadex-parachain-node
+docker build . -t polkadex-node
 docker-compose -f 2nodes.yml up --force-recreate
 ```
 

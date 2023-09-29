@@ -49,10 +49,10 @@ pub trait PolkadexRewardsRpcApi<BlockHash, AccountId, Hash> {
 ///
 /// # Type Parameters
 ///
-/// * `Client`: The client API used to interact with the Substrate polkadex-mainnet.
-/// * `Block`: The block type of the Substrate polkadex-mainnet.
+/// * `Client`: The client API used to interact with the Substrate Runtime.
+/// * `Block`: The block type of the Substrate Runtime.
 pub struct PolkadexRewardsRpc<Client, Block> {
-	/// An `Arc` reference to the client API for accessing polkadex-mainnet functionality.
+	/// An `Arc` reference to the client API for accessing Runtime functionality.
 	client: Arc<Client>,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct
@@ -97,7 +97,7 @@ where
 	}
 }
 
-/// Converts a polkadex-mainnet trap into an RPC error.
+/// Converts a runtime trap into an RPC error.
 fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
 	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
 		.into()

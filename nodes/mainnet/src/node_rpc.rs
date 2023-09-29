@@ -15,17 +15,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A collection of polkadex-mainnet-polkadex-parachain-node-specific RPC methods.
+//! A collection of runtime-node-specific RPC methods.
 //!
 //! Since `substrate` core functionality makes no assumptions
-//! about the modules used inside the polkadex-mainnet, so do
+//! about the modules used inside the runtime, so do
 //! RPC methods defined in `sc-rpc` crate.
 //! It means that `client/rpc` can't have any methods that
-//! need some strong assumptions about the particular polkadex-mainnet.
+//! need some strong assumptions about the particular runtime.
 //!
 //! The RPCs available in this crate however can make some assumptions
-//! about how the polkadex-mainnet is constructed and what FRAME pallets
-//! are part of it. Therefore all polkadex-mainnet-polkadex-parachain-node-polkadex-mainnet-specific
+//! about how the runtime is constructed and what FRAME pallets
+//! are part of it. Therefore all runtime-specific
 //! RPCs can be placed here or imported from corresponding FRAME RPC definitions.
 
 #![warn(missing_docs)]
@@ -58,7 +58,7 @@ use std::sync::Arc;
 pub struct BabeDeps {
 	/// A handle to the BABE worker for issuing requests.
 	pub babe_worker_handle: BabeWorkerHandle<Block>,
-	/// The keystore that manages the keys of the polkadex-mainnet-polkadex-parachain-node.
+	/// The keystore that manages the keys of the runtime-node.
 	pub keystore: KeystorePtr,
 }
 
@@ -94,7 +94,7 @@ pub struct FullDeps<C, P, SC, B> {
 	pub grandpa: GrandpaDeps<B>,
 	/// Shared statement store reference.
 	pub statement_store: Arc<dyn sp_statement_store::StatementStore>,
-	/// The backend used by the polkadex-mainnet-polkadex-parachain-node.
+	/// The backend used by the runtime-node.
 	pub backend: Arc<B>,
 }
 

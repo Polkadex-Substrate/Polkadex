@@ -60,7 +60,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "polkadex-mainnet-benchmarks")]
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
 pub mod weights;
@@ -95,7 +95,7 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + xcm_helper::Config {
-		/// Because this pallet emits events, it depends on the polkadex-mainnet's definition of an
+		/// Because this pallet emits events, it depends on the Runtime's definition of an
 		/// event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Minimum Active Council Size below witch Removal is not possible

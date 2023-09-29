@@ -67,7 +67,7 @@ benchmarks! {
 	verify {
 		assert_eq!(T::Currency::balance(&recipeint), 1999000000000000u128.saturated_into());
 	}
-	// TODO: We need to adapt this benchmark to work in polkadex-mainnet context
+	// TODO: We need to adapt this benchmark to work in runtime context
 	// on_initialize {
 	// 	let x: T::BlockNumber = 1u64.saturated_into();
 	// 	let pallet_account: T::AccountId = T::AssetHandlerPalletId::get().into_account_truncating();

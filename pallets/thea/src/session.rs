@@ -33,7 +33,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		I: Iterator<Item = (&'a T::AccountId, T::TheaId)>,
 	{
 		let authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
-		// we panic here as polkadex-mainnet maintainers can simply reconfigure genesis and restart
+		// we panic here as runtime maintainers can simply reconfigure genesis and restart
 		// the chain easily
 		Self::initialize_authorities(&authorities).expect("Authorities vec too big");
 	}
@@ -46,7 +46,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let next_authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
 		if next_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(
-				target: "polkadex-mainnet::thea",
+				target: "runtime::thea",
 				"authorities list {:?} truncated to length {}",
 				next_authorities, T::MaxAuthorities::get(),
 			);
@@ -57,7 +57,7 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		let next_queued_authorities = queued_validators.map(|(_, k)| k).collect::<Vec<_>>();
 		if next_queued_authorities.len() as u32 > T::MaxAuthorities::get() {
 			log::error!(
-				target: "polkadex-mainnet::thea",
+				target: "runtime::thea",
 				"queued authorities list {:?} truncated to length {}",
 				next_queued_authorities, T::MaxAuthorities::get(),
 			);
