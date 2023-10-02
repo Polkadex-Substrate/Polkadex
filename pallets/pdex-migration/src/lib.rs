@@ -71,7 +71,7 @@ pub mod pallet {
 	#[pallet::config]
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	pub trait Config: frame_system::Config + pallet_balances::Config + pallet_sudo::Config {
-		/// Because this pallet emits events, it depends on the polkadex-mainnet's definition of an
+		/// Because this pallet emits events, it depends on the runtime's definition of an
 		/// event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Max Number of relayers

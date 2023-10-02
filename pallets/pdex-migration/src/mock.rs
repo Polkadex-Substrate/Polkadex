@@ -30,7 +30,7 @@ use sp_runtime::BuildStorage;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
-// Configure a mock polkadex-mainnet to test the pallet.
+// Configure a mock Runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -110,7 +110,7 @@ impl pallet_sudo::Config for Test {
 	type WeightInfo = ();
 }
 
-// Build genesis storage according to the mock polkadex-mainnet.
+// Build genesis storage according to the mock Runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let alice = 1u64;
 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();

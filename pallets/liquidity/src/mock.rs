@@ -37,7 +37,7 @@ use sp_std::cell::RefCell;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-// For testing the pallet, we construct a mock polkadex-mainnet.
+// For testing the pallet, we construct a mock runtime.
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,

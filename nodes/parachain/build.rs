@@ -16,17 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![deny(unused_crate_dependencies)]
-//! Substrate Node Template CLI library.
-#![warn(missing_docs)]
-mod chain_spec;
-#[macro_use]
-mod service;
-mod benchmarking;
-mod cli;
-mod command;
-mod rpc;
+use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
 
-fn main() -> sc_cli::Result<()> {
-	command::run()
+fn main() {
+	generate_cargo_keys();
+
+	rerun_if_git_head_changed();
 }

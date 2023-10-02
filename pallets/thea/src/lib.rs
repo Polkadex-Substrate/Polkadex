@@ -21,9 +21,9 @@
 
 //! # Thea pallet.
 //!
-//! The core logic for polkadex-mainnet is handled by the Thea pallet. The most important
+//! The core logic for runtime is handled by the Thea pallet. The most important
 //! responsibilities of the Thea pallet are to:
-//! * process ingress messages to the polkadex-mainnet;
+//! * process ingress messages to the runtime;
 //! * keep track of egress messages;
 //! * handle validator session changes;
 

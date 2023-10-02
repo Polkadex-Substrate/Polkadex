@@ -31,7 +31,7 @@ use thea::ecdsa::{AuthorityId, AuthoritySignature};
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-// Configure a mock polkadex-mainnet to test the pallet.
+// Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -204,7 +204,7 @@ impl orml_xtokens::Config for Test {
 	type UniversalLocation = UniversalLocation;
 }
 
-// Build genesis storage according to the mock polkadex-mainnet.
+// Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
 }
