@@ -20,7 +20,6 @@ use std::path::PathBuf;
 
 /// Sub-commands supported by the collator.
 #[derive(Debug, clap::Subcommand)]
-#[allow(clippy::large_enum_variant)]
 pub enum Subcommand {
 	/// Build a chain specification.
 	BuildSpec(sc_cli::BuildSpecCmd),
@@ -54,21 +53,31 @@ pub enum Subcommand {
 	#[command(subcommand)]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 
-	/// Try some testing command against a specified runtime state.
-	#[cfg(feature = "try-runtime")]
-	TryRuntime(try_runtime_cli::TryRuntimeCmd),
-
-	/// Errors since the binary was not build with `--features try-runtime`.
-	#[cfg(not(feature = "try-runtime"))]
+	/// Try-runtime has migrated to a standalone
+	/// [CLI](<https://github.com/paritytech/try-runtime-cli>). The subcommand exists as a stub and
+	/// deprecation notice. It will be removed entirely some time after Janurary 2024.
 	TryRuntime,
 }
 
+const AFTER_HELP_EXAMPLE: &str = color_print::cstr!(
+	r#"<bold><underline>Examples:</></>
+   <bold>parachain-template-node build-spec --disable-default-bootnode > plain-parachain-chainspec.json</>
+           Export a chainspec for a local testnet in json format.
+   <bold>parachain-template-node --chain plain-parachain-chainspec.json --tmp -- --chain rococo-local</>
+           Launch a full node with chain specification loaded from plain-parachain-chainspec.json.
+   <bold>parachain-template-node</>
+           Launch a full node with default parachain <italic>local-testnet</> and relay chain <italic>rococo-local</>.
+   <bold>parachain-template-node --collator</>
+           Launch a collator with default parachain <italic>local-testnet</> and relay chain <italic>rococo-local</>.
+ "#
+);
 #[derive(Debug, clap::Parser)]
 #[command(
-	propagate_version = true,
-	args_conflicts_with_subcommands = true,
-	subcommand_negates_reqs = true
+propagate_version = true,
+args_conflicts_with_subcommands = true,
+subcommand_negates_reqs = true
 )]
+#[clap(after_help = AFTER_HELP_EXAMPLE)]
 pub struct Cli {
 	#[command(subcommand)]
 	pub subcommand: Option<Subcommand>,

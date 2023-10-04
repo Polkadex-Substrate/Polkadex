@@ -87,7 +87,7 @@ jobs:
           taplo lint
           taplo fmt --check
       - name: Build Project with try-polkadex-mainnet
-        run: cargo build --features try-polkadex-mainnet
+        run: cargo build --features try-runtime
       - name: Runtime build
         run: cargo build -p polkadex-mainnet-polkadex-parachain-node-polkadex-polkadex-mainnet
       - name: Build Project with polkadex-mainnet benchmarks
