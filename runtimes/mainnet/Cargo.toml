@@ -265,4 +265,5 @@ try-runtime = [
   "thea-executor/try-runtime",
   "pallet-asset-conversion/try-runtime",
   "pallet-asset-conversion-tx-payment/try-runtime",
+  "pallet-statement/try-runtime",
 ]

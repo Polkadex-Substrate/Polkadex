@@ -16,6 +16,7 @@ codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.152", features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 futures = "0.3.28"
+color-print = "0.3.4"
 
 # Local
 parachain-polkadex-runtime = { path = "../../runtimes/parachain" }
