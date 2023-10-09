@@ -50,6 +50,7 @@ sp-session = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-transaction-pool = { workspace = true, default-features = false }
 sp-version = { workspace = true, default-features = false }
+sp-staking = { workspace = true, default-features = false }
 
 # Polkadot
 pallet-xcm = { workspace = true, default-features = false }
@@ -139,6 +140,7 @@ std = [
   "orml-xcm-support/std",
   "thea-message-handler/std",
   "thea-primitives/std",
+  "sp-staking/std"
 ]
 
 runtime-benchmarks = [
@@ -157,6 +159,7 @@ runtime-benchmarks = [
   "cumulus-pallet-xcmp-queue/runtime-benchmarks",
   "xcm-helper/runtime-benchmarks",
   "thea-council/runtime-benchmarks",
+  "pallet-assets/runtime-benchmarks"
 ]
 
 try-runtime = [

@@ -20,8 +20,8 @@
 
 use super::*;
 use crate::{pallet::Call, Pallet as pallet_rewards};
-use frame_benchmarking::{account, benchmarks};
-use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
+use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller, BenchmarkError};
+use frame_support::{traits::UnfilteredDispatchable, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;

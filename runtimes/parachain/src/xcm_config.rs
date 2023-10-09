@@ -241,7 +241,7 @@ impl pallet_xcm::Config for Runtime {
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = pallet_xcm::TestWeightInfo;
-	#[cfg(feature = "polkadex-parachain-benchmarks")]
+	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ();
 }
 

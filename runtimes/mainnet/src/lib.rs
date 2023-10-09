@@ -44,6 +44,7 @@ use frame_support::{
 	},
 	PalletId,
 };
+use frame_support::instances::Instance1;
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use frame_system::{
@@ -428,7 +429,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxHolds = ();
 	type MaxFreezes = ();
 }
-use sp_runtime::traits::Bounded;
+use sp_runtime::traits::{Bounded, ConvertInto};
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
@@ -1165,6 +1166,17 @@ impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_asset_conversion::BenchmarkHelper<u128,pallet_asset_conversion::NativeOrAssetId<u128>> for AssetU128 {
+	fn asset_id(id: u32) -> u128 {
+		id as u128
+	}
+
+	fn multiasset_id(id: u32) -> pallet_asset_conversion::NativeOrAssetId<u128> {
+		pallet_asset_conversion::NativeOrAssetId::Asset(id as u128)
+	}
+}
+
 parameter_types! {
 	pub const BasicDeposit: Balance = deposit(1,258);       // 258 bytes on-chain
 	pub const FieldDeposit: Balance = deposit(0,66);        // 66 bytes on-chain
@@ -1376,6 +1388,15 @@ impl pallet_asset_conversion_tx_payment::Config for Runtime {
 		pallet_asset_conversion_tx_payment::AssetConversionAdapter<Balances, AssetConversion>;
 }
 
+impl pallet_asset_tx_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Fungibles = Assets;
+	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
+		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
+		CreditToBlockAuthor,
+	>;
+}
+
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
 	pub AllowMultiAssetPools: bool = true;
@@ -1406,7 +1427,7 @@ impl pallet_asset_conversion::Config for Runtime {
 	type MintMinLiquidity = MintMinLiquidity;
 	type MultiAssetIdConverter = NativeOrAssetIdConverter<u128>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {
@@ -1444,7 +1465,7 @@ construct_runtime!(
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 8,
 		Staking: pallet_staking = 9,
 		Session: pallet_session = 10,
-		Council: pallet_collective = 11,
+		Council: pallet_collective::<Instance1> = 11,
 		TechnicalCommittee: pallet_collective::<Instance2> = 12,
 		Elections: pallet_elections_phragmen = 13,
 		TechnicalMembership: pallet_membership::<Instance1> = 14,
@@ -1477,7 +1498,8 @@ construct_runtime!(
 		TheaMH: thea_message_handler::pallet = 45,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
-		Statement: pallet_statement = 48
+		Statement: pallet_statement = 48,
+		AssetTxPayment: pallet_asset_tx_payment = 49,
 	}
 );
 
@@ -1527,7 +1549,8 @@ construct_runtime!(
 		TheaExecutor: thea_executor::pallet = 44,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
-		Statement: pallet_statement = 48
+		Statement: pallet_statement = 48,
+		AssetTxPayment: pallet_asset_tx_payment = 49,
 	}
 );
 /// Digest item type.
@@ -1557,6 +1580,9 @@ pub type SignedExtra = (
 	frame_system::CheckWeight<Runtime>,
 	pallet_asset_conversion_tx_payment::ChargeAssetTxPayment<Runtime>,
 );
+//TODO: two things are missing?
+//	frame_system::CheckNonZeroSender<Runtime>,
+//	frame_system::CheckEra<Runtime>,
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
 	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
@@ -1575,6 +1601,7 @@ pub type Executive = frame_executive::Executive<
 
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
 use orderbook_primitives::ObCheckpointRaw;
+use crate::impls::CreditToBlockAuthor;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1871,7 +1898,8 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
+			use sp_storage::TrackedStorageKey;
 			impl frame_system_benchmarking::Config for Runtime {}
 
 			let allowlist: Vec<TrackedStorageKey> = vec![

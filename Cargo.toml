@@ -198,6 +198,7 @@ grandpa-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branc
 polkadex-primitives = { path = "primitives/polkadex", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 try-runtime-cli = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
+sp-storage = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 xcm = { package = "staging-xcm", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 env_logger = { version = "0.10.0" }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }

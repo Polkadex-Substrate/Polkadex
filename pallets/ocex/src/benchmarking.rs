@@ -21,8 +21,8 @@
 
 use super::*;
 use crate::Pallet as Ocex;
-use frame_benchmarking::{account, benchmarks};
-use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
+use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller, BenchmarkError};
+use frame_support::{traits::UnfilteredDispatchable, traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
 use orderbook_primitives::Fees;
 use parity_scale_codec::Decode;
