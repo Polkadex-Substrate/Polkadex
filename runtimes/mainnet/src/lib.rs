@@ -89,6 +89,7 @@ use sp_runtime::{
 use sp_std::{prelude::*, vec};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
+use sp_storage as _;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 

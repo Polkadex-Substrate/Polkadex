@@ -8240,6 +8240,7 @@ dependencies = [
  "frame-benchmarking",
  "node-polkadex-runtime",
  "sc-executor",
+ "sp-statement-store",
 ]
 
 [[package]]
