@@ -73,9 +73,9 @@ const AFTER_HELP_EXAMPLE: &str = color_print::cstr!(
 );
 #[derive(Debug, clap::Parser)]
 #[command(
-propagate_version = true,
-args_conflicts_with_subcommands = true,
-subcommand_negates_reqs = true
+	propagate_version = true,
+	args_conflicts_with_subcommands = true,
+	subcommand_negates_reqs = true
 )]
 #[clap(after_help = AFTER_HELP_EXAMPLE)]
 pub struct Cli {
