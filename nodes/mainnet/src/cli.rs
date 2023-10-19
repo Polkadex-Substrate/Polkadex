@@ -65,11 +65,6 @@ pub enum Subcommand {
 	/// [CLI](<https://github.com/paritytech/try-runtime-cli>). The subcommand exists as a stub and
 	/// deprecation notice. It will be removed entirely some time after Janurary 2024.
 	TryRuntime,
-
-	/// Try some command against runtime state. Note: `try-runtime` feature must be enabled.
-	#[cfg(not(feature = "try-runtime"))]
-	TryRuntime,
-
 	/// Key management cli utilities
 	#[clap(subcommand)]
 	Key(Box<sc_cli::KeySubcommand>),

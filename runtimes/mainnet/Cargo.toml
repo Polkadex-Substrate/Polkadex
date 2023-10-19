@@ -50,6 +50,7 @@ pallet-election-provider-multi-phase = { default-features = false, workspace = t
 pallet-authority-discovery = { default-features = false, workspace = true }
 pallet-child-bounties = { default-features = false, workspace = true }
 pallet-statement = { default-features = false, workspace = true }
+pallet-asset-tx-payment = { default-features = false, workspace = true }
 
 # Assets pallet
 pallet-asset-conversion = { default-features = false, workspace = true }
@@ -82,6 +83,7 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 #pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
+sp-storage = { default-features = false, workspace = true }
 #end added
 
 # Used for the polkadex-node RPCs
@@ -196,15 +198,18 @@ std = [
   "orderbook-primitives/std",
   "pallet-asset-conversion/std",
   "pallet-asset-conversion-tx-payment/std",
+  "frame-system-benchmarking?/std",
+  "pallet-asset-tx-payment/std",
   "pallet-statement/std",
   "sp-statement-store/std",
+  "sp-storage/std",
 ]
 runtime-benchmarks = [
   #theirs
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
-  "frame-system-benchmarking",
+  "frame-system-benchmarking/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
   "hex-literal",
   "pallet-assets/runtime-benchmarks",
@@ -218,6 +223,7 @@ runtime-benchmarks = [
   "thea-executor/runtime-benchmarks",
   "thea-message-handler/runtime-benchmarks",
   "pallet-asset-conversion/runtime-benchmarks",
+  "pallet-asset-tx-payment/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -266,4 +272,5 @@ try-runtime = [
   "pallet-asset-conversion/try-runtime",
   "pallet-asset-conversion-tx-payment/try-runtime",
   "pallet-statement/try-runtime",
+  "pallet-asset-tx-payment/try-runtime",
 ]

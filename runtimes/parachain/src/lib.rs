@@ -530,6 +530,21 @@ impl pallet_assets::Config for Runtime {
 	type Extra = ();
 	type CallbackHandle = ();
 	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = AssetU128;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct AssetU128;
+#[cfg(feature = "runtime-benchmarks")]
+use pallet_assets::BenchmarkHelper;
+use sp_staking::currency_to_vote::U128CurrencyToVote;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
+	fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u128> {
+		parity_scale_codec::Compact::from(id as u128)
+	}
 }
 
 parameter_types! {

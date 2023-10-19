@@ -17,11 +17,12 @@ use super::*;
 
 #[allow(unused)]
 use crate::Pallet as TheaCouncil;
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::{sp_runtime::SaturatedConversion, BoundedVec};
 use frame_system::RawOrigin;
 use sp_std::{vec, vec::Vec};
 use thea_primitives::types::Withdraw;
+use frame_system::pallet_prelude::BlockNumberFor;
 const SEED: u32 = 0;
 
 benchmarks! {
@@ -77,7 +78,7 @@ benchmarks! {
 		active_council_member.try_push(council_member.clone()).unwrap();
 		<ActiveCouncilMembers<T>>::put(active_council_member);
 		// Add Pending Withdrawal
-		let block_no: T::BlockNumber = 100u64.saturated_into();
+		let block_no: BlockNumberFor<T> = 100u64.saturated_into();
 		let pending_withdrawal = Withdraw {
 			id: Vec::new(),
 			asset_id: 0,
@@ -95,7 +96,7 @@ benchmarks! {
 }
 
 #[cfg(test)]
-use frame_benchmarking::impl_benchmark_test_suite;
+use frame_benchmarking::v1::impl_benchmark_test_suite;
 
 #[cfg(test)]
 impl_benchmark_test_suite!(TheaCouncil, crate::mock::new_test_ext(), crate::mock::Test);
