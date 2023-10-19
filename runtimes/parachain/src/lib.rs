@@ -538,7 +538,6 @@ impl pallet_assets::Config for Runtime {
 pub struct AssetU128;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_assets::BenchmarkHelper;
-use sp_staking::currency_to_vote::U128CurrencyToVote;
 
 #[cfg(feature = "runtime-benchmarks")]
 impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
