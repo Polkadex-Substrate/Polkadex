@@ -35,6 +35,8 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
 FROM docker.io/library/ubuntu:20.04
 COPY --from=builder /Polkadex/target/release/polkadex-node /usr/local/bin
 
+RUN apt-get update && apt-get install --assume-yes curl ca-certificates
+
 RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
         mkdir -p /polkadex-node/.local/share && \
         mkdir /data && \
