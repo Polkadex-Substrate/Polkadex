@@ -51,6 +51,7 @@ sp-std = { workspace = true, default-features = false }
 sp-transaction-pool = { workspace = true, default-features = false }
 sp-version = { workspace = true, default-features = false }
 sp-staking = { workspace = true, default-features = false }
+sp-storage = { default-features = false, workspace = true }
 
 # Polkadot
 pallet-xcm = { workspace = true, default-features = false }
@@ -140,7 +141,8 @@ std = [
   "orml-xcm-support/std",
   "thea-message-handler/std",
   "thea-primitives/std",
-  "sp-staking/std"
+  "sp-staking/std",
+  "sp-storage/std"
 ]
 
 runtime-benchmarks = [
