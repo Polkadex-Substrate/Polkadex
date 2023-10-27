@@ -7880,6 +7880,7 @@ dependencies = [
  "sp-session",
  "sp-staking",
  "sp-std",
+ "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "staging-xcm",

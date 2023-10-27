@@ -597,11 +597,11 @@ construct_runtime!(
 	}
 );
 
-#[cfg(feature = "polkadex-parachain-benchmarks")]
+#[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
 
-#[cfg(feature = "polkadex-parachain-benchmarks")]
+#[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	define_benchmarks!(
 		[frame_system, SystemBench::<Runtime>]
@@ -772,7 +772,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	#[cfg(feature = "polkadex-parachain-benchmarks")]
+	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
@@ -795,8 +795,8 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
-
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch};
+            use sp_storage::TrackedStorageKey;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}
 
