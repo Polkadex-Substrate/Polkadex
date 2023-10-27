@@ -26,7 +26,6 @@ use constants::{currency::*, time::*};
 use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, onchain, ElectionDataProvider, SequentialPhragmen,
 };
-use sp_storage as _;
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
@@ -87,6 +86,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::{prelude::*, vec};
+use sp_storage as _;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
