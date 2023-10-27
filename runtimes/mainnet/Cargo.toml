@@ -202,7 +202,7 @@ std = [
   "pallet-asset-tx-payment/std",
   "pallet-statement/std",
   "sp-statement-store/std",
-  "sp-storage/std"
+  "sp-storage/std",
 ]
 runtime-benchmarks = [
   #theirs
