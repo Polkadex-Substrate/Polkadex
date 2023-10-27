@@ -29,6 +29,7 @@ use frame_election_provider_support::{
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
+	instances::Instance1,
 	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
@@ -122,7 +123,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 310,
+	spec_version: 311,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1299,7 +1300,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
