@@ -48,9 +48,7 @@ members = [
   "misc/load-testing",
   "misc/crowdloan-verifier",
 ]
-exclude = [
-  "scripts/check-off-on-deviation",
-]
+exclude = ["scripts/check-off-on-deviation"]
 default-members = [
   "client",
   "nodes/mainnet",

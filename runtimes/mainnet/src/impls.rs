@@ -23,7 +23,7 @@ use frame_support::traits::{
 };
 use pallet_asset_tx_payment::HandleCredit;
 
-use crate::{AccountId, Assets, Authorship, Balances, NegativeImbalance, Runtime, RuntimeCall};
+use crate::{AccountId, Assets, Authorship, Balances, NegativeImbalance, Runtime};
 
 pub struct Author;
 impl OnUnbalanced<NegativeImbalance> for Author {

@@ -34,6 +34,4 @@ impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 	fn native_version() -> sc_executor::NativeVersion {
 		node_polkadex_runtime::native_version()
 	}
-
-
 }

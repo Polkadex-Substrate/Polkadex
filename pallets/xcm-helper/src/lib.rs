@@ -554,7 +554,7 @@ pub mod pallet {
 		/// Converts Multi-Location to AccountId
 		pub fn get_destination_account(location: MultiLocation) -> Option<T::AccountId> {
 			match location {
-				MultiLocation { parents, interior } if parents == 0 => {
+				MultiLocation { parents: 0, interior } => {
 					if let Junctions::X1(Junction::AccountId32 { network: _, id }) = interior {
 						if let Ok(account) = T::AccountId::decode(&mut &id[..]) {
 							Some(account)

@@ -94,7 +94,8 @@ pub fn create_extrinsic(
 	let tip = 0;
 	let extra: node_polkadex_runtime::SignedExtra =
 		(
-			//frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(), //TODO: Why it is commented?
+			//TODO: Why it is commented?
+			//frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
@@ -133,6 +134,8 @@ pub fn create_extrinsic(
 }
 
 /// Creates a new partial node.
+// Note! Allowed because extracting type as an alias currently is experimental and unstable feature.
+#[allow(clippy::type_complexity)]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -170,7 +173,7 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_native_or_wasm_executor(&config);
+	let executor = sc_service::new_native_or_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -335,7 +338,7 @@ pub fn new_full_base(
 ) -> Result<NewFullBase, ServiceError> {
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(&database_path);
+			let _ = std::fs::create_dir_all(database_path);
 			sc_sysinfo::gather_hwbench(Some(database_path))
 		}))
 		.flatten();
@@ -364,11 +367,7 @@ pub fn new_full_base(
 	));
 
 	let statement_handler_proto = sc_network_statement::StatementHandlerPrototype::new(
-		client
-			.block_hash(0u32.into())
-			.ok()
-			.flatten()
-			.expect("Genesis block exists; qed"),
+		client.block_hash(0u32).ok().flatten().expect("Genesis block exists; qed"),
 		config.chain_spec.fork_id(),
 	);
 	net_config.add_notification_protocol(statement_handler_proto.set_config());
@@ -594,9 +593,7 @@ pub fn new_full_base(
 			runtime_api_provider: client.clone(),
 			keystore: Some(keystore_container.keystore()),
 			offchain_db: backend.offchain_storage(),
-			transaction_pool: Some(OffchainTransactionPoolFactory::new(
-				transaction_pool.clone(),
-			)),
+			transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
 			network_provider: network.clone(),
 			is_validator: role.is_authority(),
 			enable_http_requests: true,
@@ -604,8 +601,8 @@ pub fn new_full_base(
 				vec![Box::new(statement_store.clone().as_statement_store_ext()) as Box<_>]
 			},
 		})
-			.run(client.clone(), task_manager.spawn_handle())
-			.boxed(),
+		.run(client.clone(), task_manager.spawn_handle())
+		.boxed(),
 	);
 
 	network_starter.start_network();

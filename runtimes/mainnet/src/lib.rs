@@ -29,7 +29,6 @@ use frame_election_provider_support::{
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
-	instances::Instance1,
 	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
@@ -87,7 +86,6 @@ use sp_runtime::{
 	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::{prelude::*, vec};
-use sp_storage as _;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -1403,7 +1401,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
 	pub AllowMultiAssetPools: bool = true;
-	pub const PoolSetupFee: Balance = 1 * DOLLARS; // should be more or equal to the existential deposit
+	pub const PoolSetupFee: Balance = DOLLARS; // should be more or equal to the existential deposit
 	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
 	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
 }
@@ -1434,7 +1432,7 @@ impl pallet_asset_conversion::Config for Runtime {
 }
 
 parameter_types! {
-	pub StatementCost: Balance = 1 * DOLLARS;
+	pub StatementCost: Balance = DOLLARS;
 	pub StatementByteCost: Balance = 100 * MILLICENTS;
 	pub const MinAllowedStatements: u32 = 4;
 	pub const MaxAllowedStatements: u32 = 10;
