@@ -83,7 +83,6 @@ sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
 #pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
-sp-storage = { default-features = false, workspace = true }
 #end added
 
 # Used for the polkadex-node RPCs
@@ -202,7 +201,6 @@ std = [
   "pallet-asset-tx-payment/std",
   "pallet-statement/std",
   "sp-statement-store/std",
-  "sp-storage/std"
 ]
 runtime-benchmarks = [
   #theirs

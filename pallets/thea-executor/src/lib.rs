@@ -48,7 +48,6 @@ pub trait WeightInfo {
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		__private::log,
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},

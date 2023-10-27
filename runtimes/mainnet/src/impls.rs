@@ -28,8 +28,7 @@ use pallet_asset_tx_payment::HandleCredit;
 use sp_std::prelude::*;
 
 use crate::{
-	AccountId, Assets, Authorship, Balances, Hash, NegativeImbalance, Runtime,
-	RuntimeCall,
+	AccountId, Assets, Authorship, Balances, Hash, NegativeImbalance, Runtime, RuntimeCall,
 };
 
 pub struct Author;
@@ -137,8 +136,8 @@ mod multiplier_tests {
 	}
 
 	fn run_with_system_weight<F>(w: Weight, assertions: F)
-		where
-			F: Fn() -> (),
+	where
+		F: Fn() -> (),
 	{
 		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
 			.build_storage()
@@ -403,14 +402,14 @@ mod multiplier_tests {
 			Weight::MAX / 2,
 			Weight::MAX,
 		]
-			.into_iter()
-			.for_each(|i| {
-				run_with_system_weight(i, || {
-					let next = runtime_multiplier_update(Multiplier::one());
-					let truth = truth_value_update(i, Multiplier::one());
-					assert_eq_error_rate!(truth, next, Multiplier::from_inner(50_000_000));
-				});
+		.into_iter()
+		.for_each(|i| {
+			run_with_system_weight(i, || {
+				let next = runtime_multiplier_update(Multiplier::one());
+				let truth = truth_value_update(i, Multiplier::one());
+				assert_eq_error_rate!(truth, next, Multiplier::from_inner(50_000_000));
 			});
+		});
 
 		// Some values that are all above the target and will cause an increase.
 		let t = target();
@@ -420,13 +419,13 @@ mod multiplier_tests {
 			t * 2,
 			t * 4,
 		]
-			.into_iter()
-			.for_each(|i| {
-				run_with_system_weight(i, || {
-					let fm = runtime_multiplier_update(max_fm);
-					// won't grow. The convert saturates everything.
-					assert_eq!(fm, max_fm);
-				})
-			});
+		.into_iter()
+		.for_each(|i| {
+			run_with_system_weight(i, || {
+				let fm = runtime_multiplier_update(max_fm);
+				// won't grow. The convert saturates everything.
+				assert_eq!(fm, max_fm);
+			})
+		});
 	}
 }

@@ -4,6 +4,7 @@ version = "5.3.0"
 edition = "2021"
 
 [dependencies]
+log = {workspace = true, default-features = false}
 parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-support = { default-features = false, workspace = true }
@@ -29,6 +30,7 @@ thea = { path = "../thea" }
 [features]
 default = ["std"]
 std = [
+  "log/std",
   "sp-application-crypto/std",
   "thea-primitives/std",
   "parity-scale-codec/std",
