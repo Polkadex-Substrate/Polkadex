@@ -640,7 +640,7 @@ mod tests {
 		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, RuntimeCall, UncheckedExtrinsic,
 	};
-	use node_primitives::{Block, DigestItem, Signature};
+	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
 	use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
@@ -774,7 +774,7 @@ mod tests {
 					)
 						.create_inherent_data(),
 				)
-				.expect("Creates inherent data");
+					.expect("Creates inherent data");
 
 				digest.push(<DigestItem as CompatibleDigestItem>::babe_pre_digest(babe_pre_digest));
 
@@ -785,8 +785,8 @@ mod tests {
 						.propose(inherent_data, digest, std::time::Duration::from_secs(1), None)
 						.await
 				})
-				.expect("Error making test block")
-				.block;
+					.expect("Error making test block")
+					.block;
 
 				let (new_header, new_body) = new_block.deconstruct();
 				let pre_hash = new_header.hash();
@@ -829,7 +829,7 @@ mod tests {
 					value: amount,
 				});
 
-				let check_non_zero_sender = frame_system::CheckNonZeroSender::new();
+				//let check_non_zero_sender = frame_system::CheckNonZeroSender::new();
 				let check_spec_version = frame_system::CheckSpecVersion::new();
 				let check_tx_version = frame_system::CheckTxVersion::new();
 				let check_genesis = frame_system::CheckGenesis::new();
@@ -839,7 +839,7 @@ mod tests {
 				let tx_payment =
 					pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::from(0, None);
 				let extra = (
-					check_non_zero_sender,
+					//check_non_zero_sender,
 					check_spec_version,
 					check_tx_version,
 					check_genesis,
@@ -848,10 +848,18 @@ mod tests {
 					check_weight,
 					tx_payment,
 				);
-				let raw_payload = SignedPayload::from_raw(
-					function,
-					extra,
-					((), spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
+				let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
+					function.clone(),
+					extra.clone(),
+					(
+						node_polkadex_runtime::VERSION.spec_version,
+						node_polkadex_runtime::VERSION.transaction_version,
+						genesis_hash,
+						best_hash,
+						(),
+						(),
+						(),
+					),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
