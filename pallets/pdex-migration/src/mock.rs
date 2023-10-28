@@ -19,24 +19,16 @@
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
-// use sp_runtime::testing::H256;
-// use crate::benchmarking::H256;
 use sp_runtime::traits::{BlakeTwo256, IdentityLookup};
 
 use crate::pallet as pdex_migration;
-use frame_support::traits::GenesisBuild;
 use sp_runtime::BuildStorage;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
 // Configure a mock Runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
+	pub enum Test {
 		System: frame_system,
 		Sudo: pallet_sudo,
 		Balances: pallet_balances,

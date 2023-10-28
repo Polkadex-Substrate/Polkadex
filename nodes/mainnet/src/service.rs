@@ -648,15 +648,16 @@ mod tests {
 	use sc_keystore::LocalKeystore;
 	use sc_service_test::TestNetNode;
 	use sc_transaction_pool_api::{ChainEvent, MaintainedTransactionPool};
+	use sp_api::BlockT;
 	use sp_consensus::{BlockOrigin, Environment, Proposer};
 	use sp_core::crypto::Pair;
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
 	use sp_keystore::KeystorePtr;
 	use sp_runtime::{
-		generic::{Digest, Era, SignedPayload},
+		generic::{Digest, Era},
 		key_types::BABE,
-		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
+		traits::{IdentifyAccount, Verify},
 		RuntimeAppPublic,
 	};
 	use sp_timestamp;
@@ -713,10 +714,10 @@ mod tests {
 				);
 				Ok((node, setup_handles.unwrap()))
 			},
-			|service, &mut (ref mut block_import, ref babe_link)| {
+			|service, &mut (ref mut block_import, ref babe_link): &mut (_, _)| {
 				let parent_hash = service.client().chain_info().best_hash;
 				let parent_header = service.client().header(parent_hash).unwrap().unwrap();
-				let parent_number = *parent_header.number();
+				let parent_number = parent_header.number;
 
 				futures::executor::block_on(service.transaction_pool().maintain(
 					ChainEvent::NewBestBlock { hash: parent_header.hash(), tree_route: None },
@@ -774,7 +775,7 @@ mod tests {
 					)
 						.create_inherent_data(),
 				)
-					.expect("Creates inherent data");
+				.expect("Creates inherent data");
 
 				digest.push(<DigestItem as CompatibleDigestItem>::babe_pre_digest(babe_pre_digest));
 
@@ -785,8 +786,8 @@ mod tests {
 						.propose(inherent_data, digest, std::time::Duration::from_secs(1), None)
 						.await
 				})
-					.expect("Error making test block")
-					.block;
+				.expect("Error making test block")
+				.block;
 
 				let (new_header, new_body) = new_block.deconstruct();
 				let pre_hash = new_header.hash();
@@ -818,7 +819,7 @@ mod tests {
 				let from: Address = AccountPublic::from(charlie.public()).into_account().into();
 				let genesis_hash = service.client().block_hash(0).unwrap().unwrap();
 				let best_hash = service.client().chain_info().best_hash;
-				let (spec_version, transaction_version) = {
+				let (_, _) = {
 					let version = service.client().runtime_version_at(best_hash).unwrap();
 					(version.spec_version, version.transaction_version)
 				};

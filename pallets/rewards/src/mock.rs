@@ -31,17 +31,12 @@ use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_runtime::BuildStorage;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
 
 // For testing the pallet, we construct a mock Runtime.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
+	pub enum Test {
 		System: frame_system,
 		Balances: pallet_balances,
 		Assets: pallet_assets,
