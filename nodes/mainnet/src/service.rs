@@ -830,7 +830,6 @@ mod tests {
 					value: amount,
 				});
 
-				//let check_non_zero_sender = frame_system::CheckNonZeroSender::new();
 				let check_spec_version = frame_system::CheckSpecVersion::new();
 				let check_tx_version = frame_system::CheckTxVersion::new();
 				let check_genesis = frame_system::CheckGenesis::new();
@@ -840,7 +839,6 @@ mod tests {
 				let tx_payment =
 					pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::from(0, None);
 				let extra = (
-					//check_non_zero_sender,
 					check_spec_version,
 					check_tx_version,
 					check_genesis,
