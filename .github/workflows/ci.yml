@@ -8,7 +8,7 @@ on:
 
 env:
   RUNNER_INSTANCE_TYPE: c5d.4xlarge
-  RUNNER_VOLUME_SIZE: 200
+  RUNNER_VOLUME_SIZE: 500
 
 jobs:
   start-runner:
