@@ -50,7 +50,6 @@ pub enum Subcommand {
 
 	/// Sub-commands concerned with benchmarking.
 	/// The pallet benchmarking moved to the `pallet` sub-command.
-	// Allowed because of rely on 3rd party lib which can't be redefined atm.
 	#[command(subcommand)]
 	Benchmark(Box<frame_benchmarking_cli::BenchmarkCmd>),
 
