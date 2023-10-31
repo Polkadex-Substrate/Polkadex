@@ -18,8 +18,11 @@
 
 //! Benchmarking setup for pallet-pdex-migration
 use crate::pallet::{Call, Config, Pallet as PDEXMigration, Pallet, *};
-use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller, BenchmarkError};
-use frame_support::{assert_ok, traits::UnfilteredDispatchable, traits::Get};
+use frame_benchmarking::v1::{account, benchmarks, whitelisted_caller};
+use frame_support::{
+	assert_ok,
+	traits::{Get, UnfilteredDispatchable},
+};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};

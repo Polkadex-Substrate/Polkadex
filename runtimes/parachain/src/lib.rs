@@ -538,7 +538,6 @@ impl pallet_assets::Config for Runtime {
 pub struct AssetU128;
 #[cfg(feature = "runtime-benchmarks")]
 use pallet_assets::BenchmarkHelper;
-use sp_staking::currency_to_vote::U128CurrencyToVote;
 
 #[cfg(feature = "runtime-benchmarks")]
 impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
@@ -598,11 +597,11 @@ construct_runtime!(
 	}
 );
 
-#[cfg(feature = "polkadex-parachain-benchmarks")]
+#[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
 
-#[cfg(feature = "polkadex-parachain-benchmarks")]
+#[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	define_benchmarks!(
 		[frame_system, SystemBench::<Runtime>]
@@ -773,7 +772,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	#[cfg(feature = "polkadex-parachain-benchmarks")]
+	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
@@ -796,10 +795,19 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
-
+			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
+			use sp_storage::TrackedStorageKey;
 			use frame_system_benchmarking::Pallet as SystemBench;
-			impl frame_system_benchmarking::Config for Runtime {}
+			impl frame_system_benchmarking::Config for Runtime {
+				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
+					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
+					Ok(())
+				}
+
+				fn verify_set_code() {
+					System::assert_last_event(cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into());
+				}
+			}
 
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			impl cumulus_pallet_session_benchmarking::Config for Runtime {}

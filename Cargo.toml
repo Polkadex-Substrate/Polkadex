@@ -48,7 +48,7 @@ members = [
   "misc/load-testing",
   "misc/crowdloan-verifier",
 ]
-
+exclude = ["scripts/check-off-on-deviation"]
 default-members = [
   "client",
   "nodes/mainnet",
@@ -209,9 +209,9 @@ trie-db = { version = "0.27.1", default-features = false }
 
 #Parachain Dependencies
 cumulus-primitives-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
-orml-xtokens = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false } #FIXME: Remove rev
-orml-traits = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false } #FIXME: Remove rev
-pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" } #FIXME: Remove rev
+orml-xtokens = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }                                                  #FIXME: Remove rev
+orml-traits = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }                                                   #FIXME: Remove rev
+pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }                                             #FIXME: Remove rev
 xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 parachain-info = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
@@ -224,7 +224,7 @@ cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/polkadot-sdk"
 cumulus-primitives-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 #Here Oeml
-orml-xcm-support = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false } #FIXME: Remove rev
+orml-xcm-support = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }                                                     #FIXME: Remove rev
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 pallet-collator-selection = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }

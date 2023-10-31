@@ -36,16 +36,11 @@ use sp_runtime::{
 };
 // Reexport crate as its pallet name for construct_runtime.
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // For testing the pallet, we construct a mock runtime.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
+	pub enum Test {
 		System: frame_system,
 		Balances: pallet_balances,
 		Assets: pallet_assets,

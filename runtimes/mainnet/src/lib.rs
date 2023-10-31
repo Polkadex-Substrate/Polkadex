@@ -44,7 +44,6 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_support::instances::Instance1;
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use frame_system::{
@@ -87,9 +86,9 @@ use sp_runtime::{
 	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::{prelude::*, vec};
+use sp_storage as _;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
-use sp_storage as _;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
@@ -123,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 310,
+	spec_version: 311,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -434,7 +433,7 @@ use sp_runtime::traits::{Bounded, ConvertInto};
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(5, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 	pub MaximumMultiplier: Multiplier = Bounded::max_value();
 	pub const OperationalFeeMultiplier: u8 = 5;
@@ -1168,7 +1167,9 @@ impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-impl pallet_asset_conversion::BenchmarkHelper<u128,pallet_asset_conversion::NativeOrAssetId<u128>> for AssetU128 {
+impl pallet_asset_conversion::BenchmarkHelper<u128, pallet_asset_conversion::NativeOrAssetId<u128>>
+	for AssetU128
+{
 	fn asset_id(id: u32) -> u128 {
 		id as u128
 	}
@@ -1298,7 +1299,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
@@ -1401,7 +1402,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
 	pub AllowMultiAssetPools: bool = true;
-	pub const PoolSetupFee: Balance = 1 * DOLLARS; // should be more or equal to the existential deposit
+	pub const PoolSetupFee: Balance = DOLLARS; // should be more or equal to the existential deposit
 	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
 	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
 }
@@ -1432,7 +1433,7 @@ impl pallet_asset_conversion::Config for Runtime {
 }
 
 parameter_types! {
-	pub StatementCost: Balance = 1 * DOLLARS;
+	pub StatementCost: Balance = DOLLARS;
 	pub StatementByteCost: Balance = 100 * MILLICENTS;
 	pub const MinAllowedStatements: u32 = 4;
 	pub const MaxAllowedStatements: u32 = 10;
@@ -1600,9 +1601,11 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
+use crate::{
+	impls::CreditToBlockAuthor,
+	sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect,
+};
 use orderbook_primitives::ObCheckpointRaw;
-use crate::impls::CreditToBlockAuthor;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1925,7 +1928,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
-			add_benchmark!(params, batches, thea_executor, TheaExecutor);  //TheaExecutor: thea_executor
+			add_benchmark!(params, batches, thea_executor, TheaExecutor); //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }

@@ -17,7 +17,7 @@ use crate::{mock::*, Error, PendingWithdrawals};
 use frame_support::{assert_noop, assert_ok, traits::Currency, BoundedVec};
 use sp_core::ByteArray;
 use sp_runtime::{traits::AccountIdConversion, DispatchError, SaturatedConversion};
-use thea_primitives::{types::Withdraw, Message, ValidatorSetId};
+use thea_primitives::{types::Withdraw, Message};
 use xcm::latest::{AssetId, MultiLocation};
 
 #[test]

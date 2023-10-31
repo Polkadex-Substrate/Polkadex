@@ -35,11 +35,13 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
 FROM docker.io/library/ubuntu:20.04
 COPY --from=builder /Polkadex/target/release/polkadex-node /usr/local/bin
 
-RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-parachain-node polkadex-parachain-node && \
-        mkdir -p /polkadex-parachain-node/.local/share && \
+RUN apt-get update && apt-get install --assume-yes curl ca-certificates
+
+RUN useradd -m -u 1000 -U -s /bin/sh -d /polkadex-node polkadex-node && \
+        mkdir -p /polkadex-node/.local/share && \
         mkdir /data && \
-        chown -R polkadex-parachain-node:polkadex-polkadex-mainnet-polkadex-parachain-node /data && \
-        ln -s /data /polkadex-parachain-node/.local/share/polkadex-polkadex-mainnet-polkadex-parachain-node && \
+        chown -R polkadex-node:polkadex-node /data && \
+        ln -s /data /polkadex-node/.local/share/polkadex-node && \
         rm -rf /usr/bin /usr/sbin
 
 COPY --from=builder /Polkadex/extras/customSpecRaw.json /data
