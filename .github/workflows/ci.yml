@@ -33,8 +33,9 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN_REPO }}
-          ec2-image-id: ami-06dd92ecc74fdfb36
+          ec2-image-id: ami-0ced994bdc615e5db # Ubuntu 22 with 500 GB volume
           ec2-instance-type: ${{ env.RUNNER_INSTANCE_TYPE }}
+          storage-size: ${{ env.RUNNER_VOLUME_SIZE }}
           subnet-id: subnet-a4d326e8
           security-group-id: sg-078363c0f7b5f0b41
           iam-role-name: github-runner-role
