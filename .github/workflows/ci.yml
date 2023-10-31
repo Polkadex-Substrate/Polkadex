@@ -8,7 +8,7 @@ on:
 
 env:
   RUNNER_INSTANCE_TYPE: c5d.4xlarge
-  RUNNER_VOLUME_SIZE: 500
+  RUNNER_VOLUME_SIZE: 500GB
 
 jobs:
   start-runner:
@@ -36,7 +36,7 @@ jobs:
           github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN_REPO }}
           ec2-image-id: ami-06de69a4185c962ed
           ec2-instance-type: ${{ env.RUNNER_INSTANCE_TYPE }}
-          ec2-volume-size: ${{ env.RUNNER_VOLUME_SIZE }}
+          storage-size: ${{ env.RUNNER_VOLUME_SIZE }}
           subnet-id: subnet-a4d326e8
           security-group-id: sg-078363c0f7b5f0b41
           iam-role-name: github-runner-role
