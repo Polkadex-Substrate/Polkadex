@@ -142,7 +142,7 @@ std = [
   "thea-message-handler/std",
   "thea-primitives/std",
   "sp-staking/std",
-  "sp-storage/std"
+  "sp-storage/std",
 ]
 
 runtime-benchmarks = [
@@ -162,7 +162,7 @@ runtime-benchmarks = [
   "xcm-helper/runtime-benchmarks",
   "thea-council/runtime-benchmarks",
   "pallet-assets/runtime-benchmarks",
-  "cumulus-pallet-parachain-system/runtime-benchmarks"
+  "cumulus-pallet-parachain-system/runtime-benchmarks",
 ]
 
 try-runtime = [

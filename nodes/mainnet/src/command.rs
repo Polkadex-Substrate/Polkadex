@@ -25,8 +25,6 @@ use crate::{
 };
 
 use node_polkadex_runtime::{Block, ExistentialDeposit};
-#[cfg(feature = "try-runtime")]
-use polkadex_client::ExecutorDispatch;
 use polkadex_node::benchmarking::{
 	inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder,
 };
@@ -109,7 +107,8 @@ pub fn run() -> Result<()> {
 							)
 						}
 
-						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config) //TODO: @Gautham - Check this
+						//TODO: @Gautham - Check this
+						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)
 					},
 					BenchmarkCmd::Block(cmd) => {
 						let PartialComponents { client, .. } = new_partial(&config)?;

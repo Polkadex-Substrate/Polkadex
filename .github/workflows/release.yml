@@ -31,6 +31,7 @@ jobs:
       - name: Prepare artifact
         run: |
           zip PolkadexNodeUbuntu.zip --junk-paths target/release/polkadex-node extras/customSpecRaw.json extras/polkadex.service
+          zip PolkadexParachainNode.zip --junk-paths target/release/parachain-polkadex-node
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -38,15 +39,23 @@ jobs:
           files: |
             PolkadexNodeUbuntu.zip
             customSpecRaw.json
+            PolkadexParachainNode.zip
           name: Release ${{ github.ref_name }}
           prerelease: false
           draft: false
 
-      - name: Upload artifact
+      - name: Upload mainnet node artifact
         uses: actions/upload-artifact@v3
         with:
           name: PolkadexNodeUbuntu
           path: ./PolkadexNodeUbuntu.zip
+          if-no-files-found: error
+
+      - name: Upload parachain node artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: PolkadexParachainNode
+          path: ./PolkadexParachainNode.zip
           if-no-files-found: error
 
   push-to-docker-registry:

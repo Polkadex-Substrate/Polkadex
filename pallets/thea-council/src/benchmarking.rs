@@ -19,10 +19,9 @@ use super::*;
 use crate::Pallet as TheaCouncil;
 use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::{sp_runtime::SaturatedConversion, BoundedVec};
-use frame_system::RawOrigin;
+use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use sp_std::{vec, vec::Vec};
 use thea_primitives::types::Withdraw;
-use frame_system::pallet_prelude::BlockNumberFor;
 const SEED: u32 = 0;
 
 benchmarks! {

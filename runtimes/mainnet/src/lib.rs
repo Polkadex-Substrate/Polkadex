@@ -29,7 +29,6 @@ use frame_election_provider_support::{
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
-	instances::Instance1,
 	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
@@ -87,6 +86,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::{prelude::*, vec};
+use sp_storage as _;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -433,7 +433,7 @@ use sp_runtime::traits::{Bounded, ConvertInto};
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(5, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 	pub MaximumMultiplier: Multiplier = Bounded::max_value();
 	pub const OperationalFeeMultiplier: u8 = 5;
@@ -1402,7 +1402,7 @@ impl pallet_asset_tx_payment::Config for Runtime {
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
 	pub AllowMultiAssetPools: bool = true;
-	pub const PoolSetupFee: Balance = 1 * DOLLARS; // should be more or equal to the existential deposit
+	pub const PoolSetupFee: Balance = DOLLARS; // should be more or equal to the existential deposit
 	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
 	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
 }
@@ -1433,7 +1433,7 @@ impl pallet_asset_conversion::Config for Runtime {
 }
 
 parameter_types! {
-	pub StatementCost: Balance = 1 * DOLLARS;
+	pub StatementCost: Balance = DOLLARS;
 	pub StatementByteCost: Balance = 100 * MILLICENTS;
 	pub const MinAllowedStatements: u32 = 4;
 	pub const MaxAllowedStatements: u32 = 10;
@@ -1928,7 +1928,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
 			add_benchmark!(params, batches, liquidity, Liquidity);
-			add_benchmark!(params, batches, thea_executor, TheaExecutor);  //TheaExecutor: thea_executor
+			add_benchmark!(params, batches, thea_executor, TheaExecutor); //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }

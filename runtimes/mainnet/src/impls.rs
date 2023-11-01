@@ -17,19 +17,13 @@
 
 //! Some configurable implementations as associated type for the substrate runtime.
 
-use frame_support::{
-	pallet_prelude::*,
-	traits::{
-		fungibles::{Balanced, Credit},
-		Currency, OnUnbalanced,
-	},
+use frame_support::traits::{
+	fungibles::{Balanced, Credit},
+	Currency, OnUnbalanced,
 };
 use pallet_asset_tx_payment::HandleCredit;
-use sp_std::prelude::*;
 
-use crate::{
-	AccountId, Assets, Authorship, Balances, Hash, NegativeImbalance, Runtime, RuntimeCall,
-};
+use crate::{AccountId, Assets, Authorship, Balances, NegativeImbalance, Runtime};
 
 pub struct Author;
 impl OnUnbalanced<NegativeImbalance> for Author {

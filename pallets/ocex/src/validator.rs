@@ -205,7 +205,7 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
 
 		if sp_io::offchain::is_validator() {
-			match available_keys.get(0) {
+			match available_keys.first() {
 				None => return Err("No active keys found"),
 				Some(key) => {
 					// Unwrap is okay here, we verified the data before.

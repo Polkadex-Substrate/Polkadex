@@ -94,7 +94,8 @@ pub fn create_extrinsic(
 	let tip = 0;
 	let extra: node_polkadex_runtime::SignedExtra =
 		(
-			//frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(), //TODO: Why it is commented?
+			//TODO: Why it is commented?
+			//frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
@@ -133,6 +134,8 @@ pub fn create_extrinsic(
 }
 
 /// Creates a new partial node.
+// Note! Allowed because extracting type as an alias currently is experimental and unstable feature.
+#[allow(clippy::type_complexity)]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -170,7 +173,7 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_native_or_wasm_executor(&config);
+	let executor = sc_service::new_native_or_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -335,7 +338,7 @@ pub fn new_full_base(
 ) -> Result<NewFullBase, ServiceError> {
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(&database_path);
+			let _ = std::fs::create_dir_all(database_path);
 			sc_sysinfo::gather_hwbench(Some(database_path))
 		}))
 		.flatten();
@@ -364,11 +367,7 @@ pub fn new_full_base(
 	));
 
 	let statement_handler_proto = sc_network_statement::StatementHandlerPrototype::new(
-		client
-			.block_hash(0u32.into())
-			.ok()
-			.flatten()
-			.expect("Genesis block exists; qed"),
+		client.block_hash(0u32).ok().flatten().expect("Genesis block exists; qed"),
 		config.chain_spec.fork_id(),
 	);
 	net_config.add_notification_protocol(statement_handler_proto.set_config());
@@ -594,9 +593,7 @@ pub fn new_full_base(
 			runtime_api_provider: client.clone(),
 			keystore: Some(keystore_container.keystore()),
 			offchain_db: backend.offchain_storage(),
-			transaction_pool: Some(OffchainTransactionPoolFactory::new(
-				transaction_pool.clone(),
-			)),
+			transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
 			network_provider: network.clone(),
 			is_validator: role.is_authority(),
 			enable_http_requests: true,
@@ -604,8 +601,8 @@ pub fn new_full_base(
 				vec![Box::new(statement_store.clone().as_statement_store_ext()) as Box<_>]
 			},
 		})
-			.run(client.clone(), task_manager.spawn_handle())
-			.boxed(),
+		.run(client.clone(), task_manager.spawn_handle())
+		.boxed(),
 	);
 
 	network_starter.start_network();
@@ -643,7 +640,7 @@ mod tests {
 		constants::{currency::CENTS, time::SLOT_DURATION},
 		Address, BalancesCall, RuntimeCall, UncheckedExtrinsic,
 	};
-	use node_primitives::{Block, DigestItem, Signature};
+	use polkadex_primitives::{Block, DigestItem, Signature};
 	use sc_client_api::BlockBackend;
 	use sc_consensus::{BlockImport, BlockImportParams, ForkChoiceStrategy};
 	use sc_consensus_babe::{BabeIntermediate, CompatibleDigestItem, INTERMEDIATE_KEY};
@@ -651,15 +648,16 @@ mod tests {
 	use sc_keystore::LocalKeystore;
 	use sc_service_test::TestNetNode;
 	use sc_transaction_pool_api::{ChainEvent, MaintainedTransactionPool};
+	use sp_api::BlockT;
 	use sp_consensus::{BlockOrigin, Environment, Proposer};
 	use sp_core::crypto::Pair;
 	use sp_inherents::InherentDataProvider;
 	use sp_keyring::AccountKeyring;
 	use sp_keystore::KeystorePtr;
 	use sp_runtime::{
-		generic::{Digest, Era, SignedPayload},
+		generic::{Digest, Era},
 		key_types::BABE,
-		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
+		traits::{IdentifyAccount, Verify},
 		RuntimeAppPublic,
 	};
 	use sp_timestamp;
@@ -716,10 +714,10 @@ mod tests {
 				);
 				Ok((node, setup_handles.unwrap()))
 			},
-			|service, &mut (ref mut block_import, ref babe_link)| {
+			|service, &mut (ref mut block_import, ref babe_link): &mut (_, _)| {
 				let parent_hash = service.client().chain_info().best_hash;
 				let parent_header = service.client().header(parent_hash).unwrap().unwrap();
-				let parent_number = *parent_header.number();
+				let parent_number = parent_header.number;
 
 				futures::executor::block_on(service.transaction_pool().maintain(
 					ChainEvent::NewBestBlock { hash: parent_header.hash(), tree_route: None },
@@ -821,7 +819,7 @@ mod tests {
 				let from: Address = AccountPublic::from(charlie.public()).into_account().into();
 				let genesis_hash = service.client().block_hash(0).unwrap().unwrap();
 				let best_hash = service.client().chain_info().best_hash;
-				let (spec_version, transaction_version) = {
+				let (_, _) = {
 					let version = service.client().runtime_version_at(best_hash).unwrap();
 					(version.spec_version, version.transaction_version)
 				};
@@ -832,7 +830,6 @@ mod tests {
 					value: amount,
 				});
 
-				let check_non_zero_sender = frame_system::CheckNonZeroSender::new();
 				let check_spec_version = frame_system::CheckSpecVersion::new();
 				let check_tx_version = frame_system::CheckTxVersion::new();
 				let check_genesis = frame_system::CheckGenesis::new();
@@ -842,7 +839,6 @@ mod tests {
 				let tx_payment =
 					pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::from(0, None);
 				let extra = (
-					check_non_zero_sender,
 					check_spec_version,
 					check_tx_version,
 					check_genesis,
@@ -851,10 +847,18 @@ mod tests {
 					check_weight,
 					tx_payment,
 				);
-				let raw_payload = SignedPayload::from_raw(
-					function,
-					extra,
-					((), spec_version, transaction_version, genesis_hash, genesis_hash, (), (), ()),
+				let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
+					function.clone(),
+					extra.clone(),
+					(
+						node_polkadex_runtime::VERSION.spec_version,
+						node_polkadex_runtime::VERSION.transaction_version,
+						genesis_hash,
+						best_hash,
+						(),
+						(),
+						(),
+					),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
