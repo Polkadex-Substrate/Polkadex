@@ -107,7 +107,6 @@ pub fn run() -> Result<()> {
 							)
 						}
 
-						//TODO: @Gautham - Check this
 						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)
 					},
 					BenchmarkCmd::Block(cmd) => {
