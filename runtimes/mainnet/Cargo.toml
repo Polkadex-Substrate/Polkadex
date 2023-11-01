@@ -49,6 +49,12 @@ pallet-recovery = { default-features = false, workspace = true }
 pallet-election-provider-multi-phase = { default-features = false, workspace = true }
 pallet-authority-discovery = { default-features = false, workspace = true }
 pallet-child-bounties = { default-features = false, workspace = true }
+pallet-statement = { default-features = false, workspace = true }
+pallet-asset-tx-payment = { default-features = false, workspace = true }
+
+# Assets pallet
+pallet-asset-conversion = { default-features = false, workspace = true }
+pallet-asset-conversion-tx-payment = { default-features = false, workspace = true }
 
 #frame
 frame-support = { default-features = false, workspace = true }
@@ -64,6 +70,8 @@ sp-std = { default-features = false, workspace = true }
 sp-transaction-pool = { default-features = false, workspace = true }
 sp-version = { default-features = false, workspace = true }
 sp-io = { workspace = true, default-features = false }
+sp-statement-store = { workspace = true, default-features = false }
+sp-storage = { workspace = true, default-features = false }
 
 #added
 sp-authority-discovery = { default-features = false, workspace = true }
@@ -78,7 +86,7 @@ frame-election-provider-support = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
 #end added
 
-# Used for the node template"s RPCs
+# Used for the polkadex-node RPCs
 frame-system-rpc-runtime-api = { default-features = false, workspace = true }
 
 # Used for runtime benchmarking
@@ -90,28 +98,28 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
-pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
+orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
+pdex-migration = { path = "../../pallets/pdex-migration", default-features = false }
 
 # Orderbook 
-pallet-ocex-lmp = { path = "../pallets/ocex", default-features = false }
+pallet-ocex-lmp = { path = "../../pallets/ocex", default-features = false }
 
 # Thea
-thea = { path = "../pallets/thea", default-features = false }
-thea-executor = { path = "../pallets/thea-executor", default-features = false }
-thea-message-handler = { path = "../pallets/thea-message-handler", default-features = false, optional = true }
+thea = { path = "../../pallets/thea", default-features = false }
+thea-executor = { path = "../../pallets/thea-executor", default-features = false }
+thea-message-handler = { path = "../../pallets/thea-message-handler", default-features = false, optional = true }
 
 # Liquidity Pallet
-liquidity = { path = "../pallets/liquidity", default-features = false }
+liquidity = { path = "../../pallets/liquidity", default-features = false }
 
 # Parachain Rewards
-pallet-rewards = { path = "../pallets/rewards", default-features = false }
+pallet-rewards = { path = "../../pallets/rewards", default-features = false }
 # Try Runtime
 frame-try-runtime = { workspace = true, optional = true, default-features = false }
 
-rpc-assets-runtime-api = { path = "../rpc/assets/runtime-api", default-features = false }
-pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
-pallet-ocex-runtime-api = { path = "../pallets/ocex/rpc/runtime-api", default-features = false }
+rpc-assets-runtime-api = { path = "../../rpc/assets/runtime-api", default-features = false }
+pallet-rewards-runtime-api = { path = "../../pallets/rewards/rpc/runtime-api", default-features = false }
+pallet-ocex-runtime-api = { path = "../../pallets/ocex/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -188,13 +196,20 @@ std = [
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
   "orderbook-primitives/std",
+  "pallet-asset-conversion/std",
+  "pallet-asset-conversion-tx-payment/std",
+  "frame-system-benchmarking?/std",
+  "pallet-asset-tx-payment/std",
+  "pallet-statement/std",
+  "sp-statement-store/std",
+  "sp-storage/std",
 ]
 runtime-benchmarks = [
   #theirs
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
-  "frame-system-benchmarking",
+  "frame-system-benchmarking/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
   "hex-literal",
   "pallet-assets/runtime-benchmarks",
@@ -207,6 +222,8 @@ runtime-benchmarks = [
   "thea/runtime-benchmarks",
   "thea-executor/runtime-benchmarks",
   "thea-message-handler/runtime-benchmarks",
+  "pallet-asset-conversion/runtime-benchmarks",
+  "pallet-asset-tx-payment/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -252,4 +269,8 @@ try-runtime = [
   "pallet-rewards/try-runtime",
   "liquidity/try-runtime",
   "thea-executor/try-runtime",
+  "pallet-asset-conversion/try-runtime",
+  "pallet-asset-conversion-tx-payment/try-runtime",
+  "pallet-statement/try-runtime",
+  "pallet-asset-tx-payment/try-runtime",
 ]

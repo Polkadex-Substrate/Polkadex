@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A collection of node-specific RPC methods.
+//! A collection of runtime-node-specific RPC methods.
 //!
 //! Since `substrate` core functionality makes no assumptions
 //! about the modules used inside the runtime, so do
@@ -25,8 +25,8 @@
 //!
 //! The RPCs available in this crate however can make some assumptions
 //! about how the runtime is constructed and what FRAME pallets
-//! are part of it. Therefore all node-runtime-specific RPCs can
-//! be placed here or imported from corresponding FRAME RPC definitions.
+//! are part of it. Therefore all runtime-specific
+//! RPCs can be placed here or imported from corresponding FRAME RPC definitions.
 
 #![warn(missing_docs)]
 
@@ -34,14 +34,14 @@ use jsonrpsee::RpcModule;
 use pallet_ocex_rpc::PolkadexOcexRpc;
 use pallet_rewards_rpc::PolkadexRewardsRpc;
 
+use grandpa::{
+	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
+};
 use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::BabeWorkerHandle;
-use sc_consensus_grandpa::{
-	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
-};
-use sc_rpc::SubscriptionTaskExecutor;
+use sc_rpc::{statement::StatementApiServer, SubscriptionTaskExecutor};
 /// Re-export the API for backward compatibility.
 pub use sc_rpc_api::offchain::*;
 pub use sc_rpc_api::DenyUnsafe;
@@ -51,7 +51,6 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
-
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
@@ -59,7 +58,7 @@ use std::sync::Arc;
 pub struct BabeDeps {
 	/// A handle to the BABE worker for issuing requests.
 	pub babe_worker_handle: BabeWorkerHandle<Block>,
-	/// The keystore that manages the keys of the node.
+	/// The keystore that manages the keys of the runtime-node.
 	pub keystore: KeystorePtr,
 }
 
@@ -93,7 +92,9 @@ pub struct FullDeps<C, P, SC, B> {
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
-	/// The backend used by the node.
+	/// Shared statement store reference.
+	pub statement_store: Arc<dyn sp_statement_store::StatementStore>,
+	/// The backend used by the runtime-node.
 	pub backend: Arc<B>,
 }
 
@@ -117,7 +118,7 @@ where
 	P: TransactionPool + 'static,
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
-	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
+	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 	C::Api: rpc_assets::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
@@ -134,8 +135,17 @@ where
 	// use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
-	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa, backend } =
-		deps;
+	let FullDeps {
+		client,
+		pool,
+		select_chain,
+		chain_spec,
+		deny_unsafe,
+		babe,
+		grandpa,
+		statement_store,
+		backend,
+	} = deps;
 
 	let BabeDeps { keystore, babe_worker_handle } = babe;
 	let GrandpaDeps {
@@ -182,5 +192,8 @@ where
 		.into_rpc(),
 	)?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
+	let statement_store =
+		sc_rpc::statement::StatementStore::new(statement_store, deny_unsafe).into_rpc();
+	io.merge(statement_store)?;
 	Ok(io)
 }

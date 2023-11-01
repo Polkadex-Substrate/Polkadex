@@ -5,5 +5,6 @@ edition = "2021"
 
 [dependencies]
 sc-executor = { workspace = true }
-node-polkadex-runtime = { path = "../runtime" }
+node-polkadex-runtime = { path = "../runtimes/mainnet" }
 frame-benchmarking = { workspace = true }
+sp-statement-store = { workspace = true }

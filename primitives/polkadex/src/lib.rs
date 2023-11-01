@@ -78,6 +78,9 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+/// Index of a transaction in the chain.
+pub type Nonce = u32;
+
 /// A timestamp: milliseconds since the unix epoch.
 /// `u64` is enough to represent a duration of half a billion years, when the
 /// time scale is milliseconds.

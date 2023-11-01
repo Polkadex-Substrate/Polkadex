@@ -93,7 +93,7 @@ impl<T: Config> Resolver<T> {
 			return Err("No active keys available")
 		}
 
-		let signer = available_keys.get(0).ok_or("Key not avaialble")?;
+		let signer = available_keys.first().ok_or("Key not avaialble")?;
 		let mut auth_index = -1;
 		for (index, auth) in authorities.iter().enumerate() {
 			if auth == signer {

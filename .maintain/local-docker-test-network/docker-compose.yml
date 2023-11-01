@@ -33,7 +33,7 @@
 #
 # 1. Build `target/release/substrate` binary: `cargo build --release`
 # 2. Start networks and containers:
-#    `sudo docker-compose -f .maintain/sentry-node/docker-compose.yml up`
+#    `sudo docker-compose -f .maintain/docker-compose.yml up`
 # 3. Connect to nodes:
 #   - validator-a: localhost:9944
 #   - validator-b: localhost:9945

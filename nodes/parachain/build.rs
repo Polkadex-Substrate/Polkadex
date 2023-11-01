@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-pub mod benchmarking;
-pub mod chain_spec;
-pub mod cli;
-pub mod rpc;
-pub mod service;
+use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
+
+fn main() {
+	generate_cargo_keys();
+
+	rerun_if_git_head_changed();
+}

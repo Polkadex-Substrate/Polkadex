@@ -33,7 +33,7 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN_REPO }}
-          ec2-image-id: ami-06de69a4185c962ed
+          ec2-image-id: ami-0ced994bdc615e5db # Ubuntu 22 with 500 GB volume
           ec2-instance-type: ${{ env.RUNNER_INSTANCE_TYPE }}
           subnet-id: subnet-a4d326e8
           security-group-id: sg-078363c0f7b5f0b41
@@ -79,38 +79,48 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Check versions info
         run: |
-          rustup -V
           cargo fmt -- --version
           cargo clippy -V
       - name: Lint .toml files
         run: |
           taplo lint
           taplo fmt --check
-      - name: Build Project with try-runtime
-        run: cargo build --features try-runtime
-      - name: Runtime build
-        run: cargo build -p node-polkadex-runtime
-      - name: Build Project with runtime benchmarks
-        run: cargo build --features runtime-benchmarks
-      - name: Test weights generation
+
+      - name: Build project with "try-runtime" feature
+        run: RUSTFLAGS="-D warnings" cargo build --features try-runtime
+
+      - name: Build mainnet node runtime
+        run: RUSTFLAGS="-D warnings" cargo build -p node-polkadex-runtime
+      - name: Build mainnet node with "runtime-benchmarks" feature
+        run: RUSTFLAGS="-D warnings" cargo build -p polkadex-node --features runtime-benchmarks
+      - name: Test mainnet node pallets weights generation
         run: ./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
-      - name: Normal Build in release mode
+
+      - name: Build parachain node runtime
+        run: RUSTFLAGS="-D warnings" cargo build -p parachain-polkadex-runtime
+      - name: Build parachain node with "runtime-benchmarks" feature
+        run: RUSTFLAGS="-D warnings" cargo build -p parachain-polkadex-node --features runtime-benchmarks
+      - name: Test parachain node pallets weights generation
+        run: ./target/debug/parachain-polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1
+
+      - name: Build in release mode
         if: contains(github.ref, 'Develop')
         run: RUSTFLAGS="-D warnings" cargo build --release
-      - name: Normal Build
+      - name: Build in dev mode
         if: "!(contains(github.ref, 'Develop'))"
         run: RUSTFLAGS="-D warnings" cargo build
+
       - name: Check Formatting
-        run: cargo fmt --check
+        run: cargo fmt --all -- --check
       - name: Check Clippy
         run: cargo clippy -- -D warnings
       - name: Test Project
-        run: cargo test --workspace
+        run: RUSTFLAGS="-D warnings" cargo test --workspace
       - name: Run Cargo Tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
           version: '0.22.0'
-          args: '--avoid-cfg-tarpaulin --exclude polkadex-node node-polkadex-runtime --workspace --timeout 180'
+          args: '--avoid-cfg-tarpaulin --exclude polkadex-node node-polkadex-runtime parachain-polkadex-node parachain-polkadex-runtime --workspace --timeout 180'
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
@@ -122,16 +132,27 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
-      - name: Zip compiled binaries
+      - name: Zip compiled mainnet node binary
         if: contains(github.ref, 'Develop')
         # Zipping is required since billing is based on the raw uploaded size.
         run: zip -r -j polkadex-node.zip ./target/release/polkadex-node
-      - name: Upload zipped binaries as an artifact
+      - name: Upload zipped mainnet binary as an artifact
         if: contains(github.ref, 'Develop')
         uses: actions/upload-artifact@v3
         with:
           name: polkadex-node
           path: ./polkadex-node.zip
+          if-no-files-found: error
+      - name: Zip compiled parachain node binary
+        if: contains(github.ref, 'Develop')
+        # Zipping is required since billing is based on the raw uploaded size.
+        run: zip -r -j parachain-polkadex-node.zip ./target/release/parachain-polkadex-node
+      - name: Upload zipped parachain binary as an artifact
+        if: contains(github.ref, 'Develop')
+        uses: actions/upload-artifact@v3
+        with:
+          name: parachain-polkadex-node
+          path: ./parachain-polkadex-node.zip
           if-no-files-found: error
   stop-runner:
     name: Stop self-hosted EC2 runner

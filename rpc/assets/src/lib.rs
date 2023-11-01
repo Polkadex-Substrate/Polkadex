@@ -58,7 +58,7 @@ pub trait PolkadexAssetHandlerRpcApi<BlockHash, AccountId, Hash> {
 ///
 /// # Type Parameters
 ///
-/// * `Client`: The client API used to interact with the Substrate runtime.
+/// * `Client`: The client API used to interact with the Substrate Runtime.
 /// * `Block`: The block type of the Substrate runtime.
 pub struct PolkadexAssetHandlerRpc<Client, Block> {
 	client: Arc<Client>,
