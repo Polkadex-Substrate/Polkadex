@@ -50,6 +50,7 @@ use sp_runtime::{
 };
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
@@ -386,7 +387,7 @@ pub mod pallet {
 		/// What to do at the end of each block.
 		///
 		/// Clean OnCHainEvents
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			let len = <OnChainEvents<T>>::get().len();
 			if len > 0 {
 				<OnChainEvents<T>>::kill();
@@ -398,7 +399,7 @@ pub mod pallet {
 			}
 		}
 
-		fn offchain_worker(block_number: T::BlockNumber) {
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::debug!(target:"ocex", "offchain worker started");
 
 			match Self::run_on_chain_validation(block_number) {
@@ -1431,7 +1432,7 @@ pub mod pallet {
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
 		/// DisputePeriod has been updated
-		DisputePeriodUpdated(T::BlockNumber),
+		DisputePeriodUpdated(BlockNumberFor<T>),
 		/// Withdraw Assets from Orderbook
 		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
 		/// Orderbook Operator Key Whitelisted
@@ -1502,7 +1503,7 @@ pub mod pallet {
 	pub(super) type IngressMessages<T: Config> = StorageMap<
 		_,
 		Identity,
-		T::BlockNumber,
+		BlockNumberFor<T>,
 		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;

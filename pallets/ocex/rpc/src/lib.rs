@@ -68,7 +68,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 /// # Type Parameters
 ///
 /// * `Client`: The client API used to interact with the Substrate runtime.
-/// * `Block`: The block type of the Substrate runtime.
+/// * `Block`: The block type of the Substrate.
 pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 	/// An `Arc` reference to the client API for accessing runtime functionality.
 	client: Arc<Client>,
@@ -114,8 +114,9 @@ where
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		// WARN: this is a hack on beating the boundry of runtime -> node
-		// with decoding tuple of underlying data into solid std type
+		// WARN: this is a hack on beating the boundry of runtime ->
+		// polkadex-node with decoding tuple of underlying data into
+		// solid std type
 		Decode::decode(
 			&mut api
 				.get_ob_recover_state(at)

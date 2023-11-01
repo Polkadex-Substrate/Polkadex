@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2019-2021 Parity Technologies (UK) Ltd.
+// Copyright (C) Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,15 @@
 
 //! Some configurable implementations as associated type for the substrate runtime.
 
-use frame_support::traits::{Currency, OnUnbalanced};
+use frame_support::traits::{
+	fungibles::{Balanced, Credit},
+	Currency, OnUnbalanced,
+};
+use pallet_asset_tx_payment::HandleCredit;
 
-use crate::{Authorship, Balances, NegativeImbalance};
+use crate::{AccountId, Assets, Authorship, Balances, NegativeImbalance, Runtime};
 
 pub struct Author;
-
 impl OnUnbalanced<NegativeImbalance> for Author {
 	fn on_nonzero_unbalanced(amount: NegativeImbalance) {
 		if let Some(author) = Authorship::author() {
@@ -31,23 +34,35 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 	}
 }
 
+/// A `HandleCredit` implementation that naively transfers the fees to the block author.
+/// Will drop and burn the assets in case the transfer fails.
+pub struct CreditToBlockAuthor;
+impl HandleCredit<AccountId, Assets> for CreditToBlockAuthor {
+	fn handle_credit(credit: Credit<AccountId, Assets>) {
+		if let Some(author) = pallet_authorship::Pallet::<Runtime>::author() {
+			// Drop the result which will trigger the `OnDrop` of the imbalance in case of error.
+			let _ = Assets::resolve(&author, credit);
+		}
+	}
+}
+
 #[cfg(test)]
 mod multiplier_tests {
+	use frame_support::{
+		dispatch::DispatchClass,
+		weights::{Weight, WeightToFee},
+	};
 	use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 	use sp_runtime::{
 		assert_eq_error_rate,
 		traits::{Convert, One, Zero},
-		FixedPointNumber,
+		BuildStorage, FixedPointNumber,
 	};
 
 	use crate::{
 		constants::{currency::*, time::*},
 		AdjustmentVariable, MaximumMultiplier, MinimumMultiplier, Runtime,
 		RuntimeBlockWeights as BlockWeights, System, TargetBlockFullness, TransactionPayment,
-	};
-	use frame_support::{
-		dispatch::DispatchClass,
-		weights::{Weight, WeightToFee},
 	};
 
 	fn max_normal() -> Weight {
@@ -83,14 +98,28 @@ mod multiplier_tests {
 		// bump if it is zero.
 		let previous_float = previous_float.max(min_multiplier().into_inner() as f64 / accuracy);
 
+		let max_normal = max_normal();
+		let target_weight = target();
+		let normalized_weight_dimensions = (
+			block_weight.ref_time() as f64 / max_normal.ref_time() as f64,
+			block_weight.proof_size() as f64 / max_normal.proof_size() as f64,
+		);
+
+		let (normal, max, target) =
+			if normalized_weight_dimensions.0 < normalized_weight_dimensions.1 {
+				(block_weight.proof_size(), max_normal.proof_size(), target_weight.proof_size())
+			} else {
+				(block_weight.ref_time(), max_normal.ref_time(), target_weight.ref_time())
+			};
+
 		// maximum tx weight
-		let m = max_normal().ref_time() as f64;
+		let m = max as f64;
 		// block weight always truncated to max weight
-		let block_weight = (block_weight.ref_time() as f64).min(m);
+		let block_weight = (normal as f64).min(m);
 		let v: f64 = AdjustmentVariable::get().to_float();
 
 		// Ideal saturation in terms of weight
-		let ss = target().ref_time() as f64;
+		let ss = target as f64;
 		// Current saturation in terms of weight
 		let s = block_weight;
 
@@ -102,10 +131,10 @@ mod multiplier_tests {
 
 	fn run_with_system_weight<F>(w: Weight, assertions: F)
 	where
-		F: Fn(),
+		F: Fn() -> (),
 	{
-		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
-			.build_storage::<Runtime>()
+		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
 			.unwrap()
 			.into();
 		t.execute_with(|| {
@@ -140,10 +169,16 @@ mod multiplier_tests {
 	#[test]
 	fn multiplier_can_grow_from_zero() {
 		// if the min is too small, then this will not change, and we are doomed forever.
-		// the weight is 1/100th bigger than target.
+		// the block ref time is 1/100th bigger than target.
 		run_with_system_weight(target().set_ref_time(target().ref_time() * 101 / 100), || {
 			let next = runtime_multiplier_update(min_multiplier());
-			assert!(next > min_multiplier(), "{:?} !>= {:?}", next, min_multiplier());
+			assert!(next > min_multiplier(), "{:?} !> {:?}", next, min_multiplier());
+		});
+
+		// the block proof size is 1/100th bigger than target.
+		run_with_system_weight(target().set_proof_size((target().proof_size() / 100) * 101), || {
+			let next = runtime_multiplier_update(min_multiplier());
+			assert!(next > min_multiplier(), "{:?} !> {:?}", next, min_multiplier());
 		})
 	}
 
@@ -185,7 +220,6 @@ mod multiplier_tests {
 	}
 
 	#[test]
-	#[ignore] // TODO: Fix it later.
 	fn min_change_per_day() {
 		run_with_system_weight(max_normal(), || {
 			let mut fm = Multiplier::one();

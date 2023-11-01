@@ -24,6 +24,7 @@ use crate::{
 	storage::{store_trie_root, OffchainState},
 	Config, Pallet, SnapshotNonce, Snapshots,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
 	types::{ApprovedSnapshot, Trade, UserActionBatch, UserActions, WithdrawalRequest},
 	ObCheckpointRaw, SnapshotSummary,
@@ -52,7 +53,7 @@ pub const CHECKPOINT_BLOCKS: u64 = 1260;
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
 	/// submits snapshot summary to aggregator endpoint
-	pub fn run_on_chain_validation(block_num: T::BlockNumber) -> Result<bool, &'static str> {
+	pub fn run_on_chain_validation(block_num: BlockNumberFor<T>) -> Result<bool, &'static str> {
 		let local_keys = T::AuthorityId::all();
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
@@ -204,7 +205,7 @@ impl<T: Config> Pallet<T> {
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
 
 		if sp_io::offchain::is_validator() {
-			match available_keys.get(0) {
+			match available_keys.first() {
 				None => return Err("No active keys found"),
 				Some(key) => {
 					// Unwrap is okay here, we verified the data before.
@@ -266,7 +267,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Imports a block into the offchain state and handles the deposits
 	fn import_blk(
-		blk: T::BlockNumber,
+		blk: BlockNumberFor<T>,
 		state: &mut OffchainState,
 		state_info: &mut StateInfo,
 	) -> Result<(), &'static str> {

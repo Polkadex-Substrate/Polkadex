@@ -49,10 +49,10 @@ pub trait PolkadexRewardsRpcApi<BlockHash, AccountId, Hash> {
 ///
 /// # Type Parameters
 ///
-/// * `Client`: The client API used to interact with the Substrate runtime.
-/// * `Block`: The block type of the Substrate runtime.
+/// * `Client`: The client API used to interact with the Substrate Runtime.
+/// * `Block`: The block type of the Substrate Runtime.
 pub struct PolkadexRewardsRpc<Client, Block> {
-	/// An `Arc` reference to the client API for accessing runtime functionality.
+	/// An `Arc` reference to the client API for accessing Runtime functionality.
 	client: Arc<Client>,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct

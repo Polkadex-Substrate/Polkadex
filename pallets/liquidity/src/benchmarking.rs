@@ -20,8 +20,8 @@
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
 use crate::{pallet::Call, LiquidityModifier, Pallet as liquidity};
-use frame_benchmarking::benchmarks;
-use frame_support::{dispatch::UnfilteredDispatchable, traits::EnsureOrigin};
+use frame_benchmarking::v1::benchmarks;
+use frame_support::traits::{EnsureOrigin, UnfilteredDispatchable};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use polkadex_primitives::{AssetId, UNIT_BALANCE};

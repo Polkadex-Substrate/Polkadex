@@ -1,0 +1,60 @@
+[package]
+name = "thea-council"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+xcm-helper = { path = "../xcm-helper", default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+thea-primitives = { workspace = true, default-features = false }
+
+[dev-dependencies]
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+orml-xtokens = { workspace = true, default-features = false }
+orml-traits = { workspace = true, default-features = false }
+xcm-executor = { workspace = true, default-features = false }
+xcm = { workspace = true, default-features = false }
+pallet-xcm = { workspace = true, default-features = false }
+xcm-builder = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+pallet-assets = { workspace = true, default-features = false }
+thea-message-handler = { path = "../thea-message-handler", default-features = false }
+parachain-info = { workspace = true, default-features = false }
+thea = { path = "../thea", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+  "thea-message-handler/std",
+  "thea-primitives/std",
+  "codec/std",
+  "frame-benchmarking?/std",
+  "frame-support/std",
+  "frame-system/std",
+  "scale-info/std",
+  "xcm-helper/std",
+  "orml-xtokens/std",
+  "orml-traits/std",
+  "xcm-executor/std",
+  "xcm/std",
+  "pallet-xcm/std",
+  "xcm-builder/std",
+  "pallet-balances/std",
+  "pallet-assets/std",
+  "thea/std",
+  "parachain-info/std",
+]
+runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks", "pallet-xcm/runtime-benchmarks", "xcm-builder/runtime-benchmarks"]
+try-runtime = ["frame-support/try-runtime"]

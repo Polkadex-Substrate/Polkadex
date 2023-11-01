@@ -191,7 +191,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn offchain_worker(blk: T::BlockNumber) {
+		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");
 			if let Err(err) = Self::run_thea_validation(blk) {
 				log::error!(target:"thea","Error while running thea: {:?}",err);

@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{Config, Pallet};
-use frame_support::{log, traits::OneSessionHandler};
+use frame_support::traits::OneSessionHandler;
 use sp_core::{bounded::BoundedVec, Get};
 use sp_std::vec::Vec;
 
@@ -33,8 +33,8 @@ impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
 		I: Iterator<Item = (&'a T::AccountId, T::TheaId)>,
 	{
 		let authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
-		// we panic here as runtime maintainers can simply reconfigure genesis and restart the
-		// chain easily
+		// we panic here as runtime maintainers can simply reconfigure genesis and restart
+		// the chain easily
 		Self::initialize_authorities(&authorities).expect("Authorities vec too big");
 	}
 
