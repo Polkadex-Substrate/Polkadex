@@ -102,5 +102,4 @@ sc-service-test = { git = "https://github.com/paritytech/polkadot-sdk", branch =
 [features]
 default = []
 runtime-benchmarks = ["node-polkadex-runtime/runtime-benchmarks", "frame-benchmarking-cli/runtime-benchmarks"]
-cli = ["try-runtime-cli"]
 try-runtime = ["node-polkadex-runtime/try-runtime", "try-runtime-cli/try-runtime", "try-runtime-cli"]

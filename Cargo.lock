@@ -6111,7 +6111,7 @@ checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.3.0"
+version = "5.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8254,7 +8254,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.3.0"
+version = "5.4.0"
 dependencies = [
  "clap 4.4.7",
  "frame-benchmarking-cli",
