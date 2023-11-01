@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "5.3.0"
+version = "5.4.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
@@ -15,7 +15,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 [build-dependencies]
 substrate-build-script-utils = { version = "5.0.0" }
 structopt = { version = "0.3.8", optional = true }
-try-runtime-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0", optional = true }
 
 [dependencies]
 # third-party dependencies
