@@ -89,12 +89,6 @@ sp-transaction-storage-proof = { git = "https://github.com/paritytech/polkadot-s
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0", optional = true }
 try-runtime-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0", optional = true }
 
-
-## Force 0.9.2 as snow release to fix the compilation.
-##
-## When libp2p also enforces this version, we can get rid off this extra dep here.
-#snow = "0.9.2"
-
 [dev-dependencies]
 futures = "0.3.9"
 tempfile = "3.1.0"
@@ -109,4 +103,4 @@ sc-service-test = { git = "https://github.com/paritytech/polkadot-sdk", branch =
 default = []
 runtime-benchmarks = ["node-polkadex-runtime/runtime-benchmarks", "frame-benchmarking-cli/runtime-benchmarks"]
 cli = ["try-runtime-cli"]
-try-runtime = ["node-polkadex-runtime/try-runtime", "try-runtime-cli/try-runtime"]
+try-runtime = ["node-polkadex-runtime/try-runtime", "try-runtime-cli/try-runtime","try-runtime-cli"]
