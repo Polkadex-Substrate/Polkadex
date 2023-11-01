@@ -94,8 +94,7 @@ pub fn create_extrinsic(
 	let tip = 0;
 	let extra: node_polkadex_runtime::SignedExtra =
 		(
-			//TODO: Why it is commented?
-			//frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
+			frame_system::CheckNonZeroSender::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckSpecVersion::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckTxVersion::<node_polkadex_runtime::Runtime>::new(),
 			frame_system::CheckGenesis::<node_polkadex_runtime::Runtime>::new(),
@@ -114,6 +113,7 @@ pub fn create_extrinsic(
 		function.clone(),
 		extra.clone(),
 		(
+			(),
 			node_polkadex_runtime::VERSION.spec_version,
 			node_polkadex_runtime::VERSION.transaction_version,
 			genesis_hash,
@@ -851,6 +851,7 @@ mod tests {
 					function.clone(),
 					extra.clone(),
 					(
+						(),
 						node_polkadex_runtime::VERSION.spec_version,
 						node_polkadex_runtime::VERSION.transaction_version,
 						genesis_hash,
