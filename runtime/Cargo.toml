@@ -16,6 +16,7 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 hex-literal = { version = "0.3.1", optional = true }
 static_assertions = { workspace = true }
 log = { workspace = true, default-features = false }
+rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
 #pallets
 #added
 pallet-authorship = { default-features = false, workspace = true }
@@ -89,6 +90,7 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
+orderbook-primitives = { path = "../primitives/orderbook", default-features = false }
 pdex-migration = { path = "../pallets/pdex-migration", default-features = false }
 
 # Orderbook 
@@ -109,6 +111,7 @@ frame-try-runtime = { workspace = true, optional = true, default-features = fals
 
 rpc-assets-runtime-api = { path = "../rpc/assets/runtime-api", default-features = false }
 pallet-rewards-runtime-api = { path = "../pallets/rewards/rpc/runtime-api", default-features = false }
+pallet-ocex-runtime-api = { path = "../pallets/ocex/rpc/runtime-api", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -116,6 +119,7 @@ substrate-wasm-builder = { workspace = true }
 [features]
 default = ["std"]
 std = [
+  "rust_decimal/std",
   "parity-scale-codec/std",
   "scale-info/std",
   "log/std",
@@ -174,6 +178,7 @@ std = [
   "polkadex-primitives/std",
   "pdex-migration/std",
   "pallet-ocex-lmp/std",
+  "pallet-ocex-runtime-api/std",
   "rpc-assets-runtime-api/std",
   "pallet-rewards-runtime-api/std",
   "thea/std",
@@ -182,6 +187,7 @@ std = [
   "thea-executor/std",
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
+  "orderbook-primitives/std",
 ]
 runtime-benchmarks = [
   #theirs

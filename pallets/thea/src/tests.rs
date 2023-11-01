@@ -25,7 +25,7 @@ use sp_runtime::DispatchError::BadOrigin;
 const WELL_KNOWN: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 use sp_std::collections::btree_set::BTreeSet;
 
-const PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
+static PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
 
 fn any_signature() -> <Test as Config>::Signature {
 	<Test as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap()
@@ -39,10 +39,7 @@ fn set_200_validators() -> [Pair; 200] {
 	}
 	let mut bv: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
 		BoundedVec::with_max_capacity();
-	validators
-		.clone()
-		.into_iter()
-		.for_each(|v| bv.try_push(v.public().into()).unwrap());
+	validators.clone().into_iter().for_each(|v| bv.try_push(v.public()).unwrap());
 	<Authorities<Test>>::insert(0, bv);
 	validators
 		.try_into()
@@ -65,32 +62,58 @@ use frame_support::traits::OneSessionHandler;
 #[test]
 fn test_session_change() {
 	new_test_ext().execute_with(|| {
-		let mut validators = Vec::with_capacity(200);
-		for i in 0..200 {
-			validators.push(
-				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str())).0,
-			);
+		let mut authorities: Vec<(&u64, <Test as Config>::TheaId)> = Vec::with_capacity(200);
+		for i in 0..200u64 {
+			authorities.push((
+				&1,
+				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str()))
+					.0
+					.public()
+					.into(),
+			));
 		}
 
-		let mut authorities = Vec::new();
-		validators
-			.clone()
-			.into_iter()
-			.for_each(|bls| authorities.push((&1, bls.public().into())));
+		let mut queued: Vec<(&u64, <Test as Config>::TheaId)> = Vec::with_capacity(200);
+		for i in 0..200u64 {
+			queued.push((
+				&1,
+				Pair::generate_with_phrase(Some(format!("{}//{}", WELL_KNOWN, i).as_str()))
+					.0
+					.public()
+					.into(),
+			));
+		}
+
 		let mut networks = BTreeSet::new();
 		networks.insert(1);
 		<ActiveNetworks<Test>>::put(networks);
 		assert!(Thea::validator_set_id() == 0);
 		assert!(Thea::outgoing_nonce(1) == 0);
-		let authorities_cloned: Vec<(&u64, <Test as Config>::TheaId)> = authorities.clone();
-		let auth_len = authorities_cloned.len();
-		Thea::on_new_session(false, authorities.into_iter(), authorities_cloned.into_iter());
-		assert!(Thea::validator_set_id() == 1);
-		assert!(Thea::outgoing_nonce(1) == 1);
+		let current_authorities: Vec<<Test as Config>::TheaId> =
+			authorities.iter().map(|(_, public)| public.clone()).collect();
+		<ValidatorSetId<Test>>::put(0);
+		<Authorities<Test>>::insert(0, BoundedVec::truncate_from(current_authorities));
+		// Simulating the on_new_session to last epoch of an era.
+		Thea::on_new_session(false, authorities.into_iter(), queued.clone().into_iter());
+		assert!(Thea::validator_set_id() == 0);
+		assert!(Thea::outgoing_nonce(1) == 1); // Thea validator session change message is generated here
+
 		let message = Thea::get_outgoing_messages(1, 1).unwrap();
-		let bounded_vec: BoundedVec<<Test as Config>::TheaId, <Test as Config>::MaxAuthorities> =
-			BoundedVec::decode(&mut &message.data[..]).unwrap();
-		assert_eq!(bounded_vec.to_vec().len(), auth_len);
+		assert_eq!(message.nonce, 1);
+		let validator_set: ValidatorSet<<Test as Config>::TheaId> =
+			ValidatorSet::decode(&mut &message.data[..]).unwrap();
+		let queued_validators: Vec<<Test as Config>::TheaId> =
+			queued.iter().map(|(_, public)| public.clone()).collect();
+		assert_eq!(validator_set.set_id, 1);
+		assert_eq!(validator_set.validators, queued_validators);
+
+		// Simulating the on_new_session to the first epoch of the next era.
+		Thea::on_new_session(false, queued.clone().into_iter(), queued.clone().into_iter());
+		assert!(Thea::validator_set_id() == 1);
+		assert!(Thea::outgoing_nonce(1) == 2);
+		let message = Thea::get_outgoing_messages(1, 2).unwrap();
+		assert_eq!(message.nonce, 2);
+		assert!(message.data.is_empty());
 	})
 }
 
@@ -115,16 +138,13 @@ fn test_incoming_messages_bad_inputs() {
 			Thea::incoming_message(
 				RuntimeOrigin::signed(1),
 				message.clone(),
-				vec![(0, proper_sig.clone().into())]
+				vec![(0, proper_sig.clone())]
 			),
 			BadOrigin
 		);
 		// bad threshold
 		assert_err!(
-			Thea::validate_incoming_message(
-				&message.clone(),
-				&vec![(0, proper_sig.clone().into())]
-			),
+			Thea::validate_incoming_message(&message.clone(), &vec![(0, proper_sig.clone())]),
 			InvalidTransaction::Custom(4)
 		);
 
@@ -132,7 +152,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message_for_nonce(u64::MAX),
-				&vec![(0, proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone())]
 			),
 			InvalidTransaction::Custom(1)
 		);
@@ -140,7 +160,7 @@ fn test_incoming_messages_bad_inputs() {
 		assert_err!(
 			Thea::validate_incoming_message(
 				&message_for_nonce(u64::MIN),
-				&vec![(0, proper_sig.clone().into())]
+				&vec![(0, proper_sig.clone())]
 			),
 			InvalidTransaction::Custom(1)
 		);
@@ -149,7 +169,7 @@ fn test_incoming_messages_bad_inputs() {
 		bad_message.block_no = 1; // changing bit
 		let bad_message_call = Call::<Test>::incoming_message {
 			payload: bad_message,
-			signatures: vec![(0, proper_sig.clone().into())],
+			signatures: vec![(0, proper_sig.clone())],
 		};
 		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
 		// bad signature

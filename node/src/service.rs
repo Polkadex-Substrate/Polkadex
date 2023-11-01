@@ -244,6 +244,7 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let keystore = keystore_container.keystore();
 		let chain_spec = config.chain_spec.cloned_box();
+		let rpc_backend = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
 			let deps = node_rpc::FullDeps {
 				client: client.clone(),
@@ -262,6 +263,7 @@ pub fn new_partial(
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
+				backend: rpc_backend.clone(),
 			};
 
 			node_rpc::create_full(deps).map_err(Into::into)
@@ -605,7 +607,7 @@ mod tests {
 		traits::{Block as BlockT, Header as HeaderT, IdentifyAccount, Verify},
 		RuntimeAppPublic,
 	};
-	use sp_timestamp;
+
 	use std::{borrow::Cow, sync::Arc};
 
 	type AccountPublic = <Signature as Verify>::Signer;
@@ -776,10 +778,8 @@ mod tests {
 				};
 				let signer = charlie.clone();
 
-				let function = RuntimeCall::Balances(BalancesCall::transfer {
-					dest: to.into(),
-					value: amount,
-				});
+				let function =
+					RuntimeCall::Balances(BalancesCall::transfer { dest: to, value: amount });
 
 				let tip = 0;
 				let extra: node_polkadex_runtime::SignedExtra = (
@@ -804,8 +804,7 @@ mod tests {
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));
 				let (function, extra, _) = raw_payload.deconstruct();
 				index += 1;
-				UncheckedExtrinsic::new_signed(function, from.into(), signature.into(), extra)
-					.into()
+				UncheckedExtrinsic::new_signed(function, from, signature.into(), extra).into()
 			},
 		);
 	}

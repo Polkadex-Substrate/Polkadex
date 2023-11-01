@@ -18,17 +18,14 @@
 
 //! Helper functions for updating the balance
 
-use crate::validator::map_trie_error;
+use crate::storage::OffchainState;
 use log::{error, info};
 use orderbook_primitives::types::Trade;
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
-use sp_runtime::traits::BlakeTwo256;
 use sp_std::collections::btree_map::BTreeMap;
-use sp_trie::LayoutV1;
-use trie_db::{TrieDBMut, TrieMut};
 
 /// Updates provided trie db with a new balance entry if it is does not contain item for specific
 /// account or asset yet, or increments existing item balance.
@@ -40,25 +37,24 @@ use trie_db::{TrieDBMut, TrieMut};
 /// * `asset`:  Asset to look for
 /// * `balance`: Amount on which balance should be added.
 pub fn add_balance(
-	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	state: &mut OffchainState,
 	account: &AccountId,
 	asset: AssetId,
 	balance: Decimal,
 ) -> Result<(), &'static str> {
-	log::info!(target:"ocex", "adding {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account.as_slice());
-	let mut balances: BTreeMap<AssetId, Decimal> =
-		match state.get(account.as_slice()).map_err(map_trie_error)? {
-			None => BTreeMap::new(),
-			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
-				.map_err(|_| "Unable to decode balances for account")?,
-		};
+	log::info!(target:"ocex", "adding {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account);
+	let mut balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
+		None => BTreeMap::new(),
+		Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+			.map_err(|_| "Unable to decode balances for account")?,
+	};
 
 	balances
 		.entry(asset)
 		.and_modify(|total| *total = total.saturating_add(balance))
 		.or_insert(balance);
 
-	state.insert(account.as_slice(), &balances.encode()).map_err(map_trie_error)?;
+	state.insert(account.to_raw_vec(), balances.encode());
 	Ok(())
 }
 
@@ -74,27 +70,27 @@ pub fn add_balance(
 /// * `asset`:  Asset to look for
 /// * `balance`: Amount on which balance should be reduced.
 pub fn sub_balance(
-	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	state: &mut OffchainState,
 	account: &AccountId,
 	asset: AssetId,
 	balance: Decimal,
 ) -> Result<(), &'static str> {
-	log::info!(target:"ocex", "subtracting {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account.as_slice());
-	let mut balances: BTreeMap<AssetId, Decimal> =
-		match state.get(account.as_slice()).map_err(map_trie_error)? {
-			None => return Err("Account not found in trie"),
-			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
-				.map_err(|_| "Unable to decode balances for account")?,
-		};
+	log::info!(target:"ocex", "subtracting {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account);
+	let mut balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
+		None => return Err("Account not found in trie"),
+		Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+			.map_err(|_| "Unable to decode balances for account")?,
+	};
 
 	let account_balance = balances.get_mut(&asset).ok_or("NotEnoughBalance")?;
 
 	if *account_balance < balance {
+		log::error!(target:"ocex","Asset found but balance low for asset: {:?}, of account: {:?}",asset, account);
 		return Err("NotEnoughBalance")
 	}
 	*account_balance = account_balance.saturating_sub(balance);
 
-	state.insert(account.as_slice(), &balances.encode()).map_err(map_trie_error)?;
+	state.insert(account.to_raw_vec(), balances.encode());
 
 	Ok(())
 }
@@ -112,7 +108,7 @@ pub fn sub_balance(
 ///
 /// A `Result<(), Error>` indicating whether the trade was successfully processed or not.
 pub fn process_trade(
-	state: &mut TrieDBMut<LayoutV1<BlakeTwo256>>,
+	state: &mut OffchainState,
 	trade: &Trade,
 	config: TradingPairConfig,
 ) -> Result<(), &'static str> {

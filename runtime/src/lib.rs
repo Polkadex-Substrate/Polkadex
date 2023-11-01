@@ -22,6 +22,7 @@
 #![recursion_limit = "256"]
 #![deny(unused_crate_dependencies)]
 
+use constants::{currency::*, time::*};
 use frame_election_provider_support::{onchain, ElectionDataProvider, SequentialPhragmen};
 use frame_support::{
 	construct_runtime,
@@ -34,14 +35,13 @@ use frame_support::{
 		LockIdentifier, OnUnbalanced, U128CurrencyToVote,
 	},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
-		ConstantMultiplier, Weight,
+		constants::{
+			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+		},
+		ConstantMultiplier, IdentityFee, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use sp_std::vec;
-
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
 use frame_system::{
@@ -59,14 +59,16 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_staking::StakerStatus;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use polkadex_primitives::AssetId;
 pub use polkadex_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
+use rust_decimal::Decimal;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
-
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -78,16 +80,13 @@ use sp_runtime::{
 		OpaqueKeys, SaturatedConversion, StaticLookup,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
+	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::prelude::*;
+use sp_std::{prelude::*, vec};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-
-use constants::{currency::*, time::*};
-use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, IdentityFee};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -118,7 +117,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 289,
+	spec_version: 311,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1280,7 +1279,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
@@ -1505,6 +1504,7 @@ pub type Executive = frame_executive::Executive<
 >;
 
 use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect;
+use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1566,9 +1566,21 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block,AccountId,Hash> for Runtime {
-		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, sp_runtime::DispatchError> {
-			Rewards::account_info(account_id,reward_id)
+	impl pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi<Block, AccountId, Hash> for Runtime {
+		fn account_info(account_id : AccountId, reward_id: u32) ->  Result<polkadex_primitives::rewards::RewardsInfoByAccount<u128>, DispatchError> {
+			Rewards::account_info(account_id, reward_id)
+		}
+	}
+
+	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
+		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
+		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
+		fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			OCEX::fetch_checkpoint()
+		}
+		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
+		DispatchError> {
+			OCEX::calculate_inventory_deviation()
 		}
 	}
 
@@ -1578,7 +1590,7 @@ impl_runtime_apis! {
 			tx: <Block as BlockT>::Extrinsic,
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
-			Executive::validate_transaction(source, tx,block_hash)
+			Executive::validate_transaction(source, tx, block_hash)
 		}
 	}
 

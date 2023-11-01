@@ -214,7 +214,7 @@ fn test_set_withdrawal_fee_full() {
 fn test_parachain_withdraw_full() {
 	new_test_ext().execute_with(|| {
 		// setup code
-		let asset_id: <Test as Config>::AssetId = 100u128.into();
+		let asset_id: <Test as Config>::AssetId = 100u128;
 		let admin = 1u64;
 		let network_id = 1;
 		Balances::set_balance(&admin, 100_000_000_000_000_000_000u128.saturated_into());
@@ -244,12 +244,8 @@ fn test_parachain_withdraw_full() {
 			100_000_000_000_000_000_000u128.saturated_into(),
 		)
 		.unwrap();
-		Assets::mint_into(
-			asset_id.into(),
-			&account,
-			100_000_000_000_000_000_000u128.saturated_into(),
-		)
-		.unwrap();
+		Assets::mint_into(asset_id, &account, 100_000_000_000_000_000_000u128.saturated_into())
+			.unwrap();
 		<Test as Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into())
 			.unwrap();
 		Balances::set_balance(&account, 100_000_000_000_000u128.saturated_into());
@@ -294,7 +290,7 @@ fn test_parachain_withdraw_full() {
 		assert_noop!(
 			TheaExecutor::parachain_withdraw(
 				RuntimeOrigin::signed(admin),
-				asset_id.into(),
+				asset_id,
 				1_000_000_000,
 				beneficiary.clone(),
 				false
@@ -304,7 +300,7 @@ fn test_parachain_withdraw_full() {
 		// proper case
 		assert_ok!(TheaExecutor::parachain_withdraw(
 			RuntimeOrigin::signed(account),
-			asset_id.into(),
+			asset_id,
 			1_000_000_000,
 			beneficiary.clone(),
 			false

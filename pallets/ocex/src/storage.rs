@@ -1,9 +1,28 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2022-2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+use crate::validator::map_trie_error;
 use hash_db::{AsHashDB, HashDB, Prefix};
 use sp_core::{Hasher, H256};
 use sp_runtime::{offchain::storage::StorageValueRef, sp_std, traits::BlakeTwo256};
-use sp_std::vec::Vec;
+use sp_std::{prelude::ToOwned, vec::Vec};
 use sp_trie::{trie_types::TrieDBMutBuilderV1, LayoutV1};
-use trie_db::{DBValue, TrieDBMut};
+use trie_db::{DBValue, TrieDBMut, TrieMut};
 
 pub struct State;
 
@@ -11,6 +30,54 @@ const HASHED_NULL_NODE: [u8; 31] = *b"offchain-ocex::hashed_null_node";
 const NULL_NODE_DATA: [u8; 29] = *b"offchain-ocex::null_node_data";
 const KEY_PREFIX: [u8; 15] = *b"offchain-ocex::";
 const TRIE_ROOT: [u8; 24] = *b"offchain-ocex::trie_root";
+
+pub struct OffchainState<'a> {
+	cache: sp_std::collections::btree_map::BTreeMap<Vec<u8>, Vec<u8>>,
+	trie: TrieDBMut<'a, LayoutV1<BlakeTwo256>>,
+}
+
+impl<'a> OffchainState<'a> {
+	pub fn load(storage: &'a mut State, root: &'a mut H256) -> Self {
+		let trie = crate::storage::get_state_trie(storage, root);
+		Self { cache: Default::default(), trie }
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.cache.is_empty() && self.trie.is_empty()
+	}
+
+	pub fn get(&mut self, key: &Vec<u8>) -> Result<Option<Vec<u8>>, &'static str> {
+		match self.cache.get(key) {
+			Some(value) => Ok(Some(value.clone())),
+			None => match self.trie.get(key) {
+				Err(err) => {
+					log::error!(target:"ocex","Trie returned an error while get operation");
+					Err(map_trie_error(err))
+				},
+				Ok(option) => match option {
+					None => Ok(None),
+					Some(value) => {
+						self.cache.insert(key.clone(), value.clone());
+						Ok(Some(value))
+					},
+				},
+			},
+		}
+	}
+
+	pub fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) {
+		self.cache.insert(key, value);
+	}
+
+	pub fn commit(&mut self) -> Result<H256, &'static str> {
+		for (key, value) in self.cache.iter() {
+			self.trie.insert(key, value).map_err(map_trie_error)?;
+		}
+		self.cache.clear();
+		self.trie.commit();
+		Ok(*self.trie.root())
+	}
+}
 
 impl State {
 	fn hashed_null_node(&self) -> <BlakeTwo256 as Hasher>::Out {
@@ -43,8 +110,9 @@ impl State {
 		}
 	}
 
-	fn db_get(&self, key: &<BlakeTwo256 as Hasher>::Out) -> Option<(DBValue, i32)> {
-		let derive_key = self.derive_storage_key(*key);
+	fn db_get(&self, key: &Vec<u8>) -> Option<(DBValue, i32)> {
+		log::trace!(target:"ocex","Getting key: {:?}", key);
+		let derive_key = self.derive_storage_key(key);
 		let s_ref = StorageValueRef::persistent(derive_key.as_slice());
 		match s_ref.get::<(DBValue, i32)>() {
 			Ok(d) => d,
@@ -52,15 +120,17 @@ impl State {
 		}
 	}
 
-	fn db_insert(&self, key: <BlakeTwo256 as Hasher>::Out, value: (DBValue, i32)) {
-		let derive_key = self.derive_storage_key(key);
+	fn db_insert(&self, key: Vec<u8>, value: (DBValue, i32)) {
+		let derive_key = self.derive_storage_key(&key);
+		log::trace!(target:"ocex","Inserting key: {:?}, derived: {:?}, value: {:?}", key, derive_key, value);
 		let s_ref = StorageValueRef::persistent(derive_key.as_slice());
 		s_ref.set(&value);
 	}
 
-	fn derive_storage_key(&self, key: <BlakeTwo256 as Hasher>::Out) -> Vec<u8> {
+	fn derive_storage_key(&self, key: &[u8]) -> Vec<u8> {
 		let mut derived = KEY_PREFIX.to_vec();
-		derived.append(&mut key.0.to_vec());
+		let mut cloned_key = key.to_owned();
+		derived.append(&mut cloned_key);
 		derived
 	}
 }
@@ -76,26 +146,31 @@ impl AsHashDB<BlakeTwo256, DBValue> for State {
 }
 
 impl HashDB<BlakeTwo256, DBValue> for State {
-	fn get(&self, key: &<BlakeTwo256 as Hasher>::Out, _: Prefix) -> Option<DBValue> {
+	fn get(&self, key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> Option<DBValue> {
+		log::trace!(target:"ocex","HashDb get, key: {:?}, prefix: {:?}", key,prefix);
 		if key == &self.hashed_null_node() {
 			return Some(self.null_node_data())
 		}
 
-		match self.db_get(key) {
+		let key = prefixed_key(key, prefix);
+		match self.db_get(&key) {
 			Some((ref d, rc)) if rc > 0 => Some(d.clone()),
 			_ => None,
 		}
 	}
 
-	fn contains(&self, key: &<BlakeTwo256 as Hasher>::Out, _: Prefix) -> bool {
+	fn contains(&self, key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> bool {
+		log::trace!(target:"ocex","HashDb contains, key: {:?}, prefix: {:?}", key,prefix);
 		if key == &self.hashed_null_node() {
 			return true
 		}
 
-		matches!(self.db_get(key), Some((_, x)) if x > 0)
+		let key = prefixed_key(key, prefix);
+		matches!(self.db_get(&key), Some((_, x)) if x > 0)
 	}
 
 	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> <BlakeTwo256 as Hasher>::Out {
+		log::trace!(target:"ocex","HashDb insert, prefix: {:?}",prefix);
 		if *value == self.null_node_data() {
 			return self.hashed_null_node()
 		}
@@ -104,11 +179,13 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 		key
 	}
 
-	fn emplace(&mut self, key: <BlakeTwo256 as Hasher>::Out, _: Prefix, value: DBValue) {
+	fn emplace(&mut self, key: <BlakeTwo256 as Hasher>::Out, prefix: Prefix, value: DBValue) {
+		log::trace!(target:"ocex","HashDb emplace, key: {:?}, prefix: {:?}", key,prefix);
 		if value == self.null_node_data() {
 			return
 		}
 
+		let key = prefixed_key(&key, prefix);
 		match self.db_get(&key) {
 			Some((mut old_value, mut rc)) => {
 				if rc <= 0 {
@@ -123,22 +200,35 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 		}
 	}
 
-	fn remove(&mut self, key: &<BlakeTwo256 as Hasher>::Out, _: Prefix) {
+	fn remove(&mut self, key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) {
+		log::trace!(target:"ocex","HashDb remove, key: {:?}, prefix: {:?}", key,prefix);
 		if key == &self.hashed_null_node() {
 			return
 		}
 
-		match self.db_get(key) {
+		let key = prefixed_key(key, prefix);
+		match self.db_get(&key) {
 			Some((value, mut rc)) => {
 				rc -= 1;
-				self.db_insert(*key, (value, rc));
+				self.db_insert(key, (value, rc));
 			},
 			None => {
 				let value = DBValue::default();
-				self.db_insert(*key, (value, -1));
+				self.db_insert(key, (value, -1));
 			},
 		}
 	}
+}
+
+/// Derive a database key from hash value of the node (key) and  the node prefix.
+pub fn prefixed_key(key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> Vec<u8> {
+	let mut prefixed_key = Vec::with_capacity(key.as_ref().len() + prefix.0.len() + 1);
+	prefixed_key.extend_from_slice(prefix.0);
+	if let Some(last) = prefix.1 {
+		prefixed_key.push(last);
+	}
+	prefixed_key.extend_from_slice(key.as_ref());
+	prefixed_key
 }
 
 pub(crate) fn load_trie_root() -> <BlakeTwo256 as Hasher>::Out {
@@ -172,9 +262,43 @@ mod tests {
 
 	use crate::{
 		mock::new_test_ext,
-		storage::{get_state_trie, load_trie_root, store_trie_root, State},
+		storage::{get_state_trie, load_trie_root, store_trie_root, OffchainState, State},
 		tests::register_offchain_ext,
 	};
+
+	#[test]
+	pub fn test_commit_change_revert_pattern() {
+		let mut ext = new_test_ext();
+		register_offchain_ext(&mut ext);
+		log::trace!(target:"ocex","test_trie_storage test starting..");
+		ext.execute_with(|| {
+			let mut root = load_trie_root();
+			{
+				let mut storage = State;
+
+				let mut state = OffchainState::load(&mut storage, &mut root);
+
+				state.insert(b"1".to_vec(), b"a".to_vec());
+				state.insert(b"2".to_vec(), b"b".to_vec());
+				state.insert(b"3".to_vec(), b"c".to_vec());
+
+				state.commit().unwrap();
+				state.insert(b"4".to_vec(), b"d".to_vec());
+				state.commit().unwrap();
+				state.insert(b"5".to_vec(), b"e".to_vec());
+			}
+			{
+				let mut storage = State;
+
+				let mut state = OffchainState::load(&mut storage, &mut root);
+				state.get(&b"1".to_vec()).unwrap().unwrap();
+				state.get(&b"2".to_vec()).unwrap().unwrap();
+				state.get(&b"3".to_vec()).unwrap().unwrap();
+				state.get(&b"4".to_vec()).unwrap().unwrap();
+				assert!(state.get(&b"5".to_vec()).unwrap().is_none());
+			}
+		});
+	}
 
 	#[test]
 	pub fn test_trie_storage() {

@@ -31,25 +31,34 @@ use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
 	traits::{
-		fungibles::Mutate, tokens::Preservation, Currency, ExistenceRequirement, Get,
-		OneSessionHandler,
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Preservation},
+		Currency, ExistenceRequirement, Get, OneSessionHandler,
 	},
 	BoundedVec,
 };
-
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::assets::AssetId;
+use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE};
+use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	Percent,
+	Percent, SaturatedConversion,
 };
-use sp_std::prelude::*;
+use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use orderbook_primitives::{
+	types::{AccountAsset, TradingPair},
+	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
 pub use pallet::*;
+use polkadex_primitives::ocex::TradingPairConfig;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::One;
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
@@ -57,14 +66,6 @@ mod mock;
 mod tests;
 
 pub mod weights;
-
-use orderbook_primitives::{
-	types::TradingPair, SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
-};
-use polkadex_primitives::ocex::TradingPairConfig;
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
-use sp_std::vec::Vec;
 
 pub const OCEX: KeyTypeId = KeyTypeId(*b"ocex");
 
@@ -87,8 +88,10 @@ pub mod sr25519 {
 	pub type AuthorityId = app_sr25519::Public;
 }
 
+pub mod aggregator;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod rpc;
 mod settlement;
 mod snapshot;
 pub mod storage;
@@ -143,7 +146,7 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{Fees, SnapshotSummary};
+	use orderbook_primitives::{Fees, ObCheckpointRaw, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -323,43 +326,63 @@ pub mod pallet {
 		CannotFindCloseBlockForSnapshot,
 		/// Dispute Interval not set
 		DisputeIntervalNotSet,
+		/// Worker not Idle
+		WorkerNotIdle,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// On idle, use the remaining weight to withdraw finalization
 		/// Automated (but much delayed) `claim_withdraw()` extrinsic
-		fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
-			let snapshot_id = <SnapshotNonce<T>>::get();
-			while remaining_weight.ref_time() >
-				<T as Config>::WeightInfo::claim_withdraw(1).ref_time()
-			{
-				<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
-					// Get mutable reference to the withdrawals vector
-					if let Some(account) = btree_map.clone().keys().nth(1) {
-						let mut accounts_to_clean = vec![];
-						if let Some(withdrawal_vector) = btree_map.get_mut(account) {
-							if let Some(withdrawal) = withdrawal_vector.pop() {
-								if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
-									withdrawal_vector.push(withdrawal.clone());
-									Self::deposit_event(Event::WithdrawalFailed(withdrawal));
-								}
-							} else {
-								// this user has no withdrawals left - remove from map
-								accounts_to_clean.push(account.clone());
-							}
-						}
-						for user in accounts_to_clean {
-							btree_map.remove(&user);
-						}
-					}
-					// we drain weight ALWAYS
-					remaining_weight = remaining_weight
-						.saturating_sub(<T as Config>::WeightInfo::claim_withdraw(1));
-				});
-			}
-			remaining_weight
-		}
+		// fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
+		// 	let snapshot_id = <SnapshotNonce<T>>::get();
+		// 	while remaining_weight.ref_time() >
+		// 		<T as Config>::WeightInfo::claim_withdraw(1).ref_time()
+		// 	{
+		// 		<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
+		// 			// Get mutable reference to the withdrawals vector
+		// 			if let Some(account) = btree_map.clone().keys().nth(1) {
+		// 				let mut accounts_to_clean = vec![];
+		// 				if let Some(withdrawal_vector) = btree_map.get_mut(account) {
+		// 					if let Some(withdrawal) = withdrawal_vector.pop() {
+		// 						if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
+		// 							withdrawal_vector.push(withdrawal.clone());
+		// 							Self::deposit_event(Event::WithdrawalFailed(withdrawal));
+		// 						}else{
+		// 							// TODO: enable this only after testing
+		// 							// Update events on successful withdrawal
+		// 							// let processed_withdrawls =
+		//                             // // Deposit event about successful withdraw
+		// 							// Self::deposit_event(Event::WithdrawalClaimed {
+		// 							// 	main: account.clone(),
+		// 							// 	withdrawals: processed_withdrawals.clone(),
+		// 							// });
+		// 							// <OnChainEvents<T>>::mutate(|onchain_events| {
+		// 							// 	onchain_events.push(
+		// 							// 		polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+		// 							// 			snapshot_id,
+		// 							// 			account.clone(),
+		// 							// 			processed_withdrawals,
+		// 							// 		),
+		// 							// 	);
+		// 							// });
+		//                         }
+		// 					} else {
+		// 						// this user has no withdrawals left - remove from map
+		// 						accounts_to_clean.push(account.clone());
+		// 					}
+		// 				}
+		// 				for user in accounts_to_clean {
+		// 					btree_map.remove(&user);
+		// 				}
+		// 			}
+		// 			// we drain weight ALWAYS
+		// 			remaining_weight = remaining_weight
+		// 				.saturating_sub(<T as Config>::WeightInfo::claim_withdraw(1));
+		// 		});
+		// 	}
+		// 	remaining_weight
+		// }
 		/// What to do at the end of each block.
 		///
 		/// Clean OnCHainEvents
@@ -377,8 +400,17 @@ pub mod pallet {
 
 		fn offchain_worker(block_number: T::BlockNumber) {
 			log::debug!(target:"ocex", "offchain worker started");
-			if let Err(err) = Self::run_on_chain_validation(block_number) {
-				log::error!(target:"ocex","OCEX worker error: {}",err)
+
+			match Self::run_on_chain_validation(block_number) {
+				Ok(exit_flag) => {
+					// If exit flag is false, then another worker is online
+					if !exit_flag {
+						return
+					}
+				},
+				Err(err) => {
+					log::error!(target:"ocex","OCEX worker error: {}",err);
+				},
 			}
 			// Set worker status to false
 			let s_info = StorageValueRef::persistent(&WORKER_STATUS);
@@ -1233,6 +1265,109 @@ pub mod pallet {
 				false
 			}
 		}
+
+		/// Collects onchain registered main and proxy accounts
+		/// for each of main accounts collects balances from offchain storage
+		/// adds other required for recovery properties
+		/// Returned tuple resembles `orderbook_primitives::recovery::ObRecoveryState`
+		/// FIXME: use solid type here instead of tuple
+		pub fn get_ob_recover_state() -> Result<
+			(
+				u64,
+				BTreeMap<AccountId, Vec<AccountId>>,
+				BTreeMap<AccountAsset, Decimal>,
+				u32,
+				u64,
+				u64,
+			),
+			DispatchError,
+		> {
+			let account_id =
+				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
+					ids_accum.push((acc.clone(), acc_info.proxies));
+					ids_accum
+				});
+
+			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			let mut account_ids: BTreeMap<AccountId, Vec<AccountId>> = BTreeMap::new();
+			// all offchain balances for main accounts
+			for account in account_id {
+				let main = Self::transform_account(account.0)?;
+				let b = Self::get_offchain_balance(&main)?;
+				for (asset, balance) in b.into_iter() {
+					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
+				}
+				let proxies = account.1.into_iter().try_fold(vec![], |mut accum, proxy| {
+					accum.push(Self::transform_account(proxy)?);
+					Ok::<Vec<AccountId>, DispatchError>(accum)
+				})?;
+				account_ids.insert(main, proxies);
+			}
+
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
+			let last_processed_block_number = state_info.last_block;
+			let worker_nonce = state_info.worker_nonce;
+			let snapshot_id = state_info.snapshot_id;
+			let state_change_id = state_info.stid;
+
+			Ok((
+				snapshot_id,
+				account_ids,
+				balances,
+				last_processed_block_number,
+				state_change_id,
+				worker_nonce,
+			))
+		}
+
+		/// Fetch checkpoint for recovery
+		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			log::debug!(target:"ocex", "fetch_checkpoint called");
+			let account_id =
+				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
+					ids_accum.push((acc.clone(), acc_info.proxies));
+					ids_accum
+				});
+
+			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			// all offchain balances for main accounts
+			for account in account_id {
+				let main = Self::transform_account(account.0)?;
+				let b = Self::get_offchain_balance(&main)?;
+				for (asset, balance) in b.into_iter() {
+					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
+				}
+			}
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
+			let last_processed_block_number = state_info.last_block;
+			let snapshot_id = state_info.snapshot_id;
+			let state_change_id = state_info.stid;
+			log::debug!(target:"ocex", "fetch_checkpoint returning");
+			Ok(ObCheckpointRaw::new(
+				snapshot_id,
+				balances,
+				last_processed_block_number,
+				state_change_id,
+			))
+		}
+
+		/// Fetches balance of given `AssetId` for given `AccountId` from offchain storage
+		/// If nothing found - returns `Decimal::Zero`
+		pub fn get_balance(from: T::AccountId, of: AssetId) -> Result<Decimal, DispatchError> {
+			Ok(Self::get_offchain_balance(&Self::transform_account(from)?)
+				.unwrap_or_else(|_| BTreeMap::new())
+				.get(&of)
+				.unwrap_or(&Decimal::ZERO)
+				.to_owned())
+		}
+
+		// Converts `T::AccountId` into `polkadex_primitives::AccountId`
+		fn transform_account(
+			account: T::AccountId,
+		) -> Result<polkadex_primitives::AccountId, DispatchError> {
+			Decode::decode(&mut &account.encode()[..])
+				.map_err(|_| Error::<T>::AccountIdCannotBeDecoded.into())
+		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -1520,6 +1655,21 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 			},
 		}
 		Ok(())
+	}
+
+	fn get_onchain_balance(asset: AssetId) -> Decimal {
+		let balance = match asset {
+			AssetId::Polkadex => T::NativeCurrency::free_balance(&Self::get_pallet_account()),
+			AssetId::Asset(id) => T::OtherAssets::reducible_balance(
+				id,
+				&Self::get_pallet_account(),
+				Preservation::Expendable,
+				Fortitude::Force,
+			),
+		};
+
+		// div will not panic since denominator is a constant
+		Decimal::from(balance.saturated_into::<u128>()).div(Decimal::from(UNIT_BALANCE))
 	}
 }
 

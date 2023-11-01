@@ -38,7 +38,7 @@ use sp_runtime::{
 	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -48,6 +48,8 @@ mod session;
 #[cfg(test)]
 mod tests;
 
+pub mod aggregator;
+pub mod resolver;
 pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
@@ -87,6 +89,7 @@ pub trait TheaWeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
 	use sp_std::collections::btree_set::BTreeSet;
@@ -313,7 +316,9 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(1).into()
 		}
 
-		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
+		// Incoming messages are always signed by the current validators.
+		let current_set_id = <ValidatorSetId<T>>::get();
+		let authorities = <Authorities<T>>::get(current_set_id).to_vec();
 
 		// Check for super majority
 		const MAJORITY: u8 = 67;
@@ -358,28 +363,41 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn change_authorities(
-		incoming: BoundedVec<T::TheaId, T::MaxAuthorities>,
-		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,
+		incoming: BoundedVec<T::TheaId, T::MaxAuthorities>, // n+1th set
+		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,   // n+ 2th set
 	) {
+		//	( outgoing) -> (validators/incoming) -> (queued)
+		// nth epoch -> n+1th epoch -> n+2nd epoch
 		let id = Self::validator_set_id();
-		let outgoing = <Authorities<T>>::get(id);
+		let outgoing = <Authorities<T>>::get(id); // nth set  ( active ,current )
 		let new_id = id + 1u64;
-
+		let active_networks = <ActiveNetworks<T>>::get();
 		// We need to issue a new message if the validator set is changing,
 		// that is, the incoming set is has different session keys from outgoing set.
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
-		if outgoing != incoming {
-			let active_networks = <ActiveNetworks<T>>::get();
-			for network in active_networks {
-				let message = Self::generate_payload(true, network, incoming.encode());
-				// Update nonce
-				<OutgoingNonce<T>>::insert(message.network, message.nonce);
-				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+		if incoming != queued {
+			// This should happen at the beginning of the last epoch
+			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
+				let payload = validator_set.encode();
+				for network in &active_networks {
+					let message = Self::generate_payload(true, *network, payload.clone());
+					// Update nonce
+					<OutgoingNonce<T>>::insert(message.network, message.nonce);
+					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+				}
 			}
+			<NextAuthorities<T>>::put(queued);
+		}
+		if incoming != outgoing {
+			// This will happen when new era starts, or end of the last epoch
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
-			<NextAuthorities<T>>::put(queued);
+			for network in active_networks {
+				let message = Self::generate_payload(false, network, Vec::new());
+				<OutgoingNonce<T>>::insert(network, message.nonce);
+				<OutgoingMessages<T>>::insert(network, message.nonce, message);
+			}
 		}
 	}
 

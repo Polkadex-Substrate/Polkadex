@@ -18,9 +18,8 @@
 
 //! Tests for pallet-ocex.
 
-use crate::*;
+use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok, bounded_vec};
-
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -37,7 +36,6 @@ use sp_core::{
 	offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
 	ByteArray, Pair, H256,
 };
-
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
@@ -115,16 +113,39 @@ fn test_add_balance_new_account() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
+		// test get_balance()
+		state.commit().unwrap();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
+		assert_eq!(from_fn, amount.into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
+		// account present
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = amount.into();
+		assert_eq!(
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
@@ -136,14 +157,19 @@ fn test_add_balance_existing_account_with_balance() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
@@ -151,9 +177,88 @@ fn test_add_balance_existing_account_with_balance() {
 		let amount2 = 2000000;
 		let result = add_balance(&mut state, &account_id, asset_id, amount2.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount + amount2).into());
+		// test get_balance()
+		state.commit().unwrap();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
+		assert_eq!(from_fn, (amount + amount2).into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
+		// account present
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = (amount + amount2).into();
+		assert_eq!(
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
+		// conversion test
+		let created = ObRecoveryState {
+			snapshot_id: rs.0,
+			account_ids: rs.1.clone(),
+			balances: rs.2.clone(),
+			last_processed_block_number: rs.3,
+			state_change_id: rs.4,
+			worker_nonce: rs.5,
+		};
+		let c_encoded = created.encode();
+		let encoded = rs.encode();
+		assert_eq!(c_encoded, encoded);
+		let decoded = ObRecoveryState::decode(&mut encoded.as_ref()).unwrap();
+		assert_eq!(decoded.account_ids, rs.1);
+		assert_eq!(decoded.balances, rs.2);
+	});
+}
+
+#[test]
+fn test_two_assets() {
+	let mut ext = new_test_ext();
+	ext.persist_offchain_overlay();
+	register_offchain_ext(&mut ext);
+	ext.execute_with(|| {
+		let account_bytes = [1u8; 32];
+		let pablo_main = AccountId::from(account_bytes);
+
+		let account_bytes = [2u8; 32];
+		let coinalpha = AccountId::from(account_bytes);
+
+		let account_id = pablo_main.clone();
+		let asset1 = AssetId::Asset(123);
+		let amount1 = Decimal::from_str("0.05").unwrap();
+
+		let asset2 = AssetId::Asset(456);
+		let amount2 = Decimal::from_str("0.1").unwrap();
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
+		add_balance(&mut state, &account_id, asset1, amount1.into()).unwrap();
+		add_balance(&mut state, &account_id, asset2, amount2.into()).unwrap();
+		let asset123 = AssetId::Asset(123);
+		let amount123 = Decimal::from_str("25.0").unwrap();
+
+		let asset456 = AssetId::Asset(456);
+		let amount456 = Decimal::from_str("10.0").unwrap();
+		// works
+		sub_balance(&mut state, &account_id, asset1, Decimal::from_str("0.01").unwrap().into())
+			.unwrap();
+		add_balance(&mut state, &coinalpha, asset123, amount123.into()).unwrap();
+		add_balance(&mut state, &coinalpha, asset456, amount456.into()).unwrap();
+		let root = state.commit().unwrap();
+		store_trie_root(root);
+		drop(state);
+		let mut root = crate::storage::load_trie_root();
+		let mut trie_state = crate::storage::State;
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
+		sub_balance(&mut state, &account_id, asset1, Decimal::from_str("0.01").unwrap().into())
+			.unwrap();
+		sub_balance(&mut state, &account_id, asset1, Decimal::from_str("0.01").unwrap().into())
+			.unwrap();
 	});
 }
 
@@ -169,7 +274,7 @@ fn test_sub_balance_new_account() {
 		let amount = 1000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = sub_balance(&mut state, &account_id, asset_id, amount.into());
 		match result {
 			Ok(_) => assert!(false),
@@ -186,14 +291,19 @@ fn test_sub_balance_existing_account_with_balance() {
 	register_offchain_ext(&mut ext);
 	ext.execute_with(|| {
 		let account_id = create_account_id();
+		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::register_main_account(
+			RuntimeOrigin::signed(account_id.clone()),
+			account_id.clone()
+		));
 		let asset_id = AssetId::Polkadex;
 		let amount = 3000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
@@ -201,7 +311,7 @@ fn test_sub_balance_existing_account_with_balance() {
 		let amount2 = 2000000;
 		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount - amount2).into());
 
@@ -209,10 +319,28 @@ fn test_sub_balance_existing_account_with_balance() {
 		let amount3 = amount - amount2;
 		let result = sub_balance(&mut state, &account_id, asset_id, amount3.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
 		assert_eq!(account_info.get(&asset_id).unwrap(), &Decimal::from(0));
+		// test get_balance()
+		state.commit().unwrap();
+		drop(state);
+		store_trie_root(root);
+		let from_fn = OCEX::get_balance(account_id.clone(), asset_id).unwrap();
+		assert_eq!(from_fn, (amount - amount2 - amount3).into());
+		// test get_ob_recover_state()
+		let rs = OCEX::get_ob_recover_state().unwrap();
+		assert!(!rs.1.is_empty());
+		assert!(!rs.2.is_empty());
+		// account present
+		assert!(rs.1.get(&account_id).is_some_and(|v| !v.is_empty() && v[0] == account_id));
+		// balance present and correct
+		let expected: Decimal = (amount - amount2 - amount3).into();
+		assert_eq!(
+			rs.2.get(&AccountAsset { main: account_id, asset: asset_id }).unwrap(),
+			&expected
+		);
 	});
 }
 
@@ -224,24 +352,24 @@ fn test_trie_update() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		assert!(state.is_empty());
 
-		state.insert(b"a", b"1").unwrap();
-		state.insert(b"b", b"2").unwrap();
-		state.insert(b"c", b"3").unwrap();
+		state.insert(b"a".to_vec(), b"1".to_vec());
+		state.insert(b"b".to_vec(), b"2".to_vec());
+		state.insert(b"c".to_vec(), b"3".to_vec());
 		assert!(!state.is_empty());
-		let root = state.root(); // This should flush everything to db.
-		crate::storage::store_trie_root(*root);
+		let root = state.commit().unwrap(); // This should flush everything to db.
+		crate::storage::store_trie_root(root);
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
-		assert_eq!(state.get(b"a").unwrap().unwrap(), b"1");
-		assert_eq!(state.get(b"b").unwrap().unwrap(), b"2");
-		assert_eq!(state.get(b"c").unwrap().unwrap(), b"3");
+		assert_eq!(state.get(&b"a".to_vec()).unwrap().unwrap(), b"1");
+		assert_eq!(state.get(&b"b".to_vec()).unwrap().unwrap(), b"2");
+		assert_eq!(state.get(&b"c".to_vec()).unwrap().unwrap(), b"3");
 
-		state.insert(b"d", b"4").unwrap(); // This will not be in DB, as neither root() or commit() is called
+		state.insert(b"d".to_vec(), b"4".to_vec()); // This will not be in DB, as neither root() or commit() is called
 
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
@@ -264,7 +392,7 @@ fn test_balance_update_depost_first_then_trade() {
 		let amount = 20;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		let result = add_balance(
 			&mut state,
@@ -298,10 +426,10 @@ fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
 		let amount = 3000000;
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let result = add_balance(&mut state, &account_id, asset_id, amount.into());
 		assert_eq!(result, Ok(()));
-		let encoded = state.get(account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &amount.into());
 
@@ -324,7 +452,7 @@ fn test_trade_between_two_accounts_without_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 		let config = get_trading_pair_config();
 		let amount = Decimal::from_str("20").unwrap();
 		let price = Decimal::from_str("2").unwrap();
@@ -346,7 +474,7 @@ fn test_trade_between_two_accounts_with_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -384,12 +512,12 @@ fn test_trade_between_two_accounts_with_balance() {
 		assert_ok!(result);
 
 		//check has 20 pdex now
-		let encoded = state.get(alice_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&alice_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&AssetId::Polkadex).unwrap(), &20.into());
 
 		//check if bob has 20 less pdex
-		let encoded = state.get(bob_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Polkadex).unwrap(),
@@ -397,7 +525,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		);
 
 		//check if bob has 40 more asset_1
-		let encoded = state.get(bob_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Asset(1)).unwrap(),
@@ -405,7 +533,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		);
 
 		//check if alice has 40 less asset_1
-		let encoded = state.get(alice_account_id.as_slice()).unwrap().unwrap();
+		let encoded = state.get(&alice_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Asset(1)).unwrap(),
@@ -423,7 +551,7 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -457,7 +585,7 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -491,7 +619,7 @@ fn test_trade_between_two_accounts_invalid_signature() {
 	ext.execute_with(|| {
 		let mut root = crate::storage::load_trie_root();
 		let mut trie_state = crate::storage::State;
-		let mut state = crate::storage::get_state_trie(&mut trie_state, &mut root);
+		let mut state = OffchainState::load(&mut trie_state, &mut root);
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
@@ -2168,10 +2296,13 @@ fn test_withdrawal() {
 }
 
 use orderbook_primitives::{
+	recovery::ObRecoveryState,
 	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
 	Fees,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
+
+use orderbook_primitives::types::{UserActionBatch, UserActions};
 use trie_db::TrieMut;
 
 #[test]
@@ -2220,6 +2351,7 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 use crate::{
 	settlement::{add_balance, process_trade, sub_balance},
 	sr25519::AuthorityId,
+	storage::OffchainState,
 };
 use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
 
@@ -2430,6 +2562,19 @@ fn test_whitelist_orderbook_operator_full() {
 	})
 }
 
+#[test]
+fn test_old_user_action_enum_payload_with_new_enum_returns_ok() {
+	let payload = r#"{"actions":[{"BlockImport":4842070},{"BlockImport":4842071},{"BlockImport":4842072},{"Withdraw":{"signature":{"Sr25519":"1ce02504db86d6c40826737a0616248570274d6fc880d1294585da3663efb41a8cd7f66db1666edbf0037e193ddf9597ec567e875ccb84b1187bbe6e5d1b5c88"},"payload":{"asset_id":{"asset":"95930534000017180603917534864279132680"},"amount":"0.01","timestamp":1690900017685},"main":"5GLQUnNXayJGG6AZ6ht2MFigMHLKPWZjZqbko2tYQ7GJxi6A","proxy":"5GeYN9KaGkxEzaP2gpefqpCp18a9MEMosPCintz83CGRpKGa"}},{"BlockImport":4842073},{"BlockImport":4842074},{"BlockImport":4842075},{"BlockImport":4842076},{"BlockImport":4842077},{"BlockImport":4842078},{"Withdraw":{"signature":{"Sr25519":"b8a7bb383882379a5cb3796c1fb362a9efca5c224c60e2bb91bfed7a9f94bb620620e32dcecbc7e64011e3d3d073b1290e46b3cb97cf0b96c49ba5b0e9e1548f"},"payload":{"asset_id":{"asset":"123"},"amount":"10","timestamp":1690900085111},"main":"5GLFKUxSXTf8MDDKM1vqEFb5TuV1q642qpQT964mrmjeKz4w","proxy":"5ExtoLVQaef9758mibzLhaxK4GBk7qoysSWo7FKt2nrV26i8"}},{"BlockImport":4842079},{"BlockImport":4842080},{"BlockImport":4842081},{"BlockImport":4842082},{"Withdraw":{"signature":{"Sr25519":"4e589e61b18815abcc3fe50626e54844d1e2fd9bb0575fce8eabb5af1ba4b42fba060ad3067bef341e8d5973d932f30d9113c0abbbd65e96e2dd5cbaf94d4581"},"payload":{"asset_id":{"asset":"456"},"amount":"4","timestamp":1690900140296},"main":"5GLFKUxSXTf8MDDKM1vqEFb5TuV1q642qpQT964mrmjeKz4w","proxy":"5ExtoLVQaef9758mibzLhaxK4GBk7qoysSWo7FKt2nrV26i8"}},{"BlockImport":4842083},{"BlockImport":4842084},{"BlockImport":4842085},{"BlockImport":4842086},{"BlockImport":4842087},{"BlockImport":4842088},{"BlockImport":4842089},{"BlockImport":4842090},{"BlockImport":4842091},{"BlockImport":4842092},{"BlockImport":4842093},{"BlockImport":4842094},{"BlockImport":4842095},{"BlockImport":4842096},{"BlockImport":4842097},{"BlockImport":4842098},{"BlockImport":4842099},{"BlockImport":4842100},{"BlockImport":4842101}],"stid":74132,"snapshot_id":10147,"signature":"901dc6972f94d69f253b9ca5a83410a5bc729e5c30c68cba3e68ea4860ca73e447d06c41d3bad05aca4e031f0fa46b1f64fac70159cec68151fef534e48515de00"}"#;
+	let _: UserActionBatch<AccountId> = serde_json::from_str(payload).unwrap();
+}
+
+#[test]
+fn test_scale_encode_with_old_user_action_enum_with_new_returns_ok() {
+	let actual_payload = fixture_old_user_action::get_old_user_action_fixture();
+	let expected_payload: UserActions<AccountId> = UserActions::BlockImport(24);
+	assert_eq!(actual_payload, expected_payload.encode());
+}
+
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
 	allowlisted_token.try_insert(token).unwrap();
@@ -2592,4 +2737,28 @@ pub fn get_random_signature() -> Signature {
 fn create_max_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
 	return fees
+}
+
+pub mod fixture_old_user_action {
+	use orderbook_primitives::types::{Trade, WithdrawalRequest};
+	use parity_scale_codec::{Codec, Decode, Encode};
+	use polkadex_primitives::AccountId;
+	use scale_info::TypeInfo;
+
+	#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
+	pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
+		/// Trade operation requested.
+		Trade(Vec<Trade>),
+		/// Withdraw operation requested.
+		Withdraw(WithdrawalRequest<AccountId>),
+		/// Block import requested.
+		BlockImport(u32),
+		/// Reset Flag
+		Reset,
+	}
+
+	pub fn get_old_user_action_fixture() -> Vec<u8> {
+		let block_import: UserActions<AccountId> = UserActions::BlockImport(24);
+		block_import.encode()
+	}
 }

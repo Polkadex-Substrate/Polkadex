@@ -16,16 +16,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::types::AccountAsset;
+use crate::{types::AccountAsset, ObCheckpointRaw};
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, BlockNumber};
+use polkadex_primitives::{AccountId, AssetId, BlockNumber};
 use rust_decimal::Decimal;
+use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
 use std::collections::BTreeMap;
 
 /// A struct representing the recovery state of an Order Book.
 #[serde_as]
-#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
 pub struct ObRecoveryState {
 	/// The snapshot ID of the order book recovery state.
 	pub snapshot_id: u64,
@@ -41,6 +42,47 @@ pub struct ObRecoveryState {
 	pub state_change_id: u64,
 	/// worker nonce
 	pub worker_nonce: u64,
-	/// State version
-	pub state_version: u16,
+}
+
+#[serde_as]
+#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
+pub struct ObCheckpoint {
+	/// The snapshot ID of the order book recovery state.
+	pub snapshot_id: u64,
+	/// A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	pub balances: BTreeMap<AccountAsset, Decimal>,
+	/// The last block number that was processed by validator.
+	pub last_processed_block_number: BlockNumber,
+	/// State change id
+	pub state_change_id: u64,
+}
+
+impl ObCheckpoint {
+	/// Convert to raw checkpoint
+	pub fn to_raw(&self) -> ObCheckpointRaw {
+		ObCheckpointRaw {
+			snapshot_id: self.snapshot_id,
+			balances: self.balances.clone(),
+			last_processed_block_number: self.last_processed_block_number,
+			state_change_id: self.state_change_id,
+		}
+	}
+}
+
+/// A struct representing the deviation map to detect anomalies in the User balance.
+#[serde_as]
+#[derive(Clone, Debug, Encode, Decode, Default, serde::Serialize, serde::Deserialize, TypeInfo)]
+pub struct DeviationMap {
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	map: BTreeMap<AssetId, Decimal>,
+}
+
+impl DeviationMap {
+	/// Create a new `DeviationMap` instance.
+	/// # Parameters
+	/// * `map`: A `BTreeMap` that maps `AssetId`s to `Decimal` balances.
+	pub fn new(map: BTreeMap<AssetId, Decimal>) -> Self {
+		Self { map }
+	}
 }

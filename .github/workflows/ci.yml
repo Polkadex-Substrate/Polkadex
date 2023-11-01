@@ -1,16 +1,21 @@
 name: Continuous Integration
 
 on:
-  pull_request: []
+  pull_request:
+    types: [labeled]
   push:
     branches: [Develop, mainnet-release]
 
 env:
-  RUNNER_INSTANCE_TYPE: c5d.9xlarge
+  RUNNER_INSTANCE_TYPE: c5d.4xlarge
 
 jobs:
   start-runner:
     name: Start self-hosted EC2 runner
+    # Run the job only if it has proper label or it is triggered by the push to the dev or main branch.
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'A0-PleaseReview') ||
+      contains(github.event_name, 'push')
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -59,7 +64,9 @@ jobs:
           default: true
           components: rustfmt, clippy
       - name: Install .toml files linter
-        run: cargo install taplo-cli
+        run: |
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+          | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
       - name: Checkout to the current branch
         uses: actions/checkout@v3
       - name: Cache Rust Dependencies
