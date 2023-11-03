@@ -10,12 +10,13 @@ anyhow = "1.0.56"
 codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive", "full"] }
 serde = { version = "1.0.152", default-features = false }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-frame-system = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
-frame-support = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", branch = "release-polkadot-v1.1.0" }
+frame-system = { default-features = false, workspace = true }
+pallet-asset-conversion = { default-features = false, workspace = true }
+sp-core = { default-features = false, workspace = true }
+sp-std = { default-features = false, workspace = true }
+sp-runtime = { default-features = false, workspace = true }
+sp-application-crypto = { default-features = false, workspace = true }
+frame-support = { default-features = false, workspace = true }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
   "scale-codec",
   "serde",
@@ -30,6 +31,7 @@ default = ["std"]
 std = [
   "primitive-types/serde",
   "primitive-types/std",
+  "pallet-asset-conversion/std",
   "codec/std",
   "scale-info/std",
   "serde/std",

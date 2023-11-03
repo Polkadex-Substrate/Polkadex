@@ -50,7 +50,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
-use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
+
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -1408,24 +1408,24 @@ parameter_types! {
 impl pallet_asset_conversion::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	type Balance = u128;
 	type AssetBalance = <Self as pallet_balances::Config>::Balance;
 	type HigherPrecisionBalance = u128;
+	type AssetId = u128;
+	type MultiAssetId = AssetId;
+	type MultiAssetIdConverter = polkadex_primitives::AssetIdConverter;
+	type PoolAssetId = u128;
 	type Assets = Assets;
-	type Balance = u128;
 	type PoolAssets = Assets;
-	type AssetId = <Self as pallet_assets::Config>::AssetId;
-	type MultiAssetId = NativeOrAssetId<u128>;
-	type PoolAssetId = <Self as pallet_assets::Config>::AssetId;
-	type PalletId = AssetConversionPalletId;
 	type LPFee = ConstU32<3>; // means 0.3%
 	type PoolSetupFee = PoolSetupFee;
 	type PoolSetupFeeReceiver = AssetConversionOrigin;
 	type LiquidityWithdrawalFee = LiquidityWithdrawalFee;
-	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
-	type AllowMultiAssetPools = AllowMultiAssetPools;
-	type MaxSwapPathLength = ConstU32<4>;
 	type MintMinLiquidity = MintMinLiquidity;
-	type MultiAssetIdConverter = NativeOrAssetIdConverter<u128>;
+	type MaxSwapPathLength = ConstU32<4>;
+	type PalletId = AssetConversionPalletId;
+	type AllowMultiAssetPools = AllowMultiAssetPools;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = AssetU128;
 }
@@ -1622,18 +1622,18 @@ impl_runtime_apis! {
 		Block,
 		Balance,
 		u128,
-		NativeOrAssetId<u128>
+		AssetId
 	> for Runtime
 	{
-		fn quote_price_exact_tokens_for_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
+		fn quote_price_exact_tokens_for_tokens(asset1: AssetId, asset2: AssetId, amount: u128, include_fee: bool) -> Option<Balance> {
 			AssetConversion::quote_price_exact_tokens_for_tokens(asset1, asset2, amount, include_fee)
 		}
 
-		fn quote_price_tokens_for_exact_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
+		fn quote_price_tokens_for_exact_tokens(asset1: AssetId, asset2: AssetId, amount: u128, include_fee: bool) -> Option<Balance> {
 			AssetConversion::quote_price_tokens_for_exact_tokens(asset1, asset2, amount, include_fee)
 		}
 
-		fn get_reserves(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>) -> Option<(Balance, Balance)> {
+		fn get_reserves(asset1: AssetId, asset2: AssetId) -> Option<(Balance, Balance)> {
 			AssetConversion::get_reserves(&asset1, &asset2).ok()
 		}
 	}
