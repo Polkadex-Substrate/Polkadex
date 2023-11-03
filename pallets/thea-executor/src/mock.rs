@@ -17,7 +17,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::pallet as thea_executor;
-use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
+use frame_support::{
+	ord_parameter_types, parameter_types, traits::AsEnsureOriginWithArg, PalletId,
+};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
@@ -142,10 +144,14 @@ impl thea::Config for Test {
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
 
+ord_parameter_types! {
+	pub const AssetConversionOrigin: u32 = 1;
+}
+
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
 	pub AllowMultiAssetPools: bool = true;
-	pub const PoolSetupFee: Balance = DOLLARS; // should be more or equal to the existential deposit
+	pub const PoolSetupFee: Balance = 1000000000000; // should be more or equal to the existential deposit
 	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
 	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
 }
@@ -169,7 +175,7 @@ impl pallet_asset_conversion::Config for Test {
 	type MaxSwapPathLength = ConstU32<4>;
 	type PalletId = AssetConversionPalletId;
 	type AllowMultiAssetPools = AllowMultiAssetPools;
-	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = AssetU128;
 }
@@ -180,7 +186,8 @@ parameter_types! {
 	pub const PolkadexAssetId: u128 = 0;
 	pub const ParaId: u32 = 2040;
 }
-
+use sp_core::ConstU32;
+use sp_runtime::Permill;
 impl thea_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;

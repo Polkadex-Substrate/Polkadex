@@ -53,7 +53,8 @@ fn test_withdraw_returns_ok() {
 				1000u128,
 				beneficiary.to_vec(),
 				false,
-				1
+				1,
+				false
 			),
 			crate::Error::<Test>::BeneficiaryTooLong
 		);
@@ -86,7 +87,8 @@ fn test_transfer_native_asset() {
 			10_000_000_000_000u128,
 			vec![1; 32],
 			false,
-			1
+			1,
+			false
 		));
 		// Verify
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
@@ -152,7 +154,7 @@ fn test_claim_deposit_returns_ok() {
 			extra: vec![],
 		};
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1));
+		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, recipient));
 	})
 }
 
@@ -179,7 +181,7 @@ fn test_claim_deposit_returns_asset_not_registered() {
 		};
 		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
 		assert_noop!(
-			TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1),
+			TheaExecutor::claim_deposit(RuntimeOrigin::signed(3), 1, recipient),
 			crate::Error::<Test>::AssetNotRegistered
 		);
 	})
@@ -261,6 +263,7 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				false,
 				false
 			),
 			BadOrigin
@@ -271,6 +274,7 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				false,
 				false
 			),
 			BadOrigin
@@ -282,6 +286,7 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				false,
 				false
 			),
 			Error::<Test>::AssetNotRegistered
@@ -293,6 +298,7 @@ fn test_parachain_withdraw_full() {
 				asset_id,
 				1_000_000_000,
 				beneficiary.clone(),
+				false,
 				false
 			),
 			sp_runtime::TokenError::FundsUnavailable
@@ -303,6 +309,7 @@ fn test_parachain_withdraw_full() {
 			asset_id,
 			1_000_000_000,
 			beneficiary.clone(),
+			false,
 			false
 		));
 	})

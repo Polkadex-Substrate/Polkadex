@@ -518,48 +518,45 @@ pub mod pallet {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
-
-			let path: BoundedVec<
-				<T as pallet_asset_conversion::Config>::MultiAssetId,
-				<T as pallet_asset_conversion::Config>::MaxSwapPathLength,
-			> = BoundedVec::truncate_from(sp_std::vec![
-				polkadex_primitives::AssetId::Asset(deposit.asset_id).into(),
-				polkadex_primitives::AssetId::Polkadex.into()
-			]);
-
-			// Calculate the amount required.
-			let min_deposit_required =
-				pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
-					path[0].clone(),
-					path[1].clone(),
-					sp_runtime::traits::One::one(),
-					true,
-				)
-				.ok_or(Error::<T>::CannotSwapForFees)?;
-
 			let deposit_amount = deposit.amount_in_native_decimals(metadata); // Convert the decimals configured in metadata
-																  // Check if the deposit amount is less than the minimum required amount
-			if deposit_amount < min_deposit_required.saturated_into() &&
-				!frame_system::Pallet::<T>::account_exists(&recipient)
-			{
-				Self::deposit_event(Event::<T>::InsufficientDeposit(
-					recipient.clone(),
-					deposit_amount,
-					min_deposit_required,
-				));
-			}
 
-			Self::resolver_deposit(
-				deposit.asset_id.into(),
-				deposit_amount,
-				recipient,
-				Self::thea_account(),
-				1u128,
-				Self::thea_account(),
-			)?;
-
-			// Check if recipient account exists, if not, convert 1 PDEX and create it.
 			if !frame_system::Pallet::<T>::account_exists(&recipient) {
+				let path: BoundedVec<
+					<T as pallet_asset_conversion::Config>::MultiAssetId,
+					<T as pallet_asset_conversion::Config>::MaxSwapPathLength,
+				> = BoundedVec::truncate_from(sp_std::vec![
+					polkadex_primitives::AssetId::Asset(deposit.asset_id).into(),
+					polkadex_primitives::AssetId::Polkadex.into()
+				]);
+
+				// Calculate the amount required.
+				let min_deposit_required =
+					pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
+						path[0].clone(),
+						path[1].clone(),
+						sp_runtime::traits::One::one(),
+						true,
+					)
+					.ok_or(Error::<T>::CannotSwapForFees)?;
+
+				// Check if the deposit amount is less than the minimum required amount
+				if deposit_amount < min_deposit_required.saturated_into() {
+					Self::deposit_event(Event::<T>::InsufficientDeposit(
+						recipient.clone(),
+						deposit_amount,
+						min_deposit_required,
+					));
+				}
+
+				Self::resolver_deposit(
+					deposit.asset_id.into(),
+					deposit_amount,
+					recipient,
+					Self::thea_account(),
+					1u128,
+					Self::thea_account(),
+				)?;
+
 				pallet_asset_conversion::Pallet::<T>::do_swap_tokens_for_exact_tokens(
 					recipient.clone(),
 					path,
@@ -567,6 +564,15 @@ pub mod pallet {
 					Some(min_deposit_required),
 					recipient.clone(),
 					false,
+				)?;
+			} else {
+				Self::resolver_deposit(
+					deposit.asset_id.into(),
+					deposit_amount,
+					recipient,
+					Self::thea_account(),
+					1u128,
+					Self::thea_account(),
 				)?;
 			}
 
