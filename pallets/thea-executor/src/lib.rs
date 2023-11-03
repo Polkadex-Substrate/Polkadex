@@ -219,8 +219,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> where <T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId> {
-		/// An example dispatch able that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
 		pub fn withdraw(
@@ -230,10 +229,11 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
+			pay_with_tokens: bool
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// Assumes the foreign chain can decode the given vector bytes as recipient
-			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network)?;
+			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network, pay_with_tokens)?;
 			Ok(())
 		}
 
@@ -303,6 +303,7 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: sp_std::boxed::Box<VersionedMultiLocation>,
 			pay_for_remaining: bool,
+			pay_with_tokens: bool
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let network = 1;
@@ -313,6 +314,7 @@ pub mod pallet {
 				beneficiary.encode(),
 				pay_for_remaining,
 				network,
+				pay_with_tokens
 			)?;
 			Ok(())
 		}
@@ -354,25 +356,18 @@ pub mod pallet {
 		pub fn do_withdraw(
 			user: T::AccountId,
 			asset_id: u128,
-			amount: u128,
+			mut amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
+			pay_with_tokens: bool
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
-			let mut withdraw = Withdraw {
-				id: Self::new_random_id(),
-				asset_id,
-				amount,
-				destination: beneficiary.clone(),
-				is_blocked: false,
-				extra: Vec::new(),
-			};
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 			let metadata =
-				<Metadata<T>>::get(withdraw.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+				<Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 
 			ensure!(
 				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
@@ -392,16 +387,53 @@ pub mod pallet {
 					))
 			}
 
-			// Pay the fees
-			<T as Config>::Currency::transfer(
-				&user,
-				&Self::thea_account(),
-				total_fees.saturated_into(),
-				Preservation::Preserve,
-			)?;
+			if pay_with_tokens {
+				// User wants to pay with withdrawing tokens.
+				let path: BoundedVec<<T as pallet_asset_conversion::Config>::MultiAssetId, <T as pallet_asset_conversion::Config>::MaxSwapPathLength> = BoundedVec::truncate_from(sp_std::vec![
+					polkadex_primitives::AssetId::Asset(asset_id).into(),
+					polkadex_primitives::AssetId::Polkadex.into()]);
+
+				// Calculate the amount required.
+				let min_withdrawal_tokens_required = pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
+					path[0].clone(),
+					path[1].clone(),
+					sp_runtime::traits::One::one(),
+					true)
+					.ok_or(Error::<T>::CannotSwapForFees)?;
+				ensure!(amount > min_withdrawal_tokens_required.saturated_into(), Error::<T>::AmountCannotBeZero);
+
+				let token_taken = pallet_asset_conversion::Pallet::<T>::do_swap_tokens_for_exact_tokens(
+					user.clone(),
+					path,
+					total_fees.saturated_into(),
+					Some(min_withdrawal_tokens_required),
+					Self::thea_account(),
+					false
+				)?;
+
+				amount = amount.saturating_sub(token_taken.saturated_into());
+
+			}else {
+				// Pay the fees
+				<T as Config>::Currency::transfer(
+					&user,
+					&Self::thea_account(),
+					total_fees.saturated_into(),
+					Preservation::Preserve,
+				)?;
+			}
 
 			// Withdraw assets
 			Self::resolver_withdraw(asset_id.into(), amount, &user, Self::thea_account())?;
+
+			let mut withdraw = Withdraw {
+				id: Self::new_random_id(),
+				asset_id,
+				amount,
+				destination: beneficiary.clone(),
+				is_blocked: false,
+				extra: Vec::new(),
+			};
 
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
 				network,
