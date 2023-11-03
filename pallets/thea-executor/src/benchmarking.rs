@@ -56,35 +56,35 @@ benchmarks! {
 	claim_deposit {
 		let r in 1 .. 1000;
 		let account = account::<T::AccountId>("alice", 1, r);
-		let asset_id: T::AssetId = 100u128.into();
+		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
 		let deposits = create_deposit::<T>(account.clone());
 		let metadata = AssetMetadata::new(10).unwrap();
 		<Metadata<T>>::insert(100, metadata);
-		T::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
 		<ApprovedDeposits<T>>::insert(account.clone(), deposits);
-	}: _(RawOrigin::Signed(account.clone()), 10)
+	}: _(RawOrigin::None, 10,account.clone())
 	verify {
-		let current_balance = T::Assets::balance(asset_id.into(), &account);
+		let current_balance = <T as pallet::Config>::Assets::balance(asset_id.into(), &account);
 		assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into());
 	}
 
 	withdraw {
 		let r in 1 .. 1000;
-		let asset_id: T::AssetId = 100u128.into();
+		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
 		let admin = account::<T::AccountId>("admin", 1, r);
 		let network_id = 1;
-		T::Currency::mint_into(&admin, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
-		T::Assets::create(asset_id.into(), admin.clone(), true, 1u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&admin, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Assets::create(asset_id.into(), admin.clone(), true, 1u128.saturated_into()).unwrap();
 		let account = account::<T::AccountId>("alice", 1, r);
-		T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
-		T::Currency::mint_into(&account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
 		let pallet_acc = T::TheaPalletId::get().into_account_truncating();
-		T::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
 		let metadata = AssetMetadata::new(3).unwrap();
 		<Metadata<T>>::insert(100, metadata);
 		<WithdrawalFees<T>>::insert(network_id, 10);
 		let benificary = vec![1;32];
-	}: _(RawOrigin::Signed(account.clone()), 100, 1_000, benificary, true, network_id)
+	}: _(RawOrigin::Signed(account.clone()), 100, 1_000, benificary, true, network_id, false)
 	verify {
 		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
 		assert_eq!(ready_withdrawal.len(), 1);
@@ -92,21 +92,21 @@ benchmarks! {
 
 	parachain_withdraw {
 		let r in 1 .. 1000;
-		let asset_id: T::AssetId = 100u128.into();
+		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
 		let admin = account::<T::AccountId>("admin", 1, r);
 		let network_id = 1;
-		T::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into()).unwrap();
 		let pallet_acc = T::TheaPalletId::get().into_account_truncating();
-		T::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
 		let account = account::<T::AccountId>("alice", 1, r);
-		T::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
-		T::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
 		let metadata = AssetMetadata::new(10).unwrap();
 		<Metadata<T>>::insert(100, metadata);
 		<WithdrawalFees<T>>::insert(network_id, 1_000);
 		let multilocation = MultiLocation { parents: 1, interior: Junctions::Here };
 		let benificary = VersionedMultiLocation::V3(multilocation);
-	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, Box::new(benificary), true)
+	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, Box::new(benificary), true, false)
 	verify {
 		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
 		assert_eq!(ready_withdrawal.len(), 1);
