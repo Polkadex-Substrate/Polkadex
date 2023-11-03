@@ -265,7 +265,7 @@ pub mod pallet {
 			num_deposits: u32,
 			user: T::AccountId,
 		) -> DispatchResult {
-			ensure_none(origin)?;
+			let _ = ensure_signed(origin)?;
 
 			let mut deposits = <ApprovedDeposits<T>>::get(&user);
 			let length: u32 = deposits.len().saturated_into();
