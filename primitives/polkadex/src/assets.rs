@@ -163,7 +163,7 @@ impl From<u128> for AssetId {
 	fn from(value: u128) -> Self {
 		if value.is_zero() {
 			Self::Polkadex
-		}else{
+		} else {
 			Self::Asset(value)
 		}
 	}
@@ -171,9 +171,7 @@ impl From<u128> for AssetId {
 
 pub struct AssetIdConverter;
 
-impl MultiAssetIdConverter<AssetId, u128>
-for AssetIdConverter
-{
+impl MultiAssetIdConverter<AssetId, u128> for AssetIdConverter {
 	fn get_native() -> AssetId {
 		AssetId::Polkadex
 	}

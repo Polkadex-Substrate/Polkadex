@@ -161,7 +161,11 @@ pub mod pallet {
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
 		/// Insufficient Deposit
-		InsufficientDeposit(T::AccountId, u128, <T as pallet_asset_conversion::Config>::AssetBalance),
+		InsufficientDeposit(
+			T::AccountId,
+			u128,
+			<T as pallet_asset_conversion::Config>::AssetBalance,
+		),
 	}
 
 	// Errors inform users that something went wrong.
@@ -198,7 +202,7 @@ pub mod pallet {
 		/// Wrong network
 		WrongNetwork,
 		/// Not able to get price for fee swap
-		CannotSwapForFees
+		CannotSwapForFees,
 	}
 
 	#[pallet::hooks]
@@ -218,8 +222,10 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> where <T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId> {
-
+	impl<T: Config> Pallet<T>
+	where
+		<T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId>,
+	{
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
 		pub fn withdraw(
@@ -229,11 +235,19 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
-			pay_with_tokens: bool
+			pay_with_tokens: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// Assumes the foreign chain can decode the given vector bytes as recipient
-			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network, pay_with_tokens)?;
+			Self::do_withdraw(
+				user,
+				asset_id,
+				amount,
+				beneficiary,
+				pay_for_remaining,
+				network,
+				pay_with_tokens,
+			)?;
 			Ok(())
 		}
 
@@ -246,7 +260,11 @@ pub mod pallet {
 		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32, user: T::AccountId) -> DispatchResult {
+		pub fn claim_deposit(
+			origin: OriginFor<T>,
+			num_deposits: u32,
+			user: T::AccountId,
+		) -> DispatchResult {
 			ensure_none(origin)?;
 
 			let mut deposits = <ApprovedDeposits<T>>::get(&user);
@@ -303,7 +321,7 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: sp_std::boxed::Box<VersionedMultiLocation>,
 			pay_for_remaining: bool,
-			pay_with_tokens: bool
+			pay_with_tokens: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let network = 1;
@@ -314,7 +332,7 @@ pub mod pallet {
 				beneficiary.encode(),
 				pay_for_remaining,
 				network,
-				pay_with_tokens
+				pay_with_tokens,
 			)?;
 			Ok(())
 		}
@@ -340,7 +358,10 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Pallet<T> where <T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId> {
+	impl<T: Config> Pallet<T>
+	where
+		<T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId>,
+	{
 		/// Generates a new random id for withdrawals
 		fn new_random_id() -> Vec<u8> {
 			let mut nonce = <RandomnessNonce<T>>::get();
@@ -360,14 +381,13 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
-			pay_with_tokens: bool
+			pay_with_tokens: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
-			let metadata =
-				<Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 
 			ensure!(
 				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
@@ -389,31 +409,40 @@ pub mod pallet {
 
 			if pay_with_tokens {
 				// User wants to pay with withdrawing tokens.
-				let path: BoundedVec<<T as pallet_asset_conversion::Config>::MultiAssetId, <T as pallet_asset_conversion::Config>::MaxSwapPathLength> = BoundedVec::truncate_from(sp_std::vec![
+				let path: BoundedVec<
+					<T as pallet_asset_conversion::Config>::MultiAssetId,
+					<T as pallet_asset_conversion::Config>::MaxSwapPathLength,
+				> = BoundedVec::truncate_from(sp_std::vec![
 					polkadex_primitives::AssetId::Asset(asset_id).into(),
-					polkadex_primitives::AssetId::Polkadex.into()]);
+					polkadex_primitives::AssetId::Polkadex.into()
+				]);
 
 				// Calculate the amount required.
-				let min_withdrawal_tokens_required = pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
-					path[0].clone(),
-					path[1].clone(),
-					sp_runtime::traits::One::one(),
-					true)
+				let min_withdrawal_tokens_required =
+					pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
+						path[0].clone(),
+						path[1].clone(),
+						sp_runtime::traits::One::one(),
+						true,
+					)
 					.ok_or(Error::<T>::CannotSwapForFees)?;
-				ensure!(amount > min_withdrawal_tokens_required.saturated_into(), Error::<T>::AmountCannotBeZero);
+				ensure!(
+					amount > min_withdrawal_tokens_required.saturated_into(),
+					Error::<T>::AmountCannotBeZero
+				);
 
-				let token_taken = pallet_asset_conversion::Pallet::<T>::do_swap_tokens_for_exact_tokens(
-					user.clone(),
-					path,
-					total_fees.saturated_into(),
-					Some(min_withdrawal_tokens_required),
-					Self::thea_account(),
-					false
-				)?;
+				let token_taken =
+					pallet_asset_conversion::Pallet::<T>::do_swap_tokens_for_exact_tokens(
+						user.clone(),
+						path,
+						total_fees.saturated_into(),
+						Some(min_withdrawal_tokens_required),
+						Self::thea_account(),
+						false,
+					)?;
 
 				amount = amount.saturating_sub(token_taken.saturated_into());
-
-			}else {
+			} else {
 				// Pay the fees
 				<T as Config>::Currency::transfer(
 					&user,
@@ -490,23 +519,34 @@ pub mod pallet {
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 
-			let path: BoundedVec<<T as pallet_asset_conversion::Config>::MultiAssetId, <T as pallet_asset_conversion::Config>::MaxSwapPathLength> = BoundedVec::truncate_from(sp_std::vec![
+			let path: BoundedVec<
+				<T as pallet_asset_conversion::Config>::MultiAssetId,
+				<T as pallet_asset_conversion::Config>::MaxSwapPathLength,
+			> = BoundedVec::truncate_from(sp_std::vec![
 				polkadex_primitives::AssetId::Asset(deposit.asset_id).into(),
-				polkadex_primitives::AssetId::Polkadex.into()]);
+				polkadex_primitives::AssetId::Polkadex.into()
+			]);
 
 			// Calculate the amount required.
-			let min_deposit_required = pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
-				path[0].clone(),
-				 path[1].clone(),
-				 sp_runtime::traits::One::one(),
-				true)
+			let min_deposit_required =
+				pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
+					path[0].clone(),
+					path[1].clone(),
+					sp_runtime::traits::One::one(),
+					true,
+				)
 				.ok_or(Error::<T>::CannotSwapForFees)?;
 
 			let deposit_amount = deposit.amount_in_native_decimals(metadata); // Convert the decimals configured in metadata
-			// Check if the deposit amount is less than the minimum required amount
-			if deposit_amount < min_deposit_required.saturated_into() && !frame_system::Pallet::<T>::account_exists(&recipient) {
+																  // Check if the deposit amount is less than the minimum required amount
+			if deposit_amount < min_deposit_required.saturated_into() &&
+				!frame_system::Pallet::<T>::account_exists(&recipient)
+			{
 				Self::deposit_event(Event::<T>::InsufficientDeposit(
-					recipient.clone(),deposit_amount, min_deposit_required));
+					recipient.clone(),
+					deposit_amount,
+					min_deposit_required,
+				));
 			}
 
 			Self::resolver_deposit(
@@ -526,7 +566,7 @@ pub mod pallet {
 					sp_runtime::traits::One::one(),
 					Some(min_deposit_required),
 					recipient.clone(),
-					false
+					false,
 				)?;
 			}
 
@@ -541,7 +581,10 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> TheaIncomingExecutor for Pallet<T> where <T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId> {
+	impl<T: Config> TheaIncomingExecutor for Pallet<T>
+	where
+		<T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId>,
+	{
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
 			if let Err(error) = Self::do_deposit(network, deposits) {
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
