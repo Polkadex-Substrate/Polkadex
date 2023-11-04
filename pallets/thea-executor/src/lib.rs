@@ -44,11 +44,7 @@ pub trait WeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{
-		pallet_prelude::*,
-		sp_runtime::SaturatedConversion,
-		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
-	};
+	use frame_support::{pallet_prelude::*, sp_runtime::SaturatedConversion, traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation}, transactional};
 	use frame_system::pallet_prelude::*;
 	use pallet_asset_conversion::Swap;
 	use polkadex_primitives::Resolver;
@@ -258,6 +254,7 @@ pub mod pallet {
 		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
+		#[transactional]
 		pub fn claim_deposit(
 			origin: OriginFor<T>,
 			num_deposits: u32,
