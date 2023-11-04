@@ -1165,15 +1165,13 @@ impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-impl pallet_asset_conversion::BenchmarkHelper<u128, pallet_asset_conversion::NativeOrAssetId<u128>>
-	for AssetU128
-{
+impl pallet_asset_conversion::BenchmarkHelper<u128, AssetId> for AssetU128 {
 	fn asset_id(id: u32) -> u128 {
 		id as u128
 	}
 
-	fn multiasset_id(id: u32) -> pallet_asset_conversion::NativeOrAssetId<u128> {
-		pallet_asset_conversion::NativeOrAssetId::Asset(id as u128)
+	fn multiasset_id(id: u32) -> AssetId {
+		AssetId::Asset(id as u128)
 	}
 }
 
@@ -1365,6 +1363,7 @@ impl thea_executor::Config for Runtime {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
+	type Swap = AssetConversion;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

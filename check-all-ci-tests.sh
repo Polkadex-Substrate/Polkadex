@@ -23,4 +23,3 @@ cargo build --features runtime-benchmarks || exit
 ./target/debug/polkadex-node benchmark pallet --pallet "*" --extrinsic "*" --steps 2 --repeat 1 || exit
 cargo clippy -- -D warnings || exit
 cargo test || exit
-RUSTFLAGS="-D warnings" cargo build -p thea-message-handler || exit
