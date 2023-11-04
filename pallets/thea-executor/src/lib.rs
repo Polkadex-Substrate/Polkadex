@@ -50,6 +50,7 @@ pub mod pallet {
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
 	use frame_system::pallet_prelude::*;
+	use pallet_asset_conversion::Swap;
 	use polkadex_primitives::Resolver;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
@@ -65,7 +66,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_asset_conversion::Config {
+	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the Runtime's definition of an
 		/// event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -93,6 +94,12 @@ pub mod pallet {
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<frame_support::PalletId>;
+
+		type Swap: pallet_asset_conversion::Swap<
+			Self::AccountId,
+			u128,
+			polkadex_primitives::AssetId,
+		>;
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
@@ -160,12 +167,6 @@ pub mod pallet {
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
-		/// Insufficient Deposit
-		InsufficientDeposit(
-			T::AccountId,
-			u128,
-			<T as pallet_asset_conversion::Config>::AssetBalance,
-		),
 	}
 
 	// Errors inform users that something went wrong.
@@ -222,10 +223,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId>,
-	{
+	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
 		pub fn withdraw(
@@ -358,10 +356,7 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Pallet<T>
-	where
-		<T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId>,
-	{
+	impl<T: Config> Pallet<T> {
 		/// Generates a new random id for withdrawals
 		fn new_random_id() -> Vec<u8> {
 			let mut nonce = <RandomnessNonce<T>>::get();
@@ -409,37 +404,19 @@ pub mod pallet {
 
 			if pay_with_tokens {
 				// User wants to pay with withdrawing tokens.
-				let path: BoundedVec<
-					<T as pallet_asset_conversion::Config>::MultiAssetId,
-					<T as pallet_asset_conversion::Config>::MaxSwapPathLength,
-				> = BoundedVec::truncate_from(sp_std::vec![
-					polkadex_primitives::AssetId::Asset(asset_id).into(),
-					polkadex_primitives::AssetId::Polkadex.into()
-				]);
+				let path = sp_std::vec![
+					polkadex_primitives::AssetId::Asset(asset_id),
+					polkadex_primitives::AssetId::Polkadex
+				];
 
-				// Calculate the amount required.
-				let min_withdrawal_tokens_required =
-					pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
-						path[0].clone(),
-						path[1].clone(),
-						sp_runtime::traits::One::one(),
-						true,
-					)
-					.ok_or(Error::<T>::CannotSwapForFees)?;
-				ensure!(
-					amount > min_withdrawal_tokens_required.saturated_into(),
-					Error::<T>::AmountCannotBeZero
-				);
-
-				let token_taken =
-					pallet_asset_conversion::Pallet::<T>::do_swap_tokens_for_exact_tokens(
-						user.clone(),
-						path,
-						total_fees.saturated_into(),
-						Some(min_withdrawal_tokens_required),
-						Self::thea_account(),
-						false,
-					)?;
+				let token_taken = T::Swap::swap_tokens_for_exact_tokens(
+					user.clone(),
+					path,
+					total_fees.saturated_into(),
+					None,
+					Self::thea_account(),
+					false,
+				)?;
 
 				amount = amount.saturating_sub(token_taken.saturated_into());
 			} else {
@@ -520,33 +497,11 @@ pub mod pallet {
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 			let deposit_amount = deposit.amount_in_native_decimals(metadata); // Convert the decimals configured in metadata
 
-			if !frame_system::Pallet::<T>::account_exists(&recipient) {
-				let path: BoundedVec<
-					<T as pallet_asset_conversion::Config>::MultiAssetId,
-					<T as pallet_asset_conversion::Config>::MaxSwapPathLength,
-				> = BoundedVec::truncate_from(sp_std::vec![
-					polkadex_primitives::AssetId::Asset(deposit.asset_id).into(),
-					polkadex_primitives::AssetId::Polkadex.into()
-				]);
-
-				// Calculate the amount required.
-				let min_deposit_required =
-					pallet_asset_conversion::Pallet::<T>::quote_price_tokens_for_exact_tokens(
-						path[0].clone(),
-						path[1].clone(),
-						sp_runtime::traits::One::one(),
-						true,
-					)
-					.ok_or(Error::<T>::CannotSwapForFees)?;
-
-				// Check if the deposit amount is less than the minimum required amount
-				if deposit_amount < min_deposit_required.saturated_into() {
-					Self::deposit_event(Event::<T>::InsufficientDeposit(
-						recipient.clone(),
-						deposit_amount,
-						min_deposit_required,
-					));
-				}
+			if !frame_system::Pallet::<T>::account_exists(recipient) {
+				let path = sp_std::vec![
+					polkadex_primitives::AssetId::Asset(deposit.asset_id),
+					polkadex_primitives::AssetId::Polkadex
+				];
 
 				Self::resolver_deposit(
 					deposit.asset_id.into(),
@@ -557,11 +512,11 @@ pub mod pallet {
 					Self::thea_account(),
 				)?;
 
-				pallet_asset_conversion::Pallet::<T>::do_swap_tokens_for_exact_tokens(
+				T::Swap::swap_tokens_for_exact_tokens(
 					recipient.clone(),
 					path,
 					sp_runtime::traits::One::one(),
-					Some(min_deposit_required),
+					None,
 					recipient.clone(),
 					false,
 				)?;
@@ -587,10 +542,7 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> TheaIncomingExecutor for Pallet<T>
-	where
-		<T as pallet_asset_conversion::Config>::MultiAssetId: From<polkadex_primitives::AssetId>,
-	{
+	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
 			if let Err(error) = Self::do_deposit(network, deposits) {
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
@@ -605,7 +557,7 @@ pub mod pallet {
 			<T as pallet::Config>::Currency,
 			<T as pallet::Config>::Assets,
 			<T as pallet::Config>::AssetId,
-			<T as pallet::Config>::NativeAssetId,
+			<T as Config>::NativeAssetId,
 		> for Pallet<T>
 	{
 	}
