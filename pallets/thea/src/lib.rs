@@ -33,9 +33,9 @@ pub use pallet::*;
 use parity_scale_codec::Encode;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
-	traits::{BlockNumberProvider, Member},
+	traits::{BlockNumberProvider, Member, Verify},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	Percent, RuntimeAppPublic, SaturatedConversion,
+	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
@@ -173,6 +173,12 @@ pub mod pallet {
 	#[pallet::getter(fn active_networks)]
 	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
 
+	/// Thea Message Relayer
+	#[pallet::storage]
+	#[pallet::getter(fn thea_message_relayer)]
+	pub(super) type TheaMessageRelayer<T: Config> =
+		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -205,8 +211,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { payload, signatures } =>
-					Self::validate_incoming_message(payload, signatures),
+				Call::incoming_message { payload, signature } =>
+					Self::validate_incoming_message(payload, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -221,7 +227,7 @@ pub mod pallet {
 		pub fn incoming_message(
 			origin: OriginFor<T>,
 			payload: Message,
-			_signatures: Vec<(u16, T::Signature)>,
+			_signature: sp_core::ecdsa::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			// Signature and nonce are already verified in validate_unsigned, no need to do it again
@@ -307,7 +313,7 @@ impl<T: Config> Pallet<T> {
 
 	fn validate_incoming_message(
 		payload: &Message,
-		signatures: &Vec<(u16, T::Signature)>,
+		signature: &sp_core::ecdsa::Signature,
 	) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
 		let next_nonce = <IncomingNonce<T>>::get(payload.network).saturating_add(1);
@@ -316,29 +322,16 @@ impl<T: Config> Pallet<T> {
 			return InvalidTransaction::Custom(1).into()
 		}
 
-		// Incoming messages are always signed by the current validators.
-		let current_set_id = <ValidatorSetId<T>>::get();
-		let authorities = <Authorities<T>>::get(current_set_id).to_vec();
-
-		// Check for super majority
-		const MAJORITY: u8 = 67;
-		let p = Percent::from_percent(MAJORITY);
-		let threshold = p * authorities.len();
-
-		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(4).into()
-		}
-
 		let encoded_payload = payload.encode();
 		let msg_hash = sp_io::hashing::sha2_256(&encoded_payload);
-		for (index, signature) in signatures {
-			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(2).into(),
-				Some(auth) =>
-					if !auth.verify(&msg_hash, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(3).into()
-					},
-			}
+		// TODO: Replace message relayer is validator side light clients
+
+		match <TheaMessageRelayer<T>>::get() {
+			None => return InvalidTransaction::Custom(2).into(),
+			Some(relayer) =>
+				if !signature.verify(&msg_hash[..], &relayer) {
+					return InvalidTransaction::Custom(3).into()
+				},
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
