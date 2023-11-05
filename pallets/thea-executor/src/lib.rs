@@ -489,7 +489,7 @@ pub mod pallet {
 			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 			let deposit: Deposit<T::AccountId> =
 				Deposit::from_ethereum_deposit(txn_id, asset_id, user, amount, metadata);
-			Self::execute_deposit(deposit.clone())?;
+			Self::execute_deposit(network, deposit.clone())?;
 			Ok(deposit)
 		}
 
@@ -503,11 +503,14 @@ pub mod pallet {
 
 			deposit.amount = deposit.amount_in_native_decimals(metadata); // Convert amount to native form
 
-			Self::execute_deposit(deposit)?;
+			Self::execute_deposit(network, deposit)?;
 			Ok(())
 		}
 
-		pub fn execute_deposit(deposit: Deposit<T::AccountId>) -> Result<(), DispatchError> {
+		pub fn execute_deposit(
+			network: Network,
+			deposit: Deposit<T::AccountId>,
+		) -> Result<(), DispatchError> {
 			Self::resolver_deposit(
 				deposit.asset_id.into(),
 				// Convert the decimals config
@@ -518,7 +521,14 @@ pub mod pallet {
 				Self::thea_account(),
 			)?;
 
-			// TODO: Emit Approve event too.
+			// TODO: It's here to not break the indexing workflow, remove it later.
+			Self::deposit_event(Event::<T>::DepositApproved(
+				network,
+				deposit.recipient.clone(),
+				deposit.asset_id,
+				deposit.amount,
+				deposit.id.clone(),
+			));
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
