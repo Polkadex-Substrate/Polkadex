@@ -18,6 +18,7 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
+pallet-ocex-lmp = {path = "../../pallets/ocex", default-features = false}
 xcm = { workspace = true, default-features = false }
 
 [dev-dependencies]
@@ -31,6 +32,7 @@ thea = { path = "../thea" }
 default = ["std"]
 std = [
   "log/std",
+  "pallet-ocex-lmp/std",
   "sp-application-crypto/std",
   "thea-primitives/std",
   "parity-scale-codec/std",

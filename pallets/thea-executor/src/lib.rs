@@ -54,6 +54,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use polkadex_primitives::Resolver;
+	use sp_core::{H160, H256, U256};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
@@ -62,7 +63,6 @@ pub mod pallet {
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK, PARACHAIN_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
-	use sp_core::H160;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -70,7 +70,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_ocex_lmp::Config {
 		/// Because this pallet emits events, it depends on the Runtime's definition of an
 		/// event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -410,7 +410,7 @@ pub mod pallet {
 		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
 			match network {
 				PARACHAIN_NETWORK => Self::parachain_deposit(network, payload)?,
-				ETHEREUM_NETWORK => Self::ethereum_deposit(network,payload)?,
+				ETHEREUM_NETWORK => Self::ethereum_deposit(network, payload)?,
 			}
 			Ok(())
 		}
@@ -422,37 +422,74 @@ pub mod pallet {
 			// 2. Execute the payload
 			match message.action {
 				EtherumAction::Deposit(token_contract, amount, user) => {
-
-					// Convert to token address to asset_id
-					let mut asset: Vec<u8> = network.encode(); // We need to add network id too,
-					// to differentiate same contracts from different L1s.
-					asset.append(&mut token_contract.as_bytes().to_vec());
-					let asset_id = u128::from_be_bytes(sp_io::hashing::blake2_128(&asset[..]));
-
-					if !<EthereumAssetMapping<T>>::contains_key(token_contract) {
-						<EthereumAssetMapping<T>>::insert(token_contract, asset_id);
-						<EthereumAssetReverseMapping<T>>::insert(asset_id, token_contract);
-					}
-					// Get the metadata
-					let metadata = <Metadata<T>>::get(asset_id)
-						.ok_or(Error::<T>::AssetNotRegistered)?;
-					let deposit: Deposit<T::AccountId> = Deposit::from_ethereum_deposit(
+					Self::regular_ethereum_deposit(
+						network,
 						message.txn_id,
-						asset_id,
-						user,
+						token_contract,
 						amount,
-						metadata,
-					);
-					Self::execute_deposit(deposit)?;
+						user,
+					)?;
 				},
 				EtherumAction::DepositToOrderbook(token_contract, amount, main, proxy) => {
-
+					let deposit = Self::regular_ethereum_deposit(
+						network,
+						message.txn_id,
+						token_contract,
+						amount,
+						main.clone(),
+					)?;
+					// Check if main is registered user in OCEX, if not register it
+					if !pallet_ocex_lmp::Pallet::<T>::check_main_account_registration(&main) {
+						pallet_ocex_lmp::Pallet::<T>::register_user(main.clone(), proxy)?;
+					} else {
+						// Check if proxy is registered under main in OCEX, if not register it
+						let (flag, num) =
+							pallet_ocex_lmp::Pallet::<T>::check_if_proxy_is_registered(
+								&main, &proxy,
+							);
+						if !flag && num < polkadex_primitives::ProxyLimit::get().saturated_into() {
+							pallet_ocex_lmp::Pallet::<T>::add_proxy(main.clone(), proxy)?;
+						} else {
+							// Drop the proxy silently
+						}
+					}
+					// Call deposit for user in OCEX.
+					pallet_ocex_lmp::Pallet::<T>::do_deposit(
+						main,
+						polkadex_primitives::AssetId::Asset(deposit.asset_id),
+						deposit.amount.saturated_into(),
+					)?;
 				},
 				EtherumAction::Swap => {
 					todo!()
 				},
 			}
 			Ok(())
+		}
+
+		pub fn regular_ethereum_deposit(
+			network: Network,
+			txn_id: H256,
+			token_contract: H160,
+			amount: U256,
+			user: T::AccountId,
+		) -> Result<Deposit<T::AccountId>, DispatchError> {
+			// Convert to token address to asset_id
+			let mut asset: Vec<u8> = network.encode(); // We need to add network id too,
+										   // to differentiate same contracts from different L1s.
+			asset.append(&mut token_contract.as_bytes().to_vec());
+			let asset_id = u128::from_be_bytes(sp_io::hashing::blake2_128(&asset[..]));
+
+			if !<EthereumAssetMapping<T>>::contains_key(token_contract) {
+				<EthereumAssetMapping<T>>::insert(token_contract, asset_id);
+				<EthereumAssetReverseMapping<T>>::insert(asset_id, token_contract);
+			}
+			// Get the metadata
+			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+			let deposit: Deposit<T::AccountId> =
+				Deposit::from_ethereum_deposit(txn_id, asset_id, user, amount, metadata);
+			Self::execute_deposit(deposit.clone())?;
+			Ok(deposit)
 		}
 
 		pub fn parachain_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
@@ -469,18 +506,18 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn execute_deposit(
-			deposit: Deposit<T::AccountId>,
-		) -> Result<(), DispatchError> {
+		pub fn execute_deposit(deposit: Deposit<T::AccountId>) -> Result<(), DispatchError> {
 			Self::resolver_deposit(
 				deposit.asset_id.into(),
 				// Convert the decimals config
 				deposit.amount,
-				deposit.recipient,
+				&deposit.recipient,
 				Self::thea_account(),
 				1u128,
 				Self::thea_account(),
 			)?;
+
+			// TODO: Emit Approve event too.
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(

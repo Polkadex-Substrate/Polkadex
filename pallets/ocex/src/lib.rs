@@ -436,24 +436,7 @@ pub mod pallet {
 		#[pallet::weight(< T as Config >::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
-			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
-			// TODO: Avoid duplicate Proxy accounts
-			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
-			if let Some(mut account_info) = <Accounts<T>>::get(&main_account) {
-				ensure!(
-					account_info.add_proxy(proxy.clone()).is_ok(),
-					Error::<T>::ProxyLimitExceeded
-				);
-				let current_blk = frame_system::Pallet::<T>::current_block_number();
-				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
-						main_account.clone(),
-						proxy.clone(),
-					));
-				});
-				<Accounts<T>>::insert(&main_account, account_info);
-				Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
-			}
+			Self::add_proxy(main_account,proxy)?;
 			Ok(())
 		}
 
@@ -1199,6 +1182,42 @@ pub mod pallet {
 			});
 			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
 			Ok(())
+		}
+
+		pub fn add_proxy(main_account: T::AccountId, proxy: T::AccountId) -> DispatchResult {
+			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
+			// TODO: Avoid duplicate Proxy accounts
+			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
+			if let Some(mut account_info) = <Accounts<T>>::get(&main_account) {
+				ensure!(
+					account_info.add_proxy(proxy.clone()).is_ok(),
+					Error::<T>::ProxyLimitExceeded
+				);
+				let current_blk = frame_system::Pallet::<T>::current_block_number();
+				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
+						main_account.clone(),
+						proxy.clone(),
+					));
+				});
+				<Accounts<T>>::insert(&main_account, account_info);
+				Self::deposit_event(Event::NewProxyAdded { main: main_account, proxy });
+			}
+			Ok(())
+		}
+
+		/// Returns true if the main account is registered
+		pub fn check_main_account_registration(main_account: &T::AccountId) -> bool {
+			<Accounts<T>>::contains_key(main_account)
+		}
+
+		/// Returns true if proxy is registered under the main account. False otherwise
+		pub fn check_if_proxy_is_registered(main_account: &T::AccountId, proxy: &T::AccountId) -> (bool, usize) {
+			if let Some(account_info) = <Accounts<T>>::get(main_account) {
+				(account_info.proxies.contains(proxy),account_info.proxies.len())
+			} else {
+				(false,0)
+			}
 		}
 
 		pub fn withdrawal_from_orderbook(

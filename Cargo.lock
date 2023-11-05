@@ -14047,6 +14047,7 @@ dependencies = [
  "log",
  "pallet-assets",
  "pallet-balances",
+ "pallet-ocex-lmp",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
