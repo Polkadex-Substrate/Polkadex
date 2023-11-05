@@ -420,6 +420,7 @@ pub mod pallet {
 			let message: EthereumOP<T::AccountId> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			// 2. Execute the payload
+			// TODO: Add logic to take txn fees in incoming deposits if PDEX is not available
 			match message.action {
 				EtherumAction::Deposit(token_contract, amount, user) => {
 					Self::regular_ethereum_deposit(
