@@ -20,9 +20,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::Hashable;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+use sp_core::{H256, U256};
 use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
@@ -95,6 +97,23 @@ impl<AccountId> Deposit<AccountId> {
 	pub fn amount_in_foreign_decimals(&self, metadata: AssetMetadata) -> u128 {
 		metadata.convert_from_native_decimals(self.amount)
 	}
+
+	pub fn from_ethereum_deposit(
+		txn_id: H256,
+		asset_id: u128,
+		user: AccountId,
+		amount: U256,
+		metadata: AssetMetadata,
+	) -> Deposit<AccountId> {
+
+		Deposit {
+			id: txn_id.identity(),
+			recipient: user,
+			asset_id,
+			amount: metadata.convert_to_native_decimals_from_u256(amount),
+			extra: Vec::new(),
+		}
+	}
 }
 
 /// Defines the structure of the withdraw.
@@ -156,6 +175,14 @@ impl AssetMetadata {
 			Ordering::Equal => amount,
 			Ordering::Greater => amount.saturating_div(10u128.pow(diff as u32)),
 		}
+	}
+
+	pub fn convert_to_native_decimals_from_u256(&self, amount: U256) -> u128 {
+		todo!()
+	}
+
+	pub fn convert_from_native_decimals_to_u256(&self, amount: u128) -> U256 {
+		todo!()
 	}
 }
 

@@ -57,10 +57,12 @@ pub mod pallet {
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
+		ethereum::{EthereumOP, EtherumAction},
 		types::{AssetMetadata, Deposit, Withdraw},
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
+		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK, PARACHAIN_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
+	use sp_core::H160;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -143,6 +145,18 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn asset_metadata)]
 	pub(super) type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
+
+	/// Map between Eth token contract and asset_id (u128)
+	#[pallet::storage]
+	#[pallet::getter(fn ethereum_asset_mapping)]
+	pub(super) type EthereumAssetMapping<T: Config> =
+		StorageMap<_, Identity, H160, u128, OptionQuery>;
+
+	/// Reverse Map between asset_id (u128) and Eth token contract
+	#[pallet::storage]
+	#[pallet::getter(fn reverse_ethereum_asset_mapping)]
+	pub(super) type EthereumAssetReverseMapping<T: Config> =
+		StorageMap<_, Identity, u128, H160, OptionQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
@@ -233,44 +247,6 @@ pub mod pallet {
 			let user = ensure_signed(origin)?;
 			// Assumes the foreign chain can decode the given vector bytes as recipient
 			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network)?;
-			Ok(())
-		}
-
-		/// Manually claim an approved deposit.
-		///
-		/// # Parameters
-		///
-		/// * `origin`: User.
-		/// * `num_deposits`: Number of deposits to claim from available deposits,
-		/// (it's used to parametrise the weight of this extrinsic).
-		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
-			let user = ensure_signed(origin)?;
-
-			let mut deposits = <ApprovedDeposits<T>>::get(&user);
-			let length: u32 = deposits.len().saturated_into();
-			let length: u32 = if length <= num_deposits { length } else { num_deposits };
-			for _ in 0..length {
-				if let Some(deposit) = deposits.pop() {
-					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
-						deposits.push(deposit);
-						// Save it back on failure
-						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
-						return Err(err)
-					}
-				} else {
-					break
-				}
-			}
-
-			if !deposits.is_empty() {
-				// If pending deposits are available, save it back
-				<ApprovedDeposits<T>>::insert(&user, deposits)
-			} else {
-				<ApprovedDeposits<T>>::remove(&user);
-			}
-
 			Ok(())
 		}
 
@@ -432,36 +408,75 @@ pub mod pallet {
 		}
 
 		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
-			let deposits: Vec<Deposit<T::AccountId>> =
-				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
-			for deposit in deposits {
-				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
-					pending_deposits.push(deposit.clone())
-				});
-				Self::deposit_event(Event::<T>::DepositApproved(
-					network,
-					deposit.recipient,
-					deposit.asset_id,
-					deposit.amount,
-					deposit.id,
-				))
+			match network {
+				PARACHAIN_NETWORK => Self::parachain_deposit(network, payload)?,
+				ETHEREUM_NETWORK => Self::ethereum_deposit(network,payload)?,
 			}
+			Ok(())
+		}
+
+		pub fn ethereum_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
+			// 1. Decode the payload
+			let message: EthereumOP<T::AccountId> =
+				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+			// 2. Execute the payload
+			match message.action {
+				EtherumAction::Deposit(token_contract, amount, user) => {
+
+					// Convert to token address to asset_id
+					let mut asset: Vec<u8> = network.encode(); // We need to add network id too,
+					// to differentiate same contracts from different L1s.
+					asset.append(&mut token_contract.as_bytes().to_vec());
+					let asset_id = u128::from_be_bytes(sp_io::hashing::blake2_128(&asset[..]));
+
+					if !<EthereumAssetMapping<T>>::contains_key(token_contract) {
+						<EthereumAssetMapping<T>>::insert(token_contract, asset_id);
+						<EthereumAssetReverseMapping<T>>::insert(asset_id, token_contract);
+					}
+					// Get the metadata
+					let metadata = <Metadata<T>>::get(asset_id)
+						.ok_or(Error::<T>::AssetNotRegistered)?;
+					let deposit: Deposit<T::AccountId> = Deposit::from_ethereum_deposit(
+						message.txn_id,
+						asset_id,
+						user,
+						amount,
+						metadata,
+					);
+					Self::execute_deposit(deposit)?;
+				},
+				EtherumAction::DepositToOrderbook(token_contract, amount, main, proxy) => {
+
+				},
+				EtherumAction::Swap => {
+					todo!()
+				},
+			}
+			Ok(())
+		}
+
+		pub fn parachain_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
+			let mut deposit: Deposit<T::AccountId> =
+				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
+
+			// Get the metadata
+			let metadata =
+				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+
+			deposit.amount = deposit.amount_in_native_decimals(metadata); // Convert amount to native form
+
+			Self::execute_deposit(deposit)?;
 			Ok(())
 		}
 
 		pub fn execute_deposit(
 			deposit: Deposit<T::AccountId>,
-			recipient: &T::AccountId,
 		) -> Result<(), DispatchError> {
-			// Get the metadata
-			let metadata =
-				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
-
 			Self::resolver_deposit(
 				deposit.asset_id.into(),
 				// Convert the decimals config
-				deposit.amount_in_native_decimals(metadata),
-				recipient,
+				deposit.amount,
+				deposit.recipient,
 				Self::thea_account(),
 				1u128,
 				Self::thea_account(),
@@ -469,9 +484,9 @@ pub mod pallet {
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
-				recipient.clone(),
+				deposit.recipient.clone(),
 				deposit.asset_id,
-				deposit.amount_in_native_decimals(metadata),
+				deposit.amount,
 				deposit.id,
 			));
 			Ok(())

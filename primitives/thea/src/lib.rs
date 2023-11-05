@@ -24,6 +24,7 @@
 #![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod ethereum;
 pub mod types;
 
 pub use crate::types::Message;
@@ -82,6 +83,12 @@ pub type AuthorityIndex = u32;
 
 /// Network type.
 pub type Network = u8;
+
+/// Parachain Network ID
+pub const PARACHAIN_NETWORK: Network = 1;
+
+/// Ethereum Network ID
+pub const ETHEREUM_NETWORK: Network = 1;
 
 /// Native network id.
 pub const NATIVE_NETWORK: Network = 0;
