@@ -53,15 +53,11 @@ pub mod pallet {
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::Resolver;
-	use sp_core::{H160, H256, U256};
+	use polkadex_primitives::{ Resolver};
+	use sp_core::{H160, H256};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
-	use thea_primitives::{
-		ethereum::{EthereumOP, EtherumAction},
-		types::{AssetMetadata, Deposit, Withdraw},
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK, PARACHAIN_NETWORK,
-	};
+	use thea_primitives::{ethereum::{EthereumOP, EtherumAction}, types::{AssetMetadata, Deposit, Withdraw}, Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK, PARACHAIN_NETWORK, ETHEREUM_NETWORK};
 	use xcm::VersionedMultiLocation;
 
 	#[pallet::pallet]
@@ -280,7 +276,7 @@ pub mod pallet {
 			pay_for_remaining: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			let network = 1;
+			let network = PARACHAIN_NETWORK;
 			Self::do_withdraw(
 				user,
 				asset_id,
@@ -309,6 +305,30 @@ pub mod pallet {
 			let metadata = AssetMetadata::new(decimal).ok_or(Error::<T>::InvalidDecimal)?;
 			<Metadata<T>>::insert(asset_id, metadata);
 			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));
+			Ok(())
+		}
+
+
+		/// Withdraws to Ethereum network
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
+		pub fn ethereum_withdraw(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			amount: u128,
+			beneficiary: H160,
+			pay_for_remaining: bool,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let network = ETHEREUM_NETWORK;
+			Self::do_withdraw(
+				user,
+				asset_id,
+				amount,
+				beneficiary.encode(),
+				pay_for_remaining,
+				network,
+			)?;
 			Ok(())
 		}
 	}
@@ -411,6 +431,9 @@ pub mod pallet {
 			match network {
 				PARACHAIN_NETWORK => Self::parachain_deposit(network, payload)?,
 				ETHEREUM_NETWORK => Self::ethereum_deposit(network, payload)?,
+				x => {
+					log::error!(target:"engine","Unknown Thea network id in deposit: {:?}",x)
+				}
 			}
 			Ok(())
 		}
@@ -422,20 +445,20 @@ pub mod pallet {
 			// 2. Execute the payload
 			// TODO: Add logic to take txn fees in incoming deposits if PDEX is not available
 			match message.action {
-				EtherumAction::Deposit(token_contract, amount, user) => {
+				EtherumAction::Deposit(asset_id, amount, user) => {
 					Self::regular_ethereum_deposit(
 						network,
 						message.txn_id,
-						token_contract,
+						asset_id,
 						amount,
 						user,
 					)?;
 				},
-				EtherumAction::DepositToOrderbook(token_contract, amount, main, proxy) => {
+				EtherumAction::DepositToOrderbook(asset_id, amount, main, proxy) => {
 					let deposit = Self::regular_ethereum_deposit(
 						network,
 						message.txn_id,
-						token_contract,
+						asset_id,
 						amount,
 						main.clone(),
 					)?;
@@ -471,24 +494,11 @@ pub mod pallet {
 		pub fn regular_ethereum_deposit(
 			network: Network,
 			txn_id: H256,
-			token_contract: H160,
-			amount: U256,
-			user: T::AccountId,
+			asset_id: u128,
+			amount: u128, // Already in 10^12
+			recipient: T::AccountId,
 		) -> Result<Deposit<T::AccountId>, DispatchError> {
-			// Convert to token address to asset_id
-			let mut asset: Vec<u8> = network.encode(); // We need to add network id too,
-										   // to differentiate same contracts from different L1s.
-			asset.append(&mut token_contract.as_bytes().to_vec());
-			let asset_id = u128::from_be_bytes(sp_io::hashing::blake2_128(&asset[..]));
-
-			if !<EthereumAssetMapping<T>>::contains_key(token_contract) {
-				<EthereumAssetMapping<T>>::insert(token_contract, asset_id);
-				<EthereumAssetReverseMapping<T>>::insert(asset_id, token_contract);
-			}
-			// Get the metadata
-			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
-			let deposit: Deposit<T::AccountId> =
-				Deposit::from_ethereum_deposit(txn_id, asset_id, user, amount, metadata);
+			let deposit: Deposit<T::AccountId> = Deposit{id: txn_id.encode(), asset_id, recipient, amount, extra: Vec::new()};
 			Self::execute_deposit(network, deposit.clone())?;
 			Ok(deposit)
 		}

@@ -20,16 +20,24 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::Hashable;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_core::{H256, U256};
 use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
 use crate::{Network, ValidatorSetId};
+
+/// Define the type of thea message
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub enum PayloadType {
+	ScheduledRotateValidators,
+	ValidatorsRotated,
+	L1Deposit
+}
 
 /// Defines the message structure.
 #[derive(
@@ -45,8 +53,8 @@ pub struct Message {
 	/// Message originated from this network if it's an incoming message
 	/// and destination network if it's an outgoing message
 	pub network: Network,
-	/// Defines if authority was changed.
-	pub is_key_change: bool,
+	/// Defines how the payload must be decoded
+	pub payload_type: PayloadType,
 	/// Validator set id at which this message was executed.
 	pub validator_set_id: ValidatorSetId,
 }
@@ -97,29 +105,13 @@ impl<AccountId> Deposit<AccountId> {
 	pub fn amount_in_foreign_decimals(&self, metadata: AssetMetadata) -> u128 {
 		metadata.convert_from_native_decimals(self.amount)
 	}
-
-	pub fn from_ethereum_deposit(
-		txn_id: H256,
-		asset_id: u128,
-		user: AccountId,
-		amount: U256,
-		metadata: AssetMetadata,
-	) -> Deposit<AccountId> {
-
-		Deposit {
-			id: txn_id.identity(),
-			recipient: user,
-			asset_id,
-			amount: metadata.convert_to_native_decimals_from_u256(amount),
-			extra: Vec::new(),
-		}
-	}
 }
 
 /// Defines the structure of the withdraw.
 ///
 /// Withdraw is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
+// TODO: Add ABI Encoding
 pub struct Withdraw {
 	/// Identifier of the withdrawal.
 	pub id: Vec<u8>,
@@ -175,14 +167,6 @@ impl AssetMetadata {
 			Ordering::Equal => amount,
 			Ordering::Greater => amount.saturating_div(10u128.pow(diff as u32)),
 		}
-	}
-
-	pub fn convert_to_native_decimals_from_u256(&self, amount: U256) -> u128 {
-		todo!()
-	}
-
-	pub fn convert_from_native_decimals_to_u256(&self, amount: u128) -> U256 {
-		todo!()
 	}
 }
 

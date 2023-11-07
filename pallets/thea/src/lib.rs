@@ -39,6 +39,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::types::PayloadType;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -341,7 +342,7 @@ impl<T: Config> Pallet<T> {
 			.build()
 	}
 
-	pub fn generate_payload(is_key_change: bool, network: Network, data: Vec<u8>) -> Message {
+	pub fn generate_payload(payload_type: PayloadType, network: Network, data: Vec<u8>) -> Message {
 		// Generate the Thea payload to communicate with foreign chains
 		let nonce = <OutgoingNonce<T>>::get(network);
 		let id = Self::validator_set_id();
@@ -350,8 +351,8 @@ impl<T: Config> Pallet<T> {
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
-			is_key_change,
 			validator_set_id: id,
+			payload_type,
 		}
 	}
 
@@ -374,7 +375,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
 				let payload = validator_set.encode();
 				for network in &active_networks {
-					let message = Self::generate_payload(true, *network, payload.clone());
+					let message = Self::generate_payload(PayloadType::ScheduledRotateValidators, *network, payload.clone());
 					// Update nonce
 					<OutgoingNonce<T>>::insert(message.network, message.nonce);
 					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
@@ -387,7 +388,7 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				let message = Self::generate_payload(false, network, Vec::new());
+				let message = Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new());
 				<OutgoingNonce<T>>::insert(network, message.nonce);
 				<OutgoingMessages<T>>::insert(network, message.nonce, message);
 			}
@@ -412,7 +413,7 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
-		let payload = Self::generate_payload(false, network, data);
+		let payload = Self::generate_payload(PayloadType::L1Deposit, network, data);
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);
 		<OutgoingMessages<T>>::insert(network, payload.nonce, payload);
