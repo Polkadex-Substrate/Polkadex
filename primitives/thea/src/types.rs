@@ -111,11 +111,9 @@ impl<AccountId> Deposit<AccountId> {
 ///
 /// Withdraw is relative to solochain
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
-// TODO: Add ABI Encoding
 pub struct Withdraw {
 	/// Identifier of the withdrawal.
 	pub id: Vec<u8>,
-	// Unique identifier
 	/// Asset identifier.
 	pub asset_id: u128,
 	/// Amount of the withdrawal.
