@@ -44,7 +44,12 @@ pub trait WeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{pallet_prelude::*, sp_runtime::SaturatedConversion, traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation}, transactional};
+	use frame_support::{
+		pallet_prelude::*,
+		sp_runtime::SaturatedConversion,
+		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
+		transactional,
+	};
 	use frame_system::pallet_prelude::*;
 	use pallet_asset_conversion::Swap;
 	use polkadex_primitives::Resolver;
