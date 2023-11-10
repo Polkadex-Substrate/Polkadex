@@ -22,6 +22,7 @@ log = { version = "0.4.19", default-features = false }
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
+pallet-asset-conversion = { workspace = true, features = ["std"]  }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 thea = { path = "../thea" }
