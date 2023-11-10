@@ -62,7 +62,7 @@ benchmarks! {
 		<Metadata<T>>::insert(100, metadata);
 		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
 		<ApprovedDeposits<T>>::insert(account.clone(), deposits);
-	}: _(RawOrigin::None, 10,account.clone())
+	}: _(RawOrigin::Signed(account.clone()), 10,account.clone())
 	verify {
 		let current_balance = <T as pallet::Config>::Assets::balance(asset_id.into(), &account);
 		assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into());
