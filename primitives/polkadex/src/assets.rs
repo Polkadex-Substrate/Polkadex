@@ -136,6 +136,19 @@ pub trait Resolver<
 		}
 		Ok(())
 	}
+
+	fn resolve_mint(
+		recipeint: &AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) -> Result<(), DispatchError> {
+		if asset == NativeAssetId::get() {
+			return Err(DispatchError::Other("Cannot mint Native Asset"))
+		} else {
+			Others::mint_into(asset.into(), recipeint, amount.saturated_into())?;
+		}
+		Ok(())
+	}
 }
 
 /// Enumerated asset on chain
@@ -158,6 +171,7 @@ pub enum AssetId {
 	Asset(u128),
 	Polkadex,
 }
+
 use sp_runtime::traits::Zero;
 impl From<u128> for AssetId {
 	fn from(value: u128) -> Self {

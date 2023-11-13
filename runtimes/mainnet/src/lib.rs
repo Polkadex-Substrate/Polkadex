@@ -1364,6 +1364,9 @@ impl thea_executor::Config for Runtime {
 	type ParaId = ParaId;
 	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
 	type Swap = AssetConversion;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

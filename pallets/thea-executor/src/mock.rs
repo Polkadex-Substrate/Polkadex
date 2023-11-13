@@ -186,8 +186,10 @@ parameter_types! {
 	pub const PolkadexAssetId: u128 = 0;
 	pub const ParaId: u32 = 2040;
 }
+use polkadex_primitives::AssetId;
 use sp_core::ConstU32;
 use sp_runtime::Permill;
+
 impl thea_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
@@ -201,6 +203,9 @@ impl thea_executor::Config for Test {
 	type ParaId = ParaId;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test

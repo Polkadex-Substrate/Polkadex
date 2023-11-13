@@ -341,3 +341,142 @@ fn test_update_asset_metadata_full() {
 		assert_last_event::<Test>(Event::<Test>::AssetMetadataSet(md).into());
 	})
 }
+
+#[test]
+fn test_resolve_deposit() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 2000u128;
+		let admin = 1u64;
+		let recipient = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
+		let deposit = Deposit {
+			id: Vec::new(),
+			recipient,
+			asset_id,
+			amount: 1_000_000_000_000_000_000u128,
+			extra: vec![],
+		};
+		assert_ok!(TheaExecutor::execute_deposit(deposit, &recipient));
+	})
+}
+
+#[test]
+fn test_deposit_without_account() {
+	new_test_ext().execute_with(|| {
+		setup_pool();
+		let asset_id = 1u128;
+		let admin = 1u64;
+		let recipient = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		Balances::set_balance(&TheaExecutor::thea_account(), 1_000_000_000_000_000_000);
+		let deposit = Deposit {
+			id: Vec::new(),
+			recipient,
+			asset_id,
+			amount: 1_000_000_000_000_000u128,
+			extra: vec![],
+		};
+		assert_ok!(TheaExecutor::execute_deposit(deposit, &recipient));
+		assert_eq!(Balances::free_balance(&recipient), 50);
+		assert_eq!(Assets::balance(asset_id, &recipient), 999_999_994_984_954u128);
+		assert_eq!(Assets::balance(asset_id, &TheaExecutor::thea_account()), 0u128);
+		assert_eq!(
+			Balances::free_balance(&TheaExecutor::thea_account()),
+			1_000_000_000_000_000_000
+		);
+	})
+}
+
+#[test]
+fn test_do_withdrawal() {
+	new_test_ext().execute_with(|| {
+		setup_pool();
+		let sender = 2u64;
+		let asset_id = 1u128;
+		// Set asset balance
+		Balances::set_balance(&sender, 1_000_000_000_000_000_000);
+		Assets::mint_into(asset_id, &sender, 1_000_000_000_000_000_000);
+		// Set withdrawal Fee
+		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 100));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		assert_ok!(TheaExecutor::withdraw(
+			RuntimeOrigin::signed(sender),
+			asset_id,
+			1_000_000_000_000_000u128,
+			vec![1; 32],
+			true,
+			1,
+			true
+		));
+		assert_eq!(Balances::free_balance(&sender), 1_000_000_000_000_000_000);
+		assert_eq!(Assets::balance(asset_id, &sender), 999_000_000_000_000_000);
+		assert_eq!(Balances::free_balance(&TheaExecutor::thea_account()), 1_000u128);
+	})
+}
+
+#[test]
+fn test_do_withdrawal_with_total_amount_consumed_returns_error() {
+	new_test_ext().execute_with(|| {
+		setup_pool();
+		let sender = 2u64;
+		let asset_id = 1u128;
+		// Set asset balance
+		Balances::set_balance(&sender, 1_000_000_000_000_000_000);
+		Assets::mint_into(asset_id, &sender, 100_300_903u128);
+		// Set withdrawal Fee
+		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 100));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		assert_noop!(
+			TheaExecutor::withdraw(
+				RuntimeOrigin::signed(sender),
+				asset_id,
+				1_000_000_000_000_000u128,
+				vec![1; 32],
+				true,
+				1,
+				true
+			),
+			sp_runtime::TokenError::FundsUnavailable
+		);
+	})
+}
+
+fn setup_pool() {
+	let asset_id = 1u128;
+	let admin = 1u64;
+	Balances::set_balance(&admin, 2_000_000_000_000_000_000_000_000_000_000u128);
+	assert_ok!(Assets::force_create(
+		RuntimeOrigin::root(),
+		parity_scale_codec::Compact(asset_id),
+		admin,
+		false,
+		1u128
+	));
+	// Mint tokens
+	Assets::mint_into(asset_id, &admin, 1_000_000_000_000_000_000_000_000_000u128).unwrap();
+	// Create pool
+	assert_ok!(AssetConversion::create_pool(
+		RuntimeOrigin::signed(admin),
+		polkadex_primitives::AssetId::Asset(asset_id),
+		polkadex_primitives::AssetId::Polkadex
+	));
+	assert_ok!(AssetConversion::add_liquidity(
+		RuntimeOrigin::signed(admin),
+		polkadex_primitives::AssetId::Asset(asset_id),
+		polkadex_primitives::AssetId::Polkadex,
+		1_000_000_000_000_000_000_000u128,
+		10_000_000_000_000_000u128,
+		1u128,
+		1u128,
+		admin
+	));
+}
