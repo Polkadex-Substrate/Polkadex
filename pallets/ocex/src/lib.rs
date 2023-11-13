@@ -258,6 +258,8 @@ pub mod pallet {
 		TradingPairIsNotClosed,
 		MainAccountAlreadyRegistered,
 		SnapshotNonceError,
+		/// Proxy is already in use
+		ProxyAlreadyRegistered,
 		EnclaveSignatureVerificationFailed,
 		MainAccountNotFound,
 		ProxyLimitExceeded,
@@ -333,60 +335,6 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		/// On idle, use the remaining weight to withdraw finalization
-		/// Automated (but much delayed) `claim_withdraw()` extrinsic
-		// fn on_idle(_n: BlockNumberFor<T>, mut remaining_weight: Weight) -> Weight {
-		// 	let snapshot_id = <SnapshotNonce<T>>::get();
-		// 	while remaining_weight.ref_time() >
-		// 		<T as Config>::WeightInfo::claim_withdraw(1).ref_time()
-		// 	{
-		// 		<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
-		// 			// Get mutable reference to the withdrawals vector
-		// 			if let Some(account) = btree_map.clone().keys().nth(1) {
-		// 				let mut accounts_to_clean = vec![];
-		// 				if let Some(withdrawal_vector) = btree_map.get_mut(account) {
-		// 					if let Some(withdrawal) = withdrawal_vector.pop() {
-		// 						if !Self::on_idle_withdrawal_processor(withdrawal.clone()) {
-		// 							withdrawal_vector.push(withdrawal.clone());
-		// 							Self::deposit_event(Event::WithdrawalFailed(withdrawal));
-		// 						}else{
-		// 							// TODO: enable this only after testing
-		// 							// Update events on successful withdrawal
-		// 							// let processed_withdrawls =
-		//                             // // Deposit event about successful withdraw
-		// 							// Self::deposit_event(Event::WithdrawalClaimed {
-		// 							// 	main: account.clone(),
-		// 							// 	withdrawals: processed_withdrawals.clone(),
-		// 							// });
-		// 							// <OnChainEvents<T>>::mutate(|onchain_events| {
-		// 							// 	onchain_events.push(
-		// 							// 		polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-		// 							// 			snapshot_id,
-		// 							// 			account.clone(),
-		// 							// 			processed_withdrawals,
-		// 							// 		),
-		// 							// 	);
-		// 							// });
-		//                         }
-		// 					} else {
-		// 						// this user has no withdrawals left - remove from map
-		// 						accounts_to_clean.push(account.clone());
-		// 					}
-		// 				}
-		// 				for user in accounts_to_clean {
-		// 					btree_map.remove(&user);
-		// 				}
-		// 			}
-		// 			// we drain weight ALWAYS
-		// 			remaining_weight = remaining_weight
-		// 				.saturating_sub(<T as Config>::WeightInfo::claim_withdraw(1));
-		// 		});
-		// 	}
-		// 	remaining_weight
-		// }
-		/// What to do at the end of each block.
-		///
-		/// Clean OnCHainEvents
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			let len = <OnChainEvents<T>>::get().len();
 			if len > 0 {
@@ -437,8 +385,9 @@ pub mod pallet {
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
-			// TODO: Avoid duplicate Proxy accounts
 			ensure!(<Accounts<T>>::contains_key(&main_account), Error::<T>::MainAccountNotFound);
+			// Avoid duplicate Proxy accounts
+			ensure!(!<Proxies<T>>::contains_key(&proxy), Error::<T>::ProxyAlreadyRegistered);
 			if let Some(mut account_info) = <Accounts<T>>::get(&main_account) {
 				ensure!(
 					account_info.add_proxy(proxy.clone()).is_ok(),
@@ -452,7 +401,8 @@ pub mod pallet {
 					));
 				});
 				<Accounts<T>>::insert(&main_account, account_info);
-				Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
+				<Proxies<T>>::insert(&proxy, main_account.clone());
+				Self::deposit_event(Event::NewProxyAdded { main: main_account, proxy });
 			}
 			Ok(())
 		}
@@ -820,8 +770,9 @@ pub mod pallet {
 							),
 						);
 					});
+					<Proxies<T>>::remove(proxy.clone());
+					Self::deposit_event(Event::ProxyRemoved { main: main_account.clone(), proxy });
 				}
-				Self::deposit_event(Event::ProxyRemoved { main: main_account.clone(), proxy });
 				Ok(())
 			})
 		}
@@ -1185,6 +1136,8 @@ pub mod pallet {
 				!<Accounts<T>>::contains_key(&main_account),
 				Error::<T>::MainAccountAlreadyRegistered
 			);
+			// Avoid duplicate Proxy accounts
+			ensure!(!<Proxies<T>>::contains_key(&proxy), Error::<T>::ProxyAlreadyRegistered);
 
 			let mut account_info = AccountInfo::new(main_account.clone());
 			ensure!(account_info.add_proxy(proxy.clone()).is_ok(), Error::<T>::ProxyLimitExceeded);
@@ -1197,6 +1150,7 @@ pub mod pallet {
 					proxy.clone(),
 				));
 			});
+			<Proxies<T>>::insert(&proxy, main_account.clone());
 			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
 			Ok(())
 		}
@@ -1455,6 +1409,12 @@ pub mod pallet {
 		AccountInfo<T::AccountId, ProxyLimit>,
 		OptionQuery,
 	>;
+
+	// Proxy to main account map
+	#[pallet::storage]
+	#[pallet::getter(fn proxies)]
+	pub(super) type Proxies<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId, OptionQuery>;
 
 	// Trading pairs registered as Base, Quote => TradingPairInfo
 	#[pallet::storage]

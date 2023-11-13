@@ -27,6 +27,7 @@ use frame_support::{
 		Get,
 	},
 };
+use pallet_asset_conversion::{MultiAssetIdConversionResult, MultiAssetIdConverter};
 #[cfg(not(feature = "std"))]
 use scale_info::prelude::{format, string::String};
 use scale_info::TypeInfo;
@@ -156,6 +157,35 @@ pub enum AssetId {
 	/// PDEX the native currency of the chain
 	Asset(u128),
 	Polkadex,
+}
+use sp_runtime::traits::Zero;
+impl From<u128> for AssetId {
+	fn from(value: u128) -> Self {
+		if value.is_zero() {
+			Self::Polkadex
+		} else {
+			Self::Asset(value)
+		}
+	}
+}
+
+pub struct AssetIdConverter;
+
+impl MultiAssetIdConverter<AssetId, u128> for AssetIdConverter {
+	fn get_native() -> AssetId {
+		AssetId::Polkadex
+	}
+
+	fn is_native(asset: &AssetId) -> bool {
+		*asset == Self::get_native()
+	}
+
+	fn try_convert(asset: &AssetId) -> MultiAssetIdConversionResult<AssetId, u128> {
+		match asset {
+			AssetId::Polkadex => MultiAssetIdConversionResult::Native,
+			AssetId::Asset(id) => MultiAssetIdConversionResult::Converted(*id),
+		}
+	}
 }
 
 impl Serialize for AssetId {

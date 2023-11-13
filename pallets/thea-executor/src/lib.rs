@@ -23,9 +23,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet_prelude::Weight;
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://docs.substrate.io/reference/frame-pallets/>
 pub use pallet::*;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -51,8 +48,10 @@ pub mod pallet {
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
+		transactional,
 	};
 	use frame_system::pallet_prelude::*;
+	use pallet_asset_conversion::Swap;
 	use polkadex_primitives::Resolver;
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
@@ -92,10 +91,16 @@ pub mod pallet {
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaOutgoingExecutor;
 		/// Native Asset Id
-		type NativeAssetId: Get<Self::AssetId>;
+		type NativeAssetId: Get<<Self as pallet::Config>::AssetId>;
 		/// Thea PalletId
 		#[pallet::constant]
 		type TheaPalletId: Get<frame_support::PalletId>;
+
+		type Swap: pallet_asset_conversion::Swap<
+			Self::AccountId,
+			u128,
+			polkadex_primitives::AssetId,
+		>;
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
@@ -159,7 +164,7 @@ pub mod pallet {
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, Vec<u8>),
 		/// Withdrawal Ready (Network id )
 		WithdrawalReady(Network),
-		// Thea Public Key Updated ( network, new session id )
+		/// Thea Public Key Updated ( network, new session id )
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
@@ -198,6 +203,8 @@ pub mod pallet {
 		NoApprovedDeposit,
 		/// Wrong network
 		WrongNetwork,
+		/// Not able to get price for fee swap
+		CannotSwapForFees,
 	}
 
 	#[pallet::hooks]
@@ -218,8 +225,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatch able that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
 		pub fn withdraw(
@@ -229,10 +234,19 @@ pub mod pallet {
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
+			pay_with_tokens: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			// Assumes the foreign chain can decode the given vector bytes as recipient
-			Self::do_withdraw(user, asset_id, amount, beneficiary, pay_for_remaining, network)?;
+			Self::do_withdraw(
+				user,
+				asset_id,
+				amount,
+				beneficiary,
+				pay_for_remaining,
+				network,
+				pay_with_tokens,
+			)?;
 			Ok(())
 		}
 
@@ -245,8 +259,13 @@ pub mod pallet {
 		/// (it's used to parametrise the weight of this extrinsic).
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		pub fn claim_deposit(origin: OriginFor<T>, num_deposits: u32) -> DispatchResult {
-			let user = ensure_signed(origin)?;
+		#[transactional]
+		pub fn claim_deposit(
+			origin: OriginFor<T>,
+			num_deposits: u32,
+			user: T::AccountId,
+		) -> DispatchResult {
+			let _ = ensure_signed(origin)?;
 
 			let mut deposits = <ApprovedDeposits<T>>::get(&user);
 			let length: u32 = deposits.len().saturated_into();
@@ -302,6 +321,7 @@ pub mod pallet {
 			amount: u128,
 			beneficiary: sp_std::boxed::Box<VersionedMultiLocation>,
 			pay_for_remaining: bool,
+			pay_with_tokens: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let network = 1;
@@ -312,6 +332,7 @@ pub mod pallet {
 				beneficiary.encode(),
 				pay_for_remaining,
 				network,
+				pay_with_tokens,
 			)?;
 			Ok(())
 		}
@@ -353,25 +374,17 @@ pub mod pallet {
 		pub fn do_withdraw(
 			user: T::AccountId,
 			asset_id: u128,
-			amount: u128,
+			mut amount: u128,
 			beneficiary: Vec<u8>,
 			pay_for_remaining: bool,
 			network: Network,
+			pay_with_tokens: bool,
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 
-			let mut withdraw = Withdraw {
-				id: Self::new_random_id(),
-				asset_id,
-				amount,
-				destination: beneficiary.clone(),
-				is_blocked: false,
-				extra: Vec::new(),
-			};
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
-			let metadata =
-				<Metadata<T>>::get(withdraw.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 
 			ensure!(
 				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
@@ -391,16 +404,44 @@ pub mod pallet {
 					))
 			}
 
-			// Pay the fees
-			<T as Config>::Currency::transfer(
-				&user,
-				&Self::thea_account(),
-				total_fees.saturated_into(),
-				Preservation::Preserve,
-			)?;
+			if pay_with_tokens {
+				// User wants to pay with withdrawing tokens.
+				let path = sp_std::vec![
+					polkadex_primitives::AssetId::Asset(asset_id),
+					polkadex_primitives::AssetId::Polkadex
+				];
+
+				let token_taken = T::Swap::swap_tokens_for_exact_tokens(
+					user.clone(),
+					path,
+					total_fees.saturated_into(),
+					None,
+					Self::thea_account(),
+					false,
+				)?;
+
+				amount = amount.saturating_sub(token_taken.saturated_into());
+			} else {
+				// Pay the fees
+				<T as Config>::Currency::transfer(
+					&user,
+					&Self::thea_account(),
+					total_fees.saturated_into(),
+					Preservation::Preserve,
+				)?;
+			}
 
 			// Withdraw assets
 			Self::resolver_withdraw(asset_id.into(), amount, &user, Self::thea_account())?;
+
+			let mut withdraw = Withdraw {
+				id: Self::new_random_id(),
+				asset_id,
+				amount,
+				destination: beneficiary.clone(),
+				is_blocked: false,
+				extra: Vec::new(),
+			};
 
 			Self::deposit_event(Event::<T>::WithdrawalQueued(
 				network,
@@ -456,16 +497,41 @@ pub mod pallet {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+			let deposit_amount = deposit.amount_in_native_decimals(metadata); // Convert the decimals configured in metadata
 
-			Self::resolver_deposit(
-				deposit.asset_id.into(),
-				// Convert the decimals config
-				deposit.amount_in_native_decimals(metadata),
-				recipient,
-				Self::thea_account(),
-				1u128,
-				Self::thea_account(),
-			)?;
+			if !frame_system::Pallet::<T>::account_exists(recipient) {
+				let path = sp_std::vec![
+					polkadex_primitives::AssetId::Asset(deposit.asset_id),
+					polkadex_primitives::AssetId::Polkadex
+				];
+
+				Self::resolver_deposit(
+					deposit.asset_id.into(),
+					deposit_amount,
+					recipient,
+					Self::thea_account(),
+					1u128,
+					Self::thea_account(),
+				)?;
+
+				T::Swap::swap_tokens_for_exact_tokens(
+					recipient.clone(),
+					path,
+					sp_runtime::traits::One::one(),
+					None,
+					recipient.clone(),
+					false,
+				)?;
+			} else {
+				Self::resolver_deposit(
+					deposit.asset_id.into(),
+					deposit_amount,
+					recipient,
+					Self::thea_account(),
+					1u128,
+					Self::thea_account(),
+				)?;
+			}
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
@@ -490,10 +556,10 @@ pub mod pallet {
 	impl<T: Config>
 		polkadex_primitives::assets::Resolver<
 			T::AccountId,
-			T::Currency,
-			T::Assets,
-			T::AssetId,
-			T::NativeAssetId,
+			<T as pallet::Config>::Currency,
+			<T as pallet::Config>::Assets,
+			<T as pallet::Config>::AssetId,
+			<T as Config>::NativeAssetId,
 		> for Pallet<T>
 	{
 	}

@@ -16,13 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
+use frame_support::{
+	ord_parameter_types, pallet_prelude::*, parameter_types, traits::AsEnsureOriginWithArg,
+	PalletId,
+};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
-	BuildStorage,
+	BuildStorage, Permill,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -37,6 +40,7 @@ frame_support::construct_runtime!(
 		Assets: pallet_assets,
 		Thea: thea,
 		TheaExecutor: thea_executor,
+		AssetConversion: pallet_asset_conversion,
 		TheaHandler: crate
 	}
 );
@@ -141,6 +145,42 @@ impl thea::Config for Test {
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
 
+ord_parameter_types! {
+	pub const AssetConversionOrigin: u32 = 1;
+}
+
+parameter_types! {
+	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
+	pub AllowMultiAssetPools: bool = true;
+	pub const PoolSetupFee: Balance = 1000000000000; // should be more or equal to the existential deposit
+	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
+	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
+}
+impl pallet_asset_conversion::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type Balance = <Self as pallet_balances::Config>::Balance;
+	type AssetBalance = u128;
+	type HigherPrecisionBalance = u128;
+	type AssetId = u128;
+	type MultiAssetId = polkadex_primitives::AssetId;
+	type MultiAssetIdConverter = polkadex_primitives::AssetIdConverter;
+	type PoolAssetId = u128;
+	type Assets = Assets;
+	type PoolAssets = Assets;
+	type LPFee = ConstU32<3>; // means 0.3%
+	type PoolSetupFee = PoolSetupFee;
+	type PoolSetupFeeReceiver = AssetConversionOrigin;
+	type LiquidityWithdrawalFee = LiquidityWithdrawalFee;
+	type MintMinLiquidity = MintMinLiquidity;
+	type MaxSwapPathLength = ConstU32<4>;
+	type PalletId = AssetConversionPalletId;
+	type AllowMultiAssetPools = AllowMultiAssetPools;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = AssetU128;
+}
+
 parameter_types! {
 	pub const TheaPalletId: PalletId = PalletId(*b"th/accnt");
 	pub const WithdrawalSize: u32 = 10;
@@ -159,6 +199,7 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
+	type Swap = AssetConversion;
 	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
 }
 
