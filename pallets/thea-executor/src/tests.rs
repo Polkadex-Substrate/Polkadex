@@ -404,7 +404,7 @@ fn test_do_withdrawal() {
 		let asset_id = 1u128;
 		// Set asset balance
 		Balances::set_balance(&sender, 1_000_000_000_000_000_000);
-		Assets::mint_into(asset_id, &sender, 1_000_000_000_000_000_000);
+		let _ = Assets::mint_into(asset_id, &sender, 1_000_000_000_000_000_000);
 		// Set withdrawal Fee
 		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 100));
 		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
@@ -430,8 +430,8 @@ fn test_do_withdrawal_with_total_amount_consumed_returns_error() {
 		let sender = 2u64;
 		let asset_id = 1u128;
 		// Set asset balance
-		Balances::set_balance(&sender, 1_000_000_000_000_000_000);
-		Assets::mint_into(asset_id, &sender, 100_300_903u128);
+		let _ = Balances::set_balance(&sender, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::mint_into(asset_id, &sender, 100_300_903u128));
 		// Set withdrawal Fee
 		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 100));
 		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));

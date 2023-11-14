@@ -25,6 +25,8 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Permill,
 };
+use polkadex_primitives::AssetId;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -197,6 +199,9 @@ impl thea_executor::Config for Test {
 	type ParaId = ParaId;
 	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
