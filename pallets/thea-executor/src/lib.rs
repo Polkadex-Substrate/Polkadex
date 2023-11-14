@@ -518,30 +518,20 @@ pub mod pallet {
 					polkadex_primitives::AssetId::Polkadex
 				];
 				let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
-				let asset1: T::MultiAssetIdAdapter =
-					polkadex_primitives::AssetId::Asset(deposit.asset_id).into();
-				let asset2: T::MultiAssetIdAdapter = polkadex_primitives::AssetId::Polkadex.into();
-				let fee_amount: T::AssetBalanceAdapter = pallet_asset_conversion::pallet::Pallet::<T>
-				::quote_price_tokens_for_exact_tokens(asset1.into(), asset2.into(), amount_out.into(), true)
-					.ok_or(Error::<T>::CannotSwapForFees)?.into();
-				let fee_amount: u128 = fee_amount.into();
-				ensure!(fee_amount <= deposit_amount, Error::<T>::AmountCannotBeZero);
-				Self::resolve_mint(&Self::thea_account(), deposit.asset_id.into(), fee_amount)?;
-				T::Swap::swap_tokens_for_exact_tokens(
+				Self::resolve_mint(&Self::thea_account(), deposit.asset_id.into(), deposit_amount)?;
+				let fee_amount = T::Swap::swap_tokens_for_exact_tokens(
 					Self::thea_account(),
 					path,
 					amount_out.into(),
-					None,
+					Some(deposit_amount),
 					recipient.clone(),
 					false,
 				)?;
-				Self::resolver_deposit(
+				Self::resolve_transfer(
 					deposit.asset_id.into(),
-					deposit_amount.saturating_sub(fee_amount),
+					&Self::thea_account(),
 					recipient,
-					Self::thea_account(),
-					1u128,
-					Self::thea_account(),
+					deposit_amount.saturating_sub(fee_amount),
 				)?;
 			} else {
 				Self::resolver_deposit(

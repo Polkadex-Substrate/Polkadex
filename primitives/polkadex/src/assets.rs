@@ -131,7 +131,7 @@ pub trait Resolver<
 				from,
 				to,
 				amount.saturated_into(),
-				Preservation::Preserve,
+				Preservation::Expendable,
 			)?;
 		}
 		Ok(())
