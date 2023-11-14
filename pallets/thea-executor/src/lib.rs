@@ -49,11 +49,7 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
-		traits::{
-			fungible::Mutate,
-			fungibles::{Inspect, Mutate as OtherMutate},
-			tokens::Preservation,
-		},
+		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 		transactional,
 	};
 	use frame_system::pallet_prelude::*;
