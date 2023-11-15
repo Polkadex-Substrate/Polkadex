@@ -114,7 +114,7 @@ pub mod pallet {
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
-		/// Total Withdrawals
+		/// Existential Deposit
 		#[pallet::constant]
 		type ExistentialDeposit: Get<u128>;
 		/// Para Id
