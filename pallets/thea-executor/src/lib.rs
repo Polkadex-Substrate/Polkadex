@@ -22,6 +22,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate core;
+
 use frame_support::pallet_prelude::Weight;
 pub use pallet::*;
 
@@ -52,7 +54,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use pallet_asset_conversion::Swap;
-	use polkadex_primitives::Resolver;
+	use polkadex_primitives::{AssetId, Resolver};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
@@ -67,7 +69,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_asset_conversion::Config {
 		/// Because this pallet emits events, it depends on the Runtime's definition of an
 		/// event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -86,6 +88,14 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId>
 			+ From<u128>;
+		type MultiAssetIdAdapter: From<AssetId>
+			+ Into<<Self as pallet_asset_conversion::Config>::MultiAssetId>;
+
+		type AssetBalanceAdapter: Into<<Self as pallet_asset_conversion::Config>::AssetBalance>
+			+ Copy
+			+ From<<Self as pallet_asset_conversion::Config>::AssetBalance>
+			+ From<u128>
+			+ Into<u128>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
@@ -104,6 +114,9 @@ pub mod pallet {
 		/// Total Withdrawals
 		#[pallet::constant]
 		type WithdrawalSize: Get<u32>;
+		/// Existential Deposit
+		#[pallet::constant]
+		type ExistentialDeposit: Get<u128>;
 		/// Para Id
 		type ParaId: Get<u32>;
 		/// Type representing the weight of this pallet
@@ -227,6 +240,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
+		#[transactional]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -371,6 +385,7 @@ pub mod pallet {
 			T::TheaPalletId::get().into_account_truncating()
 		}
 
+		#[transactional]
 		pub fn do_withdraw(
 			user: T::AccountId,
 			asset_id: u128,
@@ -382,10 +397,8 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
-
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
-
 			ensure!(
 				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
 				Error::<T>::WithdrawalNotAllowed
@@ -410,7 +423,6 @@ pub mod pallet {
 					polkadex_primitives::AssetId::Asset(asset_id),
 					polkadex_primitives::AssetId::Polkadex
 				];
-
 				let token_taken = T::Swap::swap_tokens_for_exact_tokens(
 					user.clone(),
 					path,
@@ -419,8 +431,8 @@ pub mod pallet {
 					Self::thea_account(),
 					false,
 				)?;
-
 				amount = amount.saturating_sub(token_taken.saturated_into());
+				ensure!(amount > 0, Error::<T>::AmountCannotBeZero);
 			} else {
 				// Pay the fees
 				<T as Config>::Currency::transfer(
@@ -490,6 +502,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[transactional]
 		pub fn execute_deposit(
 			deposit: Deposit<T::AccountId>,
 			recipient: &T::AccountId,
@@ -504,23 +517,21 @@ pub mod pallet {
 					polkadex_primitives::AssetId::Asset(deposit.asset_id),
 					polkadex_primitives::AssetId::Polkadex
 				];
-
-				Self::resolver_deposit(
-					deposit.asset_id.into(),
-					deposit_amount,
-					recipient,
+				let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
+				Self::resolve_mint(&Self::thea_account(), deposit.asset_id.into(), deposit_amount)?;
+				let fee_amount = T::Swap::swap_tokens_for_exact_tokens(
 					Self::thea_account(),
-					1u128,
-					Self::thea_account(),
-				)?;
-
-				T::Swap::swap_tokens_for_exact_tokens(
-					recipient.clone(),
 					path,
-					sp_runtime::traits::One::one(),
-					None,
+					amount_out.into(),
+					Some(deposit_amount),
 					recipient.clone(),
 					false,
+				)?;
+				Self::resolve_transfer(
+					deposit.asset_id.into(),
+					&Self::thea_account(),
+					recipient,
+					deposit_amount.saturating_sub(fee_amount),
 				)?;
 			} else {
 				Self::resolver_deposit(

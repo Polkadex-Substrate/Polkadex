@@ -22,6 +22,7 @@ use frame_support::{
 };
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
+use polkadex_primitives::AssetId;
 use sp_core::H256;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
@@ -201,6 +202,9 @@ impl thea_executor::Config for Test {
 	type ParaId = ParaId;
 	type Swap = AssetConversion;
 	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 impl crate::Config for Test {
