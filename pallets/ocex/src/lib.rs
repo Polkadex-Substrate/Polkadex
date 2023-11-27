@@ -436,7 +436,7 @@ pub mod pallet {
 		#[pallet::weight(< T as Config >::WeightInfo::add_proxy_account(1))]
 		pub fn add_proxy_account(origin: OriginFor<T>, proxy: T::AccountId) -> DispatchResult {
 			let main_account = ensure_signed(origin)?;
-			Self::add_proxy(main_account,proxy)?;
+			Self::add_proxy(main_account, proxy)?;
 			Ok(())
 		}
 
@@ -1212,11 +1212,14 @@ pub mod pallet {
 		}
 
 		/// Returns true if proxy is registered under the main account. False otherwise
-		pub fn check_if_proxy_is_registered(main_account: &T::AccountId, proxy: &T::AccountId) -> (bool, usize) {
+		pub fn check_if_proxy_is_registered(
+			main_account: &T::AccountId,
+			proxy: &T::AccountId,
+		) -> (bool, usize) {
 			if let Some(account_info) = <Accounts<T>>::get(main_account) {
-				(account_info.proxies.contains(proxy),account_info.proxies.len())
+				(account_info.proxies.contains(proxy), account_info.proxies.len())
 			} else {
-				(false,0)
+				(false, 0)
 			}
 		}
 

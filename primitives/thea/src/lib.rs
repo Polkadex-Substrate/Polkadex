@@ -88,7 +88,7 @@ pub type Network = u8;
 pub const PARACHAIN_NETWORK: Network = 1;
 
 /// Ethereum Network ID
-pub const ETHEREUM_NETWORK: Network = 1;
+pub const ETHEREUM_NETWORK: Network = 2;
 
 /// Native network id.
 pub const NATIVE_NETWORK: Network = 0;

@@ -38,8 +38,10 @@ use sp_runtime::{
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
-use thea_primitives::types::PayloadType;
+use thea_primitives::{
+	types::{Message, PayloadType},
+	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -303,6 +305,18 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Add Thea Relayer
+		#[pallet::call_index(6)]
+		#[pallet::weight(0)]
+		pub fn add_thea_relayer(
+			origin: OriginFor<T>,
+			relayer: sp_core::ecdsa::Public,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<TheaMessageRelayer<T>>::put(relayer);
+			Ok(())
+		}
 	}
 }
 
@@ -375,7 +389,11 @@ impl<T: Config> Pallet<T> {
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
 				let payload = validator_set.encode();
 				for network in &active_networks {
-					let message = Self::generate_payload(PayloadType::ScheduledRotateValidators, *network, payload.clone());
+					let message = Self::generate_payload(
+						PayloadType::ScheduledRotateValidators,
+						*network,
+						payload.clone(),
+					);
 					// Update nonce
 					<OutgoingNonce<T>>::insert(message.network, message.nonce);
 					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
@@ -388,7 +406,8 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				let message = Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new());
+				let message =
+					Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new());
 				<OutgoingNonce<T>>::insert(network, message.nonce);
 				<OutgoingMessages<T>>::insert(network, message.nonce, message);
 			}

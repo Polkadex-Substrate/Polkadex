@@ -1,6 +1,6 @@
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_core::{ H256};
+use sp_core::H256;
 use sp_runtime::{Deserialize, Serialize};
 
 #[derive(

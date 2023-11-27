@@ -53,11 +53,16 @@ pub mod pallet {
 		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
 	};
 	use frame_system::pallet_prelude::*;
-	use polkadex_primitives::{ Resolver};
+	use polkadex_primitives::Resolver;
 	use sp_core::{H160, H256};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
-	use thea_primitives::{ethereum::{EthereumOP, EtherumAction}, types::{AssetMetadata, Deposit, Withdraw}, Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK, PARACHAIN_NETWORK, ETHEREUM_NETWORK};
+	use thea_primitives::{
+		ethereum::{EthereumOP, EtherumAction},
+		types::{AssetMetadata, Deposit, Withdraw},
+		Network, TheaIncomingExecutor, TheaOutgoingExecutor, ETHEREUM_NETWORK, NATIVE_NETWORK,
+		PARACHAIN_NETWORK,
+	};
 	use xcm::VersionedMultiLocation;
 
 	#[pallet::pallet]
@@ -308,7 +313,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		/// Withdraws to Ethereum network
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
@@ -340,7 +344,8 @@ pub mod pallet {
 			nonce = nonce.wrapping_add(1);
 			<RandomnessNonce<T>>::put(nonce);
 			let entropy = sp_io::hashing::blake2_256(&(NATIVE_NETWORK, nonce).encode());
-			entropy.to_vec()
+			let entropy = H256::from_slice(&entropy).0[..10].to_vec();
+			entropy
 		}
 		pub fn thea_account() -> T::AccountId {
 			T::TheaPalletId::get().into_account_truncating()
@@ -433,7 +438,7 @@ pub mod pallet {
 				ETHEREUM_NETWORK => Self::ethereum_deposit(network, payload)?,
 				x => {
 					log::error!(target:"engine","Unknown Thea network id in deposit: {:?}",x)
-				}
+				},
 			}
 			Ok(())
 		}
@@ -498,7 +503,8 @@ pub mod pallet {
 			amount: u128, // Already in 10^12
 			recipient: T::AccountId,
 		) -> Result<Deposit<T::AccountId>, DispatchError> {
-			let deposit: Deposit<T::AccountId> = Deposit{id: txn_id.encode(), asset_id, recipient, amount, extra: Vec::new()};
+			let deposit: Deposit<T::AccountId> =
+				Deposit { id: txn_id.encode(), asset_id, recipient, amount, extra: Vec::new() };
 			Self::execute_deposit(network, deposit.clone())?;
 			Ok(deposit)
 		}

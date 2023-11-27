@@ -574,7 +574,7 @@ impl Order {
 					self.qty <= config.max_qty &&
 					self.price.rem(config.price_tick_size).is_zero() &&
 					self.qty.rem(config.qty_step_size).is_zero(),
-			OrderType::MARKET =>
+			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
 					is_market_same &&
@@ -587,7 +587,8 @@ impl Order {
 						self.quote_order_qty >= (config.min_qty * config.min_price) &&
 						self.quote_order_qty <= (config.max_qty * config.max_price) &&
 						self.quote_order_qty.rem(config.price_tick_size).is_zero()
-				},
+				}
+			},
 		};
 		if !result {
 			log::error!(target:"orderbook","pair config verification failed: config: {:?}, price: {:?}, qty: {:?}, quote_order_qty: {:?}", config, self.price, self.qty, self.quote_order_qty);

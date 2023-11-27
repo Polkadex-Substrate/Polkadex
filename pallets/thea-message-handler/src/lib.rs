@@ -35,7 +35,10 @@ use sp_runtime::{
 	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, ValidatorSet};
+use thea_primitives::{
+	types::{Message, PayloadType},
+	Network, ValidatorSet,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -193,7 +196,7 @@ pub mod pallet {
 
 			let current_set_id = <ValidatorSetId<T>>::get();
 
-			if !payload.is_key_change {
+			if !(payload.payload_type == PayloadType::ValidatorsRotated) {
 				// Normal Thea message
 				T::Executor::execute_deposits(payload.network, payload.data.clone());
 			} else {
@@ -307,7 +310,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
-			is_key_change: false,
+			payload_type: PayloadType::L1Deposit,
 			validator_set_id: Self::validator_set_id(),
 		};
 		// Update nonce
