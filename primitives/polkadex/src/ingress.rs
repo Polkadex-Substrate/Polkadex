@@ -57,14 +57,14 @@ pub enum IngressMessages<AccountId> {
 	/// Add Liquidity ( market, pool_id, base_amount, quote_amount)
 	AddLiquidity(TradingPairConfig, AccountId, Decimal, Decimal),
 	/// Remove liquidity ( market, pool_id, shares_to_burn, total_shares)
-	RemoveLiquidity(TradingPairConfig,AccountId, Balance, Balance),
+	RemoveLiquidity(TradingPairConfig,AccountId, Decimal, Decimal),
 	/// Force Close Command ( market, pool_id)
 	ForceClosePool(TradingPairConfig, AccountId)
 }
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum EgressMessages<AccountId> {
+pub enum EgressMessages {
 	/// AddLiquidityResult (shares issued)
 	AddLiquidityResult(Decimal),
 	/// RemoveLiquidityResult
@@ -75,7 +75,7 @@ pub enum EgressMessages<AccountId> {
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct HandleBalance<AccountId> {
-	/// Main account identifier.
+	/// Main account identifier
 	pub main_account: AccountId,
 	/// Asset identifier.
 	pub asset_id: AssetId,

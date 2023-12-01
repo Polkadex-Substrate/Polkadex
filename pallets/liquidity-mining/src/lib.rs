@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+mod session;
 pub mod types;
 
 #[frame_support::pallet]
@@ -107,6 +108,20 @@ pub mod pallet {
 		UnknownPool,
 		/// Public deposits not allowed in this pool
 		PublicDepositsNotAllowed,
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+			if Self::should_start_new_session(n) {
+				Self::start_new_session(n)
+			}
+
+			if Self::should_start_withdrawals(n) {
+				Self::process_withdrawals(n)
+			}
+			Weight::zero()
+		}
 	}
 
 	#[pallet::call]
