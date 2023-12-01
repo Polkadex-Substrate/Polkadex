@@ -320,7 +320,7 @@ impl<T: Config> Pallet<T> {
 		// let account_info = <Accounts<T>>::get(&request.main).ok_or("Main account not found")?;
 
 		// if !account_info.proxies.contains(&request.proxy) {
-		// 	// TODO: Check Race condition
+		// 	// TODO: Check Race condition: this is harmless but annoying though
 		// 	return Err("Proxy not found")
 		// }
 
