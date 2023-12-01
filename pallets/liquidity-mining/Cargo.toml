@@ -1,6 +1,6 @@
 [package]
 name = "pallet-lmp"
-version = "5.3.0"
+version = "0.0.1"
 authors = ["Gautham J <gautham@polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -17,7 +17,8 @@ parity-scale-codec = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 frame-system = { workspace = true, default-features = false }
 frame-support = { workspace = true, default-features = false }
-
+orderbook-primitives = {path="../../primitives/orderbook", default-features = false}
+rust_decimal = {workspace = true, default-features = false}
 
 [features]
 default = [ "std" ]
@@ -25,4 +26,7 @@ std = [
     "parity-scale-codec/std",
     "frame-system/std",
     "frame-support/std",
-    "scale-info/std" ]
+    "scale-info/std",
+    "orderbook-primitives/std",
+    "rust_decimal/std"
+]

@@ -17,14 +17,21 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::pallet_prelude::*;
+use frame_system::pallet_prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use orderbook_primitives::LiquidityMining;
+	use orderbook_primitives::types::TradingPair;
+
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: IsType<<Self as frame_system::Config>::RuntimeEvent> + From<Event<Self>>;
+
+		/// Some type that implements the LiquidityMining traits
+		type OCEX: LiquidityMining;
 	}
 
 	#[pallet::pallet]
@@ -33,9 +40,27 @@ pub mod pallet {
 	#[pallet::event]
 	pub enum Event<T: Config> {}
 
-	#[pallet::storage]
-	pub type Value<T> = StorageValue<Value = u32>;
+	#[pallet::error]
+	pub enum Error<T> {
+		/// Market is not registered with OCEX pallet
+		UnknownMarket
+	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		/// Register a new pool
+		#[pallet::call_index(0)]
+		#[pallet::weight(10000)]
+		pub fn register_pool(origin: OriginFor<T>, name: [u8;10], market: TradingPair, commission: u128, exit_fee: u128) -> DispatchResult {
+			// Check market is active
+			ensure!(T::OCEX::is_registered_market(&market), Error::<T>::UnknownMarket);
+			// Check if commission is between 0-1
+			let mut commission = Decimal::
+			// Check if exit_fee is between 0 -1
+			// Create the a pool address with origin and market combo if it doesn't exist
+			// Register on OCEX pallet
+			// Start cycle
+			Ok(())
+		}
+	}
 }

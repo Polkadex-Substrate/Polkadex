@@ -7014,11 +7014,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-lmp"
-version = "5.3.0"
+version = "0.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
+ "orderbook-primitives",
  "parity-scale-codec",
+ "rust_decimal",
  "scale-info",
 ]
 

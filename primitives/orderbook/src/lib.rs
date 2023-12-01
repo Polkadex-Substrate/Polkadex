@@ -26,7 +26,7 @@
 
 #[cfg(feature = "std")]
 use crate::recovery::ObCheckpoint;
-use crate::types::AccountAsset;
+use crate::types::{AccountAsset, TradingPair};
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
 pub use primitive_types::H128;
@@ -171,4 +171,10 @@ impl ObCheckpointRaw {
 			state_change_id: self.state_change_id,
 		}
 	}
+}
+
+
+pub trait LiquidityMining {
+	fn average_price(market: TradingPair) -> Decimal;
+	fn is_registered_market(market: &TradingPair) -> bool;
 }
