@@ -51,6 +51,24 @@ pub enum IngressMessages<AccountId> {
 	SetExchangeState(bool),
 	/// Withdrawal from Chain to OrderBook.
 	DirectWithdrawal(AccountId, AssetId, Decimal, bool),
+
+
+	/// Liquidity Mining Variants
+	/// Add Liquidity ( market, pool_id, base_amount, quote_amount)
+	AddLiquidity(TradingPairConfig, AccountId, Decimal, Decimal),
+	/// Remove liquidity ( market, pool_id, shares_to_burn, total_shares)
+	RemoveLiquidity(TradingPairConfig,AccountId, Balance, Balance),
+	/// Force Close Command ( market, pool_id)
+	ForceClosePool(TradingPairConfig, AccountId)
+}
+
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum EgressMessages<AccountId> {
+	/// AddLiquidityResult (shares issued)
+	AddLiquidityResult(Decimal),
+	/// RemoveLiquidityResult
+	RemoveLiquidityResult,
 }
 
 /// Defines the structure of handle balance data which used to set account balance.
