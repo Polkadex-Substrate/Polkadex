@@ -28,7 +28,7 @@
 use crate::recovery::ObCheckpoint;
 use crate::types::{AccountAsset, TradingPair};
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
+use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber, AccountId};
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
@@ -174,7 +174,13 @@ impl ObCheckpointRaw {
 }
 
 
-pub trait LiquidityMining {
+pub trait LiquidityMining<AccountId, Balance> {
+	fn register_pool(pool_id: AccountId);
 	fn average_price(market: TradingPair) -> Decimal;
 	fn is_registered_market(market: &TradingPair) -> bool;
+
+	fn add_liquidity(market: TradingPair, pool: AccountId, base_amount: Decimal, quote_amount: Decimal);
+	fn remove_liquidity(given: Balance, total: Balance);
+
+	fn force_close_pool(market: TradingPair, main: AccountId);
 }

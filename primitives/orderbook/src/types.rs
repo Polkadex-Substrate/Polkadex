@@ -19,7 +19,7 @@
 //! In this module defined "Orderbook" specific operations and types.
 
 use crate::constants::*;
-use parity_scale_codec::{Codec, Decode, Encode};
+use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
@@ -401,7 +401,7 @@ impl From<OrderStatus> for String {
 }
 
 /// Defines trading pair structure.
-#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo)]
+#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	/// Base asset identifier.
