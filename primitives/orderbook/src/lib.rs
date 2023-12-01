@@ -175,12 +175,21 @@ impl ObCheckpointRaw {
 
 
 pub trait LiquidityMining<AccountId, Balance> {
+	/// Registers the pool_id as main account, trading account.
 	fn register_pool(pool_id: AccountId);
+
+	/// Returns the Current Average price
 	fn average_price(market: TradingPair) -> Decimal;
+	/// Returns if its a registered market in OCEX pallet
 	fn is_registered_market(market: &TradingPair) -> bool;
 
+	/// Deposits the given amounts to Orderbook and Adds an ingress message requesting engine to calculate the exact shares
+	/// and return it as an egress message
 	fn add_liquidity(market: TradingPair, pool: AccountId, base_amount: Decimal, quote_amount: Decimal);
+
+	/// Adds an ingress message to initiate withdrawal request and queue it for execution at the end of cycle.
 	fn remove_liquidity(given: Balance, total: Balance);
 
+	/// Adds an ingress message to force close all open orders from this main account and initiate complete withdrawal
 	fn force_close_pool(market: TradingPair, main: AccountId);
 }
