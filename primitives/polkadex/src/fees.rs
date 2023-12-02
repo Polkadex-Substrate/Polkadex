@@ -30,9 +30,9 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FeeConfig {
 	/// Market fee fraction.
-	pub(crate) maker_fraction: Decimal,
+	pub maker_fraction: Decimal,
 	/// Trade fee fraction.
-	pub(crate) taker_fraction: Decimal,
+	pub taker_fraction: Decimal,
 }
 
 impl Default for FeeConfig {

@@ -26,6 +26,7 @@ use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_std::collections::btree_map::BTreeMap;
+use polkadex_primitives::fees::FeeConfig;
 
 /// Updates provided trie db with a new balance entry if it is does not contain item for specific
 /// account or asset yet, or increments existing item balance.
@@ -111,27 +112,41 @@ pub fn process_trade(
 	state: &mut OffchainState,
 	trade: &Trade,
 	config: TradingPairConfig,
+	maker_fees: FeeConfig,
+	taker_fees: FeeConfig,
 ) -> Result<(), &'static str> {
 	info!(target: "orderbook", "📒 Processing trade: {:?}", trade);
 	if !trade.verify(config) {
 		error!(target: "orderbook", "📒 Trade verification failed");
 		return Err("InvalidTrade")
 	}
-
+	// TODO: Handle Fees here, and update the total fees paid, maker volume for LMP calculations
 	// Update balances
-	{
-		let (maker_asset, maker_credit) = trade.credit(true);
+	let maker_fees = {
+		let (maker_asset, mut maker_credit) = trade.credit(true);
+		let maker_fees = maker_credit.saturating_mul(maker_fees.maker_fraction);
+		maker_credit = maker_credit.saturating_sub(maker_fees);
 		add_balance(state, &maker_asset.main, maker_asset.asset, maker_credit)?;
 
 		let (maker_asset, maker_debit) = trade.debit(true);
 		sub_balance(state, &maker_asset.main, maker_asset.asset, maker_debit)?;
-	}
-	{
-		let (taker_asset, taker_credit) = trade.credit(false);
+		maker_fees
+	};
+	let taker_fees = {
+		let (taker_asset, mut taker_credit) = trade.credit(false);
+		let taker_fees = taker_credit.saturating_mul(taker_fees.taker_fraction);
+		taker_credit = taker_credit.saturating_sub(taker_fees);
 		add_balance(state, &taker_asset.main, taker_asset.asset, taker_credit)?;
 
 		let (taker_asset, taker_debit) = trade.debit(false);
 		sub_balance(state, &taker_asset.main, taker_asset.asset, taker_debit)?;
-	}
+		taker_fees
+	};
+
+	// TODO: Store trade.price * trade.volume as maker volume for this epoch
+	// TODO: Store maker_fees and taker_fees for the corresponding main account for this epoch
+	// TODO: Use this for LMP calculations.
 	Ok(())
 }
+
+

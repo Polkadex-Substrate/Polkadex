@@ -22,7 +22,7 @@ pub mod types;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::MarketMakerConfig;
+	use crate::types::{EpochNumber, MarketMakerConfig};
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{
@@ -85,6 +85,19 @@ pub mod pallet {
 		T::AccountId,
 		MarketMakerConfig<T::AccountId, BlockNumberFor<T>>,
 		OptionQuery,
+	>;
+
+
+	#[pallet::storage]
+	#[pallet::getter(fn scores)]
+	pub(super) type Scores<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		T::AccountId,
+		Identity,
+		EpochNumber,
+		ValidatorSet<T::AuthorityId>, // TODO: Change this.
+		ValueQuery,
 	>;
 
 	#[pallet::event]

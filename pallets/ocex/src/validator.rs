@@ -30,7 +30,7 @@ use orderbook_primitives::{
 	ObCheckpointRaw, SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId};
+use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId, ProxyLimit};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
@@ -38,6 +38,9 @@ use sp_core::{crypto::ByteArray, H256};
 use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use trie_db::{TrieError, TrieMut};
+use polkadex_primitives::fees::FeeConfig;
+use polkadex_primitives::ocex::AccountInfo;
+use crate::pallet::Accounts;
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -303,7 +306,9 @@ impl<T: Config> Pallet<T> {
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
 				.ok_or("TradingPairNotFound")?;
-			process_trade(state, trade, config)?
+			let (maker_fees, taker_fees) = Self::get_fee_structure(&trade.maker.user,&trade.taker.user)
+				.ok_or("Fee structure not found")?;
+			process_trade(state, trade, config, maker_fees, taker_fees)?
 		}
 		Ok(())
 	}
@@ -448,6 +453,22 @@ impl<T: Config> Pallet<T> {
 		let mut storage = crate::storage::State;
 		let mut state = OffchainState::load(&mut storage, &mut root);
 		Self::load_state_info(&mut state)
+	}
+
+	/// Returns the FeeConfig from runtime for maker and taker
+	pub fn get_fee_structure(maker: &T::AccountId, taker: &T::AccountId) -> Option<(FeeConfig, FeeConfig)> {
+		let maker_config = match <Accounts<T>>::get(maker) {
+			None => return None,
+			Some(x) => x.fee_config
+		};
+
+		let taker_config = match <Accounts<T>>::get(taker) {
+			None => return None,
+			Some(x) => x.fee_config
+		};
+
+		Some((maker_config,taker_config))
+
 	}
 }
 

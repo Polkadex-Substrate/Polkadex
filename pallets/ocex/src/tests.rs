@@ -458,7 +458,7 @@ fn test_trade_between_two_accounts_without_balance() {
 		let amount = Decimal::from_str("20").unwrap();
 		let price = Decimal::from_str("2").unwrap();
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let result = process_trade(&mut state, &trade, config, , );
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -509,7 +509,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		//so alice should have 20 PDEX and bob should have 20 less PDEX
 		//also, alice should have 40 less Asset(1) and bob should have 40 more Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let result = process_trade(&mut state, &trade, config, , );
 		assert_ok!(result);
 
 		//check has 20 pdex now
@@ -569,7 +569,7 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let result = process_trade(&mut state, &trade, config, , );
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -603,7 +603,7 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let result = process_trade(&mut state, &trade, config, , );
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -640,7 +640,7 @@ fn test_trade_between_two_accounts_invalid_signature() {
 		//swap alice and bob's signature
 		trade.maker.signature = trade.taker.signature.clone();
 
-		let result = process_trade(&mut state, &trade, config);
+		let result = process_trade(&mut state, &trade, config, , );
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "InvalidTrade"),
