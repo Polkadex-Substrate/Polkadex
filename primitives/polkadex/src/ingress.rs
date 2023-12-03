@@ -66,8 +66,8 @@ pub enum IngressMessages<AccountId> {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum EgressMessages<AccountId> {
 	/// AddLiquidityResult (shares issued)
-	/// Add Liquidity Result ( Pool, LP, Shares issued )
-	AddLiquidityResult(AccountId, AccountId, Decimal),
+	/// Add Liquidity Result ( Pool, LP, Shares issued, Market price, total Inventory ( in Quote) )
+	AddLiquidityResult(AccountId, AccountId, Decimal, Decimal, Decimal),
 	/// RemoveLiquidityResult
 	RemoveLiquidityResult,
 }
