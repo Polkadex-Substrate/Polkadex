@@ -51,6 +51,8 @@ pub enum IngressMessages<AccountId> {
 	SetExchangeState(bool),
 	/// Withdrawal from Chain to OrderBook.
 	DirectWithdrawal(AccountId, AssetId, Decimal, bool),
+	/// Update Fee Structure ( main, maker_fraction, taker_fraction)
+	UpdateFeeStructure(AccountId, Decimal, Decimal),
 
 
 	/// Liquidity Mining Variants
