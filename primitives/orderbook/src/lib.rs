@@ -28,7 +28,7 @@
 use crate::recovery::ObCheckpoint;
 use crate::types::{AccountAsset, TradingPair};
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber, AccountId};
+use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;

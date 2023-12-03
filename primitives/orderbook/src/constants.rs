@@ -19,6 +19,7 @@
 //! This module contains constants definitions related to the "Orderbook".
 
 use polkadex_primitives::Balance;
+use frame_support::PalletId;
 
 /// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;
@@ -31,6 +32,8 @@ pub const MAX_QTY: Balance = 10000000 * UNIT_BALANCE;
 /// Range of PRICE: 0.00000001 to 10,000,000 UNITs
 pub const MIN_PRICE: Balance = UNIT_BALANCE / 10000000;
 pub const MAX_PRICE: Balance = 10000000 * UNIT_BALANCE;
+
+pub const FEE_POT_PALLET_ID: PalletId = PalletId(*b"ocexfees");
 
 #[test]
 pub fn test_overflow_check() {
