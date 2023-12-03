@@ -54,8 +54,8 @@ pub enum IngressMessages<AccountId> {
 
 
 	/// Liquidity Mining Variants
-	/// Add Liquidity ( market, pool_id, base_amount, quote_amount)
-	AddLiquidity(TradingPairConfig, AccountId, Decimal, Decimal),
+	/// Add Liquidity ( market, pool_id, total Shares issued,  base_amount, quote_amount)
+	AddLiquidity(TradingPairConfig, AccountId, Decimal, Decimal, Decimal),
 	/// Remove liquidity ( market, pool_id, shares_to_burn, total_shares)
 	RemoveLiquidity(TradingPairConfig,AccountId, Decimal, Decimal),
 	/// Force Close Command ( market, pool_id)
