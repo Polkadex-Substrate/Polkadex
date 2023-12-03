@@ -234,7 +234,7 @@ pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
 	/// Withdraw operation requested. ( payload, stid)
 	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
-	BlockImport(u32),
+	BlockImport(u32, Vec<EgressMessages<AccountId>>),
 	/// Reset Flag
 	Reset,
 	/// Withdraw operation requested.( request, stid)
@@ -294,6 +294,7 @@ use core::{
 };
 use parity_scale_codec::alloc::string::ToString;
 use scale_info::prelude::string::String;
+use polkadex_primitives::ingress::EgressMessages;
 
 /// Withdraw payload requested by user.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo)]

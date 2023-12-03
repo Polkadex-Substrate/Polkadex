@@ -54,8 +54,8 @@ pub enum IngressMessages<AccountId> {
 
 
 	/// Liquidity Mining Variants
-	/// Add Liquidity ( market, pool_id, total Shares issued,  base_amount, quote_amount)
-	AddLiquidity(TradingPairConfig, AccountId, Decimal, Decimal, Decimal),
+	/// Add Liquidity ( market, pool_id, LP, total Shares issued,  base_amount, quote_amount)
+	AddLiquidity(TradingPairConfig, AccountId, AccountId, Decimal, Decimal, Decimal),
 	/// Remove liquidity ( market, pool_id, shares_to_burn, total_shares)
 	RemoveLiquidity(TradingPairConfig,AccountId, Decimal, Decimal),
 	/// Force Close Command ( market, pool_id)
@@ -64,9 +64,10 @@ pub enum IngressMessages<AccountId> {
 
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum EgressMessages {
+pub enum EgressMessages<AccountId> {
 	/// AddLiquidityResult (shares issued)
-	AddLiquidityResult(Decimal),
+	/// Add Liquidity Result ( Pool, LP, Shares issued )
+	AddLiquidityResult(AccountId, AccountId, Decimal),
 	/// RemoveLiquidityResult
 	RemoveLiquidityResult,
 }
