@@ -60,6 +60,9 @@ use polkadex_primitives::ocex::TradingPairConfig;
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
 
+use orderbook_primitives::types::AccountAsset;
+use polkadex_primitives::AccountId;
+
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -146,7 +149,7 @@ pub mod pallet {
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{Fees, SnapshotSummary};
+	use orderbook_primitives::{Fees, ObCheckpointRaw, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ocex::{AccountInfo, TradingPairConfig},
@@ -1218,6 +1221,109 @@ pub mod pallet {
 			} else {
 				false
 			}
+		}
+
+		/// Collects onchain registered main and proxy accounts
+		/// for each of main accounts collects balances from offchain storage
+		/// adds other required for recovery properties
+		/// Returned tuple resembles `orderbook_primitives::recovery::ObRecoveryState`
+		/// FIXME: use solid type here instead of tuple
+		pub fn get_ob_recover_state() -> Result<
+			(
+				u64,
+				BTreeMap<AccountId, Vec<AccountId>>,
+				BTreeMap<AccountAsset, Decimal>,
+				u32,
+				u64,
+				u64,
+			),
+			DispatchError,
+		> {
+			let account_id =
+				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
+					ids_accum.push((acc.clone(), acc_info.proxies));
+					ids_accum
+				});
+
+			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			let mut account_ids: BTreeMap<AccountId, Vec<AccountId>> = BTreeMap::new();
+			// all offchain balances for main accounts
+			for account in account_id {
+				let main = Self::transform_account(account.0)?;
+				let b = Self::get_offchain_balance(&main)?;
+				for (asset, balance) in b.into_iter() {
+					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
+				}
+				let proxies = account.1.into_iter().try_fold(vec![], |mut accum, proxy| {
+					accum.push(Self::transform_account(proxy)?);
+					Ok::<Vec<AccountId>, DispatchError>(accum)
+				})?;
+				account_ids.insert(main, proxies);
+			}
+
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
+			let last_processed_block_number = state_info.last_block;
+			let worker_nonce = state_info.worker_nonce;
+			let snapshot_id = state_info.snapshot_id;
+			let state_change_id = state_info.stid;
+
+			Ok((
+				snapshot_id,
+				account_ids,
+				balances,
+				last_processed_block_number,
+				state_change_id,
+				worker_nonce,
+			))
+		}
+
+		/// Fetch checkpoint for recovery
+		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			log::debug!(target:"ocex", "fetch_checkpoint called");
+			let account_id =
+				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
+					ids_accum.push((acc.clone(), acc_info.proxies));
+					ids_accum
+				});
+
+			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			// all offchain balances for main accounts
+			for account in account_id {
+				let main = Self::transform_account(account.0)?;
+				let b = Self::get_offchain_balance(&main)?;
+				for (asset, balance) in b.into_iter() {
+					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
+				}
+			}
+			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
+			let last_processed_block_number = state_info.last_block;
+			let snapshot_id = state_info.snapshot_id;
+			let state_change_id = state_info.stid;
+			log::debug!(target:"ocex", "fetch_checkpoint returning");
+			Ok(ObCheckpointRaw::new(
+				snapshot_id,
+				balances,
+				last_processed_block_number,
+				state_change_id,
+			))
+		}
+
+		/// Fetches balance of given `AssetId` for given `AccountId` from offchain storage
+		/// If nothing found - returns `Decimal::Zero`
+		pub fn get_balance(from: T::AccountId, of: AssetId) -> Result<Decimal, DispatchError> {
+			Ok(Self::get_offchain_balance(&Self::transform_account(from)?)
+				.unwrap_or_else(|_| BTreeMap::new())
+				.get(&of)
+				.unwrap_or(&Decimal::ZERO)
+				.to_owned())
+		}
+
+		// Converts `T::AccountId` into `polkadex_primitives::AccountId`
+		fn transform_account(
+			account: T::AccountId,
+		) -> Result<polkadex_primitives::AccountId, DispatchError> {
+			Decode::decode(&mut &account.encode()[..])
+				.map_err(|_| Error::<T>::AccountIdCannotBeDecoded.into())
 		}
 	}
 

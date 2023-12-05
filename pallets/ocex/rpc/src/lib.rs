@@ -157,9 +157,9 @@ where
 
 		let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
 		// all offchain balances for main accounts
-		for (main, _) in &main_accounts {
+		for main in main_accounts.keys() {
 			let b = self
-				.get_offchain_balances(&mut state, main.into())
+				.get_offchain_balances(&mut state, main)
 				.map_err(runtime_error_into_rpc_err)?;
 			for (asset, balance) in b.into_iter() {
 				balances.insert(AccountAsset { main: main.clone(), asset }, balance);
@@ -289,9 +289,9 @@ where
 
 		let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
 		// all offchain balances for main accounts
-		for (main, _) in &main_accounts {
+		for main in main_accounts.keys() {
 			let b = self
-				.get_offchain_balances(&mut state, main.into())
+				.get_offchain_balances(&mut state, main)
 				.map_err(runtime_error_into_rpc_err)?;
 			for (asset, balance) in b.into_iter() {
 				balances.insert(AccountAsset { main: main.clone(), asset }, balance);
