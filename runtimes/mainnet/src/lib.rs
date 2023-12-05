@@ -115,14 +115,14 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("polkadex-node"),
+	spec_name: create_runtime_str!("node"),
 	impl_name: create_runtime_str!("polkadex-official"),
 	authoring_version: 10,
 	// Per convention: if the runtime behavior changes, increment spec_version
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 312,
+	spec_version: 313,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 3,
@@ -1123,6 +1123,7 @@ impl pallet_grandpa::Config for Runtime {
 }
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const AssetAccountDeposit: Balance = DOLLARS;
 	pub const ApprovalDeposit: Balance = DOLLARS;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
@@ -1139,7 +1140,7 @@ impl pallet_assets::Config for Runtime {
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRootOrHalfCouncil;
 	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
