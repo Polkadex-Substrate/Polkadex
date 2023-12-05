@@ -41,7 +41,7 @@ use trie_db::{TrieError, TrieMut};
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
-const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
+pub const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
 pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// Aggregator endpoint: Even though it is centralized for now, it is trustless
 /// as it verifies the signature and and relays them to destination.

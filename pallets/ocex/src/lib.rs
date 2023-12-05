@@ -94,7 +94,7 @@ pub mod aggregator;
 mod benchmarking;
 pub mod rpc;
 mod settlement;
-mod snapshot;
+pub mod snapshot;
 pub mod storage;
 pub mod validator;
 
