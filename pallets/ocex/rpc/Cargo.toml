@@ -26,4 +26,4 @@ hash-db = { workspace = true }
 trie-db = { workspace = true }
 sp-trie = { workspace = true }
 rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
-pallet-ocex-lmp = {path = "../../ocex"}
+pallet-ocex-lmp = { path = "../../ocex" }
