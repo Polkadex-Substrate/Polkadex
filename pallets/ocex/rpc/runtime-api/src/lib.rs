@@ -27,8 +27,6 @@ sp_api::decl_runtime_apis! {
 	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec, BTreeMap<AccountId,Vec<AccountId>>: Decode {
 		// Returns all on-chain registered main accounts and it's proxies
 		fn get_main_accounts() -> BTreeMap<AccountId,Vec<AccountId>>;
-		// gets balance from given account of given asset
-		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, sp_runtime::DispatchError>;
 		// Returns the asset inventory deviation in the offchain State
 		fn calculate_inventory_deviation(offchain_inventory: BTreeMap<AssetId,Decimal>, last_processed_block: u32) -> Result<BTreeMap<AssetId,Decimal>, sp_runtime::DispatchError>;
 	}

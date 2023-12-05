@@ -18,21 +18,18 @@
 
 use crate::{
 	pallet::{Accounts, AllowlistedToken, IngressMessages},
-	storage::OffchainState,
 	validator::WORKER_STATUS,
 	Config, Pallet,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use parity_scale_codec::{Decode};
-use polkadex_primitives::{AccountId, AssetId};
+use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
-use sp_application_crypto::ByteArray;
 use sp_runtime::{
 	offchain::storage::{StorageRetrievalError, StorageValueRef},
 	traits::BlockNumberProvider,
 	DispatchError, SaturatedConversion,
 };
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 impl<T: Config> Pallet<T> {
 	/// Try to acquire the offchain storage lock ( tries for 3 times )
@@ -70,22 +67,11 @@ impl<T: Config> Pallet<T> {
 		s_info.set(&false); // Set WORKER_STATUS to true
 	}
 
-	pub fn get_balances(
-		state: &mut OffchainState,
-		account: &AccountId,
-	) -> Result<BTreeMap<AssetId, Decimal>, &'static str> {
-		match state.get(&account.to_raw_vec())? {
-			None => Ok(BTreeMap::new()),
-			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
-				.map_err(|_| "Unable to decode balances for account"),
-		}
-	}
-
 	/// Returns all registered main accounts
-	pub fn get_all_main_accounts() -> Vec<T::AccountId> {
-		let mut main_accounts = Vec::new();
-		for (main, _) in <Accounts<T>>::iter() {
-			main_accounts.push(main)
+	pub fn get_all_main_accounts() -> BTreeMap<T::AccountId, Vec<T::AccountId>> {
+		let mut main_accounts = BTreeMap::new();
+		for (main, info) in <Accounts<T>>::iter() {
+			main_accounts.insert(main, info.proxies.to_vec().clone());
 		}
 		main_accounts
 	}
@@ -95,7 +81,7 @@ impl<T: Config> Pallet<T> {
 	/// Returns the deviation ( On-chain - Off-chain )
 	pub fn calculate_inventory_deviation(
 		last_processed_blk: u32,
-		offchain_inventory: BTreeMap<AssetId, Decimal>
+		offchain_inventory: BTreeMap<AssetId, Decimal>,
 	) -> Result<BTreeMap<AssetId, Decimal>, DispatchError> {
 		// 4. Load assets pallet balances of registered assets
 		let assets = <AllowlistedToken<T>>::get();

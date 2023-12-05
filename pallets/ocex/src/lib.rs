@@ -52,8 +52,7 @@ use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
-	types::{ TradingPair},
-	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	types::TradingPair, SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
@@ -1220,7 +1219,6 @@ pub mod pallet {
 				false
 			}
 		}
-
 	}
 
 	/// Events are a simple means of reporting specific conditions and

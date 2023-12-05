@@ -6124,7 +6124,6 @@ dependencies = [
  "hex-literal 0.3.4",
  "liquidity",
  "log",
- "orderbook-primitives",
  "orml-vesting",
  "pallet-asset-conversion",
  "pallet-asset-conversion-tx-payment",
