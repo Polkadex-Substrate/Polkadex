@@ -232,7 +232,7 @@ pub fn prefixed_key(key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> Vec<u
 	prefixed_key
 }
 
-pub fn load_trie_root() -> <BlakeTwo256 as Hasher>::Out {
+pub(crate) fn load_trie_root() -> <BlakeTwo256 as Hasher>::Out {
 	let root_ref = StorageValueRef::persistent(&TRIE_ROOT);
 	match root_ref.get::<<BlakeTwo256 as Hasher>::Out>() {
 		Ok(Some(root)) => root,
