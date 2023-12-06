@@ -40,7 +40,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{assets::AssetId, UNIT_BALANCE};
+use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
@@ -52,16 +52,14 @@ use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
-	types::TradingPair, SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	types::{AccountAsset, TradingPair},
+	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
 #[cfg(feature = "runtime-benchmarks")]
 use sp_runtime::traits::One;
 use sp_std::vec::Vec;
-
-use orderbook_primitives::types::AccountAsset;
-use polkadex_primitives::AccountId;
 
 #[cfg(test)]
 mod mock;
@@ -96,7 +94,7 @@ pub mod aggregator;
 mod benchmarking;
 pub mod rpc;
 mod settlement;
-pub mod snapshot;
+mod snapshot;
 pub mod storage;
 pub mod validator;
 

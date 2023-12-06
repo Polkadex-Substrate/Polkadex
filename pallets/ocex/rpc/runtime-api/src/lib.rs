@@ -18,16 +18,20 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Codec, Decode};
+use orderbook_primitives::ObCheckpointRaw;
+use parity_scale_codec::Codec;
 use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 sp_api::decl_runtime_apis! {
-	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec, BTreeMap<AccountId,Vec<AccountId>>: Decode {
-		// Returns all on-chain registered main accounts and it's proxies
-		fn get_main_accounts() -> BTreeMap<AccountId,Vec<AccountId>>;
+	pub trait PolkadexOcexRuntimeApi<AccountId, Hash> where AccountId: Codec, Hash : Codec {
+		fn get_ob_recover_state() ->  Result<Vec<u8>, sp_runtime::DispatchError>;
+		// gets balance from given account of given asset
+		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, sp_runtime::DispatchError>;
+		// gets the latest checkpoint from the offchain State
+		fn fetch_checkpoint() -> Result<ObCheckpointRaw, sp_runtime::DispatchError>;
 		// Returns the asset inventory deviation in the offchain State
-		fn calculate_inventory_deviation(offchain_inventory: BTreeMap<AssetId,Decimal>, last_processed_block: u32) -> Result<BTreeMap<AssetId,Decimal>, sp_runtime::DispatchError>;
+		fn calculate_inventory_deviation() -> Result<BTreeMap<AssetId,Decimal>, sp_runtime::DispatchError>;
 	}
 }
