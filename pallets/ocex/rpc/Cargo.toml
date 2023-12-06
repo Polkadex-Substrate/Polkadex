@@ -1,6 +1,6 @@
 [package]
 name = "pallet-ocex-rpc"
-version = "0.1.0"
+version = "5.4.1"
 edition = "2021"
 
 [dependencies]
