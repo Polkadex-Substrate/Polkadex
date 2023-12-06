@@ -20,6 +20,7 @@
 
 use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok};
+use orderbook_primitives::types::AccountAsset;
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
