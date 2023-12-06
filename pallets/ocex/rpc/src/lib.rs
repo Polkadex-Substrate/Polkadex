@@ -30,12 +30,11 @@ use jsonrpsee::{
 use orderbook_primitives::recovery::{DeviationMap, ObCheckpoint, ObRecoveryState};
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
-use parking_lot::RwLock;
 use polkadex_primitives::AssetId;
 use sc_rpc_api::DenyUnsafe;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::offchain::OffchainStorage;
+use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
@@ -74,7 +73,7 @@ pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 	client: Arc<Client>,
 
 	/// Offchain storage
-	storage: Arc<RwLock<T>>,
+	offchain_db: OffchainDb<T>,
 	deny_unsafe: DenyUnsafe,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct
@@ -86,7 +85,7 @@ impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
 	pub fn new(client: Arc<Client>, storage: T, deny_unsafe: DenyUnsafe) -> Self {
 		Self {
 			client,
-			storage: Arc::new(RwLock::new(storage)),
+			offchain_db: OffchainDb::new(storage),
 			deny_unsafe,
 			_marker: Default::default(),
 		}
@@ -109,11 +108,12 @@ where
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObRecoveryState> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		// WARN: this is a hack on beating the boundry of runtime ->
 		// polkadex-node with decoding tuple of underlying data into
 		// solid std type
@@ -133,11 +133,13 @@ where
 		of: AssetId,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
+
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let runtime_api_result =
 			api.get_balance(at, account_id, of).map_err(runtime_error_into_rpc_err)?;
 		let json =
@@ -150,12 +152,14 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
 		self.deny_unsafe.check_if_safe()?;
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let mut offchain_storage = offchain::OffchainStorageAdapter::new(self.offchain_db.clone());
 		if !offchain_storage.acquire_offchain_lock(3).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
@@ -180,12 +184,14 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObCheckpoint> {
 		//self.deny_unsafe.check_if_safe()?; //As it is used by the aggregator, we need to allow it
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let mut offchain_storage = offchain::OffchainStorageAdapter::new(self.offchain_db.clone());
 		if !offchain_storage.acquire_offchain_lock(RETRIES).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
