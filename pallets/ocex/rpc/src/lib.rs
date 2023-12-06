@@ -27,34 +27,32 @@ use jsonrpsee::{
 	tracing::log,
 	types::error::{CallError, ErrorObject},
 };
-use orderbook_primitives::{
-	recovery::{DeviationMap, ObCheckpoint, ObRecoveryState},
-	types::AccountAsset,
-	ObCheckpointRaw,
-};
-use pallet_ocex_lmp::{snapshot::StateInfo, validator::STATE_INFO};
+use orderbook_primitives::recovery::{DeviationMap, ObCheckpoint, ObRecoveryState};
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
-use parity_scale_codec::{Codec, Decode, Encode};
-use parking_lot::RwLock;
-use polkadex_primitives::{AccountId, AssetId};
-use rust_decimal::Decimal;
+use parity_scale_codec::{Codec, Decode};
+use polkadex_primitives::AssetId;
 use sc_rpc_api::DenyUnsafe;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::{offchain::OffchainStorage, ByteArray};
+use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
 use sp_runtime::traits::Block as BlockT;
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 const RUNTIME_ERROR: i32 = 1;
 const RETRIES: u8 = 3;
 
 #[rpc(client, server)]
-pub trait PolkadexOcexRpcApi<BlockHash, Hash> {
+pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	#[method(name = "ob_getRecoverState")]
-	async fn get_ob_recover_state(&self, at: Option<BlockHash>) -> RpcResult<ObRecoveryState>;
+	fn get_ob_recover_state(&self, at: Option<BlockHash>) -> RpcResult<ObRecoveryState>;
 
 	#[method(name = "ob_getBalance")]
-	async fn get_balance(&self, account_id: AccountId, of: AssetId) -> RpcResult<String>;
+	fn get_balance(
+		&self,
+		account_id: AccountId,
+		of: AssetId,
+		at: Option<BlockHash>,
+	) -> RpcResult<String>;
 
 	#[method(name = "ob_inventoryDeviation")]
 	async fn calculate_inventory_deviation(&self, at: Option<BlockHash>) -> RpcResult<String>;
@@ -75,7 +73,7 @@ pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 	client: Arc<Client>,
 
 	/// Offchain storage
-	storage: Arc<RwLock<T>>,
+	offchain_db: OffchainDb<T>,
 	deny_unsafe: DenyUnsafe,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct
@@ -87,115 +85,65 @@ impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
 	pub fn new(client: Arc<Client>, storage: T, deny_unsafe: DenyUnsafe) -> Self {
 		Self {
 			client,
-			storage: Arc::new(RwLock::new(storage)),
+			offchain_db: OffchainDb::new(storage),
 			deny_unsafe,
 			_marker: Default::default(),
-		}
-	}
-
-	pub fn get_offchain_balances(
-		&self,
-		state: &mut pallet_ocex_lmp::storage::OffchainState,
-		account: &AccountId,
-	) -> Result<BTreeMap<AssetId, Decimal>, &'static str> {
-		match state.get(&account.to_raw_vec())? {
-			None => Ok(BTreeMap::new()),
-			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
-				.map_err(|_| "Unable to decode balances for account"),
-		}
-	}
-
-	/// Loads the state info from the offchain state
-	pub fn load_state_info(
-		&self,
-		state: &mut pallet_ocex_lmp::storage::OffchainState,
-	) -> Result<StateInfo, &'static str> {
-		match state.get(&STATE_INFO.to_vec())? {
-			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
-			None => Ok(StateInfo::default()),
 		}
 	}
 }
 
 #[async_trait]
-impl<Client, Block, Hash, T> PolkadexOcexRpcApiServer<<Block as BlockT>::Hash, Hash>
+impl<Client, Block, AccountId, Hash, T>
+	PolkadexOcexRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
 	for PolkadexOcexRpc<Client, Block, T>
 where
 	Block: BlockT,
 	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	Client::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
+	AccountId: Codec,
 	Hash: Codec,
 	T: OffchainStorage + 'static,
 {
-	async fn get_ob_recover_state(
+	fn get_ob_recover_state(
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObRecoveryState> {
-		// Acquire offchain storage lock
-		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
-		if !offchain_storage.acquire_offchain_lock(3).await {
-			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
-		}
+		let mut api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		// WARN: this is a hack on beating the boundry of runtime ->
+		// polkadex-node with decoding tuple of underlying data into
+		// solid std type
+		Decode::decode(
+			&mut api
+				.get_ob_recover_state(at)
+				.map_err(runtime_error_into_rpc_err)?
+				.map_err(runtime_error_into_rpc_err)?
+				.as_ref(),
+		)
+		.map_err(runtime_error_into_rpc_err)
+	}
 
-		// 1. Load Offchain State
-		let mut root = pallet_ocex_lmp::storage::load_trie_root();
-		log::info!(target:"ocex-rpc","state_root {:?}", root);
-		let mut storage = pallet_ocex_lmp::storage::State;
-		let mut state = pallet_ocex_lmp::storage::OffchainState::load(&mut storage, &mut root);
-
-		let api = self.client.runtime_api();
+	fn get_balance(
+		&self,
+		account_id: AccountId,
+		of: AssetId,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<String> {
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
 
-		log::debug!(target:"ocex", "fetch_ob_recovery called");
-		let main_accounts: sp_std::collections::btree_map::BTreeMap<
-			AccountId,
-			sp_std::vec::Vec<AccountId>,
-		> = api.get_main_accounts(at).map_err(runtime_error_into_rpc_err)?;
-
-		let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
-		// all offchain balances for main accounts
-		for main in main_accounts.keys() {
-			let b = self
-				.get_offchain_balances(&mut state, main)
-				.map_err(runtime_error_into_rpc_err)?;
-			for (asset, balance) in b.into_iter() {
-				balances.insert(AccountAsset { main: main.clone(), asset }, balance);
-			}
-		}
-		let state_info = self.load_state_info(&mut state).map_err(runtime_error_into_rpc_err)?;
-		let last_processed_block_number = state_info.last_block;
-		let snapshot_id = state_info.snapshot_id;
-		let state_change_id = state_info.stid;
-		log::debug!(target:"ocex", "fetch_ob_recovery returning");
-		Ok(ObRecoveryState {
-			snapshot_id,
-			account_ids: main_accounts,
-			balances,
-			last_processed_block_number,
-			state_change_id,
-			worker_nonce: 0,
-		})
-	}
-
-	async fn get_balance(&self, account_id: AccountId, of: AssetId) -> RpcResult<String> {
-		// Acquire offchain storage lock
-		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
-		if !offchain_storage.acquire_offchain_lock(3).await {
-			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
-		}
-
-		let mut root = pallet_ocex_lmp::storage::load_trie_root();
-		log::info!(target:"ocex-rpc","state_root {:?}", root);
-		let mut storage = pallet_ocex_lmp::storage::State;
-		let mut state = pallet_ocex_lmp::storage::OffchainState::load(&mut storage, &mut root);
-		let balances = self
-			.get_offchain_balances(&mut state, &account_id)
-			.map_err(runtime_error_into_rpc_err)?;
-		let balance = balances.get(&of).copied().unwrap_or_default();
-		let json = serde_json::to_string(&balance).map_err(runtime_error_into_rpc_err)?;
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let runtime_api_result =
+			api.get_balance(at, account_id, of).map_err(runtime_error_into_rpc_err)?;
+		let json =
+			serde_json::to_string(&runtime_api_result).map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
 	}
 
@@ -204,57 +152,28 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
 		self.deny_unsafe.check_if_safe()?;
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let mut offchain_storage = offchain::OffchainStorageAdapter::new(self.offchain_db.clone());
 		if !offchain_storage.acquire_offchain_lock(3).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
-
-		log::info!(target:"ocex-rpc","calculating the inventory deviation..");
-		// 1. Load last processed blk
-		let mut root = pallet_ocex_lmp::storage::load_trie_root();
-		log::info!(target:"ocex-rpc","state_root {:?}", root);
-		let mut storage = pallet_ocex_lmp::storage::State;
-		let mut state = pallet_ocex_lmp::storage::OffchainState::load(&mut storage, &mut root);
-		let state_info = self.load_state_info(&mut state).map_err(runtime_error_into_rpc_err)?;
-		let last_processed_blk = state_info.last_block;
-		// 2. Load all main accounts and registered assets from on-chain
-		let mut offchain_inventory = BTreeMap::new();
-		let main_accounts = api.get_main_accounts(at).map_err(runtime_error_into_rpc_err)?;
-		for main in main_accounts {
-			// 3. Compute sum of all balances of all assets
-			let balances: BTreeMap<AssetId, Decimal> = self
-				.get_offchain_balances(
-					&mut state,
-					&Decode::decode(&mut &main.encode()[..]).unwrap(),
-				)
-				.map_err(runtime_error_into_rpc_err)?;
-			for (asset, balance) in balances {
-				offchain_inventory
-					.entry(asset)
-					.and_modify(|total: &mut Decimal| {
-						*total = (*total).saturating_add(balance);
-					})
-					.or_insert(balance);
-			}
-		}
-
-		let deviation = match api
-			.calculate_inventory_deviation(at, offchain_inventory, last_processed_blk)
-			.map_err(runtime_error_into_rpc_err)?
-		{
-			Err(err) => {
-				log::error!(target:"ocex","Error calling calculate_inventory_deviation: {:?}",err);
-				return Err(runtime_error_into_rpc_err(
-					"Error calling calculate_inventory_deviation ",
-				))
-			},
-			Ok(deviation_map) => DeviationMap::new(deviation_map),
-		};
+		log::info!(target:"ocex","calculating the inventory deviation..");
+		let deviation =
+			match api.calculate_inventory_deviation(at).map_err(runtime_error_into_rpc_err)? {
+				Err(err) => {
+					log::error!(target:"ocex","Error calling calculate_inventory_deviation: {:?}",err);
+					return Err(runtime_error_into_rpc_err(
+						"Error calling calculate_inventory_deviation ",
+					))
+				},
+				Ok(deviation_map) => DeviationMap::new(deviation_map),
+			};
 		log::info!(target:"ocex","serializing the deviation map..");
 		let json = serde_json::to_string(&deviation).map_err(runtime_error_into_rpc_err)?;
 		Ok(json)
@@ -265,49 +184,21 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObCheckpoint> {
 		//self.deny_unsafe.check_if_safe()?; //As it is used by the aggregator, we need to allow it
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
-		let offchain_storage = offchain::OffchainStorageAdapter::new(self.storage.clone());
+
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let mut offchain_storage = offchain::OffchainStorageAdapter::new(self.offchain_db.clone());
 		if !offchain_storage.acquire_offchain_lock(RETRIES).await {
 			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
 		}
-
-		// 1. Load Offchain State
-		let mut root = pallet_ocex_lmp::storage::load_trie_root();
-		log::info!(target:"ocex-rpc","state_root {:?}", root);
-		let mut storage = pallet_ocex_lmp::storage::State;
-		let mut state = pallet_ocex_lmp::storage::OffchainState::load(&mut storage, &mut root);
-
-		log::debug!(target:"ocex", "fetch_checkpoint called");
-		let main_accounts: sp_std::collections::btree_map::BTreeMap<
-			AccountId,
-			sp_std::vec::Vec<AccountId>,
-		> = api.get_main_accounts(at).map_err(runtime_error_into_rpc_err)?;
-
-		let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
-		// all offchain balances for main accounts
-		for main in main_accounts.keys() {
-			let b = self
-				.get_offchain_balances(&mut state, main)
-				.map_err(runtime_error_into_rpc_err)?;
-			for (asset, balance) in b.into_iter() {
-				balances.insert(AccountAsset { main: main.clone(), asset }, balance);
-			}
-		}
-		let state_info = self.load_state_info(&mut state).map_err(runtime_error_into_rpc_err)?;
-		let last_processed_block_number = state_info.last_block;
-		let snapshot_id = state_info.snapshot_id;
-		let state_change_id = state_info.stid;
-		log::debug!(target:"ocex", "fetch_checkpoint returning");
-		let ob_checkpoint_raw = ObCheckpointRaw::new(
-			snapshot_id,
-			balances,
-			last_processed_block_number,
-			state_change_id,
-		);
+		let ob_checkpoint_raw = api
+			.fetch_checkpoint(at)
+			.map_err(runtime_error_into_rpc_err)?
+			.map_err(runtime_error_into_rpc_err)?;
 		let ob_checkpoint = ob_checkpoint_raw.to_checkpoint();
 		Ok(ob_checkpoint)
 	}

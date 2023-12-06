@@ -50,7 +50,6 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
-use sp_std::collections::btree_map::BTreeMap;
 
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
@@ -123,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 314,
+	spec_version: 315,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 3,
@@ -1606,6 +1605,7 @@ use crate::{
 	impls::CreditToBlockAuthor,
 	sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect,
 };
+use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1694,12 +1694,14 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
-		fn get_main_accounts() -> BTreeMap<AccountId, Vec<AccountId>> {
-			OCEX::get_all_main_accounts()
+		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
+		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
+		fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
+			OCEX::fetch_checkpoint()
 		}
-		fn calculate_inventory_deviation(offchain_inventory: BTreeMap<AssetId, Decimal>, last_processed_blk: u32) -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
+		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
 		DispatchError> {
-			OCEX::calculate_inventory_deviation(last_processed_blk,offchain_inventory)
+			OCEX::calculate_inventory_deviation()
 		}
 	}
 
