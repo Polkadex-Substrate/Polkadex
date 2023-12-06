@@ -50,7 +50,8 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
-use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
+use sp_std::collections::btree_map::BTreeMap;
+
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -115,17 +116,17 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("polkadex-node"),
+	spec_name: create_runtime_str!("node"),
 	impl_name: create_runtime_str!("polkadex-official"),
 	authoring_version: 10,
 	// Per convention: if the runtime behavior changes, increment spec_version
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 311,
+	spec_version: 314,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 2,
+	transaction_version: 3,
 	state_version: 0,
 };
 
@@ -1123,6 +1124,7 @@ impl pallet_grandpa::Config for Runtime {
 }
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const AssetAccountDeposit: Balance = DOLLARS;
 	pub const ApprovalDeposit: Balance = DOLLARS;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
@@ -1139,7 +1141,7 @@ impl pallet_assets::Config for Runtime {
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRootOrHalfCouncil;
 	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
@@ -1165,15 +1167,13 @@ impl BenchmarkHelper<parity_scale_codec::Compact<u128>> for AssetU128 {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-impl pallet_asset_conversion::BenchmarkHelper<u128, pallet_asset_conversion::NativeOrAssetId<u128>>
-	for AssetU128
-{
+impl pallet_asset_conversion::BenchmarkHelper<u128, AssetId> for AssetU128 {
 	fn asset_id(id: u32) -> u128 {
 		id as u128
 	}
 
-	fn multiasset_id(id: u32) -> pallet_asset_conversion::NativeOrAssetId<u128> {
-		pallet_asset_conversion::NativeOrAssetId::Asset(id as u128)
+	fn multiasset_id(id: u32) -> AssetId {
+		AssetId::Asset(id as u128)
 	}
 }
 
@@ -1365,6 +1365,10 @@ impl thea_executor::Config for Runtime {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
+	type Swap = AssetConversion;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1408,24 +1412,24 @@ parameter_types! {
 impl pallet_asset_conversion::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	type Balance = u128;
 	type AssetBalance = <Self as pallet_balances::Config>::Balance;
 	type HigherPrecisionBalance = u128;
+	type AssetId = u128;
+	type MultiAssetId = AssetId;
+	type MultiAssetIdConverter = polkadex_primitives::AssetIdConverter;
+	type PoolAssetId = u128;
 	type Assets = Assets;
-	type Balance = u128;
 	type PoolAssets = Assets;
-	type AssetId = <Self as pallet_assets::Config>::AssetId;
-	type MultiAssetId = NativeOrAssetId<u128>;
-	type PoolAssetId = <Self as pallet_assets::Config>::AssetId;
-	type PalletId = AssetConversionPalletId;
 	type LPFee = ConstU32<3>; // means 0.3%
 	type PoolSetupFee = PoolSetupFee;
 	type PoolSetupFeeReceiver = AssetConversionOrigin;
 	type LiquidityWithdrawalFee = LiquidityWithdrawalFee;
-	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
-	type AllowMultiAssetPools = AllowMultiAssetPools;
-	type MaxSwapPathLength = ConstU32<4>;
 	type MintMinLiquidity = MintMinLiquidity;
-	type MultiAssetIdConverter = NativeOrAssetIdConverter<u128>;
+	type MaxSwapPathLength = ConstU32<4>;
+	type PalletId = AssetConversionPalletId;
+	type AllowMultiAssetPools = AllowMultiAssetPools;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = AssetU128;
 }
@@ -1602,7 +1606,6 @@ use crate::{
 	impls::CreditToBlockAuthor,
 	sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect,
 };
-use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -1622,18 +1625,18 @@ impl_runtime_apis! {
 		Block,
 		Balance,
 		u128,
-		NativeOrAssetId<u128>
+		AssetId
 	> for Runtime
 	{
-		fn quote_price_exact_tokens_for_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
+		fn quote_price_exact_tokens_for_tokens(asset1: AssetId, asset2: AssetId, amount: u128, include_fee: bool) -> Option<Balance> {
 			AssetConversion::quote_price_exact_tokens_for_tokens(asset1, asset2, amount, include_fee)
 		}
 
-		fn quote_price_tokens_for_exact_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
+		fn quote_price_tokens_for_exact_tokens(asset1: AssetId, asset2: AssetId, amount: u128, include_fee: bool) -> Option<Balance> {
 			AssetConversion::quote_price_tokens_for_exact_tokens(asset1, asset2, amount, include_fee)
 		}
 
-		fn get_reserves(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>) -> Option<(Balance, Balance)> {
+		fn get_reserves(asset1: AssetId, asset2: AssetId) -> Option<(Balance, Balance)> {
 			AssetConversion::get_reserves(&asset1, &asset2).ok()
 		}
 	}
@@ -1691,14 +1694,12 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_ocex_runtime_api::PolkadexOcexRuntimeApi<Block, AccountId, Hash> for Runtime {
-		fn get_ob_recover_state() ->  Result<Vec<u8>, DispatchError> { Ok(OCEX::get_ob_recover_state()?.encode()) }
-		fn get_balance(from: AccountId, of: AssetId) -> Result<Decimal, DispatchError> { OCEX::get_balance(from, of) }
-		fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
-			OCEX::fetch_checkpoint()
+		fn get_main_accounts() -> BTreeMap<AccountId, Vec<AccountId>> {
+			OCEX::get_all_main_accounts()
 		}
-		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
+		fn calculate_inventory_deviation(offchain_inventory: BTreeMap<AssetId, Decimal>, last_processed_blk: u32) -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
 		DispatchError> {
-			OCEX::calculate_inventory_deviation()
+			OCEX::calculate_inventory_deviation(last_processed_blk,offchain_inventory)
 		}
 	}
 

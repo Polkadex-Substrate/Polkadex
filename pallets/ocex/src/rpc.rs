@@ -18,21 +18,18 @@
 
 use crate::{
 	pallet::{Accounts, AllowlistedToken, IngressMessages},
-	storage::OffchainState,
 	validator::WORKER_STATUS,
 	Config, Pallet,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{AccountId, AssetId};
+use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
-use sp_application_crypto::ByteArray;
 use sp_runtime::{
 	offchain::storage::{StorageRetrievalError, StorageValueRef},
 	traits::BlockNumberProvider,
 	DispatchError, SaturatedConversion,
 };
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 impl<T: Config> Pallet<T> {
 	/// Try to acquire the offchain storage lock ( tries for 3 times )
@@ -70,43 +67,22 @@ impl<T: Config> Pallet<T> {
 		s_info.set(&false); // Set WORKER_STATUS to true
 	}
 
-	pub fn get_balances(
-		state: &mut OffchainState,
-		account: &AccountId,
-	) -> Result<BTreeMap<AssetId, Decimal>, &'static str> {
-		match state.get(&account.to_raw_vec())? {
-			None => Ok(BTreeMap::new()),
-			Some(encoded) => BTreeMap::decode(&mut &encoded[..])
-				.map_err(|_| "Unable to decode balances for account"),
+	/// Returns all registered main accounts
+	pub fn get_all_main_accounts() -> BTreeMap<T::AccountId, Vec<T::AccountId>> {
+		let mut main_accounts = BTreeMap::new();
+		for (main, info) in <Accounts<T>>::iter() {
+			main_accounts.insert(main, info.proxies.to_vec().clone());
 		}
+		main_accounts
 	}
 
 	/// Calculates the deviation of all assets with Offchain and On-chain data.
 	///
-	/// This is a blocking call for offchain worker.
-	pub fn calculate_inventory_deviation() -> Result<BTreeMap<AssetId, Decimal>, DispatchError> {
-		// 1. Load last processed blk
-		let mut root = crate::storage::load_trie_root();
-		log::info!(target:"ocex-rpc","state_root {:?}", root);
-		let mut storage = crate::storage::State;
-		let mut state = OffchainState::load(&mut storage, &mut root);
-		let state_info = Self::load_state_info(&mut state)?;
-		let last_processed_blk = state_info.last_block;
-		//      2. Load all main accounts and registered assets from on-chain
-		let mut offchain_inventory = BTreeMap::new();
-		for (main, _) in <Accounts<T>>::iter() {
-			//      3. Compute sum of all balances of all assets
-			let balances: BTreeMap<AssetId, Decimal> =
-				Self::get_balances(&mut state, &Decode::decode(&mut &main.encode()[..]).unwrap())?;
-			for (asset, balance) in balances {
-				offchain_inventory
-					.entry(asset)
-					.and_modify(|total: &mut Decimal| {
-						*total = (*total).saturating_add(balance);
-					})
-					.or_insert(balance);
-			}
-		}
+	/// Returns the deviation ( On-chain - Off-chain )
+	pub fn calculate_inventory_deviation(
+		last_processed_blk: u32,
+		offchain_inventory: BTreeMap<AssetId, Decimal>,
+	) -> Result<BTreeMap<AssetId, Decimal>, DispatchError> {
 		// 4. Load assets pallet balances of registered assets
 		let assets = <AllowlistedToken<T>>::get();
 		let mut onchain_inventory = BTreeMap::new();

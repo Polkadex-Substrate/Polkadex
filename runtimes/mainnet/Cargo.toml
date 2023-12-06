@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "5.4.0"
+version = "5.4.1"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -98,7 +98,6 @@ orml-vesting = { workspace = true, default-features = false }
 
 # Local Dependecies
 polkadex-primitives = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 pdex-migration = { path = "../../pallets/pdex-migration", default-features = false }
 
 # Orderbook 
@@ -195,7 +194,6 @@ std = [
   "thea-executor/std",
   "frame-try-runtime?/std",
   "thea-message-handler?/std",
-  "orderbook-primitives/std",
   "pallet-asset-conversion/std",
   "pallet-asset-conversion-tx-payment/std",
   "frame-system-benchmarking?/std",

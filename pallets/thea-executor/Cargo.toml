@@ -14,6 +14,7 @@ sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
+pallet-asset-conversion = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
@@ -32,6 +33,7 @@ default = ["std"]
 std = [
   "log/std",
   "sp-application-crypto/std",
+  "pallet-asset-conversion/std",
   "thea-primitives/std",
   "parity-scale-codec/std",
   "scale-info/std",

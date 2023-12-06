@@ -20,6 +20,7 @@
 
 use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok};
+use orderbook_primitives::types::AccountAsset;
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
@@ -748,7 +749,9 @@ fn test_add_proxy_account_exchange_state_not_operational() {
 #[test]
 fn test_add_proxy_account_proxy_limit_exceeded() {
 	let account_id = create_account_id();
-	let proxy_account = create_proxy_account();
+	let proxy_account1 = create_proxy_account("1");
+	let proxy_account2 = create_proxy_account("2");
+	let proxy_account3 = create_proxy_account("3");
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_main_account(
@@ -757,16 +760,16 @@ fn test_add_proxy_account_proxy_limit_exceeded() {
 		));
 		assert_ok!(OCEX::add_proxy_account(
 			RuntimeOrigin::signed(account_id.clone().into()),
-			account_id.clone().into()
+			proxy_account1.clone().into()
 		));
 		assert_ok!(OCEX::add_proxy_account(
 			RuntimeOrigin::signed(account_id.clone().into()),
-			account_id.clone().into()
+			proxy_account2.clone().into()
 		));
 		assert_noop!(
 			OCEX::add_proxy_account(
 				RuntimeOrigin::signed(account_id.clone().into()),
-				proxy_account.clone().into()
+				proxy_account3.clone().into()
 			),
 			Error::<Test>::ProxyLimitExceeded
 		);
@@ -799,10 +802,13 @@ fn test_add_proxy_account() {
 			RuntimeOrigin::signed(account_id.clone().into()),
 			account_id.clone().into()
 		));
-		assert_ok!(OCEX::add_proxy_account(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			account_id.clone().into()
-		));
+		assert_noop!(
+			OCEX::add_proxy_account(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				account_id.clone().into()
+			),
+			Error::<Test>::ProxyAlreadyRegistered
+		);
 		assert_last_event::<Test>(
 			crate::Event::MainAccountRegistered {
 				main: account_id.clone(),
@@ -810,10 +816,9 @@ fn test_add_proxy_account() {
 			}
 			.into(),
 		);
-		let event: IngressMessages<AccountId32> =
-			IngressMessages::AddProxy(account_id.clone(), account_id.clone());
+
 		let blk = frame_system::Pallet::<Test>::current_block_number();
-		assert_eq!(OCEX::ingress_messages(blk)[2], event);
+		assert_eq!(OCEX::ingress_messages(blk).len(), 2);
 	});
 }
 
@@ -2617,14 +2622,14 @@ fn create_account_id() -> AccountId32 {
 	return account_id
 }
 
-fn create_proxy_account() -> AccountId32 {
+fn create_proxy_account(path: &str) -> AccountId32 {
 	const PHRASE: &str =
 		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let keystore = MemoryKeystore::new();
 	let account_id: AccountId32 = <(dyn Keystore + 'static)>::sr25519_generate_new(
 		&keystore,
 		KEY_TYPE,
-		Some(&format!("{}/hunter2", PHRASE)),
+		Some(&format!("{}/{}", PHRASE, path)),
 	)
 	.expect("Unable to create sr25519 key pair")
 	.try_into()

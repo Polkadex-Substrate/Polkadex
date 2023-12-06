@@ -21,7 +21,10 @@
 
 use super::*;
 use crate::Pallet as Ocex;
-use frame_benchmarking::v1::{account, benchmarks};
+use frame_benchmarking::{
+	v1::{account, benchmarks},
+	whitelisted_caller,
+};
 use frame_support::{
 	traits::{EnsureOrigin, UnfilteredDispatchable},
 	BoundedVec,
@@ -68,20 +71,11 @@ fn tpc(base_asset: AssetId, quote_asset: AssetId) -> TradingPairConfig {
 
 benchmarks! {
 	register_main_account {
-		let b in 0 .. 50_000;
-		let origin = T::EnclaveOrigin::try_successful_origin().unwrap();
-		let account = T::EnclaveOrigin::try_successful_origin().unwrap();
-		let main: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
-			RawOrigin::Signed(account) => account.into(),
-			_ => panic!("wrong RawOrigin returned")
-		};
-		let proxy: T::AccountId = match unsafe { account.into().unwrap_unchecked() } {
-			RawOrigin::Signed(account) => account.into(),
-			_ => panic!("wrong RawOrigin returned")
-		};
+		let b in 0 .. 255;
+		let main: T::AccountId = whitelisted_caller();
+		let proxy = T::AccountId::decode(&mut &[b as u8; 32].to_vec()[..]).unwrap();
 		<ExchangeState<T>>::put(true);
-		let call = Call::<T>::register_main_account { proxy: proxy.clone() };
-	}: { call.dispatch_bypass_filter(origin)? }
+	}: _(RawOrigin::Signed(main.clone()), proxy.clone())
 	verify {
 		assert_last_event::<T>(Event::MainAccountRegistered {
 			main,
@@ -91,18 +85,13 @@ benchmarks! {
 
 	add_proxy_account {
 		let x in 0 .. 255; // should not overflow u8
-		let origin = T::EnclaveOrigin::try_successful_origin().unwrap();
-		let main: T::AccountId = match unsafe { origin.clone().into().unwrap_unchecked() } {
-			RawOrigin::Signed(account) => account.into(),
-			_ => panic!("wrong RawOrigin returned")
-		};
+		let main: T::AccountId = whitelisted_caller();
 		let proxy = T::AccountId::decode(&mut &[x as u8; 32].to_vec()[..]).unwrap();
 		<ExchangeState<T>>::put(true);
-		Ocex::<T>::register_main_account(origin.clone(), main.clone())?;
-		let call = Call::<T>::add_proxy_account { proxy: proxy.clone() };
-	}: { call.dispatch_bypass_filter(origin)? }
+		Ocex::<T>::register_main_account(RawOrigin::Signed(main.clone()).into(), main.clone())?;
+	}: _(RawOrigin::Signed(main.clone()), proxy.clone())
 	verify {
-		assert_last_event::<T>(Event::MainAccountRegistered {
+		assert_last_event::<T>(Event::NewProxyAdded {
 			main,
 			proxy
 		}.into());
@@ -366,7 +355,7 @@ benchmarks! {
 			BalanceOf::<T>::decode(&mut &(u128::MAX).to_le_bytes()[..]).unwrap()
 		)?;
 		let call = Call::<T>::claim_withdraw { snapshot_id: x as u64, account: main.clone() };
-	}: { call.dispatch_bypass_filter(origin)? }
+	}: _(RawOrigin::Signed(main.clone()), x as u64, main.clone())
 	verify {
 		assert_last_event::<T>(Event::WithdrawalClaimed {
 			main,

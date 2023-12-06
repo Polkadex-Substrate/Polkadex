@@ -6111,7 +6111,7 @@ checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.4.0"
+version = "5.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -6124,7 +6124,6 @@ dependencies = [
  "hex-literal 0.3.4",
  "liquidity",
  "log",
- "orderbook-primitives",
  "orml-vesting",
  "pallet-asset-conversion",
  "pallet-asset-conversion-tx-payment",
@@ -7150,7 +7149,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "5.3.0"
+version = "5.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7180,15 +7179,17 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-rpc"
-version = "0.1.0"
+version = "5.4.1"
 dependencies = [
  "hash-db",
  "jsonrpsee",
  "orderbook-primitives",
+ "pallet-ocex-lmp",
  "pallet-ocex-runtime-api",
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "polkadex-primitives",
+ "rust_decimal",
  "sc-rpc",
  "sc-rpc-api",
  "serde",
@@ -7199,6 +7200,7 @@ dependencies = [
  "sp-offchain",
  "sp-rpc",
  "sp-runtime",
+ "sp-std",
  "sp-trie",
  "tokio",
  "trie-db",
@@ -8254,7 +8256,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.4.0"
+version = "5.4.1"
 dependencies = [
  "clap 4.4.7",
  "frame-benchmarking-cli",
@@ -8337,6 +8339,7 @@ dependencies = [
  "anyhow",
  "frame-support",
  "frame-system",
+ "pallet-asset-conversion",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types",
@@ -13991,6 +13994,7 @@ dependencies = [
  "frame-system",
  "hex",
  "log",
+ "pallet-asset-conversion",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
@@ -14045,6 +14049,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-asset-conversion",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
@@ -14073,6 +14078,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "log",
+ "pallet-asset-conversion",
  "pallet-assets",
  "pallet-balances",
  "pallet-timestamp",
