@@ -21,8 +21,7 @@
 //! This adapter is used by `function_handler` to access offchain storage.
 
 use parity_scale_codec::Encode;
-use sp_core::offchain::{DbExternalities, OffchainStorage, StorageKind};
-use sp_core::offchain::storage::OffchainDb;
+use sp_core::offchain::{storage::OffchainDb, DbExternalities, OffchainStorage, StorageKind};
 
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 
@@ -68,6 +67,7 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 impl<T: OffchainStorage> Drop for OffchainStorageAdapter<T> {
 	fn drop(&mut self) {
 		let encoded_value = Encode::encode(&false);
-		self.storage.local_storage_set(StorageKind::PERSISTENT, &WORKER_STATUS, &encoded_value);
+		self.storage
+			.local_storage_set(StorageKind::PERSISTENT, &WORKER_STATUS, &encoded_value);
 	}
 }
