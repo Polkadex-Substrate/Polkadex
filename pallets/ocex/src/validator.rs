@@ -342,7 +342,7 @@ impl<T: Config> Pallet<T> {
 						market.quote_asset,
 					)?;
 
-					match engine_messages.get(&message).copied() {
+					match engine_messages.get(&message).cloned() {
 						None => return Err("Unable to find Egress message for AddLiquidity"),
 						Some(engine_result) => {
 							if let EgressMessages::AddLiquidityResult(

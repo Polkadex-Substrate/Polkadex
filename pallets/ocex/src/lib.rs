@@ -864,33 +864,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Sends the changes required in balances for list of users with a particular asset.
-		#[pallet::call_index(13)]
-		#[pallet::weight(< T as Config >::WeightInfo::set_balances(1))]
-		pub fn set_balances(
-			origin: OriginFor<T>,
-			change_in_balances: BoundedVec<
-				polkadex_primitives::ingress::HandleBalance<T::AccountId>,
-				polkadex_primitives::ingress::HandleBalanceLimit,
-			>,
-		) -> DispatchResult {
-			// Check if governance called the extrinsic
-			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			// Check if exchange is pause
-			ensure!(!Self::orderbook_operational_state(), Error::<T>::ExchangeOperational);
-			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			//Pass the vec as ingress message
-			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::SetFreeReserveBalanceForAccounts(
-						change_in_balances,
-					),
-				);
-			});
-			Ok(())
-		}
-
 		/// Withdraws user balance.
 		///
 		/// # Parameters

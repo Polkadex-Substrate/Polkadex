@@ -182,7 +182,7 @@ pub struct ObMessage {
 /// A batch of user actions
 #[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
+pub struct UserActionBatch<AccountId: Ord + Clone + Codec + TypeInfo> {
 	/// Vector of user actions from engine in this batch
 	pub actions: Vec<UserActions<AccountId>>,
 	/// State change id
@@ -193,7 +193,7 @@ pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub signature: sp_core::ecdsa::Signature,
 }
 
-impl<AccountId: Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
+impl<AccountId: Ord + Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
 	/// Returns the data used for signing a snapshot summary
 	pub fn sign_data(&self) -> [u8; 32] {
 		let mut data: Vec<u8> = self.actions.encode();
@@ -228,7 +228,7 @@ impl ObMessage {
 /// Defines user specific operations variants.
 #[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
+pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
 	/// Withdraw operation requested. ( payload, stid)

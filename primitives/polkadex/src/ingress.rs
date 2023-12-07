@@ -23,12 +23,12 @@ use crate::{ocex::TradingPairConfig, AssetId};
 use serde::{Deserialize, Serialize};
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{traits::Get, BoundedVec};
+use frame_support::{traits::Get};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
 /// Definition of available ingress messages variants.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum IngressMessages<AccountId> {
 	/// Open Trading Pair.
@@ -45,8 +45,6 @@ pub enum IngressMessages<AccountId> {
 	RemoveProxy(AccountId, AccountId),
 	/// Close Trading Pair.
 	CloseTradingPair(TradingPairConfig),
-	/// Resetting the balances of Account.
-	SetFreeReserveBalanceForAccounts(BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>),
 	/// Changing the exchange state in order-book.
 	SetExchangeState(bool),
 	/// Withdrawal from Chain to OrderBook.
