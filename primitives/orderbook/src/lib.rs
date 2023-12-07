@@ -35,6 +35,7 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+use polkadex_primitives::ingress::EgressMessages;
 
 pub mod constants;
 pub mod types;
@@ -116,6 +117,8 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub last_processed_blk: BlockNumber,
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
+	/// List of Egress messages
+	pub egress_messages: Vec<EgressMessages<AccountId>>
 }
 
 impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {

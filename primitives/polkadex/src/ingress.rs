@@ -67,13 +67,14 @@ pub enum IngressMessages<AccountId> {
 #[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum EgressMessages<AccountId> {
-	/// AddLiquidityResult (shares issued)
 	/// Add Liquidity Result ( Pool, LP, Shares issued, Market price, total Inventory ( in Quote) )
 	AddLiquidityResult(AccountId, AccountId, Decimal, Decimal, Decimal),
 	/// RemoveLiquidityResult ( Pool, LP, Base freed, Quote Freed )
 	RemoveLiquidityResult(AccountId, AccountId, Decimal, Decimal),
 	/// Remove Liquidity Failed ( Pool, LP, burn_frac, base_free, quote_free, base_required, quote_required)
-	RemoveLiquidityFailed(AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal)
+	RemoveLiquidityFailed(AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal),
+	/// Pool Closed (market, Pool, base freed, quote freed)
+	PoolForceClosed(TradingPairConfig,AccountId, Decimal, Decimal)
 }
 
 /// Defines the structure of handle balance data which used to set account balance.

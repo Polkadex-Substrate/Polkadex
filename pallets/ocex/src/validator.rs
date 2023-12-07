@@ -18,8 +18,8 @@
 
 use crate::{
 	aggregator::AggregatorClient,
-	pallet::ValidatorSetId,
-	settlement::{add_balance, process_trade, sub_balance},
+	pallet::{Accounts, ValidatorSetId},
+	settlement::{add_balance, get_balance, process_trade, sub_balance},
 	snapshot::StateInfo,
 	storage::{store_trie_root, OffchainState},
 	Config, Pallet, SnapshotNonce, Snapshots,
@@ -30,17 +30,21 @@ use orderbook_primitives::{
 	ObCheckpointRaw, SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ingress::IngressMessages, withdrawal::Withdrawal, AssetId, ProxyLimit};
+use polkadex_primitives::{
+	fees::FeeConfig,
+	ingress::{EgressMessages, IngressMessages},
+	ocex::{AccountInfo, TradingPairConfig},
+	withdrawal::Withdrawal,
+	AssetId, ProxyLimit,
+};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{crypto::ByteArray, H256};
 use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
+use std::ops::Div;
 use trie_db::{TrieError, TrieMut};
-use polkadex_primitives::fees::FeeConfig;
-use polkadex_primitives::ocex::AccountInfo;
-use crate::pallet::Accounts;
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -197,7 +201,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
-		let withdrawals = Self::process_batch(&mut state, &batch, &mut state_info)?;
+		let (withdrawals, egress_messages) =
+			Self::process_batch(&mut state, &batch, &mut state_info)?;
 
 		// Create state hash and store it
 		state_info.stid = batch.stid;
@@ -223,6 +228,7 @@ impl<T: Config> Pallet<T> {
 						state_change_id: batch.stid,
 						last_processed_blk: state_info.last_block.saturated_into(),
 						withdrawals,
+						egress_messages,
 					};
 					log::debug!(target:"ocex","Summary created by auth index: {:?}",auth_index);
 					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
@@ -273,7 +279,8 @@ impl<T: Config> Pallet<T> {
 		blk: BlockNumberFor<T>,
 		state: &mut OffchainState,
 		state_info: &mut StateInfo,
-	) -> Result<(), &'static str> {
+		engine_messages: &BTreeMap<IngressMessages<T::AccountId>, EgressMessages<T::AccountId>>,
+	) -> Result<Vec<EgressMessages<T::AccountId>>, &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
 
 		if blk != state_info.last_block.saturating_add(1).into() {
@@ -282,22 +289,275 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let messages = Self::ingress_messages(blk);
+		let mut verified_egress_messages = Vec::new();
 
 		for message in messages {
-			// We don't care about any other message
-			if let IngressMessages::Deposit(main, asset, amt) = message {
-				add_balance(
+			match message {
+				IngressMessages::Deposit(main, asset, amt) => add_balance(
 					state,
 					&Decode::decode(&mut &main.encode()[..])
 						.map_err(|_| "account id decode error")?,
 					asset,
 					amt,
-				)?
+				)?,
+				IngressMessages::AddLiquidity(
+					market,
+					pool,
+					lp,
+					total_shares,
+					base_deposited,
+					quote_deposited,
+				) => {
+					// Add Base
+					add_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.base_asset,
+						base_deposited,
+					)?;
+
+					// Add Quote
+					add_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.quote_asset,
+						quote_deposited,
+					)?;
+					log::debug!(target:"ocex","Added Liquidity for pool:  {:?}/{:?}, by LP: {:?}",market.base_asset, market.quote_asset, lp);
+					log::debug!(target:"ocex","Base added: {:?}, Quote added: {:?} LP shares issued:  {:?}",base_deposited, quote_deposited, lp);
+
+					let base_balance = get_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.base_asset,
+					)?;
+
+					let quote_balance = get_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.quote_asset,
+					)?;
+
+					match engine_messages.get(&message).copied() {
+						None => return Err("Unable to find Egress message for AddLiquidity"),
+						Some(engine_result) => {
+							if let EgressMessages::AddLiquidityResult(
+								pool_e,
+								lp_e,
+								issued_shares,
+								price,
+								total_inventory,
+							) = &engine_result
+							{
+								if pool != pool_e {
+									return Err("Invalid Pool id in egress")
+								}
+
+								if lp != lp_e {
+									return Err("Invalid LP address in egress")
+								}
+
+								let total_inventory_in_quote = quote_balance
+									.saturating_add(price.saturating_mul(base_balance));
+								if total_inventory != total_inventory_in_quote {
+									log::error!(target:"ocex","Inventory mismatch: offchain: {:?}, engine: {:?}", total_inventory_in_quote,total_inventory);
+									return Err("Inventory Mismatch")
+								}
+
+								let given_inventory = base_deposited
+									.saturating_mul(*price)
+									.saturating_add(quote_deposited);
+
+								let shares_minted = if total_inventory.is_zero() {
+									// First LP case
+									given_inventory // Since total_inventory is zero, shares = given inventory
+								} else {
+									given_inventory
+										.saturating_mul(total_shares)
+										.div(total_inventory)
+								};
+
+								if issued_shares != shares_minted {
+									log::error!(target:"ocex","Shares minted: Offchain: {:?}, On-chain: {:?}",shares_minted,issued_shares);
+									return Err("Invalid number of LP shares minted")
+								}
+
+								// Egress message is verified
+								verified_egress_messages.push(engine_result);
+							} else {
+								return Err("Invalid Engine Egress message")
+							}
+						},
+					}
+				},
+				IngressMessages::RemoveLiquidity(market, pool, lp, burn_frac) => {
+					let base_balance = get_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.base_asset,
+					)?;
+
+					let quote_balance = get_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.quote_asset,
+					)?;
+
+					let withdrawing_base = burn_frac.saturating_mul(base_balance);
+					let withdrawing_quote = burn_frac.saturating_mul(quote_balance);
+
+					let engine_message = match engine_messages.get(&message) {
+						None => return Err("RemoveLiquidity engine message not found"),
+						Some(engine_msg) => engine_msg,
+					};
+					log::error!(target:"ocex", "Engine message for remove liquidity ingress: {:?}",engine_message);
+					match engine_message {
+						EgressMessages::RemoveLiquidityResult(
+							pool_e,
+							lp_e,
+							base_freed,
+							quote_freed,
+						) => {
+							if pool != pool_e {
+								return Err("Invalid Pool id in egress")
+							}
+
+							if lp != lp_e {
+								return Err("Invalid LP address in egress")
+							}
+
+							if withdrawing_quote != *quote_freed {
+								log::error!(target:"ocex","Quote Amount: expected: {:?}, freed: {:?}", withdrawing_quote,quote_freed);
+								return Err("Invalid quote amount freed!")
+							}
+
+							if withdrawing_base != *base_freed {
+								log::error!(target:"ocex","Base Amount: expected: {:?}, freed: {:?}", withdrawing_base,base_freed);
+								return Err("Invalid base amount freed!")
+							}
+
+							// Sub Quote
+							sub_balance(
+								state,
+								&Decode::decode(&mut &pool.encode()[..])
+									.map_err(|_| "account id decode error")?,
+								market.quote_asset,
+								withdrawing_quote,
+							)?;
+
+							// Sub Base
+							sub_balance(
+								state,
+								&Decode::decode(&mut &pool.encode()[..])
+									.map_err(|_| "account id decode error")?,
+								market.base_asset,
+								withdrawing_base,
+							)?;
+
+							// Egress message is verified
+							verified_egress_messages.push(engine_message.clone());
+						},
+						EgressMessages::RemoveLiquidityFailed(
+							pool_e,
+							lp_e,
+							burn_frac_e,
+							base_free,
+							quote_free,
+							base_required,
+							quote_required,
+						) => {
+							if pool != pool_e {
+								return Err("Invalid Pool id in egress")
+							}
+
+							if lp != lp_e {
+								return Err("Invalid LP address in egress")
+							}
+
+							if burn_frac != *burn_frac_e {
+								return Err("Invalid Burn fraction in egress")
+							}
+
+							if withdrawing_quote != *quote_required {
+								log::error!(target:"ocex","Quote Amount: expected: {:?}, required: {:?}", withdrawing_quote,quote_required);
+								return Err("Invalid quote amount required by engine!")
+							}
+
+							if withdrawing_base != *base_required {
+								log::error!(target:"ocex","Base Amount: expected: {:?}, required: {:?}", withdrawing_base,base_required);
+								return Err("Invalid base amount required by engine!")
+							}
+
+							if withdrawing_quote <= *quote_free {
+								log::error!(target:"ocex","Quote Amount: Free Balance: {:?}, required: {:?}", quote_free,withdrawing_quote);
+								return Err("Enough quote available but still denied by engine!")
+							}
+
+							if withdrawing_base <= *quote_free {
+								log::error!(target:"ocex","Base Amount: Free Balance: {:?}, required: {:?}", quote_free,withdrawing_quote);
+								return Err(
+									"Enough base balance available but still denied by engine!",
+								)
+							}
+
+							// Egress message is verified
+							verified_egress_messages.push(engine_message.clone());
+						},
+						_ => return Err("Invalid engine message"),
+					}
+				},
+				IngressMessages::ForceClosePool(market, pool) => {
+					// Get Balance
+					let base_balance = get_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.base_asset,
+					)?;
+
+					let quote_balance = get_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.quote_asset,
+					)?;
+
+					// Free up all balances
+					sub_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.base_asset,
+						base_balance,
+					)?;
+
+					sub_balance(
+						state,
+						&Decode::decode(&mut &pool.encode()[..])
+							.map_err(|_| "account id decode error")?,
+						market.quote_asset,
+						quote_balance,
+					)?;
+
+					verified_egress_messages.push(EgressMessages::PoolForceClosed(
+						market,
+						pool,
+						base_balance,
+						quote_balance,
+					));
+				},
+				_ => {},
 			}
 		}
 
 		state_info.last_block = blk.saturated_into();
-		Ok(())
+		Ok(verified_egress_messages)
 	}
 
 	/// Processes a trade between a maker and a taker, updating their order states and balances
@@ -306,8 +566,9 @@ impl<T: Config> Pallet<T> {
 		for trade in trades {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
 				.ok_or("TradingPairNotFound")?;
-			let (maker_fees, taker_fees) = Self::get_fee_structure(&trade.maker.user,&trade.taker.user)
-				.ok_or("Fee structure not found")?;
+			let (maker_fees, taker_fees) =
+				Self::get_fee_structure(&trade.maker.user, &trade.taker.user)
+					.ok_or("Fee structure not found")?;
 			process_trade(state, trade, config, maker_fees, taker_fees)?
 		}
 		Ok(())
@@ -349,12 +610,13 @@ impl<T: Config> Pallet<T> {
 		state: &mut OffchainState,
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
-	) -> Result<Vec<Withdrawal<T::AccountId>>, &'static str> {
+	) -> Result<(Vec<Withdrawal<T::AccountId>>, Vec<EgressMessages<T::AccountId>>), &'static str> {
 		if state_info.stid >= batch.stid {
 			return Err("Invalid stid")
 		}
 
 		let mut withdrawals = Vec::new();
+		let mut egress_messages = Vec::new();
 		// Process Ob messages
 		for action in &batch.actions {
 			match action {
@@ -363,8 +625,15 @@ impl<T: Config> Pallet<T> {
 					let withdrawal = Self::withdraw(request, state, 0)?;
 					withdrawals.push(withdrawal);
 				},
-				UserActions::BlockImport(blk) =>
-					Self::import_blk((*blk).saturated_into(), state, state_info)?,
+				UserActions::BlockImport(blk, engine_messages) => {
+					let mut verified_egress_msgs = Self::import_blk(
+						(*blk).saturated_into(),
+						state,
+						state_info,
+						engine_messages,
+					)?;
+					egress_messages.append(&mut verified_egress_msgs)
+				},
 				UserActions::Reset => {}, // Not for offchain worker
 				UserActions::WithdrawV1(request, stid) => {
 					let withdrawal = Self::withdraw(request, state, *stid)?;
@@ -373,7 +642,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		Ok(withdrawals)
+		Ok((withdrawals, verified_egress_messages))
 	}
 
 	/// Processes a checkpoint, updating the offchain state accordingly.
@@ -456,19 +725,22 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Returns the FeeConfig from runtime for maker and taker
-	pub fn get_fee_structure(maker: &T::AccountId, taker: &T::AccountId) -> Option<(FeeConfig, FeeConfig)> {
+	pub fn get_fee_structure(
+		maker: &T::AccountId,
+		taker: &T::AccountId,
+	) -> Option<(FeeConfig, FeeConfig)> {
+		// TODO: Read this from offchain state to avoid a race condition
 		let maker_config = match <Accounts<T>>::get(maker) {
 			None => return None,
-			Some(x) => x.fee_config
+			Some(x) => x.fee_config,
 		};
 
 		let taker_config = match <Accounts<T>>::get(taker) {
 			None => return None,
-			Some(x) => x.fee_config
+			Some(x) => x.fee_config,
 		};
 
-		Some((maker_config,taker_config))
-
+		Some((maker_config, taker_config))
 	}
 }
 

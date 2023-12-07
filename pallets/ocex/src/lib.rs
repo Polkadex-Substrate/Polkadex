@@ -999,6 +999,7 @@ pub mod pallet {
 			_signatures: Vec<(u16, <T::AuthorityId as RuntimeAppPublic>::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+			// TODO: Process egress messages from summary.
 			if !summary.withdrawals.is_empty() {
 				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
 				<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);

@@ -22,11 +22,32 @@ use crate::storage::OffchainState;
 use log::{error, info};
 use orderbook_primitives::types::Trade;
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId, AssetId};
+use polkadex_primitives::{fees::FeeConfig, ocex::TradingPairConfig, AccountId, AssetId};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_std::collections::btree_map::BTreeMap;
-use polkadex_primitives::fees::FeeConfig;
+
+/// Returns the balance of an account and asset from state
+///
+/// # Parameters
+///
+/// * `state`: Trie db.
+/// * `account`: Main Account to look for in the db for update.
+/// * `asset`:  Asset to look for
+pub fn get_balance(
+	state: &mut OffchainState,
+	account: &AccountId,
+	asset: AssetId,
+) -> Result<Decimal, &'static str> {
+	log::info!(target:"ocex", "getting balance for asset {:?} from account {:?}",asset.to_string(), account);
+	let mut balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
+		None => BTreeMap::new(),
+		Some(encoded) => BTreeMap::decode(&mut &encoded[..])
+			.map_err(|_| "Unable to decode balances for account")?,
+	};
+
+	Ok(balances.get(&asset).copied().unwrap_or_default())
+}
 
 /// Updates provided trie db with a new balance entry if it is does not contain item for specific
 /// account or asset yet, or increments existing item balance.
@@ -148,5 +169,3 @@ pub fn process_trade(
 	// TODO: Use this for LMP calculations.
 	Ok(())
 }
-
-

@@ -21,7 +21,7 @@
 use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok};
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive, Zero};
 use sp_std::collections::btree_map::BTreeMap;
 use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -458,7 +458,9 @@ fn test_trade_between_two_accounts_without_balance() {
 		let amount = Decimal::from_str("20").unwrap();
 		let price = Decimal::from_str("2").unwrap();
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config, , );
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -509,7 +511,9 @@ fn test_trade_between_two_accounts_with_balance() {
 		//so alice should have 20 PDEX and bob should have 20 less PDEX
 		//also, alice should have 40 less Asset(1) and bob should have 40 more Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config, , );
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		assert_ok!(result);
 
 		//check has 20 pdex now
@@ -569,7 +573,9 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config, , );
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -603,7 +609,9 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config, , );
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -639,8 +647,9 @@ fn test_trade_between_two_accounts_invalid_signature() {
 		let mut trade = create_trade_between_alice_and_bob(price, amount);
 		//swap alice and bob's signature
 		trade.maker.signature = trade.taker.signature.clone();
-
-		let result = process_trade(&mut state, &trade, config, , );
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "InvalidTrade"),
