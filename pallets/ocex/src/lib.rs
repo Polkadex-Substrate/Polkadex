@@ -92,6 +92,7 @@ pub mod sr25519 {
 pub mod aggregator;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+mod lmp;
 pub mod rpc;
 mod settlement;
 mod snapshot;
@@ -1505,6 +1506,10 @@ pub mod pallet {
 	#[pallet::getter(fn get_orderbook_operator_public_key)]
 	pub(super) type OrderbookOperatorPublicKey<T: Config> =
 		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
+
+	#[crate::pallet::storage]
+	#[crate::pallet::getter(fn lmp_epoch)]
+	pub(super) type LMPEpoch<T: crate::pallet::Config> = StorageValue<_, u32, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

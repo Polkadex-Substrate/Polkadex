@@ -567,9 +567,9 @@ impl<T: Config> Pallet<T> {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
 				.ok_or("TradingPairNotFound")?;
 			let (maker_fees, taker_fees) =
-				Self::get_fee_structure(&trade.maker.user, &trade.taker.user)
+				Self::get_fee_structure(&trade.maker.main_account, &trade.taker.main_account)
 					.ok_or("Fee structure not found")?;
-			process_trade(state, trade, config, maker_fees, taker_fees)?
+			Self::process_trade(state, trade, config, maker_fees, taker_fees)?
 		}
 		Ok(())
 	}
