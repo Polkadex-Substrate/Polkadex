@@ -98,6 +98,7 @@ mod settlement;
 mod snapshot;
 pub mod storage;
 pub mod validator;
+mod session;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -336,7 +337,12 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+
+			if Self::should_start_new_epoch(n) {
+				Self::start_new_epoch(n)
+			}
+
 			let len = <OnChainEvents<T>>::get().len();
 			if len > 0 {
 				<OnChainEvents<T>>::kill();
