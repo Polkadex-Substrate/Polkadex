@@ -40,7 +40,7 @@ const RUNTIME_ERROR: i32 = 1;
 const RETRIES: u8 = 3;
 
 #[rpc(client, server)]
-pub trait PolkadexSwapRpcApi<BlockHash, AccountId, Hash> {
+pub trait PolkadexSwapRpcApi<BlockHash> {
 	#[method(name = "tx_quotePriceExactTokensForTokens")]
 	async fn quote_price_exact_tokens_for_tokens(&self, at: Option<BlockHash>, is_native_asset1: bool, asset_id1: u128, is_native_asset2: bool, asset_id2: u128, amount: u128, include_fee: bool) -> RpcResult<Option<u128>>;
 
@@ -58,38 +58,32 @@ pub trait PolkadexSwapRpcApi<BlockHash, AccountId, Hash> {
 pub struct PolkadexSwapRpc<Client, Block> {
 	/// An `Arc` reference to the client API for accessing runtime functionality.
 	client: Arc<Client>,
-
-	deny_unsafe: DenyUnsafe,
-
 	/// A marker for the `Block` type parameter, used to ensure the struct
 	/// is covariant with respect to the block type.
 	_marker: std::marker::PhantomData<Block>,
 }
 
 impl<Client, Block> PolkadexSwapRpc<Client, Block> {
-	pub fn new(client: Arc<Client>, deny_unsafe: DenyUnsafe) -> Self {
+	pub fn new(client: Arc<Client>) -> Self {
 		Self {
 			client,
-			deny_unsafe,
 			_marker: Default::default(),
 		}
 	}
 }
 
 #[async_trait]
-impl<Client, Block, AccountId, Hash>
-    PolkadexSwapRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
+impl<Client, Block>
+    PolkadexSwapRpcApiServer<<Block as BlockT>::Hash>
 	for PolkadexSwapRpc<Client, Block>
 where
 	Block: BlockT,
-	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
 	Client::Api: pallet_asset_conversion::AssetConversionApi<
 		Block,
 		u128,
 		u128,
 		NativeOrAssetId<u128>>,
-	AccountId: Codec,
-	Hash: Codec,
 {
 
 	async fn quote_price_exact_tokens_for_tokens(&self, at: Option<<Block as BlockT>::Hash>, is_native_asset1: bool, asset_id1: u128, is_native_asset2: bool, asset_id2: u128, amount: u128, include_fee: bool) -> RpcResult<Option<u128>> {

@@ -186,11 +186,6 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
-	io.merge(PolkadexSwapRpc::new(
-		client.clone(),
-		deny_unsafe,
-	)
-		.into_rpc())?;
 	io.merge(
 		PolkadexOcexRpc::new(
 			client.clone(),
@@ -201,14 +196,7 @@ where
 		)
 		.into_rpc())?;
 
-	// io.merge(PolkadexSwapRpc::new(client.clone(),
-	// 							  backend
-	// 								  .offchain_storage()
-	// 								  .ok_or("Backend doesn't provide an offchain storage")?,
-	// 							  deny_unsafe,
-	// )
-	// 			 .into_rpc(),
-	// )?;
+	io.merge(PolkadexSwapRpc::new(client.clone()).into_rpc())?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	let statement_store =
 		sc_rpc::statement::StatementStore::new(statement_store, deny_unsafe).into_rpc();
