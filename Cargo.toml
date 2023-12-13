@@ -70,7 +70,7 @@ default-members = [
   "pallets/thea-executor",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
-  "rpc/swap"
+  "rpc/swap",
 ]
 
 [workspace.dependencies]

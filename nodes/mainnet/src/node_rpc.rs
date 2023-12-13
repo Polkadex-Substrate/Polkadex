@@ -48,13 +48,12 @@ pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
-use swap_rpc::PolkadexSwapRpc;
-use swap_rpc::PolkadexSwapRpcApiServer;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
+use swap_rpc::{PolkadexSwapRpc, PolkadexSwapRpcApiServer};
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {

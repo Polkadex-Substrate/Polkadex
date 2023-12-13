@@ -25,6 +25,8 @@ use jsonrpsee::{
 	tracing::log,
 	types::error::{CallError, ErrorObject},
 };
+pub use pallet_asset_conversion::AssetConversionApi;
+use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
 use parity_scale_codec::{Codec, Decode};
 use polkadex_primitives::AssetId;
 use sc_rpc_api::DenyUnsafe;
@@ -32,9 +34,7 @@ use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
 use sp_runtime::traits::Block as BlockT;
-use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
 use std::sync::Arc;
-pub use pallet_asset_conversion::AssetConversionApi;
 
 const RUNTIME_ERROR: i32 = 1;
 const RETRIES: u8 = 3;
@@ -42,10 +42,24 @@ const RETRIES: u8 = 3;
 #[rpc(client, server)]
 pub trait PolkadexSwapRpcApi<BlockHash> {
 	#[method(name = "tx_quotePriceExactTokensForTokens")]
-	async fn quote_price_exact_tokens_for_tokens(&self, at: Option<BlockHash>, asset_id1: AssetId, asset_id2: AssetId, amount: u128, include_fee: bool) -> RpcResult<Option<u128>>;
+	async fn quote_price_exact_tokens_for_tokens(
+		&self,
+		at: Option<BlockHash>,
+		asset_id1: AssetId,
+		asset_id2: AssetId,
+		amount: u128,
+		include_fee: bool,
+	) -> RpcResult<Option<u128>>;
 
 	#[method(name = "tx_quotePriceTokensForExactTokens")]
-	async fn quote_price_tokens_for_exact_tokens(&self, at: Option<BlockHash>, asset_id1: AssetId, asset_id2: AssetId, amount: u128, include_fee: bool) -> RpcResult<Option<u128>>;
+	async fn quote_price_tokens_for_exact_tokens(
+		&self,
+		at: Option<BlockHash>,
+		asset_id1: AssetId,
+		asset_id2: AssetId,
+		amount: u128,
+		include_fee: bool,
+	) -> RpcResult<Option<u128>>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -65,28 +79,26 @@ pub struct PolkadexSwapRpc<Client, Block> {
 
 impl<Client, Block> PolkadexSwapRpc<Client, Block> {
 	pub fn new(client: Arc<Client>) -> Self {
-		Self {
-			client,
-			_marker: Default::default(),
-		}
+		Self { client, _marker: Default::default() }
 	}
 }
 
 #[async_trait]
-impl<Client, Block>
-PolkadexSwapRpcApiServer<<Block as BlockT>::Hash>
-for PolkadexSwapRpc<Client, Block>
-	where
-		Block: BlockT,
-		Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
-		Client::Api: pallet_asset_conversion::AssetConversionApi<
-			Block,
-			u128,
-			u128,
-			AssetId>,
+impl<Client, Block> PolkadexSwapRpcApiServer<<Block as BlockT>::Hash>
+	for PolkadexSwapRpc<Client, Block>
+where
+	Block: BlockT,
+	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
+	Client::Api: pallet_asset_conversion::AssetConversionApi<Block, u128, u128, AssetId>,
 {
-
-	async fn quote_price_exact_tokens_for_tokens(&self, at: Option<<Block as BlockT>::Hash>, asset_id1: AssetId, asset_id2: AssetId, amount: u128, include_fee: bool) -> RpcResult<Option<u128>> {
+	async fn quote_price_exact_tokens_for_tokens(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		asset_id1: AssetId,
+		asset_id2: AssetId,
+		amount: u128,
+		include_fee: bool,
+	) -> RpcResult<Option<u128>> {
 		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
@@ -98,7 +110,14 @@ for PolkadexSwapRpc<Client, Block>
 		Ok(runtime_api_result)
 	}
 
-	async fn quote_price_tokens_for_exact_tokens(&self, at: Option<<Block as BlockT>::Hash>, asset_id1: AssetId, asset_id2: AssetId, amount: u128, include_fee: bool) -> RpcResult<Option<u128>> {
+	async fn quote_price_tokens_for_exact_tokens(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		asset_id1: AssetId,
+		asset_id2: AssetId,
+		amount: u128,
+		include_fee: bool,
+	) -> RpcResult<Option<u128>> {
 		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
