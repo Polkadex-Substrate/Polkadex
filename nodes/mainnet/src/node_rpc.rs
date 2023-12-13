@@ -37,7 +37,7 @@ use pallet_rewards_rpc::PolkadexRewardsRpc;
 use grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-use polkadex_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use polkadex_primitives::{AccountId, AssetId, Balance, Block, BlockNumber, Hash, Index};
 use rpc_assets::{PolkadexAssetHandlerRpc, PolkadexAssetHandlerRpcApiServer};
 use sc_client_api::{AuxStore, BlockchainEvents};
 use sc_consensus_babe::BabeWorkerHandle;
@@ -48,6 +48,8 @@ pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
+use swap_rpc::PolkadexSwapRpc;
+use swap_rpc::PolkadexSwapRpcApiServer;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
@@ -122,6 +124,7 @@ where
 	C::Api: rpc_assets::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
+	C::Api: pallet_asset_conversion::AssetConversionApi<Block, Balance, u128, AssetId>,
 	C: BlockchainEvents<Block>,
 {
 	use pallet_ocex_rpc::PolkadexOcexRpcApiServer;
@@ -177,7 +180,7 @@ where
 		SyncState::new(chain_spec, client.clone(), shared_authority_set, babe_worker_handle)?
 			.into_rpc(),
 	)?;
-
+	io.merge(PolkadexSwapRpc::new(client.clone()).into_rpc())?;
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;

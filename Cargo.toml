@@ -28,6 +28,7 @@ members = [
   "runtimes/mainnet",
   "runtimes/parachain",
   "rpc/assets",
+  "rpc/swap",
   "rpc/assets/runtime-api",
   "pallets/pdex-migration",
   "pallets/ocex",
@@ -69,6 +70,7 @@ default-members = [
   "pallets/thea-executor",
   "pallets/rewards/rpc",
   "pallets/rewards/rpc/runtime-api",
+  "rpc/swap"
 ]
 
 [workspace.dependencies]
