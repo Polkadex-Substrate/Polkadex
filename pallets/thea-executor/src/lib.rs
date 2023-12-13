@@ -53,7 +53,7 @@ pub mod pallet {
 		transactional,
 	};
 	use frame_system::pallet_prelude::*;
-	use pallet_asset_conversion::Swap;
+	use pallet_asset_conversion::{NativeOrAssetId, Swap};
 	use polkadex_primitives::{AssetId, Resolver};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
@@ -88,8 +88,7 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId>
 			+ From<u128>;
-		type MultiAssetIdAdapter: From<AssetId>
-			+ Into<<Self as pallet_asset_conversion::Config>::MultiAssetId>;
+		type MultiAssetIdAdapter: Into<<Self as pallet_asset_conversion::Config>::MultiAssetId>;
 
 		type AssetBalanceAdapter: Into<<Self as pallet_asset_conversion::Config>::AssetBalance>
 			+ Copy
@@ -109,7 +108,7 @@ pub mod pallet {
 		type Swap: pallet_asset_conversion::Swap<
 			Self::AccountId,
 			u128,
-			polkadex_primitives::AssetId,
+			NativeOrAssetId<u128>,
 		>;
 		/// Total Withdrawals
 		#[pallet::constant]
@@ -420,8 +419,8 @@ pub mod pallet {
 			if pay_with_tokens {
 				// User wants to pay with withdrawing tokens.
 				let path = sp_std::vec![
-					polkadex_primitives::AssetId::Asset(asset_id),
-					polkadex_primitives::AssetId::Polkadex
+					NativeOrAssetId::Asset(asset_id),
+					NativeOrAssetId::Native
 				];
 				let token_taken = T::Swap::swap_tokens_for_exact_tokens(
 					user.clone(),
@@ -514,8 +513,8 @@ pub mod pallet {
 
 			if !frame_system::Pallet::<T>::account_exists(recipient) {
 				let path = sp_std::vec![
-					polkadex_primitives::AssetId::Asset(deposit.asset_id),
-					polkadex_primitives::AssetId::Polkadex
+					NativeOrAssetId::Asset(deposit.asset_id),
+					NativeOrAssetId::Native
 				];
 				let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
 				Self::resolve_mint(&Self::thea_account(), deposit.asset_id.into(), deposit_amount)?;

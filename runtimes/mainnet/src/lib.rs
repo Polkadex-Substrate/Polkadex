@@ -91,6 +91,7 @@ use sp_storage as _;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
+use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1365,7 +1366,7 @@ impl thea_executor::Config for Runtime {
 	type ParaId = ParaId;
 	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
 	type Swap = AssetConversion;
-	type MultiAssetIdAdapter = AssetId;
+	type MultiAssetIdAdapter = NativeOrAssetId<u128>;
 	type AssetBalanceAdapter = u128;
 	type ExistentialDeposit = ExistentialDeposit;
 }
@@ -1415,8 +1416,8 @@ impl pallet_asset_conversion::Config for Runtime {
 	type AssetBalance = <Self as pallet_balances::Config>::Balance;
 	type HigherPrecisionBalance = u128;
 	type AssetId = u128;
-	type MultiAssetId = AssetId;
-	type MultiAssetIdConverter = polkadex_primitives::AssetIdConverter;
+	type MultiAssetId = NativeOrAssetId<u128>;
+	type MultiAssetIdConverter = NativeOrAssetIdConverter<u128>;
 	type PoolAssetId = u128;
 	type Assets = Assets;
 	type PoolAssets = Assets;
@@ -1625,18 +1626,18 @@ impl_runtime_apis! {
 		Block,
 		Balance,
 		u128,
-		AssetId
+		NativeOrAssetId<u128>
 	> for Runtime
 	{
-		fn quote_price_exact_tokens_for_tokens(asset1: AssetId, asset2: AssetId, amount: u128, include_fee: bool) -> Option<Balance> {
+		fn quote_price_exact_tokens_for_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
 			AssetConversion::quote_price_exact_tokens_for_tokens(asset1, asset2, amount, include_fee)
 		}
 
-		fn quote_price_tokens_for_exact_tokens(asset1: AssetId, asset2: AssetId, amount: u128, include_fee: bool) -> Option<Balance> {
+		fn quote_price_tokens_for_exact_tokens(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>, amount: u128, include_fee: bool) -> Option<Balance> {
 			AssetConversion::quote_price_tokens_for_exact_tokens(asset1, asset2, amount, include_fee)
 		}
 
-		fn get_reserves(asset1: AssetId, asset2: AssetId) -> Option<(Balance, Balance)> {
+		fn get_reserves(asset1: NativeOrAssetId<u128>, asset2: NativeOrAssetId<u128>) -> Option<(Balance, Balance)> {
 			AssetConversion::get_reserves(&asset1, &asset2).ok()
 		}
 	}

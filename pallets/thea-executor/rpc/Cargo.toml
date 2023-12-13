@@ -1,0 +1,26 @@
+[package]
+name = "thea-executor-rpc"
+version = "5.4.1"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true, default-features = true }
+parity-scale-codec = { workspace = true, features = ["derive"] }
+jsonrpsee = { workspace = true, features = ["client-core", "server", "macros"] }
+sp-rpc = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-api = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+orderbook-primitives = { path = "../../../primitives/orderbook" }
+serde_json = { workspace = true, default-features = true }
+polkadex-primitives = { workspace = true }
+sc-rpc-api = { workspace = true, default-features = true }
+sc-rpc = { workspace = true, default-features = true }
+sp-offchain = { workspace = true, default-features = true }
+parking_lot = { workspace = true }
+pallet-asset-conversion = { workspace = true }
+hash-db = { workspace = true }
+trie-db = { workspace = true }
+sp-trie = { workspace = true }

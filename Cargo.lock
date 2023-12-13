@@ -8266,6 +8266,7 @@ dependencies = [
  "itertools 0.10.5",
  "jsonrpsee",
  "node-polkadex-runtime",
+ "pallet-asset-conversion",
  "pallet-asset-conversion-tx-payment",
  "pallet-im-online",
  "pallet-ocex-lmp",
@@ -8327,6 +8328,7 @@ dependencies = [
  "substrate-frame-rpc-system",
  "tempfile",
  "thea",
+ "thea-executor-rpc",
  "try-runtime-cli",
 ]
 
@@ -14064,6 +14066,32 @@ dependencies = [
  "staging-xcm",
  "thea",
  "thea-primitives",
+]
+
+[[package]]
+name = "thea-executor-rpc"
+version = "5.4.1"
+dependencies = [
+ "hash-db",
+ "jsonrpsee",
+ "orderbook-primitives",
+ "pallet-asset-conversion",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "polkadex-primitives",
+ "sc-rpc",
+ "sc-rpc-api",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-offchain",
+ "sp-rpc",
+ "sp-runtime",
+ "sp-trie",
+ "tokio",
+ "trie-db",
 ]
 
 [[package]]

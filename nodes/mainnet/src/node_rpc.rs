@@ -33,6 +33,10 @@
 use jsonrpsee::RpcModule;
 use pallet_ocex_rpc::PolkadexOcexRpc;
 use pallet_rewards_rpc::PolkadexRewardsRpc;
+use pallet_ocex_rpc::PolkadexOcexRuntimeApi;
+use thea_executor_rpc::PolkadexSwapRpc;
+use pallet_asset_conversion::AssetConversionApi;
+use thea_executor_rpc::PolkadexSwapRpcApiServer;
 
 use grandpa::{
 	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
@@ -121,7 +125,8 @@ where
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 	C::Api: rpc_assets::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
-	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
+	C::Api: pallet_asset_conversion::AssetConversionApi<Block, Balance, u128, pallet_asset_conversion::NativeOrAssetId<u128>>,
+	C::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
 	C: BlockchainEvents<Block>,
 {
 	use pallet_ocex_rpc::PolkadexOcexRpcApiServer;
@@ -181,6 +186,11 @@ where
 	// io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
 	io.merge(PolkadexAssetHandlerRpc::new(client.clone()).into_rpc())?;
 	io.merge(PolkadexRewardsRpc::new(client.clone()).into_rpc())?;
+	io.merge(PolkadexSwapRpc::new(
+		client.clone(),
+		deny_unsafe,
+	)
+		.into_rpc())?;
 	io.merge(
 		PolkadexOcexRpc::new(
 			client.clone(),
@@ -189,8 +199,16 @@ where
 				.ok_or("Backend doesn't provide an offchain storage")?,
 			deny_unsafe,
 		)
-		.into_rpc(),
-	)?;
+		.into_rpc())?;
+
+	// io.merge(PolkadexSwapRpc::new(client.clone(),
+	// 							  backend
+	// 								  .offchain_storage()
+	// 								  .ok_or("Backend doesn't provide an offchain storage")?,
+	// 							  deny_unsafe,
+	// )
+	// 			 .into_rpc(),
+	// )?;
 	io.merge(Dev::new(client.clone(), deny_unsafe).into_rpc())?;
 	let statement_store =
 		sc_rpc::statement::StatementStore::new(statement_store, deny_unsafe).into_rpc();
