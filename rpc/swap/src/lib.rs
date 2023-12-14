@@ -26,18 +26,13 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_asset_conversion::AssetConversionApi;
-use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
-use parity_scale_codec::{Codec, Decode};
 use polkadex_primitives::AssetId;
-use sc_rpc_api::DenyUnsafe;
-use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 const RUNTIME_ERROR: i32 = 1;
-const RETRIES: u8 = 3;
 
 #[rpc(client, server)]
 pub trait PolkadexSwapRpcApi<BlockHash> {
@@ -99,7 +94,7 @@ where
 		amount: u128,
 		include_fee: bool,
 	) -> RpcResult<Option<u128>> {
-		let mut api = self.client.runtime_api();
+		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
@@ -118,7 +113,7 @@ where
 		amount: u128,
 		include_fee: bool,
 	) -> RpcResult<Option<u128>> {
-		let mut api = self.client.runtime_api();
+		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
