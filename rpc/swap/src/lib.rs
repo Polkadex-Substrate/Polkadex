@@ -39,9 +39,8 @@ pub trait PolkadexSwapRpcApi<BlockHash> {
 	#[method(name = "tx_quotePriceExactTokensForTokens")]
 	async fn quote_price_exact_tokens_for_tokens(
 		&self,
-		at: Option<BlockHash>,
-		asset_id1: AssetId,
-		asset_id2: AssetId,
+		asset_id1: String,
+		asset_id2: String,
 		amount: u128,
 		include_fee: bool,
 	) -> RpcResult<Option<u128>>;
@@ -49,9 +48,8 @@ pub trait PolkadexSwapRpcApi<BlockHash> {
 	#[method(name = "tx_quotePriceTokensForExactTokens")]
 	async fn quote_price_tokens_for_exact_tokens(
 		&self,
-		at: Option<BlockHash>,
-		asset_id1: AssetId,
-		asset_id2: AssetId,
+		asset_id1: String,
+		asset_id2: String,
 		amount: u128,
 		include_fee: bool,
 	) -> RpcResult<Option<u128>>;
@@ -88,17 +86,15 @@ where
 {
 	async fn quote_price_exact_tokens_for_tokens(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
-		asset_id1: AssetId,
-		asset_id2: AssetId,
+		asset_id1: String,
+		asset_id2: String,
 		amount: u128,
 		include_fee: bool,
 	) -> RpcResult<Option<u128>> {
 		let api = self.client.runtime_api();
-		let at = match at {
-			Some(at) => at,
-			None => self.client.info().best_hash,
-		};
+		let at = self.client.info().best_hash;
+		let asset_id1: AssetId = AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+		let asset_id2: AssetId = AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
 		let runtime_api_result = api
 			.quote_price_exact_tokens_for_tokens(at, asset_id1, asset_id2, amount, include_fee)
 			.map_err(runtime_error_into_rpc_err)?;
@@ -107,17 +103,15 @@ where
 
 	async fn quote_price_tokens_for_exact_tokens(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
-		asset_id1: AssetId,
-		asset_id2: AssetId,
+		asset_id1: String,
+		asset_id2: String,
 		amount: u128,
 		include_fee: bool,
 	) -> RpcResult<Option<u128>> {
 		let api = self.client.runtime_api();
-		let at = match at {
-			Some(at) => at,
-			None => self.client.info().best_hash,
-		};
+		let at = self.client.info().best_hash;
+		let asset_id1: AssetId = AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+		let asset_id2: AssetId = AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
 		let runtime_api_result = api
 			.quote_price_tokens_for_exact_tokens(at, asset_id1, asset_id2, amount, include_fee)
 			.map_err(runtime_error_into_rpc_err)?;
