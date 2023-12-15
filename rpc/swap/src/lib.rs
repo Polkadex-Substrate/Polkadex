@@ -93,8 +93,10 @@ where
 	) -> RpcResult<Option<u128>> {
 		let api = self.client.runtime_api();
 		let at = self.client.info().best_hash;
-		let asset_id1: AssetId = AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
-		let asset_id2: AssetId = AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
+		let asset_id1: AssetId =
+			AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+		let asset_id2: AssetId =
+			AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
 		let runtime_api_result = api
 			.quote_price_exact_tokens_for_tokens(at, asset_id1, asset_id2, amount, include_fee)
 			.map_err(runtime_error_into_rpc_err)?;
@@ -110,8 +112,10 @@ where
 	) -> RpcResult<Option<u128>> {
 		let api = self.client.runtime_api();
 		let at = self.client.info().best_hash;
-		let asset_id1: AssetId = AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
-		let asset_id2: AssetId = AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
+		let asset_id1: AssetId =
+			AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+		let asset_id2: AssetId =
+			AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
 		let runtime_api_result = api
 			.quote_price_tokens_for_exact_tokens(at, asset_id1, asset_id2, amount, include_fee)
 			.map_err(runtime_error_into_rpc_err)?;
