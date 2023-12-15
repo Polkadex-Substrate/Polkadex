@@ -75,13 +75,13 @@ benchmarks! {
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
 
 		//set balance for pallet account
-		T::NativeCurrency::deposit_creating(
+		let _ = T::NativeCurrency::deposit_creating(
 			&pallet_id_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
 
 		//set existential balance for alice
-		T::NativeCurrency::deposit_creating(
+		let _ = T::NativeCurrency::deposit_creating(
 			&alice_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
@@ -111,13 +111,13 @@ benchmarks! {
 		let pallet_id_account = pallet_rewards::<T>::get_pallet_account();
 
 		//set balance for pallet account
-		T::NativeCurrency::deposit_creating(
+		let _ = T::NativeCurrency::deposit_creating(
 			&pallet_id_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
 
 		//set existential balance for alice
-		T::NativeCurrency::deposit_creating(
+		let _ = T::NativeCurrency::deposit_creating(
 			&alice_account,
 			(10000000 * UNIT_BALANCE).saturated_into(),
 		);
