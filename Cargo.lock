@@ -8266,6 +8266,7 @@ dependencies = [
  "itertools 0.10.5",
  "jsonrpsee",
  "node-polkadex-runtime",
+ "pallet-asset-conversion",
  "pallet-asset-conversion-tx-payment",
  "pallet-im-online",
  "pallet-ocex-lmp",
@@ -8325,6 +8326,7 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils 5.0.0",
  "substrate-frame-rpc-system",
+ "swap-rpc",
  "tempfile",
  "thea",
  "try-runtime-cli",
@@ -13877,6 +13879,32 @@ name = "subtle-ng"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "734676eb262c623cec13c3155096e08d1f8f29adce39ba17948b18dad1e54142"
+
+[[package]]
+name = "swap-rpc"
+version = "5.4.1"
+dependencies = [
+ "hash-db",
+ "jsonrpsee",
+ "orderbook-primitives",
+ "pallet-asset-conversion",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "polkadex-primitives",
+ "sc-rpc",
+ "sc-rpc-api",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-offchain",
+ "sp-rpc",
+ "sp-runtime",
+ "sp-trie",
+ "tokio",
+ "trie-db",
+]
 
 [[package]]
 name = "syn"
