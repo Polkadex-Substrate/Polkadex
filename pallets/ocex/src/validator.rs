@@ -19,7 +19,7 @@
 use crate::{
 	aggregator::AggregatorClient,
 	pallet::{Accounts, ValidatorSetId},
-	settlement::{add_balance, get_balance, process_trade, sub_balance},
+	settlement::{add_balance, get_balance, sub_balance},
 	snapshot::StateInfo,
 	storage::{store_trie_root, OffchainState},
 	Config, Pallet, SnapshotNonce, Snapshots,
@@ -30,13 +30,7 @@ use orderbook_primitives::{
 	ObCheckpointRaw, SnapshotSummary,
 };
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{
-	fees::FeeConfig,
-	ingress::{EgressMessages, IngressMessages},
-	ocex::{AccountInfo, TradingPairConfig},
-	withdrawal::Withdrawal,
-	AssetId, ProxyLimit,
-};
+use polkadex_primitives::{fees::FeeConfig, ingress::{EgressMessages, IngressMessages}, withdrawal::Withdrawal, AssetId, AccountId};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
@@ -45,6 +39,9 @@ use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use std::ops::Div;
 use trie_db::{TrieError, TrieMut};
+use orderbook_primitives::lmp::TraderMetric;
+use orderbook_primitives::types::TradingPair;
+use crate::lmp::{get_fees_paid_by_main_account_in_quote, get_maker_volume_by_main_account};
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -201,7 +198,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
-		let (withdrawals, egress_messages) =
+		let (withdrawals, egress_messages, trader_metrics) =
 			Self::process_batch(&mut state, &batch, &mut state_info)?;
 
 		// Create state hash and store it
@@ -229,6 +226,7 @@ impl<T: Config> Pallet<T> {
 						last_processed_blk: state_info.last_block.saturated_into(),
 						withdrawals,
 						egress_messages,
+						trader_metrics
 					};
 					log::debug!(target:"ocex","Summary created by auth index: {:?}",auth_index);
 					let signature = key.sign(&summary.encode()).ok_or("Private key not found")?;
@@ -302,8 +300,8 @@ impl<T: Config> Pallet<T> {
 				)?,
 				IngressMessages::AddLiquidity(
 					market,
-					pool,
-					lp,
+					ref pool,
+					ref lp,
 					total_shares,
 					base_deposited,
 					quote_deposited,
@@ -363,7 +361,7 @@ impl<T: Config> Pallet<T> {
 
 								let total_inventory_in_quote = quote_balance
 									.saturating_add(price.saturating_mul(base_balance));
-								if total_inventory != total_inventory_in_quote {
+								if *total_inventory != total_inventory_in_quote {
 									log::error!(target:"ocex","Inventory mismatch: offchain: {:?}, engine: {:?}", total_inventory_in_quote,total_inventory);
 									return Err("Inventory Mismatch")
 								}
@@ -381,7 +379,7 @@ impl<T: Config> Pallet<T> {
 										.div(total_inventory)
 								};
 
-								if issued_shares != shares_minted {
+								if *issued_shares != shares_minted {
 									log::error!(target:"ocex","Shares minted: Offchain: {:?}, On-chain: {:?}",shares_minted,issued_shares);
 									return Err("Invalid number of LP shares minted")
 								}
@@ -394,7 +392,7 @@ impl<T: Config> Pallet<T> {
 						},
 					}
 				},
-				IngressMessages::RemoveLiquidity(market, pool, lp, burn_frac) => {
+				IngressMessages::RemoveLiquidity(market, ref pool, ref lp, burn_frac) => {
 					let base_balance = get_balance(
 						state,
 						&Decode::decode(&mut &pool.encode()[..])
@@ -499,8 +497,8 @@ impl<T: Config> Pallet<T> {
 								return Err("Enough quote available but still denied by engine!")
 							}
 
-							if withdrawing_base <= *quote_free {
-								log::error!(target:"ocex","Base Amount: Free Balance: {:?}, required: {:?}", quote_free,withdrawing_quote);
+							if withdrawing_base <= *base_free {
+								log::error!(target:"ocex","Base Amount: Free Balance: {:?}, required: {:?}", base_free,withdrawing_base);
 								return Err(
 									"Enough base balance available but still denied by engine!",
 								)
@@ -567,7 +565,9 @@ impl<T: Config> Pallet<T> {
 			let config = Self::trading_pairs(trade.maker.pair.base, trade.maker.pair.quote)
 				.ok_or("TradingPairNotFound")?;
 			let (maker_fees, taker_fees) =
-				Self::get_fee_structure(&trade.maker.main_account, &trade.taker.main_account)
+				Self::get_fee_structure(
+					&Self::convert_account_id(&trade.maker.main_account)?,
+					&Self::convert_account_id(&trade.taker.main_account)?)
 					.ok_or("Fee structure not found")?;
 			Self::process_trade(state, trade, config, maker_fees, taker_fees)?
 		}
@@ -610,7 +610,11 @@ impl<T: Config> Pallet<T> {
 		state: &mut OffchainState,
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
-	) -> Result<(Vec<Withdrawal<T::AccountId>>, Vec<EgressMessages<T::AccountId>>), &'static str> {
+	) -> Result<(
+		Vec<Withdrawal<T::AccountId>>,
+		Vec<EgressMessages<T::AccountId>>,
+		Option<(BTreeMap<(TradingPair, T::AccountId), Decimal>, Decimal)>
+	), &'static str> {
 		if state_info.stid >= batch.stid {
 			return Err("Invalid stid")
 		}
@@ -641,8 +645,36 @@ impl<T: Config> Pallet<T> {
 				},
 			}
 		}
+		let trader_metrics = Self::compute_trader_metrics(state)?;
+		Ok((withdrawals, egress_messages,trader_metrics))
+	}
 
-		Ok((withdrawals, verified_egress_messages))
+	pub fn compute_trader_metrics(state: &mut OffchainState) -> Result<Option<BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal)>>, &'static str>{
+		// Check if epoch has ended and score is computed if yes, then continue
+		if let Some(epoch) = <FinalizeLMPScore<T>>::get() {
+			let enabled_pairs: Vec<TradingPair> = <LMPEnabledPairs<T>>::get();
+			let mut scores_map: BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal) > = BTreeMap::new();
+			for pair in enabled_pairs {
+				let mut map = BTreeMap::new();
+				let mut total = Decimal::zero();
+				// Loop over all main accounts and compute their final scores
+				for (main, _) in <Accounts<T>>::iter() {
+					let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair,&main)?;
+					let fees_paid = get_fees_paid_by_main_account_in_quote(state,epoch,&pair,&main)?;
+					// TODO: Get Q_score and uptime information from offchain state
+					// TODO: Compute final score
+					let final_score = Decimal::zero();
+					map.insert(main,final_score);
+					total = total.saturating_add(final_score);
+				}
+				// Aggregate into a map
+				scores_map.insert(pair,(map,total));
+			}
+
+			return Ok(Some(scores_map))
+
+		}
+		Ok(None)
 	}
 
 	/// Processes a checkpoint, updating the offchain state accordingly.
@@ -741,6 +773,10 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Some((maker_config, taker_config))
+	}
+
+	fn convert_account_id(acc: &AccountId) -> Result<T::AccountId, &'static str> {
+		Decode::decode(&mut &acc.encode()[..]).map_err(|_| "Unable to decode decimal")
 	}
 }
 

@@ -35,7 +35,6 @@ use frame_support::{
 		tokens::{Fortitude, Preservation},
 		Currency, ExistenceRequirement, Get, OneSessionHandler,
 	},
-	BoundedVec,
 };
 use frame_system::ensure_signed;
 use pallet_timestamp as timestamp;
@@ -52,6 +51,7 @@ use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
+	lmp::TraderMetric,
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
@@ -139,14 +139,10 @@ pub mod pallet {
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use crate::validator::WORKER_STATUS;
-	use frame_support::{
-		pallet_prelude::*,
-		traits::{
-			fungibles::{Create, Inspect, Mutate},
-			Currency, ReservableCurrency,
-		},
-		PalletId,
-	};
+	use frame_support::{pallet_prelude::*, traits::{
+		fungibles::{Create, Inspect, Mutate},
+		Currency, ReservableCurrency,
+	}, PalletId, transactional};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
 	use orderbook_primitives::{Fees, ObCheckpointRaw, SnapshotSummary};
@@ -163,6 +159,7 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+	use polkadex_primitives::ingress::EgressMessages;
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -973,13 +970,19 @@ pub mod pallet {
 		/// Submit Snapshot Summary
 		#[pallet::call_index(17)]
 		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
+		#[transactional]
 		pub fn submit_snapshot(
 			origin: OriginFor<T>,
 			summary: SnapshotSummary<T::AccountId>,
 			_signatures: Vec<(u16, <T::AuthorityId as RuntimeAppPublic>::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			// TODO: Process egress messages from summary.
+			// Update the trader's performance on-chain
+			if let Some(metrics) = summary.trader_metrics {
+				Self::update_lmp_scores(&metrics)?;
+			}
+			// Process egress messages from summary.
+			Self::process_egress_msg(summary.egress_messages.as_ref())?;
 			if !summary.withdrawals.is_empty() {
 				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
 				<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
@@ -1076,6 +1079,28 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+
+
+		pub fn update_lmp_scores(trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal)>>) -> DispatchResult {
+			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
+			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
+			for (pair, (map,total)) in trader_metrics {
+				for (main, score) in map {
+					<TraderMetrics<T>>::insert(current_epoch,pair,main, score);
+				}
+				<TotalScores<T>>::insert(current_epoch, pair, total);
+			}
+			Ok(())
+		}
+
+
+		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult{
+			for msg in msgs{
+				todo!()
+			}
+			Ok(())
+		}
+
 		pub fn do_deposit(
 			user: T::AccountId,
 			asset: AssetId,
@@ -1486,9 +1511,29 @@ pub mod pallet {
 	pub(super) type OrderbookOperatorPublicKey<T: Config> =
 		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
 
+	/// Storage related to LMP
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_epoch)]
+	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn trader_metrics)]
+	pub(super) type TraderMetrics<T: Config> = StorageNMap<_, Identity,
+		u32, Identity, TradingPair, Identity, T::AccountId, Decimal, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn total_scores)]
+	pub(super) type TotalScores<T: Config> = StorageDoubleMap<_, Identity,u32,
+		Identity, TradingPair, Decimal, ValueQuery>;
+
+	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
 	#[crate::pallet::storage]
-	#[crate::pallet::getter(fn lmp_epoch)]
-	pub(super) type LMPEpoch<T: crate::pallet::Config> = StorageValue<_, u32, ValueQuery>;
+	#[crate::pallet::getter(fn finalize_lmp_scores_flag)]
+	pub(super) type FinalizeLMPScore<T: crate::pallet::Config> = StorageValue<_, u32, OptionQuery>;
+
+	#[crate::pallet::storage]
+	#[crate::pallet::getter(fn incentivised_pairs)]
+	pub(super) type LMPEnabledPairs<T: crate::pallet::Config> = StorageValue<_, Vec<TradingPair>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

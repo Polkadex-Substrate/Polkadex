@@ -18,7 +18,7 @@
 
 //! Helper functions for updating the balance
 
-use crate::{lmp::update_lmp_storage, storage::OffchainState, Config, Pallet};
+use crate::{ storage::OffchainState, Config, Pallet};
 use log::{error, info};
 use orderbook_primitives::{constants::FEE_POT_PALLET_ID, types::Trade};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
@@ -27,6 +27,7 @@ use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::collections::btree_map::BTreeMap;
+use orderbook_primitives::lmp::TraderMetric;
 
 /// Returns the balance of an account and asset from state
 ///
@@ -41,7 +42,7 @@ pub fn get_balance(
 	asset: AssetId,
 ) -> Result<Decimal, &'static str> {
 	log::info!(target:"ocex", "getting balance for asset {:?} from account {:?}",asset.to_string(), account);
-	let mut balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
+	let balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
 		None => BTreeMap::new(),
 		Some(encoded) => BTreeMap::decode(&mut &encoded[..])
 			.map_err(|_| "Unable to decode balances for account")?,

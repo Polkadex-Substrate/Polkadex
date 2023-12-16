@@ -36,12 +36,14 @@ use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 use polkadex_primitives::ingress::EgressMessages;
+use crate::lmp::TraderMetric;
 
 pub mod constants;
 pub mod types;
 
 #[cfg(feature = "std")]
 pub mod recovery;
+pub mod lmp;
 
 /// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
@@ -104,7 +106,7 @@ pub struct Fees {
 
 /// Defines the structure of snapshot DTO.
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotSummary<AccountId: Clone + Codec> {
+pub struct SnapshotSummary<AccountId: Clone + Codec + Ord> {
 	/// Validator set identifier.
 	pub validator_set_id: u64,
 	/// Snapshot identifier.
@@ -118,10 +120,12 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	/// List of Egress messages
-	pub egress_messages: Vec<EgressMessages<AccountId>>
+	pub egress_messages: Vec<EgressMessages<AccountId>>,
+	/// Trader Metrics ( map, total_score)
+	pub trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal)>>
 }
 
-impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
+impl<AccountId: Clone + Codec + Ord> SnapshotSummary<AccountId> {
 	/// Collects and returns the collection of fees fro for all withdrawals.
 	pub fn get_fees(&self) -> Vec<Fees> {
 		let mut fees = Vec::new();
