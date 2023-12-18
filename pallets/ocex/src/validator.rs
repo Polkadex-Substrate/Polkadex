@@ -41,7 +41,7 @@ use std::ops::Div;
 use trie_db::{TrieError, TrieMut};
 use orderbook_primitives::lmp::TraderMetric;
 use orderbook_primitives::types::TradingPair;
-use crate::lmp::{get_fees_paid_by_main_account_in_quote, get_maker_volume_by_main_account};
+use crate::lmp::{get_fees_paid_by_main_account_in_quote, get_maker_volume_by_main_account, get_q_score_and_uptime, store_q_score_and_uptime};
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -613,7 +613,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(
 		Vec<Withdrawal<T::AccountId>>,
 		Vec<EgressMessages<T::AccountId>>,
-		Option<(BTreeMap<(TradingPair, T::AccountId), Decimal>, Decimal)>
+		Option<(BTreeMap<(TradingPair, T::AccountId), (Decimal,Decimal)>, (Decimal,Decimal))>
 	), &'static str> {
 		if state_info.stid >= batch.stid {
 			return Err("Invalid stid")
@@ -643,32 +643,57 @@ impl<T: Config> Pallet<T> {
 					let withdrawal = Self::withdraw(request, state, *stid)?;
 					withdrawals.push(withdrawal);
 				},
+				UserActions::OneMinLMPReport(market, epoch,index, total, scores) => {
+					Self::store_q_scores(state, market, epoch,index, total, scores)?;
+				}
 			}
 		}
 		let trader_metrics = Self::compute_trader_metrics(state)?;
 		Ok((withdrawals, egress_messages,trader_metrics))
 	}
 
-	pub fn compute_trader_metrics(state: &mut OffchainState) -> Result<Option<BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal)>>, &'static str>{
+	pub fn store_q_scores(
+		state: &mut OffchainState,
+		market: TradingPair,
+		epoch: u16,
+		index: u16,
+		total: Decimal,
+		scores: BTreeMap<T::AccountId, Decimal>) -> Result<(), &'static str>{
+		for (main, score) in scores {
+			store_q_score_and_uptime(state,epoch,index,score,&market,main)?;
+		}
+		Ok(())
+	}
+
+	pub fn compute_trader_metrics(state: &mut OffchainState) -> Result<Option<BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal,Decimal)>, (Decimal,Decimal))>>, &'static str>{
 		// Check if epoch has ended and score is computed if yes, then continue
 		if let Some(epoch) = <FinalizeLMPScore<T>>::get() {
 			let enabled_pairs: Vec<TradingPair> = <LMPEnabledPairs<T>>::get();
-			let mut scores_map: BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal) > = BTreeMap::new();
+			// map( market => (map(account => (score,fees)),total_score, total_fees_paid))
+			let mut scores_map: BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal, Decimal)>, (Decimal, Decimal)) > = BTreeMap::new();
 			for pair in enabled_pairs {
 				let mut map = BTreeMap::new();
-				let mut total = Decimal::zero();
+				let mut total_score = Decimal::zero();
+				let mut total_fees_paid = Decimal::zero();
 				// Loop over all main accounts and compute their final scores
 				for (main, _) in <Accounts<T>>::iter() {
 					let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair,&main)?;
 					let fees_paid = get_fees_paid_by_main_account_in_quote(state,epoch,&pair,&main)?;
-					// TODO: Get Q_score and uptime information from offchain state
-					// TODO: Compute final score
-					let final_score = Decimal::zero();
-					map.insert(main,final_score);
-					total = total.saturating_add(final_score);
+					// Get Q_score and uptime information from offchain state
+					let (q_score, uptime) = get_q_score_and_uptime(state,epoch,&pair,&main)?;
+					let uptime = Decimal::from(uptime);
+					// Compute the final score
+					let final_score = q_score.pow(&0.15)
+						.saturating_mul(uptime.pow(&5.0))
+						.saturating_mul(maker_volume.pow(&0.85)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85
+					// Update the trader map
+					map.insert(main,(final_score,fees_paid));
+					// Compute the total
+					total_score = total_score.saturating_add(final_score);
+					total_fees_paid = total_fees_paid.saturating_add(fees_paid);
 				}
 				// Aggregate into a map
-				scores_map.insert(pair,(map,total));
+				scores_map.insert(pair,(map,(total_score,total_fees_paid)));
 			}
 
 			return Ok(Some(scores_map))

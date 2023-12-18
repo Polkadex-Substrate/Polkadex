@@ -5,12 +5,11 @@ use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::Zero;
-use orderbook_primitives::lmp::TraderMetric;
 use crate::LMPEpoch;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
-	epoch: u32,
+	epoch: u16,
 	market: &TradingPairConfig,
 	volume: Decimal,
 	main: &AccountId,
@@ -31,7 +30,7 @@ pub fn update_trade_volume_by_main_account(
 
 pub fn get_maker_volume_by_main_account(
 	state: &mut OffchainState,
-	epoch: u32,
+	epoch: u16,
 	trading_pair: &TradingPair,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
@@ -46,7 +45,7 @@ pub fn get_maker_volume_by_main_account(
 
 pub fn update_maker_volume_by_main_account(
 	state: &mut OffchainState,
-	epoch: u32,
+	epoch: u16,
 	market: &TradingPairConfig,
 	volume: Decimal,
 	main: &AccountId,
@@ -66,7 +65,7 @@ pub fn update_maker_volume_by_main_account(
 
 pub fn store_fees_paid_by_main_account_in_quote(
 	state: &mut OffchainState,
-	epoch: u32,
+	epoch: u16,
 	market: &TradingPairConfig,
 	fees_in_quote_terms: Decimal,
 	main: &AccountId,
@@ -86,7 +85,7 @@ pub fn store_fees_paid_by_main_account_in_quote(
 
 pub fn get_fees_paid_by_main_account_in_quote(
 	state: &mut OffchainState,
-	epoch: u32,
+	epoch: u16,
 	trading_pair: &TradingPair,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
@@ -99,6 +98,59 @@ pub fn get_fees_paid_by_main_account_in_quote(
 	})
 }
 
+
+
+pub fn store_q_score_and_uptime(
+	state: &mut OffchainState,
+	epoch: u16,
+	index: u16,
+	score: Decimal,
+	trading_pair: &TradingPair,
+	main: &AccountId,
+) -> Result<(), &'static str> {
+	let key = (epoch, trading_pair, "q_score&uptime", main).encode();
+	match state.get(&key)? {
+		None => state.insert(key,BTreeMap::from([(index,score)]).encode()),
+		Some(encoded_q_scores_map) => {
+			let mut map = BTreeMap::<u16,Decimal>::decode(&mut &encoded_q_scores_map[..])
+				.map_err(|_| "Unable to decode decimal")?;
+			if map.insert(index, score).is_some() {
+				log::error!(target:"ocex","Overwriting q score with index: {:?}, epoch: {:?}, main: {:?}, market: {:?}",index,epoch,main,trading_pair);
+				return Err("Overwriting q score");
+			}
+			state.insert(key,map.encode());
+		},
+	}
+	Ok(())
+}
+
+/// Returns the total Q score and uptime
+pub fn get_q_score_and_uptime(
+	state: &mut OffchainState,
+	epoch: u16,
+	trading_pair: &TradingPair,
+	main: &AccountId,
+) -> Result<(Decimal, u16), &'static str> {
+	let key = (epoch, trading_pair, "q_score&uptime", main).encode();
+	return match state.get(&key)? {
+		None => {
+			log::error!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main, trading_pair);
+			Err("Q score not found")
+		},
+		Some(encoded_q_scores_map) => {
+			let map = BTreeMap::<u16, Decimal>::decode(&mut &encoded_q_scores_map[..])
+				.map_err(|_| "Unable to decode decimal")?;
+			let mut total_score = Decimal::zero();
+			// Add up all individual scores
+			for (_, score) in map {
+				total_score = total_score.saturating_add(score);
+			}
+			Ok((total_score, map.len() as u16))
+		},
+	}
+}
+
+
 impl<T: Config> Pallet<T> {
 	pub fn update_lmp_storage_from_trade(
 		state: &mut OffchainState,
@@ -107,7 +159,7 @@ impl<T: Config> Pallet<T> {
 		maker_fees: Decimal,
 		taker_fees: Decimal,
 	) -> Result<(), &'static str> {
-		let epoch: u32 = <LMPEpoch<T>>::get();
+		let epoch: u16 = <LMPEpoch<T>>::get();
 
 		// Store trade.price * trade.volume as maker volume for this epoch
 		let volume = trade.price.saturating_mul(trade.amount);

@@ -107,6 +107,7 @@ type BalanceOf<T> =
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const WITHDRAWAL_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
+const ONCHAIN_ONE_MIN_REPORT_PREFIX: &[u8] = b"ocex::one_min_report";
 
 /// Weight abstraction required for "ocex" pallet.
 pub trait OcexWeightInfo {
@@ -1015,6 +1016,23 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::OrderbookOperatorKeyWhitelisted(operator_public_key));
 			Ok(())
 		}
+
+
+		/// Claim LMP rewards
+		#[pallet::call_index(19)]
+		#[pallet::weight(10_000)]
+		pub fn claim_lmp_rewards(
+			origin: OriginFor<T>,
+			epoch: u16,
+			market: TradingPair
+		) -> DispatchResult {
+			let main = ensure_signed!(origin)?;
+			// TODO: Check if the Safety period for this epoch is over
+			// TODO: Get the score and fees paid portion of this 'main' account
+			// TODO: Calculate the rewards pool for this market
+			// TODO: Calculate rewards portion and transfer it.
+			Ok(())
+		}
 	}
 
 	impl<T: Config> LiquidityModifier for Pallet<T> {
@@ -1080,16 +1098,16 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 
-
-		pub fn update_lmp_scores(trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal)>>) -> DispatchResult {
+		pub fn update_lmp_scores(trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal,Decimal)>, (Decimal,Decimal))>>) -> DispatchResult {
 			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
 			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
-			for (pair, (map,total)) in trader_metrics {
-				for (main, score) in map {
-					<TraderMetrics<T>>::insert(current_epoch,pair,main, score);
+			for (pair, (map,(total_score, total_fees_paid))) in trader_metrics {
+				for (main, (score, fees_paid)) in map {
+					<TraderMetrics<T>>::insert(current_epoch,pair,main, (score, fees_paid));
 				}
-				<TotalScores<T>>::insert(current_epoch, pair, total);
+				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
 			}
+			// TODO: Start the claim safety period.
 			Ok(())
 		}
 
@@ -1519,12 +1537,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn trader_metrics)]
 	pub(super) type TraderMetrics<T: Config> = StorageNMap<_, Identity,
-		u32, Identity, TradingPair, Identity, T::AccountId, Decimal, ValueQuery>;
+		u32, Identity, TradingPair, Identity, T::AccountId, (Decimal, Decimal), ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn total_scores)]
 	pub(super) type TotalScores<T: Config> = StorageDoubleMap<_, Identity,u32,
-		Identity, TradingPair, Decimal, ValueQuery>;
+		Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
 
 	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
 	#[crate::pallet::storage]

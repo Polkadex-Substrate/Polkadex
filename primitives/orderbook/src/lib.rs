@@ -122,7 +122,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec + Ord> {
 	/// List of Egress messages
 	pub egress_messages: Vec<EgressMessages<AccountId>>,
 	/// Trader Metrics ( map, total_score)
-	pub trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, Decimal>, Decimal)>>
+	pub trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal,Decimal)>, (Decimal,Decimal))>>
 }
 
 impl<AccountId: Clone + Codec + Ord> SnapshotSummary<AccountId> {

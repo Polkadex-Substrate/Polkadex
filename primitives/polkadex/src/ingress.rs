@@ -18,6 +18,7 @@
 
 //! In this module defined ingress messages related types.
 
+use std::collections::BTreeMap;
 use crate::{ocex::TradingPairConfig, AssetId};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -72,7 +73,7 @@ pub enum EgressMessages<AccountId> {
 	/// Remove Liquidity Failed ( Pool, LP, burn_frac, base_free, quote_free, base_required, quote_required)
 	RemoveLiquidityFailed(AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal),
 	/// Pool Closed (market, Pool, base freed, quote freed)
-	PoolForceClosed(TradingPairConfig,AccountId, Decimal, Decimal)
+	PoolForceClosed(TradingPairConfig,AccountId, Decimal, Decimal),
 }
 
 /// Defines the structure of handle balance data which used to set account balance.

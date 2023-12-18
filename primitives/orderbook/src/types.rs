@@ -239,6 +239,8 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	Reset,
 	/// Withdraw operation requested.( request, stid)
 	WithdrawV1(WithdrawalRequest<AccountId>, u64),
+	/// One min LMP Report ( market, epoch, index, total_score, Q_scores)
+	OneMinLMPReport(TradingPair, u16, u16, Decimal, BTreeMap<AccountId, Decimal>)
 }
 
 /// Defines withdraw request DTO.
