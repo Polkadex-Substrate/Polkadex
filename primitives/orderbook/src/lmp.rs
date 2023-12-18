@@ -31,8 +31,10 @@ pub struct LMPOneMinuteReport<AccountId: Ord> {
 #[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct LMPEpochConfig {
-    /// Total rewards given in this epoch
-    total_rewards: Decimal,
+    /// Total rewards given in this epoch for market making
+    total_liquidity_mining_rewards: Decimal,
+    /// Total rewards given in this epoch for trading
+    total_trading_rewards: Decimal,
     /// % of Rewards allocated to each market from the pool
     market_weightage: BTreeMap<TradingPair, Decimal>,
     /// Min fees that should be paid to be eligible for rewards

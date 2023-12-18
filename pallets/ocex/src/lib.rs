@@ -1017,6 +1017,14 @@ pub mod pallet {
 			Ok(())
 		}
 
+		// TODO: Extrinsics to
+		//	1.  add/remove incentivised markets
+		// 	2. update LMP epoch configs ( per market configs )
+		// 	3. update total rewards per epoch
+		// 	TODO: Update on_initialize function to finalize config for a new epoch
+		// TODO: Handle egress messages with liquidity mining pallet
+		// TODO: Handle session change logic
+			// 1. Notify liquidity mining pallet to initiate withdrawals
 
 		/// Claim LMP rewards
 		#[pallet::call_index(19)]
@@ -1037,7 +1045,13 @@ pub mod pallet {
 			// Calculate the rewards pool for this market
 			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
 			let trading_rewards_portion = fees_paid.checked_div(total_fees_paid).unwrap_or_default();
-			// TODO: Calculate rewards portion and transfer it.
+			// Calculate rewards portion and transfer it.
+			let config: LMPEpochConfig = <LMPConfig<T>>::get(epoch);
+			let mm_rewards = config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
+			let trading_rewards = config.total_trading_rewards.saturating_mul(trading_rewards_portion);
+			let total = mm_rewards.saturating_add(trading_rewards);
+			let total_in_u128 = total.saturating_mul(UNIT_BALANCE);
+			// TODO: Transfer it to main from pallet account.
 			Ok(())
 		}
 	}
@@ -1123,6 +1137,7 @@ pub mod pallet {
 
 		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult{
 			for msg in msgs{
+				// TODO: Process egress messages
 				todo!()
 			}
 			Ok(())
