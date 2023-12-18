@@ -678,6 +678,8 @@ impl<T: Config> Pallet<T> {
 				// Loop over all main accounts and compute their final scores
 				for (main, _) in <Accounts<T>>::iter() {
 					let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair,&main)?;
+					// TODO: Check if the maker volume of this main is greater than 0.25% of the
+					// total maker volume in the previous epoch, otherwise ignore this account
 					let fees_paid = get_fees_paid_by_main_account_in_quote(state,epoch,&pair,&main)?;
 					// Get Q_score and uptime information from offchain state
 					let (q_score, uptime) = get_q_score_and_uptime(state,epoch,&pair,&main)?;
@@ -695,9 +697,8 @@ impl<T: Config> Pallet<T> {
 				// Aggregate into a map
 				scores_map.insert(pair,(map,(total_score,total_fees_paid)));
 			}
-
+			// Store the results so it's not computed again.
 			return Ok(Some(scores_map))
-
 		}
 		Ok(None)
 	}

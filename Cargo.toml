@@ -24,9 +24,9 @@ resolver = "2"
 members = [
   "client",
   "nodes/mainnet",
-  "nodes/parachain",
+#  "nodes/parachain",
   "runtimes/mainnet",
-  "runtimes/parachain",
+#  "runtimes/parachain",
   "rpc/assets",
   "rpc/assets/runtime-api",
   "pallets/pdex-migration",
@@ -53,9 +53,9 @@ exclude = ["scripts/check-off-on-deviation"]
 default-members = [
   "client",
   "nodes/mainnet",
-  "nodes/parachain",
+#  "nodes/parachain",
   "runtimes/mainnet",
-  "runtimes/parachain",
+#  "runtimes/parachain",
   "pallets/pdex-migration",
   "pallets/pdex-migration",
   "pallets/ocex",

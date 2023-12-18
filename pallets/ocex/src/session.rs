@@ -14,6 +14,7 @@ impl<T: Config> Pallet<T> {
             <FinalizeLMPScore<T>>::insert(current_epoch);
         }
         // TODO: Insert new epoch code here.
+        // TODO: Calculate market weightage, total rewards, and other params and initialize a market config for this epoch
         current_epoch = current_epoch.saturating_add(1);
         <LMPEpoch<T>>::set(current_epoch);
         todo!()

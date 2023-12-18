@@ -1027,9 +1027,16 @@ pub mod pallet {
 			market: TradingPair
 		) -> DispatchResult {
 			let main = ensure_signed!(origin)?;
-			// TODO: Check if the Safety period for this epoch is over
-			// TODO: Get the score and fees paid portion of this 'main' account
-			// TODO: Calculate the rewards pool for this market
+			// Check if the Safety period for this epoch is over
+			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			ensure!(current_blk >= claim_blk, Error::<T>::RewardsNotReady);
+			// Get the score and fees paid portion of this 'main' account
+			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch,market);
+			let (score, fees_paid) = <TraderMetrics<T>>::get(epoch, market, main);
+			// Calculate the rewards pool for this market
+			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
+			let trading_rewards_portion = fees_paid.checked_div(total_fees_paid).unwrap_or_default();
 			// TODO: Calculate rewards portion and transfer it.
 			Ok(())
 		}
@@ -1107,7 +1114,9 @@ pub mod pallet {
 				}
 				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
 			}
-			// TODO: Start the claim safety period.
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<LMPClaimBlk<T>>::insert(current_epoch, current_blk.saturating_add(50400)); // Seven days of block
+			<FinalizeLMPScore<T>>::take(); // Remove the finalize LMP score flag.
 			Ok(())
 		}
 
@@ -1549,9 +1558,11 @@ pub mod pallet {
 	#[crate::pallet::getter(fn finalize_lmp_scores_flag)]
 	pub(super) type FinalizeLMPScore<T: crate::pallet::Config> = StorageValue<_, u32, OptionQuery>;
 
+
+	/// Configuration for LMP for each epoch
 	#[crate::pallet::storage]
-	#[crate::pallet::getter(fn incentivised_pairs)]
-	pub(super) type LMPEnabledPairs<T: crate::pallet::Config> = StorageValue<_, Vec<TradingPair>, ValueQuery>;
+	#[crate::pallet::getter(fn lmp_config)]
+	pub(super) type LMPConfig<T: crate::pallet::Config> = StorageMap<_, Identity,u32, LMPEpochConfig, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad
