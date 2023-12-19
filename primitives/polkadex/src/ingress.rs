@@ -68,7 +68,7 @@ pub enum EgressMessages<AccountId> {
 	/// Add Liquidity Result ( Pool, LP, Shares issued, Market price, total Inventory ( in Quote) )
 	AddLiquidityResult(AccountId, AccountId, Decimal, Decimal, Decimal),
 	/// RemoveLiquidityResult ( Pool, LP, Base freed, Quote Freed )
-	RemoveLiquidityResult(AccountId, AccountId, Decimal, Decimal),
+	RemoveLiquidityResult(TradingPairConfig, AccountId, AccountId, Decimal, Decimal),
 	/// Remove Liquidity Failed ( Pool, LP, burn_frac, base_free, quote_free, base_required, quote_required)
 	RemoveLiquidityFailed(AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal),
 	/// Pool Closed (market, Pool, base freed, quote freed)

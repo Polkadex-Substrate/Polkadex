@@ -426,6 +426,7 @@ impl<T: Config> Pallet<T> {
 					log::error!(target:"ocex", "Engine message for remove liquidity ingress: {:?}",engine_message);
 					match engine_message {
 						EgressMessages::RemoveLiquidityResult(
+							market,
 							pool_e,
 							lp_e,
 							base_freed,

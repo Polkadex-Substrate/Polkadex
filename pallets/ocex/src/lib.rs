@@ -1233,7 +1233,36 @@ pub mod pallet {
 						*price,
 						*total_inventory,
 					)?,
-					EgressMessages::RemoveLiquidityResult(pool, lp, base_free, quote_free) => {
+					EgressMessages::RemoveLiquidityResult(
+						market,
+						pool,
+						lp,
+						base_free,
+						quote_free,
+					) => {
+						let unit = Decimal::from(UNIT_BALANCE);
+						// Transfer the assets from exchange to pool_id
+						let base_amount = base_free
+							.saturating_mul(unit)
+							.to_u128()
+							.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+						let quote_amount = quote_free
+							.saturating_mul(unit)
+							.to_u128()
+							.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+						Self::transfer_asset(
+							&Self::get_pallet_account(),
+							pool,
+							base_amount.saturated_into(),
+							market.base_asset,
+						)?;
+						Self::transfer_asset(
+							&Self::get_pallet_account(),
+							pool,
+							quote_amount.saturated_into(),
+							market.quote_asset,
+						)?;
+						// TODO: Emit events for indexer and frontend @Emmanuel.
 						T::CrowdSourceLiqudityMining::remove_liquidity_success(
 							pool,
 							lp,
@@ -1261,6 +1290,29 @@ pub mod pallet {
 						)?;
 					},
 					EgressMessages::PoolForceClosed(market, pool, base_freed, quote_freed) => {
+						let unit = Decimal::from(UNIT_BALANCE);
+						// Transfer the assets from exchange to pool_id
+						let base_amount = base_freed
+							.saturating_mul(unit)
+							.to_u128()
+							.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+						let quote_amount = quote_freed
+							.saturating_mul(unit)
+							.to_u128()
+							.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+						Self::transfer_asset(
+							&Self::get_pallet_account(),
+							pool,
+							base_amount.saturated_into(),
+							market.base_asset,
+						)?;
+						Self::transfer_asset(
+							&Self::get_pallet_account(),
+							pool,
+							quote_amount.saturated_into(),
+							market.quote_asset,
+						)?;
+						// TODO: Emit events for indexer and frontend @Emmanuel.
 						let market = TradingPair::from(market.quote_asset, market.base_asset);
 						T::CrowdSourceLiqudityMining::pool_force_close_success(
 							market,
