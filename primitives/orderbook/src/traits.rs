@@ -4,6 +4,7 @@ use crate::types::TradingPair;
 
 pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
     fn add_liquidity_success(
+        market: TradingPair,
         pool: &AccountId,
         lp: &AccountId,
         shared_issued: Decimal,
@@ -12,6 +13,7 @@ pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
     ) -> DispatchResult;
 
     fn remove_liquidity_success(
+        market: TradingPair,
         pool: &AccountId,
         lp: &AccountId,
         base_free: Decimal,
@@ -19,6 +21,7 @@ pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
     ) -> DispatchResult;
 
     fn remove_liquidity_failed(
+        market: TradingPair,
         pool: &AccountId,
         lp: &AccountId,
         burn_frac: Decimal,

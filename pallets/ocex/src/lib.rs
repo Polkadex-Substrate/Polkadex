@@ -1221,12 +1221,14 @@ pub mod pallet {
 				// Process egress messages
 				match msg {
 					EgressMessages::AddLiquidityResult(
+						market,
 						pool,
 						lp,
 						shared_issued,
 						price,
 						total_inventory,
 					) => T::CrowdSourceLiqudityMining::add_liquidity_success(
+						TradingPair::from(market.quote_asset, market.base_asset),
 						pool,
 						lp,
 						*shared_issued,
@@ -1264,6 +1266,7 @@ pub mod pallet {
 						)?;
 						// TODO: Emit events for indexer and frontend @Emmanuel.
 						T::CrowdSourceLiqudityMining::remove_liquidity_success(
+							TradingPair::from(market.quote_asset, market.base_asset),
 							pool,
 							lp,
 							*base_free,
@@ -1271,6 +1274,7 @@ pub mod pallet {
 						)?;
 					},
 					EgressMessages::RemoveLiquidityFailed(
+						market,
 						pool,
 						lp,
 						frac,
@@ -1280,6 +1284,7 @@ pub mod pallet {
 						quote_reserved,
 					) => {
 						T::CrowdSourceLiqudityMining::remove_liquidity_failed(
+							TradingPair::from(market.quote_asset, market.base_asset),
 							pool,
 							lp,
 							*frac,

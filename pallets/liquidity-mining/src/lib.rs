@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod types;
+mod callback;
 
 #[frame_support::pallet]
 pub mod pallet {

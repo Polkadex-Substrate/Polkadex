@@ -353,6 +353,7 @@ impl<T: Config> Pallet<T> {
 						None => return Err("Unable to find Egress message for AddLiquidity"),
 						Some(engine_result) => {
 							if let EgressMessages::AddLiquidityResult(
+								_market,
 								pool_e,
 								lp_e,
 								issued_shares,
@@ -472,6 +473,7 @@ impl<T: Config> Pallet<T> {
 							verified_egress_messages.push(engine_message.clone());
 						},
 						EgressMessages::RemoveLiquidityFailed(
+							_market,
 							pool_e,
 							lp_e,
 							burn_frac_e,
