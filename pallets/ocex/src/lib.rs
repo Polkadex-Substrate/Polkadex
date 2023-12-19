@@ -135,6 +135,7 @@ pub trait OcexWeightInfo {
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 
+	use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
@@ -231,6 +232,11 @@ pub mod pallet {
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		/// Liquidity Crowd Sourcing pallet
+		type CrowdSourceLiqudityMining: LiquidityMiningCrowdSourcePallet<
+			<Self as frame_system::Config>::AccountId,
+		>;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: OcexWeightInfo;
@@ -349,6 +355,10 @@ pub mod pallet {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			if Self::should_start_new_epoch(n) {
 				Self::start_new_epoch(n)
+			}
+
+			if Self::should_stop_accepting_lmp_withdrawals(n) {
+				Self::stop_accepting_lmp_withdrawals(n)
 			}
 
 			let len = <OnChainEvents<T>>::get().len();
@@ -1027,12 +1037,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// TODO: Extrinsics to
-		// 	1. add/remove incentivised markets
-		// 	2. update LMP epoch configs ( per market configs )
-		// 	3. update total rewards per epoch
-		// 	TODO: Update on_initialize function to finalize config for a new epoch
-		// TODO: Handle egress messages with liquidity mining pallet
 		// TODO: Handle session change logic
 		// 1. Notify liquidity mining pallet to initiate withdrawals
 
@@ -1223,8 +1227,58 @@ pub mod pallet {
 
 		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult {
 			for msg in msgs {
-				// TODO: Process egress messages
-				todo!()
+				// Process egress messages
+				match msg {
+					EgressMessages::AddLiquidityResult(
+						pool,
+						lp,
+						shared_issued,
+						price,
+						total_inventory,
+					) => T::CrowdSourceLiqudityMining::add_liquidity_success(
+						pool,
+						lp,
+						*shared_issued,
+						*price,
+						*total_inventory,
+					)?,
+					EgressMessages::RemoveLiquidityResult(pool, lp, base_free, quote_free) => {
+						T::CrowdSourceLiqudityMining::remove_liquidity_success(
+							pool,
+							lp,
+							*base_free,
+							*quote_free,
+						)?;
+					},
+					EgressMessages::RemoveLiquidityFailed(
+						pool,
+						lp,
+						frac,
+						base_free,
+						quote_free,
+						base_reserved,
+						quote_reserved,
+					) => {
+						T::CrowdSourceLiqudityMining::remove_liquidity_failed(
+							pool,
+							lp,
+							*frac,
+							*base_free,
+							*quote_free,
+							*base_reserved,
+							*quote_reserved,
+						)?;
+					},
+					EgressMessages::PoolForceClosed(market, pool, base_freed, quote_freed) => {
+						let market = TradingPair::from(market.quote_asset, market.base_asset);
+						T::CrowdSourceLiqudityMining::pool_force_close_success(
+							market,
+							pool,
+							*base_freed,
+							*quote_freed,
+						)?;
+					},
+				}
 			}
 			Ok(())
 		}

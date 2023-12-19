@@ -43,6 +43,7 @@ pub mod types;
 #[cfg(feature = "std")]
 pub mod recovery;
 pub mod lmp;
+pub mod traits;
 
 /// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
