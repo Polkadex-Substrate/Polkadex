@@ -24,6 +24,7 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::dispatch::DispatchResult;
 #[cfg(feature = "std")]
 use crate::recovery::ObCheckpoint;
 use crate::types::{AccountAsset, TradingPair};
@@ -183,7 +184,7 @@ impl ObCheckpointRaw {
 
 pub trait LiquidityMining<AccountId, Balance> {
 	/// Registers the pool_id as main account, trading account.
-	fn register_pool(pool_id: AccountId);
+	fn register_pool(pool_id: AccountId, trading_account: AccountId) -> DispatchResult;
 
 	/// Returns the Current Average price
 	fn average_price(market: TradingPair) -> Decimal;
@@ -192,10 +193,10 @@ pub trait LiquidityMining<AccountId, Balance> {
 
 	/// Deposits the given amounts to Orderbook and Adds an ingress message requesting engine to calculate the exact shares
 	/// and return it as an egress message
-	fn add_liquidity(market: TradingPair, pool: AccountId, base_amount: Decimal, quote_amount: Decimal);
+	fn add_liquidity(market: TradingPair, pool: AccountId, lp: AccountId, total_shares_issued: Decimal, base_amount: Decimal, quote_amount: Decimal) -> DispatchResult;
 
 	/// Adds an ingress message to initiate withdrawal request and queue it for execution at the end of cycle.
-	fn remove_liquidity(given: Balance, total: Balance);
+	fn remove_liquidity(market: TradingPair, pool: AccountId, lp: AccountId, given: Balance, total: Balance);
 
 	/// Adds an ingress message to force close all open orders from this main account and initiate complete withdrawal
 	fn force_close_pool(market: TradingPair, main: AccountId);

@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-mod session;
 pub mod types;
 
 #[frame_support::pallet]
@@ -121,18 +120,13 @@ pub mod pallet {
 		UnknownPool,
 		/// Public deposits not allowed in this pool
 		PublicDepositsNotAllowed,
+		/// Total share issuance is zero(this should never happen)
+		TotalShareIssuanceIsZero
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
-			if Self::should_start_new_session(n) {
-				Self::start_new_session(n)
-			}
-
-			if Self::should_start_withdrawals(n) {
-				Self::process_withdrawals(n)
-			}
 			Weight::zero()
 		}
 	}
@@ -149,6 +143,7 @@ pub mod pallet {
 			commission: u128,
 			exit_fee: u128,
 			public_funds_allowed: bool,
+			trading_account: T::AccountId
 		) -> DispatchResult {
 			let market_maker = ensure_signed(origin)?;
 
@@ -174,7 +169,7 @@ pub mod pallet {
 			let (pool, share_id) = Self::create_pool_account(&market_maker, market);
 			T::OtherAssets::create(AssetId::Asset(share_id), pool.clone(), false, Zero::zero())?;
 			// Register on OCEX pallet
-			T::OCEX::register_pool(pool.clone());
+			T::OCEX::register_pool(pool.clone(),trading_account)?;
 			// Start cycle
 			let config = MarketMakerConfig {
 				pool_id: pool,
@@ -222,7 +217,7 @@ pub mod pallet {
 			Self::transfer_asset(&lp, &config.pool_id, base_amount, market.base)?;
 			Self::transfer_asset(&lp, &config.pool_id, required_quote_amount, market.quote)?;
 
-			T::OCEX::add_liquidity(market, config.pool_id, base_amount, required_quote_amount);
+			T::OCEX::add_liquidity(market, config.pool_id, lp, base_amount, required_quote_amount)?;
 
 			Ok(())
 		}
@@ -241,6 +236,7 @@ pub mod pallet {
 			let config = <Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
 
 			let total = T::OtherAssets::total_issuance(config.share_id.into());
+			ensure!(!total.is_zero(), Error::<T>::TotalShareIssuanceIsZero);
 			let burned_amt = T::OtherAssets::burn_from(
 				config.share_id.into(),
 				&lp,
@@ -260,7 +256,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			market: TradingPair,
 			market_maker: T::AccountId,
-			shares: u128,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			ensure!(<Pools<T>>::contains_key(market, &market_maker), Error::<T>::UnknownPool);

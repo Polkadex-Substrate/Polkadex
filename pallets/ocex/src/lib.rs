@@ -1595,7 +1595,7 @@ pub mod pallet {
 	pub(super) type Proxies<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId, OptionQuery>;
 
-	// Trading pairs registered as Base, Quote => TradingPairInfo
+	/// Trading pairs registered as Base, Quote => TradingPairInfo
 	#[pallet::storage]
 	#[pallet::getter(fn trading_pairs)]
 	pub(super) type TradingPairs<T: Config> = StorageDoubleMap<

@@ -1,9 +1,21 @@
-use crate::{storage::OffchainState, Config, LMPEpoch, Pallet};
-use orderbook_primitives::types::{OrderSide, Trade, TradingPair};
+use crate::{
+	pallet::{IngressMessages, TradingPairs},
+	storage::OffchainState,
+	BalanceOf, Config, Error, LMPEpoch, Pallet,
+};
+use frame_support::dispatch::DispatchResult;
+use orderbook_primitives::{
+	types::{OrderSide, Trade, TradingPair},
+	LiquidityMining,
+};
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId};
-use rust_decimal::{prelude::Zero, Decimal};
-use std::collections::BTreeMap;
+use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
+use rust_decimal::{
+	prelude::{ToPrimitive, Zero},
+	Decimal,
+};
+use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};
+use sp_std::collections::btree_map::BTreeMap;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -234,5 +246,84 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+}
+
+impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
+	fn register_pool(pool_id: T::AccountId, trading_account: T::AccountId) -> DispatchResult {
+		Self::register_user(pool_id, trading_account)
+	}
+
+	fn average_price(market: TradingPair) -> Decimal {
+		todo!()
+	}
+
+	fn is_registered_market(market: &TradingPair) -> bool {
+		<TradingPairs<T>>::contains_key(market.base, market.quote)
+	}
+
+	fn add_liquidity(
+		market: TradingPair,
+		pool: T::AccountId,
+		lp: T::AccountId,
+		total_shares_issued: Decimal,
+		base_amount: Decimal,
+		quote_amount: Decimal,
+	) -> DispatchResult {
+		let unit = Decimal::from(UNIT_BALANCE);
+		let base_amount_in_u128 = base_amount
+			.saturating_mul(unit)
+			.to_u128()
+			.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+		Self::do_deposit(pool.clone(), market.base, base_amount_in_u128.saturated_into())?;
+		let quote_amount_in_u128 = quote_amount
+			.saturating_mul(unit)
+			.to_u128()
+			.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+		Self::do_deposit(pool.clone(), market.quote, quote_amount_in_u128.saturated_into())?;
+		let current_blk = frame_system::Pallet::<T>::current_block_number();
+		<IngressMessages<T>>::mutate(current_blk, |messages| {
+			messages.push(polkadex_primitives::ingress::IngressMessages::AddLiquidity(
+				TradingPairConfig::default(market.base, market.quote),
+				pool,
+				lp,
+				total_shares_issued,
+				base_amount,
+				quote_amount,
+			));
+		});
+		Ok(())
+	}
+
+	fn remove_liquidity(
+		market: TradingPair,
+		pool: T::AccountId,
+		lp: T::AccountId,
+		burned: BalanceOf<T>,
+		total: BalanceOf<T>,
+	) {
+		let burned = Decimal::from(burned.saturated_into::<u128>());
+		let total = Decimal::from(total.saturated_into::<u128>());
+		let burn_frac = burned.checked_div(total).unwrap_or_default();
+
+		let current_blk = frame_system::Pallet::<T>::current_block_number();
+		<IngressMessages<T>>::mutate(current_blk, |messages| {
+			messages.push(polkadex_primitives::ingress::IngressMessages::RemoveLiquidity(
+				TradingPairConfig::default(market.base, market.quote),
+				pool,
+				lp,
+				burn_frac,
+			));
+		});
+	}
+
+	fn force_close_pool(market: TradingPair, pool: T::AccountId) {
+		let current_blk = frame_system::Pallet::<T>::current_block_number();
+		<IngressMessages<T>>::mutate(current_blk, |messages| {
+			messages.push(polkadex_primitives::ingress::IngressMessages::ForceClosePool(
+				TradingPairConfig::default(market.base, market.quote),
+				pool,
+			));
+		});
 	}
 }
