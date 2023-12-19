@@ -21,7 +21,7 @@ frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
-rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
+rust_decimal = { workspace = true, features = ["scale-codec", "maths-nopanic"], default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
@@ -34,6 +34,7 @@ serde_json = { workspace = true, default-features = false, features = ["alloc"] 
 hash-db = { workspace = true, default-features = false }
 trie-db = { workspace = true, default-features = false }
 sp-trie = { workspace = true, default-features = false }
+num-traits = { version = "0.2.17", default-features = false }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }

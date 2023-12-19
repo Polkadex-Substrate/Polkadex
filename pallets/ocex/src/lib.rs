@@ -45,13 +45,12 @@ use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
-	Percent, SaturatedConversion,
+	Percent, SaturatedConversion, Saturating,
 };
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
-	lmp::TraderMetric,
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
@@ -94,11 +93,11 @@ pub mod aggregator;
 mod benchmarking;
 mod lmp;
 pub mod rpc;
+mod session;
 mod settlement;
 mod snapshot;
 pub mod storage;
 pub mod validator;
-mod session;
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -133,22 +132,27 @@ pub trait OcexWeightInfo {
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
 
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
 	use crate::validator::WORKER_STATUS;
-	use frame_support::{pallet_prelude::*, traits::{
-		fungibles::{Create, Inspect, Mutate},
-		Currency, ReservableCurrency,
-	}, PalletId, transactional};
+	use frame_support::{
+		pallet_prelude::*,
+		traits::{
+			fungibles::{Create, Inspect, Mutate},
+			Currency, ReservableCurrency,
+		},
+		transactional, PalletId,
+	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use liquidity::LiquidityModifier;
-	use orderbook_primitives::{Fees, ObCheckpointRaw, SnapshotSummary};
+	use orderbook_primitives::{lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
+		ingress::EgressMessages,
 		ocex::{AccountInfo, TradingPairConfig},
 		withdrawal::Withdrawal,
 		ProxyLimit, UNIT_BALANCE,
@@ -160,7 +164,6 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	use polkadex_primitives::ingress::EgressMessages;
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -331,12 +334,19 @@ pub mod pallet {
 		DisputeIntervalNotSet,
 		/// Worker not Idle
 		WorkerNotIdle,
+		/// Invalid reward weightage for markets
+		InvalidMarketWeightage,
+		/// LMPConfig is not defined for this epoch
+		LMPConfigNotFound,
+		/// LMP Rewards is still in Safety period
+		RewardsNotReady,
+		/// Invalid LMP config
+		InvalidLMPConfig,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
-
 			if Self::should_start_new_epoch(n) {
 				Self::start_new_epoch(n)
 			}
@@ -979,8 +989,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			// Update the trader's performance on-chain
-			if let Some(metrics) = summary.trader_metrics {
-				Self::update_lmp_scores(&metrics)?;
+			if let Some(ref metrics) = summary.trader_metrics {
+				Self::update_lmp_scores(metrics)?;
 			}
 			// Process egress messages from summary.
 			Self::process_egress_msg(summary.egress_messages.as_ref())?;
@@ -1018,13 +1028,13 @@ pub mod pallet {
 		}
 
 		// TODO: Extrinsics to
-		//	1.  add/remove incentivised markets
+		// 	1. add/remove incentivised markets
 		// 	2. update LMP epoch configs ( per market configs )
 		// 	3. update total rewards per epoch
 		// 	TODO: Update on_initialize function to finalize config for a new epoch
 		// TODO: Handle egress messages with liquidity mining pallet
 		// TODO: Handle session change logic
-			// 1. Notify liquidity mining pallet to initiate withdrawals
+		// 1. Notify liquidity mining pallet to initiate withdrawals
 
 		/// Claim LMP rewards
 		#[pallet::call_index(19)]
@@ -1032,26 +1042,95 @@ pub mod pallet {
 		pub fn claim_lmp_rewards(
 			origin: OriginFor<T>,
 			epoch: u16,
-			market: TradingPair
+			market: TradingPair,
 		) -> DispatchResult {
-			let main = ensure_signed!(origin)?;
+			let main = ensure_signed(origin)?;
 			// Check if the Safety period for this epoch is over
 			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			ensure!(current_blk >= claim_blk, Error::<T>::RewardsNotReady);
+			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
 			// Get the score and fees paid portion of this 'main' account
-			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch,market);
-			let (score, fees_paid) = <TraderMetrics<T>>::get(epoch, market, main);
+			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
+			let (score, fees_paid) = <TraderMetrics<T>>::get((epoch, market, main));
 			// Calculate the rewards pool for this market
 			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
-			let trading_rewards_portion = fees_paid.checked_div(total_fees_paid).unwrap_or_default();
+			let trading_rewards_portion =
+				fees_paid.checked_div(total_fees_paid).unwrap_or_default();
 			// Calculate rewards portion and transfer it.
-			let config: LMPEpochConfig = <LMPConfig<T>>::get(epoch);
-			let mm_rewards = config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
-			let trading_rewards = config.total_trading_rewards.saturating_mul(trading_rewards_portion);
+			let config: LMPEpochConfig =
+				<LMPConfig<T>>::get(epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
+			let mm_rewards =
+				config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
+			let trading_rewards =
+				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
 			let total = mm_rewards.saturating_add(trading_rewards);
-			let total_in_u128 = total.saturating_mul(UNIT_BALANCE);
+			let total_in_u128 = total.saturating_mul(Decimal::from(UNIT_BALANCE));
 			// TODO: Transfer it to main from pallet account.
+			Ok(())
+		}
+
+		/// Set Incentivised markets
+		#[pallet::call_index(20)]
+		#[pallet::weight(10_000)]
+		pub fn set_lmp_epoch_config(
+			origin: OriginFor<T>,
+			total_liquidity_mining_rewards: Option<u128>,
+			total_trading_rewards: Option<u128>,
+			market_weightage: Option<BTreeMap<TradingPair, u128>>,
+			min_fees_paid: Option<BTreeMap<TradingPair, u128>>,
+			min_maker_volume: Option<BTreeMap<TradingPair, u128>>,
+			max_accounts_rewarded: Option<u16>,
+			claim_safety_period: Option<u32>,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let mut config = <ExpectedLMPConfig<T>>::get();
+			let UNIT: Decimal = Decimal::from(UNIT_BALANCE);
+			if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
+				config.total_liquidity_mining_rewards =
+					Decimal::from(total_liquidity_mining_rewards).div(UNIT);
+			}
+			if let Some(total_trading_rewards) = total_trading_rewards {
+				config.total_trading_rewards = Decimal::from(total_trading_rewards).div(UNIT);
+			}
+			if let Some(market_weightage) = market_weightage {
+				let mut total_percent: u128 = 0u128;
+				let mut weightage_map = BTreeMap::new();
+				for (market, percent) in market_weightage {
+					// Check if market is registered
+					ensure!(
+						<TradingPairs<T>>::get(market.base, market.quote).is_some(),
+						Error::<T>::TradingPairNotRegistered
+					);
+					// Add market weightage to total percent
+					total_percent = total_percent.saturating_add(percent);
+					weightage_map.insert(market, Decimal::from(percent).div(UNIT));
+				}
+				ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
+				config.market_weightage = weightage_map;
+			}
+			if let Some(min_fees_paid) = min_fees_paid {
+				let mut fees_map = BTreeMap::new();
+				for (market, fees_in_quote) in min_fees_paid {
+					fees_map.insert(market, Decimal::from(fees_in_quote).div(UNIT));
+				}
+				config.min_fees_paid = fees_map;
+			}
+
+			if let Some(min_maker_volume) = min_maker_volume {
+				let mut volume_map = BTreeMap::new();
+				for (market, volume_in_quote) in min_maker_volume {
+					volume_map.insert(market, Decimal::from(volume_in_quote).div(UNIT));
+				}
+				config.min_maker_volume = volume_map;
+			}
+			if let Some(max_accounts_rewarded) = max_accounts_rewarded {
+				config.max_accounts_rewarded = max_accounts_rewarded;
+			}
+			if let Some(claim_safety_period) = claim_safety_period {
+				config.claim_safety_period = claim_safety_period;
+			}
+			ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
+			<ExpectedLMPConfig<T>>::put(config);
 			Ok(())
 		}
 	}
@@ -1118,25 +1197,32 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-
-		pub fn update_lmp_scores(trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal,Decimal)>, (Decimal,Decimal))>>) -> DispatchResult {
+		pub fn update_lmp_scores(
+			trader_metrics: &BTreeMap<
+				TradingPair,
+				(BTreeMap<T::AccountId, (Decimal, Decimal)>, (Decimal, Decimal)),
+			>,
+		) -> DispatchResult {
 			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
+			let config = <LMPConfig<T>>::get(current_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
 			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
-			for (pair, (map,(total_score, total_fees_paid))) in trader_metrics {
+			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
 				for (main, (score, fees_paid)) in map {
-					<TraderMetrics<T>>::insert(current_epoch,pair,main, (score, fees_paid));
+					<TraderMetrics<T>>::insert((current_epoch, pair, main), (score, fees_paid));
 				}
 				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
 			}
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			<LMPClaimBlk<T>>::insert(current_epoch, current_blk.saturating_add(50400)); // Seven days of block
+			<LMPClaimBlk<T>>::insert(
+				current_epoch,
+				current_blk.saturating_add(config.claim_safety_period.saturated_into()),
+			); // Seven days of block
 			<FinalizeLMPScore<T>>::take(); // Remove the finalize LMP score flag.
 			Ok(())
 		}
 
-
-		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult{
-			for msg in msgs{
+		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult {
+			for msg in msgs {
 				// TODO: Process egress messages
 				todo!()
 			}
@@ -1556,28 +1642,43 @@ pub mod pallet {
 	/// Storage related to LMP
 	#[pallet::storage]
 	#[pallet::getter(fn lmp_epoch)]
-	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u32, ValueQuery>;
+	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn trader_metrics)]
-	pub(super) type TraderMetrics<T: Config> = StorageNMap<_, Identity,
-		u32, Identity, TradingPair, Identity, T::AccountId, (Decimal, Decimal), ValueQuery>;
+	pub(super) type TraderMetrics<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Identity, u16>, NMapKey<Identity, TradingPair>, NMapKey<Identity, T::AccountId>),
+		(Decimal, Decimal),
+		ValueQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn total_scores)]
-	pub(super) type TotalScores<T: Config> = StorageDoubleMap<_, Identity,u32,
-		Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
+	pub(super) type TotalScores<T: Config> =
+		StorageDoubleMap<_, Identity, u16, Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
 
 	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
-	#[crate::pallet::storage]
-	#[crate::pallet::getter(fn finalize_lmp_scores_flag)]
-	pub(super) type FinalizeLMPScore<T: crate::pallet::Config> = StorageValue<_, u32, OptionQuery>;
-
+	#[pallet::storage]
+	#[pallet::getter(fn finalize_lmp_scores_flag)]
+	pub(super) type FinalizeLMPScore<T: Config> = StorageValue<_, u16, OptionQuery>;
 
 	/// Configuration for LMP for each epoch
-	#[crate::pallet::storage]
-	#[crate::pallet::getter(fn lmp_config)]
-	pub(super) type LMPConfig<T: crate::pallet::Config> = StorageMap<_, Identity,u32, LMPEpochConfig, OptionQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_config)]
+	pub(super) type LMPConfig<T: Config> =
+		StorageMap<_, Identity, u16, LMPEpochConfig, OptionQuery>;
+
+	/// Expected Configuration for LMP for next epoch
+	#[pallet::storage]
+	#[pallet::getter(fn expected_lmp_config)]
+	pub(super) type ExpectedLMPConfig<T: Config> = StorageValue<_, LMPEpochConfig, ValueQuery>;
+
+	/// Block at which rewards for each epoch can be claimed
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_claim_blk)]
+	pub(super) type LMPClaimBlk<T: Config> =
+		StorageMap<_, Identity, u16, BlockNumberFor<T>, OptionQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

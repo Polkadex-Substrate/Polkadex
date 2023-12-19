@@ -1,12 +1,9 @@
-use std::collections::BTreeMap;
-use crate::{storage::OffchainState, Config, Pallet};
+use crate::{storage::OffchainState, Config, LMPEpoch, Pallet};
 use orderbook_primitives::types::{OrderSide, Trade, TradingPair};
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::Zero;
-use sp_runtime::Percent;
-use crate::LMPEpoch;
+use rust_decimal::{prelude::Zero, Decimal};
+use std::collections::BTreeMap;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -18,16 +15,19 @@ pub fn update_trade_volume_by_main_account(
 	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = (epoch, trading_pair, "trading_volume", main).encode();
 	Ok(match state.get(&key)? {
-		None => { state.insert(key, volume.encode()); volume },
+		None => {
+			state.insert(key, volume.encode());
+			volume
+		},
 		Some(encoded_volume) => {
-			let recorded_volume = Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?;
+			let recorded_volume = Decimal::decode(&mut &encoded_volume[..])
+				.map_err(|_| "Unable to decode decimal")?;
 			let total = recorded_volume.saturating_add(volume);
 			state.insert(key, total.encode());
 			total
 		},
 	})
 }
-
 
 pub fn get_maker_volume_by_main_account(
 	state: &mut OffchainState,
@@ -38,9 +38,8 @@ pub fn get_maker_volume_by_main_account(
 	let key = (epoch, trading_pair, "maker_volume", main).encode();
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
-		Some(encoded_volume) => {
-			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?;
-		},
+		Some(encoded_volume) =>
+			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?,
 	})
 }
 
@@ -54,9 +53,13 @@ pub fn update_maker_volume_by_main_account(
 	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = (epoch, trading_pair, "maker_volume", main).encode();
 	Ok(match state.get(&key)? {
-		None => { state.insert(key, volume.encode()); volume },
+		None => {
+			state.insert(key, volume.encode());
+			volume
+		},
 		Some(encoded_volume) => {
-			let recorded_volume = Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?;
+			let recorded_volume = Decimal::decode(&mut &encoded_volume[..])
+				.map_err(|_| "Unable to decode decimal")?;
 			let total = recorded_volume.saturating_add(volume);
 			state.insert(key, total.encode());
 			total
@@ -74,10 +77,14 @@ pub fn store_fees_paid_by_main_account_in_quote(
 	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = (epoch, trading_pair, "fees_paid", main).encode();
 	Ok(match state.get(&key)? {
-		None => { state.insert(key, fees_in_quote_terms.encode());  fees_in_quote_terms},
+		None => {
+			state.insert(key, fees_in_quote_terms.encode());
+			fees_in_quote_terms
+		},
 		Some(encoded_fees_paid) => {
-			let recorded_fees_paid = Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?;
-			let total_fees  = recorded_fees_paid.saturating_add(fees_in_quote_terms);
+			let recorded_fees_paid = Decimal::decode(&mut &encoded_fees_paid[..])
+				.map_err(|_| "Unable to decode decimal")?;
+			let total_fees = recorded_fees_paid.saturating_add(fees_in_quote_terms);
 			state.insert(key, total_fees.encode());
 			total_fees
 		},
@@ -93,13 +100,10 @@ pub fn get_fees_paid_by_main_account_in_quote(
 	let key = (epoch, trading_pair, "fees_paid", main).encode();
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
-		Some(encoded_fees_paid) => {
-			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?;
-		},
+		Some(encoded_fees_paid) =>
+			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?,
 	})
 }
-
-
 
 pub fn store_q_score_and_uptime(
 	state: &mut OffchainState,
@@ -111,15 +115,15 @@ pub fn store_q_score_and_uptime(
 ) -> Result<(), &'static str> {
 	let key = (epoch, trading_pair, "q_score&uptime", main).encode();
 	match state.get(&key)? {
-		None => state.insert(key,BTreeMap::from([(index,score)]).encode()),
+		None => state.insert(key, BTreeMap::from([(index, score)]).encode()),
 		Some(encoded_q_scores_map) => {
-			let mut map = BTreeMap::<u16,Decimal>::decode(&mut &encoded_q_scores_map[..])
+			let mut map = BTreeMap::<u16, Decimal>::decode(&mut &encoded_q_scores_map[..])
 				.map_err(|_| "Unable to decode decimal")?;
 			if map.insert(index, score).is_some() {
 				log::error!(target:"ocex","Overwriting q score with index: {:?}, epoch: {:?}, main: {:?}, market: {:?}",index,epoch,main,trading_pair);
 				return Err("Overwriting q score");
 			}
-			state.insert(key,map.encode());
+			state.insert(key, map.encode());
 		},
 	}
 	Ok(())
@@ -143,14 +147,13 @@ pub fn get_q_score_and_uptime(
 				.map_err(|_| "Unable to decode decimal")?;
 			let mut total_score = Decimal::zero();
 			// Add up all individual scores
-			for (_, score) in map {
-				total_score = total_score.saturating_add(score);
+			for (_, score) in &map {
+				total_score = total_score.saturating_add(*score);
 			}
 			Ok((total_score, map.len() as u16))
 		},
 	}
 }
-
 
 impl<T: Config> Pallet<T> {
 	pub fn update_lmp_storage_from_trade(

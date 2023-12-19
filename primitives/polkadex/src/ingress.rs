@@ -18,7 +18,6 @@
 
 //! In this module defined ingress messages related types.
 
-use std::collections::BTreeMap;
 use crate::{ocex::TradingPairConfig, AssetId};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};

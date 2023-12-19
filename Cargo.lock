@@ -5837,6 +5837,7 @@ dependencies = [
  "hash-db",
  "liquidity",
  "log",
+ "num-traits",
  "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",

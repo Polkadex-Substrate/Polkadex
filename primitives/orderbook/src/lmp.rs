@@ -1,6 +1,7 @@
 use sp_std::collections::btree_map::BTreeMap;
 use parity_scale_codec::{Decode, Encode};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::{Zero, One};
 use scale_info::TypeInfo;
 use crate::types::TradingPair;
 
@@ -32,17 +33,55 @@ pub struct LMPOneMinuteReport<AccountId: Ord> {
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct LMPEpochConfig {
     /// Total rewards given in this epoch for market making
-    total_liquidity_mining_rewards: Decimal,
+    pub total_liquidity_mining_rewards: Decimal,
     /// Total rewards given in this epoch for trading
-    total_trading_rewards: Decimal,
+    pub total_trading_rewards: Decimal,
     /// % of Rewards allocated to each market from the pool
-    market_weightage: BTreeMap<TradingPair, Decimal>,
+    pub market_weightage: BTreeMap<TradingPair, Decimal>,
     /// Min fees that should be paid to be eligible for rewards
-    min_fees_paid: BTreeMap<TradingPair, Decimal>,
+    pub min_fees_paid: BTreeMap<TradingPair, Decimal>,
     /// Min maker volume for a marker to be eligible for rewards
-    min_maker_volume: BTreeMap<TradingPair, Decimal>,
+    pub min_maker_volume: BTreeMap<TradingPair, Decimal>,
     /// Max number of accounts rewarded
-    max_accounts_rewarded: u16,
+    pub max_accounts_rewarded: u16,
     /// Claim safety period
-    claim_safety_period: u32
+    pub claim_safety_period: u32
+}
+
+impl Default for LMPEpochConfig {
+    fn default() -> Self {
+        Self {
+            total_liquidity_mining_rewards: Default::default(),
+            total_trading_rewards: Default::default(),
+            market_weightage: Default::default(),
+            min_fees_paid: Default::default(),
+            min_maker_volume: Default::default(),
+            max_accounts_rewarded: 20,
+            claim_safety_period: 50400,
+        }
+    }
+}
+
+impl LMPEpochConfig {
+    /// Checks the integrity of current config
+    pub fn verify(&self) -> bool {
+        // Check if market weightage adds upto 1.0
+        let mut total_percent = Decimal::zero();
+        for (_, percent) in &self.market_weightage {
+            total_percent = total_percent.saturating_add(*percent);
+        }
+        if total_percent != Decimal::one() {
+            return false
+        }
+
+        // Make sure all three maps' keys are identical
+        let keys1: Vec<_> = self.market_weightage.keys().collect();
+        let keys2: Vec<_> = self.min_fees_paid.keys().collect();
+        let keys3: Vec<_> = self.min_maker_volume.keys().collect();
+
+        if keys1 != keys2 || keys2 != keys3 {
+            return false
+        }
+        true
+    }
 }

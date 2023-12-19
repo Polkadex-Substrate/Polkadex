@@ -36,7 +36,6 @@ use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 use polkadex_primitives::ingress::EgressMessages;
-use crate::lmp::TraderMetric;
 
 pub mod constants;
 pub mod types;
@@ -121,7 +120,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec + Ord> {
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
 	/// List of Egress messages
 	pub egress_messages: Vec<EgressMessages<AccountId>>,
-	/// Trader Metrics ( map, total_score)
+	/// Trader Metrics
 	pub trader_metrics: Option<BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal,Decimal)>, (Decimal,Decimal))>>
 }
 

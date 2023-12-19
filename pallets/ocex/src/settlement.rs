@@ -18,7 +18,7 @@
 
 //! Helper functions for updating the balance
 
-use crate::{ storage::OffchainState, Config, Pallet};
+use crate::{storage::OffchainState, Config, Pallet};
 use log::{error, info};
 use orderbook_primitives::{constants::FEE_POT_PALLET_ID, types::Trade};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
@@ -27,7 +27,6 @@ use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::collections::btree_map::BTreeMap;
-use orderbook_primitives::lmp::TraderMetric;
 
 /// Returns the balance of an account and asset from state
 ///
