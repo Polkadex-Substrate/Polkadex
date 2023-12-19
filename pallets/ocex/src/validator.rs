@@ -660,8 +660,8 @@ impl<T: Config> Pallet<T> {
 					let withdrawal = Self::withdraw(request, state, *stid)?;
 					withdrawals.push(withdrawal);
 				},
-				UserActions::OneMinLMPReport(market, epoch, index, total, scores) => {
-					Self::store_q_scores(state, *market, *epoch, *index, *total, scores)?;
+				UserActions::OneMinLMPReport(market, epoch, index, _total, scores) => {
+					Self::store_q_scores(state, *market, *epoch, *index, scores)?;
 				},
 			}
 		}
@@ -674,7 +674,6 @@ impl<T: Config> Pallet<T> {
 		market: TradingPair,
 		epoch: u16,
 		index: u16,
-		total: Decimal,
 		scores: &BTreeMap<T::AccountId, Decimal>,
 	) -> Result<(), &'static str> {
 		for (main, score) in scores {

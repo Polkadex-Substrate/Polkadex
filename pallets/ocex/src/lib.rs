@@ -106,7 +106,6 @@ type BalanceOf<T> =
 const DEPOSIT_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const WITHDRAWAL_MAX: u128 = 1_000_000_000_000_000_000_000_000_000;
 const TRADE_OPERATION_MIN_VALUE: u128 = 10000;
-const ONCHAIN_ONE_MIN_REPORT_PREFIX: &[u8] = b"ocex::one_min_report";
 
 /// Weight abstraction required for "ocex" pallet.
 pub trait OcexWeightInfo {
@@ -209,6 +208,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
 
+		/// Address of Polkadex Treasury
+		#[pallet::constant]
+		type TreasuryPalletId: Get<PalletId>;
+
 		/// Balances Pallet
 		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
@@ -275,16 +278,6 @@ pub mod pallet {
 		TradingPairAlreadyRegistered,
 		BothAssetsCannotBeSame,
 		TradingPairNotFound,
-		/// Provided Report Value is invalid
-		InvalidReportValue,
-		/// IAS attestation verification failed:
-		/// a) certificate[s] outdated;
-		/// b) enclave is not properly signed it's report with IAS service;
-		RemoteAttestationVerificationFailed,
-		/// Sender has not been attested
-		SenderIsNotAttestedEnclave,
-		/// RA status is insufficient
-		InvalidSgxReportStatus,
 		/// Storage overflow ocurred
 		AmountOverflow,
 		///ProxyNotFound
@@ -295,8 +288,6 @@ pub mod pallet {
 		OnchainEventsBoundedVecOverflow,
 		/// Overflow of Deposit amount
 		DepositOverflow,
-		/// Enclave not allowlisted
-		EnclaveNotAllowlisted,
 		/// Trading Pair is not registed for updating
 		TradingPairNotRegistered,
 		/// Trading Pair config value cannot be set to zero
@@ -354,11 +345,11 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			if Self::should_start_new_epoch(n) {
-				Self::start_new_epoch(n)
+				Self::start_new_epoch()
 			}
 
 			if Self::should_stop_accepting_lmp_withdrawals(n) {
-				Self::stop_accepting_lmp_withdrawals(n)
+				Self::stop_accepting_lmp_withdrawals()
 			}
 
 			let len = <OnChainEvents<T>>::get().len();
@@ -1088,13 +1079,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut config = <ExpectedLMPConfig<T>>::get();
-			let UNIT: Decimal = Decimal::from(UNIT_BALANCE);
+			let unit: Decimal = Decimal::from(UNIT_BALANCE);
 			if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
 				config.total_liquidity_mining_rewards =
-					Decimal::from(total_liquidity_mining_rewards).div(UNIT);
+					Decimal::from(total_liquidity_mining_rewards).div(unit);
 			}
 			if let Some(total_trading_rewards) = total_trading_rewards {
-				config.total_trading_rewards = Decimal::from(total_trading_rewards).div(UNIT);
+				config.total_trading_rewards = Decimal::from(total_trading_rewards).div(unit);
 			}
 			if let Some(market_weightage) = market_weightage {
 				let mut total_percent: u128 = 0u128;
@@ -1107,7 +1098,7 @@ pub mod pallet {
 					);
 					// Add market weightage to total percent
 					total_percent = total_percent.saturating_add(percent);
-					weightage_map.insert(market, Decimal::from(percent).div(UNIT));
+					weightage_map.insert(market, Decimal::from(percent).div(unit));
 				}
 				ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
 				config.market_weightage = weightage_map;
@@ -1115,7 +1106,7 @@ pub mod pallet {
 			if let Some(min_fees_paid) = min_fees_paid {
 				let mut fees_map = BTreeMap::new();
 				for (market, fees_in_quote) in min_fees_paid {
-					fees_map.insert(market, Decimal::from(fees_in_quote).div(UNIT));
+					fees_map.insert(market, Decimal::from(fees_in_quote).div(unit));
 				}
 				config.min_fees_paid = fees_map;
 			}
@@ -1123,7 +1114,7 @@ pub mod pallet {
 			if let Some(min_maker_volume) = min_maker_volume {
 				let mut volume_map = BTreeMap::new();
 				for (market, volume_in_quote) in min_maker_volume {
-					volume_map.insert(market, Decimal::from(volume_in_quote).div(UNIT));
+					volume_map.insert(market, Decimal::from(volume_in_quote).div(unit));
 				}
 				config.min_maker_volume = volume_map;
 			}
