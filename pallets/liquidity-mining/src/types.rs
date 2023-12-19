@@ -12,7 +12,7 @@ pub struct MarketMakerConfig<AccountId, BlockNumber> {
 	pub(crate) name: [u8; 10],
 	pub(crate) cycle_start_blk: BlockNumber,
 	pub(crate) share_id: AssetId,
+	pub(crate) force_closed: bool,
 }
-
 
 pub type EpochNumber = u32;

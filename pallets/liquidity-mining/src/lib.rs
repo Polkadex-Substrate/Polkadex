@@ -16,8 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-pub mod types;
+
+// TODO: 1) Burn should happen after the remove liquidity is successful
+// TODO: 2) claiming force closed LP funds ( extrinsic for it)
+// TODO: 3) Claim rewards of lP
+// TODO: 4) Flag to stop accepting remove liquidity requests
+// TODO: 5) Logic to calculate score of an LP.
 mod callback;
+pub mod types;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -87,7 +93,6 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-
 	#[pallet::storage]
 	#[pallet::getter(fn scores)]
 	pub(super) type Scores<T: Config> = StorageDoubleMap<
@@ -101,7 +106,38 @@ pub mod pallet {
 	>;
 
 	#[pallet::event]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		LiquidityAdded {
+			market: TradingPair,
+			pool: T::AccountId,
+			lp: T::AccountId,
+			shares: BalanceOf<T>,
+			share_id: AssetId,
+			price: BalanceOf<T>,
+			total_inventory_in_quote: BalanceOf<T>,
+		},
+		LiquidityRemoved {
+			market: TradingPair,
+			pool: T::AccountId,
+			lp: T::AccountId,
+		},
+		LiquidityRemovalFailed {
+			market: TradingPair,
+			pool: T::AccountId,
+			lp: T::AccountId,
+			burn_frac: BalanceOf<T>,
+			base_free: BalanceOf<T>,
+			quote_free: BalanceOf<T>,
+			base_required: BalanceOf<T>,
+			quote_required: BalanceOf<T>,
+		},
+		PoolForceClosed {
+			market: TradingPair,
+			pool: T::AccountId,
+			base_freed: BalanceOf<T>,
+			quote_freed: BalanceOf<T>,
+		},
+	}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -122,7 +158,7 @@ pub mod pallet {
 		/// Public deposits not allowed in this pool
 		PublicDepositsNotAllowed,
 		/// Total share issuance is zero(this should never happen)
-		TotalShareIssuanceIsZero
+		TotalShareIssuanceIsZero,
 	}
 
 	#[pallet::hooks]
@@ -144,7 +180,7 @@ pub mod pallet {
 			commission: u128,
 			exit_fee: u128,
 			public_funds_allowed: bool,
-			trading_account: T::AccountId
+			trading_account: T::AccountId,
 		) -> DispatchResult {
 			let market_maker = ensure_signed(origin)?;
 
@@ -170,7 +206,7 @@ pub mod pallet {
 			let (pool, share_id) = Self::create_pool_account(&market_maker, market);
 			T::OtherAssets::create(AssetId::Asset(share_id), pool.clone(), false, Zero::zero())?;
 			// Register on OCEX pallet
-			T::OCEX::register_pool(pool.clone(),trading_account)?;
+			T::OCEX::register_pool(pool.clone(), trading_account)?;
 			// Start cycle
 			let config = MarketMakerConfig {
 				pool_id: pool,
@@ -180,6 +216,7 @@ pub mod pallet {
 				name,
 				cycle_start_blk: frame_system::Pallet::<T>::current_block_number(),
 				share_id: AssetId::Asset(share_id),
+				force_closed: false,
 			};
 			<Pools<T>>::insert(market, market_maker, config);
 			Ok(())
@@ -279,7 +316,7 @@ pub mod pallet {
 			(pool_id.into_sub_account_truncating(hash), shares_id)
 		}
 
-		fn transfer_asset(
+		pub fn transfer_asset(
 			payer: &T::AccountId,
 			payee: &T::AccountId,
 			mut amount: Decimal,
