@@ -1,5 +1,6 @@
 use crate::pallet::{
-	Config, Error, Event, LMPEpoch, Pallet, Pools, SnapshotFlag, WithdrawingEpoch,
+	AddLiquidityRecords, Config, Error, Event, LMPEpoch, Pallet, Pools, SnapshotFlag,
+	WithdrawingEpoch,
 };
 use frame_support::{
 	dispatch::DispatchResult,
@@ -14,8 +15,7 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 	fn new_epoch(new_epoch: u16) {
 		<LMPEpoch<T>>::put(new_epoch);
 		// Set the flag for triggering offchain worker
-		<SnapshotFlag<T>>::put((true, frame_system::Pallet::<T>::current_block_number()));
-		// TODO: Offchain worker takes the snapshot and reset the flag
+		<SnapshotFlag<T>>::put(frame_system::Pallet::<T>::current_block_number());
 	}
 
 	fn add_liquidity_success(
@@ -44,6 +44,15 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 			.ok_or(Error::<T>::ConversionError)?
 			.saturated_into();
 		T::OtherAssets::mint_into(pool_config.share_id, lp, new_shared_issued.saturated_into())?;
+		// Note the block in which they deposited and
+		// use it to pro-rate the rewards for initial epoch
+
+		let epoch = <LMPEpoch<T>>::get();
+
+		<AddLiquidityRecords<T>>::mutate(epoch, (pool_config.pool_id, lp), |records| {
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			records.push((current_blk, new_shared_issued.saturated_into()));
+		});
 
 		Self::deposit_event(Event::<T>::LiquidityAdded {
 			market,

@@ -80,9 +80,20 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
+	/// LP Shares
+	#[pallet::storage]
+	pub(super) type LPShares<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		AssetId, // share_id
+		Identity,
+		T::AccountId, // LP
+		BalanceOf<T>,
+		ValueQuery,
+	>;
+
 	/// Pools
 	#[pallet::storage]
-	#[pallet::getter(fn pools)]
 	pub(super) type Pools<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -102,17 +113,28 @@ pub mod pallet {
 		u16, // market
 		Identity,
 		T::AccountId, // pool_id
-		Decimal,
+		BalanceOf<T>,
 		OptionQuery,
+	>;
+
+	/// Record of multiple LP deposits per epoch
+	#[pallet::storage]
+	pub(super) type AddLiquidityRecords<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		u16, // epoch
+		Identity,
+		(T::AccountId, T::AccountId),           // (pool_id,lp)
+		Vec<(BlockNumberFor<T>, BalanceOf<T>)>, // List of deposits and their blk number per epoch
+		ValueQuery,
 	>;
 
 	/// Withdrawal Requests
 	#[pallet::storage]
-	#[pallet::getter(fn pending_withdrawals)]
 	pub(super) type WithdrawalRequests<T: Config> = StorageDoubleMap<
 		_,
 		Identity,
-		u16, // market
+		u16, // epoch
 		Identity,
 		T::AccountId,                                    // pool_id
 		Vec<(T::AccountId, BalanceOf<T>, BalanceOf<T>)>, // List of pending requests
@@ -129,9 +151,9 @@ pub mod pallet {
 		Identity,
 		T::AccountId, // Pool address
 		(
-			BTreeMap<T::AccountId, (Decimal, bool)>, // (score, claim_flag)
-			Decimal,                                 // sum of scores of all lps
-			bool,                                    // MM claim flag
+			BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, // (score, claim_flag)
+			BalanceOf<T>,                                 // sum of scores of all lps
+			bool,                                         // MM claim flag
 		),
 		ValueQuery,
 	>;
@@ -139,13 +161,11 @@ pub mod pallet {
 	/// Active LMP Epoch
 	#[pallet::storage]
 	#[pallet::getter(fn active_lmp_epoch)]
-	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
+	pub(crate) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
 
 	/// Offchain worker flag
 	#[pallet::storage]
-	#[pallet::getter(fn offchain_worker_flag)]
-	pub(super) type SnapshotFlag<T: Config> =
-		StorageValue<_, (bool, BlockNumberFor<T>), ValueQuery>;
+	pub(super) type SnapshotFlag<T: Config> = StorageValue<_, BlockNumberFor<T>, OptionQuery>;
 
 	/// Issueing withdrawals for epoch
 	#[pallet::storage]
@@ -333,7 +353,6 @@ pub mod pallet {
 				required_quote_amount,
 			)?;
 
-			// TODO: Note the block in which they deposited and use it to pro-rate the rewards for initial epoch
 			Ok(())
 		}
 
@@ -413,14 +432,11 @@ pub mod pallet {
 			if *already_claimed {
 				return Err(Error::<T>::AlreadyClaimed.into());
 			}
-			let reward_frac =
-				score.checked_div(&total_score).ok_or(Error::<T>::InvalidTotalScore)?;
-			let rewards_for_lp = reward_frac
+			let rewards_for_lp = score
 				.saturating_mul(total_rewards)
-				.saturating_mul(Decimal::from(UNIT_BALANCE))
-				.to_u128()
-				.ok_or(Error::<T>::ConversionError)?
-				.saturated_into();
+				.checked_div(&total_score)
+				.ok_or(Error::<T>::InvalidTotalScore)?;
+
 			// Transfer it to LP's account
 			T::NativeCurrency::transfer(
 				&pool_config.pool_id,
@@ -464,7 +480,10 @@ pub mod pallet {
 
 			let rewards_for_mm = pool_config
 				.commission
-				.saturating_mul(total_rewards)
+				.saturating_mul(
+					Decimal::from(total_rewards.saturated_into::<u128>())
+						.div(&Decimal::from(UNIT_BALANCE)),
+				)
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()
 				.ok_or(Error::<T>::ConversionError)?
@@ -494,8 +513,8 @@ pub mod pallet {
 			market: TradingPair,
 			market_maker: T::AccountId,
 			epoch: u16,
-			scores_map: BTreeMap<T::AccountId, (Decimal, bool)>,
-			total_score: Decimal,
+			scores_map: BTreeMap<T::AccountId, (BalanceOf<T>, bool)>,
+			total_score: crate::pallet::BalanceOf<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			let pool_config =
@@ -611,7 +630,41 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		pub fn take_snapshot() {
-			// TODO: Loop over all pools and lps and calculate score of all LPs
+			let epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We need to reduce the epoch by one
+			let epoch_ending_blk = match <SnapshotFlag<T>>::get() {
+				None => return,
+				Some(blk) => blk,
+			};
+			// TODO: Check if we already computed the result, then don't do it again, just send it
+			// again.
+
+			// Loop over all pools and lps and calculate score of all LPs
+			for (market, mm, config) in <Pools<T>>::iter() {
+				let mut scores_map = BTreeMap::new();
+				let mut pool_total_score: BalanceOf<T> = Zero::zero();
+				for (lp, mut total_shares) in <LPShares<T>>::iter_prefix(config.share_id) {
+					let mut score: BalanceOf<T> = Zero::zero();
+					let deposits_during_epoch =
+						<AddLiquidityRecords<T>>::get(epoch, &(config.pool_id.clone(), lp.clone()));
+					for (deposit_blk, share) in deposits_during_epoch {
+						// Reduce share from total share to find the share deposited from previous
+						// epoch
+						total_shares = total_shares.saturating_sub(share);
+						let diff = epoch_ending_blk.saturating_sub(deposit_blk);
+						score =
+							score
+								.saturating_add(share.saturating_mul(
+									diff.saturated_into::<u128>().saturated_into(),
+								)); // Pro-rated scoring
+					}
+					score = score
+						.saturating_add(total_shares.saturating_mul(201600u128.saturated_into())); // One epoch worth of blocks.
+					scores_map.insert(lp, (score, false));
+					pool_total_score = pool_total_score.saturating_add(score);
+				}
+
+				// TODO: Craft unsigned txn and end it.
+			}
 		}
 
 		pub fn create_pool_account(
