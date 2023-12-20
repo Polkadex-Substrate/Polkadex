@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// TODO: 1) Offchain worker to compute epoch snapshots for calculating rewards
 // TODO: 2) claiming force closed LP funds ( extrinsic for it)
 // TODO: 3) Claim rewards of lP
 // TODO: 4) Flag to stop accepting remove liquidity requests
