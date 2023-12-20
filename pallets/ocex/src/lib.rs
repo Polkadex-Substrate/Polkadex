@@ -212,6 +212,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type TreasuryPalletId: Get<PalletId>;
 
+		/// LMP Rewards address
+		#[pallet::constant]
+		type LMPRewardsPalletId: Get<PalletId>;
+
 		/// Balances Pallet
 		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
@@ -1028,9 +1032,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// TODO: Handle session change logic
-		// 1. Notify liquidity mining pallet to initiate withdrawals
-
 		/// Claim LMP rewards
 		#[pallet::call_index(19)]
 		#[pallet::weight(10_000)]
@@ -1040,27 +1041,7 @@ pub mod pallet {
 			market: TradingPair,
 		) -> DispatchResult {
 			let main = ensure_signed(origin)?;
-			// Check if the Safety period for this epoch is over
-			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
-			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
-			// Get the score and fees paid portion of this 'main' account
-			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
-			let (score, fees_paid) = <TraderMetrics<T>>::get((epoch, market, main));
-			// Calculate the rewards pool for this market
-			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
-			let trading_rewards_portion =
-				fees_paid.checked_div(total_fees_paid).unwrap_or_default();
-			// Calculate rewards portion and transfer it.
-			let config: LMPEpochConfig =
-				<LMPConfig<T>>::get(epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
-			let mm_rewards =
-				config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
-			let trading_rewards =
-				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
-			let total = mm_rewards.saturating_add(trading_rewards);
-			let total_in_u128 = total.saturating_mul(Decimal::from(UNIT_BALANCE));
-			// TODO: Transfer it to main from pallet account.
+			Self::do_claim_lmp_rewards(main,epoch,market)?;
 			Ok(())
 		}
 
@@ -1192,6 +1173,37 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+
+		pub fn do_claim_lmp_rewards(main: T::AccountId, epoch:u16, market: TradingPair) -> DispatchResult {
+			// Check if the Safety period for this epoch is over
+			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
+			// Get the score and fees paid portion of this 'main' account
+			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
+			let (score, fees_paid) = <TraderMetrics<T>>::get((epoch, market, main));
+			// Calculate the rewards pool for this market
+			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
+			let trading_rewards_portion =
+				fees_paid.checked_div(total_fees_paid).unwrap_or_default();
+			// Calculate rewards portion and transfer it.
+			let config: LMPEpochConfig =
+				<LMPConfig<T>>::get(epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
+			let mm_rewards =
+				config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
+			let trading_rewards =
+				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
+			let total = mm_rewards.saturating_add(trading_rewards);
+			let total_in_u128 = total.saturating_mul(Decimal::from(UNIT_BALANCE));
+			// Transfer it to main from pallet account.
+			let rewards_account: T::AccountId = T::LMPRewardsPalletId::get().into_account_truncating();
+			T::NativeCurrency::transfer(
+				&rewards_account,
+				&main,
+				total_in_u128,
+				ExistenceRequirement::AllowDeath)?;
+			Ok(())
+		}
 		pub fn update_lmp_scores(
 			trader_metrics: &BTreeMap<
 				TradingPair,

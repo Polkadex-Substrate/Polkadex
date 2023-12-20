@@ -41,5 +41,4 @@ pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
     ) -> DispatchResult;
 
     fn stop_accepting_lmp_withdrawals(epoch: u16);
-    fn rewards_ready(epoch: u16);
 }

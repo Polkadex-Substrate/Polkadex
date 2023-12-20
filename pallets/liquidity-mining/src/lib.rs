@@ -18,7 +18,6 @@
 
 // TODO: 1) Offchain worker to compute epoch snapshots for calculating rewards
 // TODO: 2) claiming force closed LP funds ( extrinsic for it)
-// TODO: 3) Claim rewards of lP
 // TODO: 4) Flag to stop accepting remove liquidity requests
 // TODO: 5) Logic to calculate score of an LP.
 
@@ -48,6 +47,7 @@ pub mod pallet {
 	use rust_decimal::{prelude::*, Decimal};
 	use sp_core::blake2_128;
 	use sp_runtime::traits::UniqueSaturatedInto;
+	use sp_std::collections::btree_map::BTreeMap;
 	use std::ops::{Div, DivAssign, MulAssign};
 
 	type BalanceOf<T> = <<T as Config>::NativeCurrency as Currency<
@@ -86,12 +86,52 @@ pub mod pallet {
 	pub(super) type Pools<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		TradingPair,
+		TradingPair, // market
 		Identity,
-		T::AccountId,
+		T::AccountId, // market maker
 		MarketMakerConfig<T::AccountId, BlockNumberFor<T>>,
 		OptionQuery,
 	>;
+
+	/// Rewards by Pool
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_by_pool)]
+	pub(super) type Rewards<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		u16, // market
+		Identity,
+		T::AccountId, // pool_id
+		Decimal,
+		OptionQuery,
+	>;
+
+	/// Liquidity Providers map
+	#[pallet::storage]
+	#[pallet::getter(fn liquidity_providers)]
+	pub(super) type LiquidityProviders<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		u16, // Epoch
+		Identity,
+		T::AccountId, // Pool address
+		(
+			BTreeMap<T::AccountId, (Decimal, bool)>, // (score, claim_flag)
+			Decimal,                                 // sum of scores of all lps
+			bool,                                    // MM claim flag
+		),
+		ValueQuery,
+	>;
+
+	/// Active LMP Epoch
+	#[pallet::storage]
+	#[pallet::getter(fn active_lmp_epoch)]
+	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
+
+	/// Offchain worker flag
+	#[pallet::storage]
+	#[pallet::getter(fn offchain_worker_flag)]
+	pub(super) type SnapshotFlag<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -148,12 +188,24 @@ pub mod pallet {
 		PublicDepositsNotAllowed,
 		/// Total share issuance is zero(this should never happen)
 		TotalShareIssuanceIsZero,
+		/// LP not found in map
+		InvalidLPAddress,
+		/// Reward already claimed
+		AlreadyClaimed,
+		/// Invalid Total Score
+		InvalidTotalScore,
+		/// Error calling claim
+		ClaimError,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
 			Weight::zero()
+		}
+
+		fn offchain_worker(_: BlockNumberFor<T>) {
+			Self::take_snapshot();
 		}
 	}
 
@@ -301,9 +353,139 @@ pub mod pallet {
 			T::OCEX::force_close_pool(market, market_maker);
 			Ok(())
 		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(10000)]
+		#[transactional]
+		pub fn claim_rewards_by_lp(
+			origin: OriginFor<T>,
+			market: TradingPair,
+			market_maker: T::AccountId,
+			epoch: u16,
+		) -> DispatchResult {
+			let lp = ensure_signed(origin)?;
+			let pool_config =
+				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+
+			let total_rewards = match <Rewards<T>>::get(epoch, &pool_config.pool_id) {
+				None => {
+					let total_rewards = T::OCEX::claim_rewards(pool_config.pool_id.clone(), epoch)?;
+					<Rewards<T>>::insert(epoch, pool_config.pool_id.clone(), total_rewards);
+					total_rewards
+				},
+				Some(total_rewards) => total_rewards,
+			};
+
+			// Get the rewards for this LP after commission and exit fee
+			let (mut scores_map, total_score, mm_claimed) =
+				<LiquidityProviders<T>>::get(epoch, &pool_config.pool_id);
+
+			let (score, already_claimed) =
+				scores_map.get(&lp).ok_or(Error::<T>::InvalidLPAddress)?;
+			if *already_claimed {
+				return Err(Error::<T>::AlreadyClaimed.into());
+			}
+			let reward_frac =
+				score.checked_div(total_score).ok_or(Error::<T>::InvalidTotalScore)?;
+			let rewards_for_lp = reward_frac
+				.saturating_mul(total_rewards)
+				.saturating_mul(Decimal::from(UNIT_BALANCE))
+				.to_u128()
+				.ok_or(Error::<T>::ConversionError)?
+				.saturated_into();
+			// Transfer it to LP's account
+			T::NativeCurrency::transfer(
+				&pool_config.pool_id,
+				&lp,
+				rewards_for_lp,
+				ExistenceRequirement::AllowDeath,
+			)?;
+			scores_map.insert(lp, (*score, true));
+			<LiquidityProviders<T>>::insert(
+				epoch,
+				pool_config.pool_id,
+				(scores_map, total_score, mm_claimed),
+			);
+			Ok(())
+		}
+
+		#[pallet::call_index(5)]
+		#[pallet::weight(10000)]
+		#[transactional]
+		pub fn claim_rewards_by_mm(
+			origin: OriginFor<T>,
+			market: TradingPair,
+			epoch: u16,
+		) -> DispatchResult {
+			let market_maker = ensure_signed(origin)?;
+			let pool_config =
+				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+
+			let total_rewards = match <Rewards<T>>::get(epoch, &pool_config.pool_id) {
+				None => {
+					let total_rewards = T::OCEX::claim_rewards(pool_config.pool_id.clone(), epoch)?;
+					<Rewards<T>>::insert(epoch, pool_config.pool_id.clone(), total_rewards);
+					total_rewards
+				},
+				Some(total_rewards) => total_rewards,
+			};
+
+			// Get the rewards for this LP after commission and exit fee
+			let (scores_map, total_score, _) =
+				<LiquidityProviders<T>>::get(epoch, &pool_config.pool_id);
+
+			let rewards_for_mm = pool_config
+				.commission
+				.saturating_mul(total_rewards)
+				.saturating_mul(Decimal::from(UNIT_BALANCE))
+				.to_u128()
+				.ok_or(Error::<T>::ConversionError)?
+				.saturated_into();
+
+			// Transfer it to LP's account
+			T::NativeCurrency::transfer(
+				&pool_config.pool_id,
+				&market_maker,
+				rewards_for_mm,
+				ExistenceRequirement::AllowDeath,
+			)?;
+
+			<LiquidityProviders<T>>::insert(
+				epoch,
+				pool_config.pool_id,
+				(scores_map, total_score, true),
+			);
+			Ok(())
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight(10000)]
+		#[transactional]
+		pub fn submit_scores_of_lps(
+			origin: OriginFor<T>,
+			market: TradingPair,
+			market_maker: T::AccountId,
+			epoch: u16,
+			scores_map: BTreeMap<T::AccountId, (Decimal, bool)>,
+			total_score: Decimal,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+			let pool_config =
+				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+			<LiquidityProviders<T>>::insert(
+				epoch,
+				pool_config.pool_id,
+				(scores_map, total_score, false),
+			);
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		pub fn take_snapshot() {
+			// TODO: Loop over all pools and lps and calculate score of all LPs
+		}
+
 		pub fn create_pool_account(
 			maker: &T::AccountId,
 			market: TradingPair,

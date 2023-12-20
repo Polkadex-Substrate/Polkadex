@@ -1,4 +1,4 @@
-use crate::pallet::{Config, Error, Event, Pallet, Pools};
+use crate::pallet::{Config, Error, Event, LMPEpoch, Pallet, Pools};
 use frame_support::{
 	dispatch::DispatchResult,
 	traits::{fungibles::Mutate, Currency},
@@ -9,7 +9,11 @@ use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_runtime::SaturatedConversion;
 
 impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
-	fn new_epoch(n: u16) {}
+	fn new_epoch(new_epoch: u16) {
+		<LMPEpoch<T>>::put(new_epoch)
+		// TODO: Set the flag for triggering offchain worker
+		// TODO: Offchain worker takes the snapshot and reset the flag
+	}
 
 	fn add_liquidity_success(
 		market: TradingPair,
@@ -37,6 +41,7 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 			.ok_or(Error::<T>::ConversionError)?
 			.saturated_into();
 		T::OtherAssets::mint_into(pool_config.share_id, lp, new_shared_issued.saturated_into())?;
+
 		Self::deposit_event(Event::<T>::LiquidityAdded {
 			market,
 			pool: pool.clone(),
@@ -156,12 +161,6 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 	}
 
 	fn stop_accepting_lmp_withdrawals(epoch: u16) {
-		todo!()
-	}
-
-	fn rewards_ready(epoch: u16) {
-		// TODO: Set the flag for triggering offchain worker
-		// TODO: Offchain worker takes the snapshot and reset the flag
 		todo!()
 	}
 }

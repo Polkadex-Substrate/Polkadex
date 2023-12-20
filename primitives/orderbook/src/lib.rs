@@ -200,4 +200,7 @@ pub trait LiquidityMining<AccountId, Balance> {
 
 	/// Adds an ingress message to force close all open orders from this main account and initiate complete withdrawal
 	fn force_close_pool(market: TradingPair, main: AccountId);
+
+	/// Claim rewards for this main account. Return False if reward is already claimed, else True.
+	fn claim_rewards(main: AccountId, epoch: u16) -> Result<Decimal,sp_runtime::DispatchError>;
 }

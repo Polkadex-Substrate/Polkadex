@@ -26,7 +26,6 @@ pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
-liquidity = { path = "../liquidity", default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
@@ -64,7 +63,6 @@ std = [
   "polkadex-primitives/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
-  "liquidity/std",
   "sp-core/std",
 ]
 runtime-benchmarks = [
@@ -72,6 +70,5 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "liquidity/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

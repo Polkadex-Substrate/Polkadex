@@ -4539,26 +4539,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da2479e8c062e40bf0066ffa0bc823de0a9368974af99c9f6df941d2c231e03f"
 
 [[package]]
-name = "liquidity"
-version = "1.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-ocex-lmp",
- "pallet-timestamp",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "load-testing"
 version = "0.1.0"
 dependencies = [
@@ -5074,7 +5054,6 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal 0.3.4",
- "liquidity",
  "log",
  "orderbook-primitives",
  "orml-vesting",
@@ -5792,6 +5771,7 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -5835,7 +5815,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hash-db",
- "liquidity",
  "log",
  "num-traits",
  "orderbook-primitives",

@@ -6,8 +6,6 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 use sp_runtime::SaturatedConversion;
 
-// TODO: Check if have 27 days periodicity  condition for stopping withdrawal
-// TODO: will have any unexpected artifact or loophole.
 impl<T: Config> Pallet<T> {
 	pub(crate) fn should_start_new_epoch(n: BlockNumberFor<T>) -> bool {
 		n.saturated_into::<u32>() % 201600u32 == 0 // 28 days in blocks
@@ -23,10 +21,13 @@ impl<T: Config> Pallet<T> {
 		<LMPEpoch<T>>::put(current_epoch);
 		let config = <ExpectedLMPConfig<T>>::get();
 		<LMPConfig<T>>::insert(current_epoch, config);
+		// Notify Liquidity Crowd sourcing pallet about new epoch
+		T::CrowdSourceLiqudityMining::new_epoch(current_epoch);
 	}
 
 	pub(crate) fn should_stop_accepting_lmp_withdrawals(n: BlockNumberFor<T>) -> bool {
-		n.saturated_into::<u32>() % 194400u32 == 0 // 27 days in blocks
+		// Triggers 7200 blocks ( or approx 1 day before epoch change)
+		n.saturated_into::<u32>().saturating_add(7200) % 201600u32 == 0
 	}
 
 	pub(crate) fn stop_accepting_lmp_withdrawals() {
