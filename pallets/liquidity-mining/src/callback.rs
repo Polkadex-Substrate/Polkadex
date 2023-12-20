@@ -1,4 +1,6 @@
-use crate::pallet::{Config, Error, Event, LMPEpoch, Pallet, Pools};
+use crate::pallet::{
+	Config, Error, Event, LMPEpoch, Pallet, Pools, SnapshotFlag, WithdrawingEpoch,
+};
 use frame_support::{
 	dispatch::DispatchResult,
 	traits::{fungibles::Mutate, Currency},
@@ -6,12 +8,13 @@ use frame_support::{
 use orderbook_primitives::{traits::LiquidityMiningCrowdSourcePallet, types::TradingPair};
 use polkadex_primitives::UNIT_BALANCE;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
-use sp_runtime::SaturatedConversion;
+use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};
 
 impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 	fn new_epoch(new_epoch: u16) {
-		<LMPEpoch<T>>::put(new_epoch)
-		// TODO: Set the flag for triggering offchain worker
+		<LMPEpoch<T>>::put(new_epoch);
+		// Set the flag for triggering offchain worker
+		<SnapshotFlag<T>>::put((true, frame_system::Pallet::<T>::current_block_number()));
 		// TODO: Offchain worker takes the snapshot and reset the flag
 	}
 
@@ -161,6 +164,7 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 	}
 
 	fn stop_accepting_lmp_withdrawals(epoch: u16) {
-		todo!()
+		<WithdrawingEpoch<T>>::put(epoch)
+		// TODO: Emit an event
 	}
 }

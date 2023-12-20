@@ -17,9 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // TODO: 1) Offchain worker to compute epoch snapshots for calculating rewards
-// TODO: 2) claiming force closed LP funds ( extrinsic for it)
-// TODO: 4) Flag to stop accepting remove liquidity requests
-// TODO: 5) Logic to calculate score of an LP.
 
 mod callback;
 pub mod types;
@@ -46,7 +43,10 @@ pub mod pallet {
 	use polkadex_primitives::AssetId;
 	use rust_decimal::{prelude::*, Decimal};
 	use sp_core::blake2_128;
-	use sp_runtime::traits::UniqueSaturatedInto;
+	use sp_runtime::{
+		traits::{CheckedDiv, UniqueSaturatedInto},
+		Saturating,
+	};
 	use sp_std::collections::btree_map::BTreeMap;
 	use std::ops::{Div, DivAssign, MulAssign};
 
@@ -106,6 +106,19 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Withdrawal Requests
+	#[pallet::storage]
+	#[pallet::getter(fn pending_withdrawals)]
+	pub(super) type WithdrawalRequests<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		u16, // market
+		Identity,
+		T::AccountId,                                    // pool_id
+		Vec<(T::AccountId, BalanceOf<T>, BalanceOf<T>)>, // List of pending requests
+		ValueQuery,
+	>;
+
 	/// Liquidity Providers map
 	#[pallet::storage]
 	#[pallet::getter(fn liquidity_providers)]
@@ -131,7 +144,12 @@ pub mod pallet {
 	/// Offchain worker flag
 	#[pallet::storage]
 	#[pallet::getter(fn offchain_worker_flag)]
-	pub(super) type SnapshotFlag<T: Config> = StorageValue<_, bool, ValueQuery>;
+	pub(super) type SnapshotFlag<T: Config> =
+		StorageValue<_, (bool, BlockNumberFor<T>), ValueQuery>;
+
+	/// Issueing withdrawals for epoch
+	#[pallet::storage]
+	pub(super) type WithdrawingEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -194,8 +212,12 @@ pub mod pallet {
 		AlreadyClaimed,
 		/// Invalid Total Score
 		InvalidTotalScore,
-		/// Error calling claim
-		ClaimError,
+		/// Pool is force closed, add liquidity not allowed
+		PoolForceClosed,
+		/// Pool is not force closed to claim funds
+		PoolNotForceClosed,
+		/// Invalid Total issuance number
+		InvalidTotalIssuance,
 	}
 
 	#[pallet::hooks]
@@ -275,7 +297,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let lp = ensure_signed(origin)?;
 			let config = <Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
-			if !config.public_funds_allowed {
+			ensure!(!config.force_closed, Error::<T>::PoolForceClosed);
+			if !config.public_funds_allowed && !config.force_closed {
 				ensure!(lp == market_maker, Error::<T>::PublicDepositsNotAllowed);
 			}
 
@@ -335,8 +358,12 @@ pub mod pallet {
 				Precision::Exact,
 				Fortitude::Polite,
 			)?;
-			// TODO: When it should be queued.
-			T::OCEX::remove_liquidity(market, config.pool_id, lp, burned_amt, total);
+			// Queue it for execution at the end of the epoch
+			let epoch = <WithdrawingEpoch<T>>::get();
+			<WithdrawalRequests<T>>::mutate(epoch, config.pool_id, |pending| {
+				pending.push((lp, burned_amt, total));
+			});
+
 			Ok(())
 		}
 
@@ -386,7 +413,7 @@ pub mod pallet {
 				return Err(Error::<T>::AlreadyClaimed.into());
 			}
 			let reward_frac =
-				score.checked_div(total_score).ok_or(Error::<T>::InvalidTotalScore)?;
+				score.checked_div(&total_score).ok_or(Error::<T>::InvalidTotalScore)?;
 			let rewards_for_lp = reward_frac
 				.saturating_mul(total_rewards)
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
@@ -477,6 +504,106 @@ pub mod pallet {
 				pool_config.pool_id,
 				(scores_map, total_score, false),
 			);
+			Ok(())
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight(10000)]
+		// TODO: @zktony weight should be paramaterized by the number of requests and the market
+		// maker is expected to call this multiple times to exhaust the pending withdrawals
+		#[transactional]
+		pub fn initiate_withdrawal(
+			origin: OriginFor<T>,
+			market: TradingPair,
+			epoch: u16,
+			num_requests: u16,
+		) -> DispatchResult {
+			let market_maker = ensure_signed(origin)?;
+			let num_requests: usize = num_requests as usize;
+			let pool_config =
+				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+			let mut requests = <WithdrawalRequests<T>>::get(epoch, &pool_config.pool_id);
+			for index in 0..num_requests {
+				T::OCEX::remove_liquidity(
+					market,
+					pool_config.pool_id.clone(),
+					requests[index].0.clone(),
+					requests[index].1,
+					requests[index].2,
+				);
+			}
+			requests = requests[num_requests..].to_vec();
+			<WithdrawalRequests<T>>::insert(epoch, pool_config.pool_id, requests);
+			Ok(())
+		}
+
+		#[pallet::call_index(8)]
+		#[pallet::weight(10000)]
+		#[transactional]
+		pub fn claim_force_closed_pool_funds(
+			origin: OriginFor<T>,
+			market: TradingPair,
+			market_maker: T::AccountId,
+		) -> DispatchResult {
+			let lp = ensure_signed(origin)?;
+			let pool_config =
+				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+			ensure!(pool_config.force_closed, Error::<T>::PoolNotForceClosed);
+			// The system assumes all the base and quote funds in pool_id are claimed
+			let lp_shares = T::OtherAssets::reducible_balance(
+				pool_config.share_id,
+				&lp,
+				Preservation::Expendable,
+				Fortitude::Force,
+			);
+			let total_issuance = T::OtherAssets::total_issuance(pool_config.share_id);
+
+			let base_balance = T::OtherAssets::reducible_balance(
+				market.base,
+				&pool_config.pool_id,
+				Preservation::Expendable,
+				Fortitude::Force,
+			);
+
+			let base_amt_to_claim = base_balance
+				.saturating_mul(lp_shares)
+				.checked_div(&total_issuance)
+				.ok_or(Error::<T>::InvalidTotalIssuance)?;
+
+			let quote_balance = T::OtherAssets::reducible_balance(
+				market.base,
+				&pool_config.pool_id,
+				Preservation::Expendable,
+				Fortitude::Force,
+			);
+
+			let quote_amt_to_claim = quote_balance
+				.saturating_mul(lp_shares)
+				.checked_div(&total_issuance)
+				.ok_or(Error::<T>::InvalidTotalIssuance)?;
+
+			T::OtherAssets::burn_from(
+				pool_config.share_id,
+				&lp,
+				lp_shares,
+				Precision::Exact,
+				Fortitude::Force,
+			)?;
+			T::OtherAssets::transfer(
+				market.base,
+				&pool_config.pool_id,
+				&lp,
+				base_amt_to_claim,
+				Preservation::Expendable,
+			)?;
+			T::OtherAssets::transfer(
+				market.quote,
+				&pool_config.pool_id,
+				&lp,
+				quote_amt_to_claim,
+				Preservation::Expendable,
+			)?;
+			// TODO: Emit events
 			Ok(())
 		}
 	}
