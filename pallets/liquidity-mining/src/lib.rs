@@ -333,6 +333,7 @@ pub mod pallet {
 				required_quote_amount,
 			)?;
 
+			// TODO: Note the block in which they deposited and use it to pro-rate the rewards for initial epoch
 			Ok(())
 		}
 
