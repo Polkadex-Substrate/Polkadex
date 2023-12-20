@@ -1569,7 +1569,6 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		RebroadcastTriggered,
 		SnapshotProcessed(u64),
 		UserActionsBatchSubmitted(u64),
 		FeesClaims {

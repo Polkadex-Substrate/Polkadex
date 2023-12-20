@@ -158,4 +158,10 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 	fn stop_accepting_lmp_withdrawals(epoch: u16) {
 		todo!()
 	}
+
+	fn rewards_ready(epoch: u16) {
+		// TODO: Set the flag for triggering offchain worker
+		// TODO: Offchain worker takes the snapshot and reset the flag
+		todo!()
+	}
 }
