@@ -16,19 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
-// TODO: 1) Burn should happen after the remove liquidity is successful
 // TODO: 2) claiming force closed LP funds ( extrinsic for it)
 // TODO: 3) Claim rewards of lP
 // TODO: 4) Flag to stop accepting remove liquidity requests
 // TODO: 5) Logic to calculate score of an LP.
+
 mod callback;
 pub mod types;
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-	use crate::types::{EpochNumber, MarketMakerConfig};
+	use crate::types::MarketMakerConfig;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{
@@ -93,19 +92,8 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn scores)]
-	pub(super) type Scores<T: Config> = StorageDoubleMap<
-		_,
-		Identity,
-		T::AccountId,
-		Identity,
-		EpochNumber,
-		ValidatorSet<T::AuthorityId>, // TODO: Change this.
-		ValueQuery,
-	>;
-
 	#[pallet::event]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		LiquidityAdded {
 			market: TradingPair,
@@ -255,7 +243,19 @@ pub mod pallet {
 			Self::transfer_asset(&lp, &config.pool_id, base_amount, market.base)?;
 			Self::transfer_asset(&lp, &config.pool_id, required_quote_amount, market.quote)?;
 
-			T::OCEX::add_liquidity(market, config.pool_id, lp, base_amount, required_quote_amount)?;
+			let total_shares_issued = Decimal::from(
+				T::OtherAssets::total_issuance(config.share_id).saturated_into::<u128>(),
+			)
+			.div(Decimal::from(UNIT_BALANCE));
+
+			T::OCEX::add_liquidity(
+				market,
+				config.pool_id,
+				lp,
+				total_shares_issued,
+				base_amount,
+				required_quote_amount,
+			)?;
 
 			Ok(())
 		}
@@ -280,10 +280,10 @@ pub mod pallet {
 				&lp,
 				shares,
 				Precision::Exact,
-				Fortitude::Force,
+				Fortitude::Polite,
 			)?;
 			// TODO: When it should be queued.
-			T::OCEX::remove_liquidity(burned_amt, total);
+			T::OCEX::remove_liquidity(market, config.pool_id, lp, burned_amt, total);
 			Ok(())
 		}
 

@@ -56,8 +56,8 @@ pub enum IngressMessages<AccountId> {
 	/// Liquidity Mining Variants
 	/// Add Liquidity ( market, pool_id, LP, total Shares issued,  base_amount, quote_amount)
 	AddLiquidity(TradingPairConfig, AccountId, AccountId, Decimal, Decimal, Decimal),
-	/// Remove liquidity ( market, pool_id, LP,  burn_fraction)
-	RemoveLiquidity(TradingPairConfig,AccountId, AccountId, Decimal),
+	/// Remove liquidity ( market, pool_id, LP,  burn_fraction, total_shares_issued_at_burn)
+	RemoveLiquidity(TradingPairConfig,AccountId, AccountId, Decimal, Decimal),
 	/// Force Close Command ( market, pool_id)
 	ForceClosePool(TradingPairConfig, AccountId)
 }
@@ -69,8 +69,8 @@ pub enum EgressMessages<AccountId> {
 	AddLiquidityResult(TradingPairConfig,AccountId, AccountId, Decimal, Decimal, Decimal),
 	/// RemoveLiquidityResult ( Pool, LP, Base freed, Quote Freed )
 	RemoveLiquidityResult(TradingPairConfig, AccountId, AccountId, Decimal, Decimal),
-	/// Remove Liquidity Failed ( Pool, LP, burn_frac, base_free, quote_free, base_required, quote_required)
-	RemoveLiquidityFailed(TradingPairConfig,AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal),
+	/// Remove Liquidity Failed ( Pool, LP, burn_frac, total_shares_issued, base_free, quote_free, base_required, quote_required)
+	RemoveLiquidityFailed(TradingPairConfig,AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal, Decimal),
 	/// Pool Closed (market, Pool, base freed, quote freed)
 	PoolForceClosed(TradingPairConfig,AccountId, Decimal, Decimal),
 }

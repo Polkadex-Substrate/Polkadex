@@ -3,6 +3,7 @@ use rust_decimal::Decimal;
 use crate::types::TradingPair;
 
 pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
+    fn new_epoch(n: u16);
     fn add_liquidity_success(
         market: TradingPair,
         pool: &AccountId,
@@ -25,6 +26,7 @@ pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
         pool: &AccountId,
         lp: &AccountId,
         burn_frac: Decimal,
+        total_shares: Decimal,
         base_free: Decimal,
         quote_free: Decimal,
         base_required: Decimal,

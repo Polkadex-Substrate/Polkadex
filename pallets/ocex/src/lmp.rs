@@ -313,6 +313,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 				pool,
 				lp,
 				burn_frac,
+				total,
 			));
 		});
 	}

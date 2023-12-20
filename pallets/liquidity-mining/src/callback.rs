@@ -1,11 +1,16 @@
 use crate::pallet::{Config, Error, Event, Pallet, Pools};
-use frame_support::{dispatch::DispatchResult, traits::fungibles::Mutate};
+use frame_support::{
+	dispatch::DispatchResult,
+	traits::{fungibles::Mutate, Currency},
+};
 use orderbook_primitives::{traits::LiquidityMiningCrowdSourcePallet, types::TradingPair};
 use polkadex_primitives::UNIT_BALANCE;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_runtime::SaturatedConversion;
 
 impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
+	fn new_epoch(n: u16) {}
+
 	fn add_liquidity_success(
 		market: TradingPair,
 		pool: &T::AccountId,
@@ -22,11 +27,15 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 		let price = price
 			.saturating_mul(Decimal::from(UNIT_BALANCE))
 			.to_u128()
-			.ok_or(Error::<T>::ConversionError)?;
-		let total_inventory_in_quote = total_inventory_in_quote
+			.ok_or(Error::<T>::ConversionError)?
+			.saturated_into();
+		let total_inventory_in_quote: <<T as Config>::NativeCurrency as Currency<
+			<T as frame_system::Config>::AccountId,
+		>>::Balance = total_inventory_in_quote
 			.saturating_mul(Decimal::from(UNIT_BALANCE))
 			.to_u128()
-			.ok_or(Error::<T>::ConversionError)?;
+			.ok_or(Error::<T>::ConversionError)?
+			.saturated_into();
 		T::OtherAssets::mint_into(pool_config.share_id, lp, new_shared_issued.saturated_into())?;
 		Self::deposit_event(Event::<T>::LiquidityAdded {
 			market,
@@ -62,16 +71,29 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 		pool: &T::AccountId,
 		lp: &T::AccountId,
 		burn_frac: Decimal,
+		total_shares: Decimal,
 		base_free: Decimal,
 		quote_free: Decimal,
 		base_required: Decimal,
 		quote_required: Decimal,
 	) -> DispatchResult {
+		let shares_burned = total_shares.saturating_mul(burn_frac);
 		let burn_frac = burn_frac
 			.saturating_mul(Decimal::from(UNIT_BALANCE))
 			.to_u128()
 			.ok_or(Error::<T>::ConversionError)?
 			.saturated_into();
+
+		let shares_burned = shares_burned
+			.saturating_mul(Decimal::from(UNIT_BALANCE))
+			.to_u128()
+			.ok_or(Error::<T>::ConversionError)?
+			.saturated_into();
+
+		// Mint back the shares here.
+		let pool_config = <Pools<T>>::get(market, pool).ok_or(Error::<T>::UnknownPool)?;
+		T::OtherAssets::mint_into(pool_config.share_id, lp, shares_burned)?;
+
 		let base_free = base_free
 			.saturating_mul(Decimal::from(UNIT_BALANCE))
 			.to_u128()

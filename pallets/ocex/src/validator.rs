@@ -402,7 +402,13 @@ impl<T: Config> Pallet<T> {
 						},
 					}
 				},
-				IngressMessages::RemoveLiquidity(market, ref pool, ref lp, burn_frac) => {
+				IngressMessages::RemoveLiquidity(
+					market,
+					ref pool,
+					ref lp,
+					burn_frac,
+					_total_shares,
+				) => {
 					let base_balance = get_balance(
 						state,
 						&Decode::decode(&mut &pool.encode()[..])
@@ -477,6 +483,7 @@ impl<T: Config> Pallet<T> {
 							pool_e,
 							lp_e,
 							burn_frac_e,
+							_total_shares,
 							base_free,
 							quote_free,
 							base_required,
