@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// TODO: 1) Offchain worker to compute epoch snapshots for calculating rewards
-
 mod callback;
 pub mod types;
 
@@ -27,10 +25,7 @@ pub mod pallet {
 	use crate::types::MarketMakerConfig;
 	use frame_support::{
 		pallet_prelude::*,
-		sp_runtime::{
-			traits::{AccountIdConversion, BlockNumberProvider},
-			SaturatedConversion,
-		},
+		sp_runtime::{traits::AccountIdConversion, SaturatedConversion},
 		traits::{
 			fungibles::{Create, Inspect, Mutate},
 			tokens::{Fortitude, Precision, Preservation},
@@ -38,7 +33,10 @@ pub mod pallet {
 		},
 		transactional, PalletId,
 	};
-	use frame_system::pallet_prelude::*;
+	use frame_system::{
+		offchain::{SendTransactionTypes, SubmitTransaction},
+		pallet_prelude::*,
+	};
 	use orderbook_primitives::{constants::UNIT_BALANCE, types::TradingPair, LiquidityMining};
 	use polkadex_primitives::AssetId;
 	use rust_decimal::{prelude::*, Decimal};
@@ -55,7 +53,7 @@ pub mod pallet {
 	>>::Balance;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: IsType<<Self as frame_system::Config>::RuntimeEvent> + From<Event<Self>>;
 
 		/// Some type that implements the LiquidityMining traits
@@ -100,7 +98,7 @@ pub mod pallet {
 		TradingPair, // market
 		Identity,
 		T::AccountId, // market maker
-		MarketMakerConfig<T::AccountId, BlockNumberFor<T>>,
+		MarketMakerConfig<T::AccountId>,
 		OptionQuery,
 	>;
 
@@ -238,6 +236,8 @@ pub mod pallet {
 		PoolNotForceClosed,
 		/// Invalid Total issuance number
 		InvalidTotalIssuance,
+		/// Snapshotting in progress, try again later
+		SnapshotInProgress,
 	}
 
 	#[pallet::hooks]
@@ -248,6 +248,56 @@ pub mod pallet {
 
 		fn offchain_worker(_: BlockNumberFor<T>) {
 			Self::take_snapshot();
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			if let Call::submit_scores_of_lps { ref results } = call {
+				// This txn is only available during snapshotting
+				if <SnapshotFlag<T>>::get().is_none() {
+					return InvalidTransaction::Call.into()
+				}
+				match source {
+					TransactionSource::External => {
+						// Don't accept externally sourced calls
+						return InvalidTransaction::Call.into()
+					},
+					_ => {},
+				}
+
+				// TODO: @zktony Update the verification logic to make it more stringent.
+				ValidTransaction::with_tag_prefix("LiquidityMining")
+					// We set base priority to 2**20 and hope it's included before any other
+					// transactions in the pool. Next we tweak the priority depending on how much
+					// it differs from the current average. (the more it differs the more priority
+					// it has).
+					.priority(Default::default()) // TODO: update this
+					// This transaction does not require anything else to go before into the pool.
+					// In theory we could require `previous_unsigned_at` transaction to go first,
+					// but it's not necessary in our case.
+					//.and_requires()
+					// We set the `provides` tag to be the same as `next_unsigned_at`. This makes
+					// sure only one transaction produced after `next_unsigned_at` will ever
+					// get to the transaction pool and will end up in the block.
+					// We can still have multiple transactions compete for the same "spot",
+					// and the one with higher priority will replace other one in the pool.
+					.and_provides("liquidity_mining") // TODO: update this
+					// The transaction is only valid for next 5 blocks. After that it's
+					// going to be revalidated by the pool.
+					.longevity(5)
+					// It's fine to propagate that transaction to other peers, which means it can be
+					// created even by nodes that don't produce blocks.
+					// Note that sometimes it's better to keep it for yourself (if you are the block
+					// producer), since for instance in some schemes others may copy your solution
+					// and claim a reward.
+					.propagate(true)
+					.build()
+			} else {
+				return InvalidTransaction::Call.into()
+			}
 		}
 	}
 
@@ -297,7 +347,6 @@ pub mod pallet {
 				exit_fee,
 				public_funds_allowed,
 				name,
-				cycle_start_blk: frame_system::Pallet::<T>::current_block_number(),
 				share_id: AssetId::Asset(share_id),
 				force_closed: false,
 			};
@@ -317,6 +366,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let lp = ensure_signed(origin)?;
 			let config = <Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+			ensure!(<SnapshotFlag<T>>::get().is_none(), Error::<T>::SnapshotInProgress); // TODO: @zktony Replace with pool level flags
 			ensure!(!config.force_closed, Error::<T>::PoolForceClosed);
 			if !config.public_funds_allowed && !config.force_closed {
 				ensure!(lp == market_maker, Error::<T>::PublicDepositsNotAllowed);
@@ -368,6 +418,7 @@ pub mod pallet {
 			let lp = ensure_signed(origin)?;
 
 			let config = <Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
+			ensure!(<SnapshotFlag<T>>::get().is_none(), Error::<T>::SnapshotInProgress); // TODO: @zktony Replace with pool level flags
 
 			let total = T::OtherAssets::total_issuance(config.share_id.into());
 			ensure!(!total.is_zero(), Error::<T>::TotalShareIssuanceIsZero);
@@ -510,20 +561,25 @@ pub mod pallet {
 		#[transactional]
 		pub fn submit_scores_of_lps(
 			origin: OriginFor<T>,
-			market: TradingPair,
-			market_maker: T::AccountId,
-			epoch: u16,
-			scores_map: BTreeMap<T::AccountId, (BalanceOf<T>, bool)>,
-			total_score: crate::pallet::BalanceOf<T>,
+			results: BTreeMap<
+				(TradingPair, T::AccountId, u16),
+				(BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
+			>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			let pool_config =
-				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
-			<LiquidityProviders<T>>::insert(
-				epoch,
-				pool_config.pool_id,
-				(scores_map, total_score, false),
-			);
+
+			for ((market, market_maker, epoch), (scores_map, total_score)) in results {
+				let pool_config =
+					<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
+				<LiquidityProviders<T>>::insert(
+					epoch,
+					&pool_config.pool_id,
+					(scores_map, total_score, false),
+				);
+				<Pools<T>>::insert(market, &market_maker, pool_config);
+			}
+
+			<SnapshotFlag<T>>::take();
 			Ok(())
 		}
 
@@ -638,6 +694,10 @@ pub mod pallet {
 			// TODO: Check if we already computed the result, then don't do it again, just send it
 			// again.
 
+			let mut results: BTreeMap<
+				(TradingPair, T::AccountId, u16),
+				(BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
+			> = BTreeMap::new();
 			// Loop over all pools and lps and calculate score of all LPs
 			for (market, mm, config) in <Pools<T>>::iter() {
 				let mut scores_map = BTreeMap::new();
@@ -662,8 +722,18 @@ pub mod pallet {
 					scores_map.insert(lp, (score, false));
 					pool_total_score = pool_total_score.saturating_add(score);
 				}
+				results.insert((market, mm, epoch), (scores_map, pool_total_score));
+			}
 
-				// TODO: Craft unsigned txn and end it.
+			// Craft unsigned txn and send it.
+
+			let call = Call::submit_scores_of_lps { results };
+
+			match SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()) {
+				Ok(()) => {},
+				Err(()) => {
+					log::error!(target:"liquidity-mining","Unable to submit unsigned transaction");
+				},
 			}
 		}
 

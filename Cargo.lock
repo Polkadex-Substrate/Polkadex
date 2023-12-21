@@ -5764,6 +5764,7 @@ version = "0.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
+ "log",
  "orderbook-primitives",
  "parity-scale-codec",
  "polkadex-primitives",
