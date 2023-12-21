@@ -52,6 +52,9 @@ pub enum IngressMessages<AccountId> {
 	/// Update Fee Structure ( main, maker_fraction, taker_fraction)
 	UpdateFeeStructure(AccountId, Decimal, Decimal),
 
+	/// Trading Fees related
+	WithdrawTradingFees,
+
 
 	/// Liquidity Mining Variants
 	/// Add Liquidity ( market, pool_id, LP, total Shares issued,  base_amount, quote_amount)

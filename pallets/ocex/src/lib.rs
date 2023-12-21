@@ -1018,6 +1018,12 @@ pub mod pallet {
 			let id = summary.snapshot_id;
 			<SnapshotNonce<T>>::put(id);
 			<Snapshots<T>>::insert(id, summary);
+			// Instruct engine to withdraw all the trading fees
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages
+					.push(polkadex_primitives::ingress::IngressMessages::WithdrawTradingFees)
+			});
 			Self::deposit_event(Event::<T>::SnapshotProcessed(id));
 			Ok(())
 		}
