@@ -249,10 +249,11 @@ impl<T: Config> Pallet<T> {
 	/// Checks if another worker is already running or not
 	pub fn check_worker_status() -> Result<bool, &'static str> {
 		let s_info = StorageValueRef::persistent(&WORKER_STATUS);
-		match s_info.get::<bool>().map_err(|err| {
+		let handle_err = |err| {
 			log::error!(target:"ocex","Error while loading worker status: {:?}",err);
 			"Unable to load worker status"
-		})? {
+		};
+		match s_info.get::<bool>().map_err(handle_err)? {
 			Some(true) => {
 				// Another worker is online, so exit
 				log::info!(target:"ocex", "Another worker is online, so exit");

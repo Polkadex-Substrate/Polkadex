@@ -68,7 +68,7 @@ benchmarks! {
 		call.dispatch_bypass_filter(origin.clone())?;
 
 		//existential deposit
-		T::NativeCurrency::deposit_creating(
+		let _ = T::NativeCurrency::deposit_creating(
 			&main_account.clone(),
 			(10 * UNIT_BALANCE).saturated_into(),
 		);
@@ -104,7 +104,7 @@ benchmarks! {
 		call.dispatch_bypass_filter(origin.clone())?;
 
 		//existential deposit
-		T::NativeCurrency::deposit_creating(
+		 let _ = T::NativeCurrency::deposit_creating(
 			&main_account.clone(),
 			(10 * UNIT_BALANCE).saturated_into(),
 		);
