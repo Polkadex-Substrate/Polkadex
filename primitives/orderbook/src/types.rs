@@ -234,7 +234,7 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Withdraw operation requested. ( payload, stid)
 	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
-	BlockImport(u32, BTreeMap<IngressMessages<AccountId>,EgressMessages<AccountId>>),
+	BlockImport(u32, BTreeMap<IngressMessages<AccountId>,EgressMessages<AccountId>>, BTreeMap<(AssetId,AssetId), Decimal>),
 	/// Reset Flag
 	Reset,
 	/// Withdraw operation requested.( request, stid)
