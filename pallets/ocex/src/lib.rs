@@ -25,10 +25,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
-
 // TODO: Collect the trading fees to runtime
 // TODO: Convert trading fees to PDEX
 // TODO: Governance endpoint to set fee sharing ratio
+// TODO: Bring the average prices through snapshots
 extern crate core;
 
 use frame_support::{
@@ -152,7 +152,6 @@ pub mod pallet {
 		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
-	use liquidity::LiquidityModifier;
 	use orderbook_primitives::{lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary};
 	use polkadex_primitives::{
 		assets::AssetId,
@@ -1045,7 +1044,7 @@ pub mod pallet {
 			market: TradingPair,
 		) -> DispatchResult {
 			let main = ensure_signed(origin)?;
-			Self::do_claim_lmp_rewards(main,epoch,market)?;
+			Self::do_claim_lmp_rewards(main, epoch, market)?;
 			Ok(())
 		}
 
@@ -1115,77 +1114,19 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> LiquidityModifier for Pallet<T> {
-		type AssetId = AssetId;
-		type AccountId = T::AccountId;
-
-		fn on_deposit(
-			account: Self::AccountId,
-			asset: Self::AssetId,
-			balance: u128,
-		) -> DispatchResult {
-			Self::do_deposit(account, asset, balance.saturated_into())?;
-			Ok(())
-		}
-		fn on_withdraw(
-			account: Self::AccountId,
-			proxy_account: Self::AccountId,
-			asset: Self::AssetId,
-			balance: u128,
-			do_force_withdraw: bool,
-		) -> DispatchResult {
-			Self::withdrawal_from_orderbook(
-				account,
-				proxy_account,
-				asset,
-				balance.saturated_into(),
-				do_force_withdraw,
-			)?;
-			Ok(())
-		}
-		fn on_register(main_account: Self::AccountId, proxy: Self::AccountId) -> DispatchResult {
-			Self::register_user(main_account, proxy)?;
-			Ok(())
-		}
-
-		#[cfg(feature = "runtime-benchmarks")]
-		fn set_exchange_state_to_true() -> DispatchResult {
-			<ExchangeState<T>>::put(true);
-			Ok(())
-		}
-
-		#[cfg(feature = "runtime-benchmarks")]
-		fn allowlist_and_create_token(account: Self::AccountId, token: u128) -> DispatchResult {
-			let asset: AssetId = AssetId::Asset(token);
-			let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
-			allowlisted_tokens
-				.try_insert(asset)
-				.map_err(|_| Error::<T>::AllowlistedTokenLimitReached)?;
-			<AllowlistedToken<T>>::put(allowlisted_tokens);
-			let amount = BalanceOf::<T>::decode(&mut &(u128::MAX).to_le_bytes()[..])
-				.map_err(|_| Error::<T>::FailedToConvertDecimaltoBalance)?;
-			//create asset and mint into it.
-			T::OtherAssets::create(
-				token,
-				Self::get_pallet_account(),
-				true,
-				BalanceOf::<T>::one().unique_saturated_into(),
-			)?;
-			T::OtherAssets::mint_into(token, &account.clone(), amount)?;
-			Ok(())
-		}
-	}
-
 	impl<T: Config> Pallet<T> {
-
-		pub fn do_claim_lmp_rewards(main: T::AccountId, epoch:u16, market: TradingPair) -> DispatchResult {
+		pub fn do_claim_lmp_rewards(
+			main: T::AccountId,
+			epoch: u16,
+			market: TradingPair,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			// Check if the Safety period for this epoch is over
 			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
 			// Get the score and fees paid portion of this 'main' account
 			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
-			let (score, fees_paid) = <TraderMetrics<T>>::get((epoch, market, main));
+			let (score, fees_paid) = <TraderMetrics<T>>::get((epoch, market, main.clone()));
 			// Calculate the rewards pool for this market
 			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
 			let trading_rewards_portion =
@@ -1198,15 +1139,21 @@ pub mod pallet {
 			let trading_rewards =
 				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
 			let total = mm_rewards.saturating_add(trading_rewards);
-			let total_in_u128 = total.saturating_mul(Decimal::from(UNIT_BALANCE));
+			let total_in_u128 = total
+				.saturating_mul(Decimal::from(UNIT_BALANCE))
+				.to_u128()
+				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?
+				.saturated_into();
 			// Transfer it to main from pallet account.
-			let rewards_account: T::AccountId = T::LMPRewardsPalletId::get().into_account_truncating();
+			let rewards_account: T::AccountId =
+				T::LMPRewardsPalletId::get().into_account_truncating();
 			T::NativeCurrency::transfer(
 				&rewards_account,
 				&main,
 				total_in_u128,
-				ExistenceRequirement::AllowDeath)?;
-			Ok(())
+				ExistenceRequirement::AllowDeath,
+			)?;
+			Ok(total_in_u128)
 		}
 		pub fn update_lmp_scores(
 			trader_metrics: &BTreeMap<

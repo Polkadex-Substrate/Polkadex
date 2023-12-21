@@ -202,5 +202,5 @@ pub trait LiquidityMining<AccountId, Balance> {
 	fn force_close_pool(market: TradingPair, main: AccountId);
 
 	/// Claim rewards for this main account. Return False if reward is already claimed, else True.
-	fn claim_rewards(main: AccountId, epoch: u16) -> Result<Balance,sp_runtime::DispatchError>;
+	fn claim_rewards(main: AccountId, epoch: u16, market: TradingPair) -> Result<Balance,sp_runtime::DispatchError>;
 }

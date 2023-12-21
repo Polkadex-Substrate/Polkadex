@@ -467,7 +467,8 @@ pub mod pallet {
 
 			let total_rewards = match <Rewards<T>>::get(epoch, &pool_config.pool_id) {
 				None => {
-					let total_rewards = T::OCEX::claim_rewards(pool_config.pool_id.clone(), epoch)?;
+					let total_rewards =
+						T::OCEX::claim_rewards(pool_config.pool_id.clone(), epoch, market)?;
 					<Rewards<T>>::insert(epoch, pool_config.pool_id.clone(), total_rewards);
 					total_rewards
 				},
@@ -518,7 +519,8 @@ pub mod pallet {
 
 			let total_rewards = match <Rewards<T>>::get(epoch, &pool_config.pool_id) {
 				None => {
-					let total_rewards = T::OCEX::claim_rewards(pool_config.pool_id.clone(), epoch)?;
+					let total_rewards =
+						T::OCEX::claim_rewards(pool_config.pool_id.clone(), epoch, market)?;
 					<Rewards<T>>::insert(epoch, pool_config.pool_id.clone(), total_rewards);
 					total_rewards
 				},

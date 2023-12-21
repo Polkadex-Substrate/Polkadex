@@ -14,7 +14,7 @@ use rust_decimal::{
 	prelude::{ToPrimitive, Zero},
 	Decimal,
 };
-use sp_runtime::{traits::BlockNumberProvider, SaturatedConversion};
+use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
 
 pub fn update_trade_volume_by_main_account(
@@ -326,5 +326,13 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 				pool,
 			));
 		});
+	}
+
+	fn claim_rewards(
+		main: T::AccountId,
+		epoch: u16,
+		market: TradingPair,
+	) -> Result<BalanceOf<T>, DispatchError> {
+		Self::do_claim_lmp_rewards(main, epoch, market)
 	}
 }
