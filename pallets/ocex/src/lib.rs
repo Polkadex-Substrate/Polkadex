@@ -27,7 +27,6 @@
 
 // TODO: Convert trading fees to PDEX
 // TODO: Governance endpoint to set fee sharing ratio
-// TODO: Bring the average prices through snapshots
 extern crate core;
 
 use frame_support::{
@@ -1314,6 +1313,22 @@ pub mod pallet {
 							*quote_freed,
 						)?;
 					},
+					EgressMessages::PriceOracle(price_map) => {
+						let mut old_price_map = <PriceOracle<T>>::get();
+						for (pair, price) in price_map {
+							old_price_map
+								.entry(*pair)
+								.and_modify(|(old_price, ticks)| {
+									// Update the price
+									let sum =
+										old_price.saturating_mul(*ticks).saturating_add(*price);
+									*ticks = ticks.saturating_add(Decimal::from(1));
+									*old_price = sum.checked_div(*ticks).unwrap_or(*old_price);
+								})
+								.or_insert((*price, Decimal::from(1)));
+						}
+						<PriceOracle<T>>::put(old_price_map);
+					},
 				}
 			}
 			Ok(())
@@ -1768,6 +1783,11 @@ pub mod pallet {
 	#[pallet::getter(fn lmp_claim_blk)]
 	pub(super) type LMPClaimBlk<T: Config> =
 		StorageMap<_, Identity, u16, BlockNumberFor<T>, OptionQuery>;
+
+	/// Price Map showing the average prices ( value = (avg_price, ticks)
+	#[pallet::storage]
+	pub(super) type PriceOracle<T: Config> =
+		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

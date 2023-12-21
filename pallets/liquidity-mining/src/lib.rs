@@ -238,6 +238,8 @@ pub mod pallet {
 		InvalidTotalIssuance,
 		/// Snapshotting in progress, try again later
 		SnapshotInProgress,
+		/// Price Oracle not available, try again later
+		PriceNotAvailable,
 	}
 
 	#[pallet::hooks]
@@ -380,7 +382,8 @@ pub mod pallet {
 			base_amount.div_assign(Decimal::from(UNIT_BALANCE));
 			max_quote_amount.div_assign(Decimal::from(UNIT_BALANCE));
 
-			let average_price = T::OCEX::average_price(market);
+			let average_price =
+				T::OCEX::average_price(market).ok_or(Error::<T>::PriceNotAvailable)?;
 
 			// Calculate the required quote asset
 			let required_quote_amount = average_price.saturating_mul(base_amount);

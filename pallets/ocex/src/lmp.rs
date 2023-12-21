@@ -1,5 +1,5 @@
 use crate::{
-	pallet::{IngressMessages, TradingPairs},
+	pallet::{IngressMessages, PriceOracle, TradingPairs},
 	storage::OffchainState,
 	BalanceOf, Config, Error, LMPEpoch, Pallet,
 };
@@ -254,8 +254,9 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		Self::register_user(pool_id, trading_account)
 	}
 
-	fn average_price(market: TradingPair) -> Decimal {
-		todo!()
+	fn average_price(market: TradingPair) -> Option<Decimal> {
+		let prices = <PriceOracle<T>>::get();
+		prices.get(&(market.base, market.quote)).map(|(price, _ticks)| *price)
 	}
 
 	fn is_registered_market(market: &TradingPair) -> bool {

@@ -187,7 +187,7 @@ pub trait LiquidityMining<AccountId, Balance> {
 	fn register_pool(pool_id: AccountId, trading_account: AccountId) -> DispatchResult;
 
 	/// Returns the Current Average price
-	fn average_price(market: TradingPair) -> Decimal;
+	fn average_price(market: TradingPair) -> Option<Decimal>;
 	/// Returns if its a registered market in OCEX pallet
 	fn is_registered_market(market: &TradingPair) -> bool;
 

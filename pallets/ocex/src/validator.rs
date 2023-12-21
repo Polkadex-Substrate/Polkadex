@@ -697,14 +697,17 @@ impl<T: Config> Pallet<T> {
 					let withdrawal = Self::withdraw(request, state, 0)?;
 					withdrawals.push(withdrawal);
 				},
-				UserActions::BlockImport(blk, engine_messages) => {
+				UserActions::BlockImport(blk, engine_messages, price_oracle) => {
 					let mut verified_egress_msgs = Self::import_blk(
 						(*blk).saturated_into(),
 						state,
 						state_info,
 						engine_messages,
 					)?;
-					egress_messages.append(&mut verified_egress_msgs)
+					egress_messages.append(&mut verified_egress_msgs);
+					egress_messages.push(EgressMessages::PriceOracle(price_oracle.clone())); // nothing to verify
+					                                                     // here,because we cannot
+					                                                     // verify the prices.
 				},
 				UserActions::Reset => {}, // Not for offchain worker
 				UserActions::WithdrawV1(request, stid) => {
