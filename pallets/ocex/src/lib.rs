@@ -152,7 +152,9 @@ pub mod pallet {
 		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
-	use orderbook_primitives::{lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary};
+	use orderbook_primitives::{
+		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
+	};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ingress::EgressMessages,
@@ -1189,6 +1191,22 @@ pub mod pallet {
 			for msg in msgs {
 				// Process egress messages
 				match msg {
+					EgressMessages::TradingFees(fees_map) => {
+						let pot_account: T::AccountId = FEE_POT_PALLET_ID.into_account_truncating();
+						for (asset, fees) in fees_map {
+							let fees = fees
+								.saturating_mul(Decimal::from(UNIT_BALANCE))
+								.to_u128()
+								.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
+							Self::transfer_asset(
+								&Self::get_pallet_account(),
+								&pot_account,
+								fees.saturated_into(),
+								*asset,
+							)?;
+							// TODO: Emit an event here
+						}
+					},
 					EgressMessages::AddLiquidityResult(
 						market,
 						pool,

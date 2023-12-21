@@ -22,7 +22,7 @@ use crate::{
 		get_fees_paid_by_main_account_in_quote, get_maker_volume_by_main_account,
 		get_q_score_and_uptime, store_q_score_and_uptime,
 	},
-	pallet::{Accounts, FinalizeLMPScore, LMPConfig, ValidatorSetId},
+	pallet::{Accounts, AllowlistedToken, FinalizeLMPScore, LMPConfig, ValidatorSetId},
 	settlement::{add_balance, get_balance, sub_balance},
 	snapshot::StateInfo,
 	storage::{store_trie_root, OffchainState},
@@ -31,6 +31,7 @@ use crate::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use num_traits::pow::Pow;
 use orderbook_primitives::{
+	constants::FEE_POT_PALLET_ID,
 	types::{
 		ApprovedSnapshot, Trade, TradingPair, UserActionBatch, UserActions, WithdrawalRequest,
 	},
@@ -47,7 +48,9 @@ use rust_decimal::{prelude::Zero, Decimal};
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::{crypto::ByteArray, H256};
-use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
+use sp_runtime::{
+	offchain::storage::StorageValueRef, traits::AccountIdConversion, SaturatedConversion,
+};
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use std::ops::Div;
 use trie_db::{TrieError, TrieMut};
@@ -568,6 +571,44 @@ impl<T: Config> Pallet<T> {
 						base_balance,
 						quote_balance,
 					));
+				},
+				IngressMessages::WithdrawTradingFees => {
+					let assets = <AllowlistedToken<T>>::get();
+					let pot_account: AccountId = FEE_POT_PALLET_ID.into_account_truncating();
+
+					let egress_msg = engine_messages
+						.get(&message)
+						.ok_or("Egress message not found for withdraw trading fees")?;
+					if let EgressMessages::TradingFees(engine_fees_map) = egress_msg {
+						for asset in assets {
+							log::info!(target:"ocex","Withdrawing fees for asset: {:?}",asset);
+							let balance = get_balance(
+								state,
+								&Decode::decode(&mut &pot_account.encode()[..])
+									.map_err(|_| "account id decode error")?,
+								asset,
+							)?;
+							let expected_balance =
+								engine_fees_map.get(&asset).ok_or("Fees for asset not found")?;
+
+							if balance != *expected_balance {
+								log::error!(target:"ocex","Fees withdrawn from engine {:?} doesn't match with offchain worker balance: {:?}",
+									expected_balance,balance);
+								return Err("Incorrect Trading fees accounting")
+							}
+
+							sub_balance(
+								state,
+								&Decode::decode(&mut &pot_account.encode()[..])
+									.map_err(|_| "account id decode error")?,
+								asset,
+								balance,
+							)?;
+						}
+						verified_egress_messages.push(egress_msg.clone());
+					} else {
+						return Err("Invalid egress message for withdraw trading fees")
+					}
 				},
 				_ => {},
 			}
