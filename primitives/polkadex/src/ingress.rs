@@ -66,7 +66,7 @@ pub enum IngressMessages<AccountId> {
 	ForceClosePool(TradingPairConfig, AccountId)
 }
 
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq)]
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum EgressMessages<AccountId> {
 	/// Add Liquidity Result ( Pool, LP, Shares issued, Market price, total Inventory ( in Quote) )
