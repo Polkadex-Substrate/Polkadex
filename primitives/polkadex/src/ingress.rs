@@ -18,6 +18,7 @@
 
 //! In this module defined ingress messages related types.
 
+use sp_std::collections::btree_map::BTreeMap;
 use crate::{ocex::TradingPairConfig, AssetId};
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -76,6 +77,8 @@ pub enum EgressMessages<AccountId> {
 	RemoveLiquidityFailed(TradingPairConfig,AccountId, AccountId,Decimal, Decimal, Decimal, Decimal, Decimal, Decimal),
 	/// Pool Closed (market, Pool, base freed, quote freed)
 	PoolForceClosed(TradingPairConfig,AccountId, Decimal, Decimal),
+	/// Trading Fees Collected
+	TradingFees(BTreeMap<AssetId, Decimal>)
 }
 
 /// Defines the structure of handle balance data which used to set account balance.
