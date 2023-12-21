@@ -25,6 +25,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
+
+// TODO: Collect the trading fees to runtime
+// TODO: Convert trading fees to PDEX
+// TODO: Governance endpoint to set fee sharing ratio
 extern crate core;
 
 use frame_support::{

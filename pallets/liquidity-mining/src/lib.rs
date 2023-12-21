@@ -691,8 +691,7 @@ pub mod pallet {
 				None => return,
 				Some(blk) => blk,
 			};
-			// TODO: Check if we already computed the result, then don't do it again, just send it
-			// again.
+			// TODO: Only compute the result every five blocks
 
 			let mut results: BTreeMap<
 				(TradingPair, T::AccountId, u16),
