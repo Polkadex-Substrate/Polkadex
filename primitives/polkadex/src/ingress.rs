@@ -78,7 +78,9 @@ pub enum EgressMessages<AccountId> {
 	/// Pool Closed (market, Pool, base freed, quote freed)
 	PoolForceClosed(TradingPairConfig,AccountId, Decimal, Decimal),
 	/// Trading Fees Collected
-	TradingFees(BTreeMap<AssetId, Decimal>)
+	TradingFees(BTreeMap<AssetId, Decimal>),
+	/// Price Oracle
+	PriceOracle(BTreeMap<(AssetId,AssetId), Decimal>)
 }
 
 /// Defines the structure of handle balance data which used to set account balance.
