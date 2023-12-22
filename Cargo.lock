@@ -5043,7 +5043,7 @@ dependencies = [
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.4.0"
+version = "5.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -5810,7 +5810,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "5.3.0"
+version = "5.4.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5840,7 +5840,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-rpc"
-version = "0.1.0"
+version = "5.4.1"
 dependencies = [
  "hash-db",
  "jsonrpsee",
@@ -6558,7 +6558,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.4.0"
+version = "5.4.1"
 dependencies = [
  "clap 4.4.7",
  "frame-benchmarking-cli",
@@ -6570,6 +6570,7 @@ dependencies = [
  "itertools",
  "jsonrpsee",
  "node-polkadex-runtime",
+ "pallet-asset-conversion",
  "pallet-asset-conversion-tx-payment",
  "pallet-im-online",
  "pallet-ocex-lmp",
@@ -6629,6 +6630,7 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "swap-rpc",
  "tempfile",
  "thea",
  "try-runtime-cli",
@@ -10484,6 +10486,32 @@ name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
+
+[[package]]
+name = "swap-rpc"
+version = "5.4.1"
+dependencies = [
+ "hash-db",
+ "jsonrpsee",
+ "orderbook-primitives",
+ "pallet-asset-conversion",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "polkadex-primitives",
+ "sc-rpc",
+ "sc-rpc-api",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-offchain",
+ "sp-rpc",
+ "sp-runtime",
+ "sp-trie",
+ "tokio",
+ "trie-db",
+]
 
 [[package]]
 name = "syn"
