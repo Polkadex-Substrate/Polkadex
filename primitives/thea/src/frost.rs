@@ -15,40 +15,192 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-
 // Host functions for Thea's frost based implementation.
-use sp_runtime_interface::runtime_interface;
 
 #[cfg(feature = "std")]
 use frost_secp256k1 as frost;
+use frost_secp256k1::Identifier;
+use frost_secp256k1::round1::{SigningCommitments, SigningNonces};
+use parity_scale_codec::{Decode, Encode};
+#[cfg(feature = "std")]
+use rand::thread_rng;
+use sp_runtime_interface::runtime_interface;
+use sp_std::collections::btree_map::BTreeMap;
 
 #[runtime_interface]
 pub trait TheaFrostExt {
-    fn dkg_part1(participant_identifier: u16, max_signers: u16, min_signers: u16){
-        todo!()
+	/// Returns round1 secret package and round1 package for broadcast
+	fn dkg_part1(
+		participant_identifier: u16,
+		max_signers: u16,
+		min_signers: u16,
+	) -> Result<(Vec<u8>, Vec<u8>), ()> {
+		let mut rng = thread_rng();
+		match frost::keys::dkg::part1(
+			participant_identifier.try_into().unwrap(),
+			max_signers,
+			min_signers,
+			&mut rng,
+		) {
+			Err(err) => {
+				log::error!(target:"frost","Error while DKG_1: {:?}",err);
+				return Err(())
+			},
+			Ok((round1_secret_package, round1_package)) => Ok((
+				round1_secret_package.serialize().unwrap(),
+				round1_package.serialize().unwrap(),
+			)),
+		}
+	}
+	fn dkg_part2(
+		round1_secret_package: &[u8],
+		encoded_round1_packages_map: Vec<u8>,
+	) -> Result<(Vec<u8>, Vec<u8>), ()> {
+		let mut encoded_round1_packages_map = encoded_round1_packages_map.clone(); // TODO: can we not do this?
+		let encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>> =
+			Decode::decode(&mut &encoded_round1_packages_map[..]).map_err(|err| {
+				log::error!(target:"frost","Error while scale decoding the encoded map: {:?}",err);
+				()
+			})?;
+		let secret_package =
+			frost::keys::dkg::round1::SecretPackage::deserialize(round1_secret_package).unwrap();
+		let mut round1_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round1::Package> =
+			BTreeMap::new();
+
+		for (k, v) in encoded_round1_packages {
+			round1_packages.insert(
+				frost::Identifier::deserialize(&k).unwrap(),
+				frost::keys::dkg::round1::Package::deserialize(&v).unwrap(),
+			);
+		}
+
+		match frost::keys::dkg::part2(secret_package, &round1_packages) {
+			Err(err) => {
+				log::error!(target:"frost","Error while DKG_2: {:?}",err);
+				return Err(())
+			},
+			Ok((round2_secret_package, round2_package)) => {
+				let mut encoded_round2_packages: BTreeMap<[u8; 32], Vec<u8>> = BTreeMap::new();
+
+				for (k, v) in round2_package {
+					encoded_round2_packages.insert(k.serialize(), v.serialize().unwrap());
+				}
+
+				Ok((round2_secret_package.serialize().unwrap(), encoded_round2_packages.encode()))
+			},
+		}
+	}
+
+	fn dkg_part3(
+		round2_secret_package: &[u8],
+		encoded_round1_packages_map: Vec<u8>,
+		encoded_round2_packages_map: Vec<u8>,
+	) -> Result<(Vec<u8>, Vec<u8>), ()> {
+		let mut encoded_round1_packages_map = encoded_round1_packages_map.clone(); // TODO: can we not do this?
+		let encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>> =
+			Decode::decode(&mut &encoded_round1_packages_map[..]).map_err(|err| {
+				log::error!(target:"frost","Error while scale decoding the encoded map: {:?}",err);
+				()
+			})?;
+
+		let encoded_round2_packages: BTreeMap<[u8; 32], Vec<u8>> =
+			Decode::decode(&mut &encoded_round2_packages_map[..]).map_err(|err| {
+				log::error!(target:"frost","Error while scale decoding the encoded map: {:?}",err);
+				()
+			})?;
+		let round2_secret_package =
+			frost::keys::dkg::round2::SecretPackage::deserialize(round2_secret_package).unwrap();
+		let mut round1_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round1::Package> =
+			BTreeMap::new();
+
+		for (k, v) in encoded_round1_packages {
+			round1_packages.insert(
+				frost::Identifier::deserialize(&k).unwrap(),
+				frost::keys::dkg::round1::Package::deserialize(&v).unwrap(),
+			);
+		}
+
+		let mut round2_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round2::Package> =
+			BTreeMap::new();
+
+		for (k, v) in encoded_round2_packages {
+			round2_packages.insert(
+				frost::Identifier::deserialize(&k).unwrap(),
+				frost::keys::dkg::round2::Package::deserialize(&v).unwrap(),
+			);
+		}
+
+		match frost::keys::dkg::part3(&round2_secret_package, &round1_packages, &round2_packages) {
+			Err(err) => {
+				log::error!(target:"frost","Error while DKG_3: {:?}",err);
+				return Err(())
+			},
+			Ok((key_package, public_key_package)) => {
+                Ok((key_package.serialize().unwrap(), public_key_package.serialize().unwrap()))
+            }
+		}
+	}
+
+	fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>,Vec<u8>),()>{
+        let mut rng = thread_rng();
+
+        let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
+        let (signing_nonces, signing_commitments) = frost::round1::commit(key_package.signing_share(), &mut rng);
+		// TODO: Implement serialize() for signing nonce
+        Ok((Vec::new(),
+           signing_commitments.serialize().unwrap()))
     }
-    fn dkg_part2(){
-        todo!()
-    }
 
-    fn dkg_part3(){
+	fn sign(encoded_commitments_map: Vec<u8>, encoded_signing_nonce: Vec<u8>, key_package: Vec<u8>, message: Vec<u8>) -> Result<(Vec<u8>,Vec<u8>),()> {
+		// Decode Commitments map
+		let mut encoded_commitments_map = encoded_commitments_map.clone(); // TODO: can we not do this?
+		let encoded_commitments_map: BTreeMap<[u8; 32], Vec<u8>> =
+			Decode::decode(&mut &encoded_commitments_map[..]).map_err(|err| {
+				log::error!(target:"frost","Error while scale decoding the encoded map: {:?}",err);
+				()
+			})?;
+		let mut commitments_map: BTreeMap<Identifier,SigningCommitments> = BTreeMap::new();
 
-    }
+		for (k,v) in encoded_commitments_map{
+			commitments_map.insert(
+				Identifier::deserialize(k).unwrap(),
+				SigningCommitments::deserialize(&v).unwrap()
+			)
+		}
 
-    fn nonce_commit() {
 
-    }
+		// let signing_nonce = SigningNonces::deserialize(&encoded_signing_nonce).unwrap() // TODO: IMplement this
+		let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
+		let signing_package = frost::SigningPackage::new(commitments_map, message);
+		match frost::round2::sign(&signing_package,&signing_nonce,&key_package){
+			Err(err) => {
+				log::error!(target:"frost","Error while frost sign(): {:?}",err);
+				return Err(())
+			},
+			Ok(signature_share) => {
+				return Ok(
+					signature_share.serialize(),
+					signing_package.serialize().unwrap()
+				)
+			}
+		}
+	}
 
-    fn sign() {
+	fn aggregate(signing_package: Vec<u8>, encoded_signing_shares_map: Vec<u8>, publickey_package: Vec<u8> ) {
+		let signing_package = frost::SigningPackage::deserialize(&signing_package).unwrap();
+		let publickey_package = frost::keys::PublicKeyPackage::deserialize(&publickey_package).unwrap();
+		//TODO: deocde the map
 
-    }
-
-    fn aggregate() {
-
-    }
-
-    fn verify_signature() {
-
-    }
+		let mut signing_shares: BTreeMap<Identifier, round2::SignatureShare> = BTreeMap::new();
+		match frost::aggregate(&signing_package,&signing_shares, publickey_package) {
+			Err(err) => {
+				log::error!(target:"frost","Error while frost signature aggregation: {:?}",err);
+				return Err(())
+			},
+			Ok(signature) => {
+				// TODO: construct the contract params
+				Ok(frost::params_for_contract())
+			}
+		}
+	}
 }

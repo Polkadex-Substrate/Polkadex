@@ -3577,7 +3577,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/Polkadex-Substrate/frost.git?branch=ethereum#9ba543789c4366940d6ce6ebce2fe1cce343c6d0"
+source = "git+https://github.com/Polkadex-Substrate/frost.git?branch=ethereum#84aa55eb5d89c13b70297204913afb9bcced6edc"
 dependencies = [
  "byteorder",
  "const-crc32",
@@ -3599,7 +3599,7 @@ dependencies = [
 [[package]]
 name = "frost-rerandomized"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/Polkadex-Substrate/frost.git?branch=ethereum#9ba543789c4366940d6ce6ebce2fe1cce343c6d0"
+source = "git+https://github.com/Polkadex-Substrate/frost.git?branch=ethereum#84aa55eb5d89c13b70297204913afb9bcced6edc"
 dependencies = [
  "derive-getters",
  "document-features",
@@ -3610,7 +3610,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/Polkadex-Substrate/frost.git?branch=ethereum#9ba543789c4366940d6ce6ebce2fe1cce343c6d0"
+source = "git+https://github.com/Polkadex-Substrate/frost.git?branch=ethereum#84aa55eb5d89c13b70297204913afb9bcced6edc"
 dependencies = [
  "document-features",
  "frost-core",
@@ -13707,8 +13707,10 @@ dependencies = [
  "frame-support",
  "frost-secp256k1",
  "hex",
+ "log",
  "parity-scale-codec",
  "polkadex-primitives",
+ "rand 0.8.5",
  "scale-info",
  "serde",
  "serde_json",
