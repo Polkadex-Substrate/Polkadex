@@ -377,9 +377,12 @@ impl<T: Config> Pallet<T> {
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
+			// TODO: Queued set will do keygen and send the new public key to other ecosystems.
 			// This should happen at the beginning of the last epoch
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
 				let payload = validator_set.encode();
+				// TODO: Instead of generating the same payload for all active networks,
+				// just sign one payload and send it to everyone
 				for network in &active_networks {
 					let message = Self::generate_payload(true, *network, payload.clone());
 					// Update nonce
@@ -390,9 +393,12 @@ impl<T: Config> Pallet<T> {
 			<NextAuthorities<T>>::put(queued);
 		}
 		if incoming != outgoing {
+			// TODO: New public key takes effect
 			// This will happen when new era starts, or end of the last epoch
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
+			// TODO: Instead of generating the same payload for all active networks,
+			// just sign one payload and send it to everyone
 			for network in active_networks {
 				let message = Self::generate_payload(false, network, Vec::new());
 				<OutgoingNonce<T>>::insert(network, message.nonce);

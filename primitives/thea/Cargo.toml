@@ -9,6 +9,7 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 sp-api = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
+sp-runtime-interface = { workspace = true, default-features = false }
 frame-support = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
@@ -18,11 +19,12 @@ polkadex-primitives = { workspace = true, default-features = false }
 hex = { version = "0.4", default-features = false }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
-
+frost-secp256k1 = {git ="https://github.com/Polkadex-Substrate/frost.git", branch = "ethereum", optional = true, features = ["serialization"]}
 
 [features]
 default = ["std"]
 std = [
+  "frost-secp256k1",
   "serde/std",
   "serde_json/std",
   "parity-scale-codec/std",
@@ -36,6 +38,7 @@ std = [
   "sp-std/std",
   "xcm/std",
   "sp-runtime/std",
+  "sp-runtime-interface/std",
   "polkadex-primitives/std",
   "hex/std",
 ]
