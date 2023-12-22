@@ -1,5 +1,5 @@
 [package]
-name = "pallet-ocex-rpc"
+name = "swap-rpc"
 version = "5.4.1"
 edition = "2021"
 
@@ -13,14 +13,14 @@ sp-blockchain = { workspace = true }
 sp-api = { workspace = true }
 sp-runtime = { workspace = true }
 sp-core = { workspace = true }
-orderbook-primitives = { path = "../../../primitives/orderbook" }
-pallet-ocex-runtime-api = { path = "runtime-api" }
+orderbook-primitives = { path = "../../primitives/orderbook" }
 serde_json = { workspace = true, default-features = true }
 polkadex-primitives = { workspace = true }
 sc-rpc-api = { workspace = true, default-features = true }
 sc-rpc = { workspace = true, default-features = true }
 sp-offchain = { workspace = true, default-features = true }
 parking_lot = { workspace = true }
+pallet-asset-conversion = { workspace = true, default-features = true }
 hash-db = { workspace = true }
 trie-db = { workspace = true }
 sp-trie = { workspace = true }

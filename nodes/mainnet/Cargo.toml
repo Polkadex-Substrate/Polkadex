@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "5.4.0"
+version = "5.4.1"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
@@ -34,6 +34,7 @@ polkadex-client = { path = "../../client" }
 
 thea = { path = "../../pallets/thea" }
 pallet-ocex-lmp = { path = "../../pallets/ocex" }
+swap-rpc = { path = "../../rpc/swap" }
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
@@ -80,6 +81,7 @@ sc-statement-store = { git = "https://github.com/paritytech/polkadot-sdk", branc
 sp-statement-store = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 sc-network-statement = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 pallet-asset-conversion-tx-payment = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
+pallet-asset-conversion = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 #Primitives
 polkadex-primitives = { path = "../../primitives/polkadex" }
 sc-executor = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
