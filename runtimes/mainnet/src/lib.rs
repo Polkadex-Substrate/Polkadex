@@ -1367,6 +1367,7 @@ impl thea_executor::Config for Runtime {
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type ExistentialDeposit = ExistentialDeposit;
 }
 
