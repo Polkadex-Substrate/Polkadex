@@ -206,6 +206,7 @@ impl thea_executor::Config for Test {
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
 	type ExistentialDeposit = ExistentialDeposit;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test

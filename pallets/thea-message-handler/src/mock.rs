@@ -204,6 +204,7 @@ impl thea_executor::Config for Test {
 	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
+	type GovernanceOrigin = EnsureRoot<u64>;
 	type ExistentialDeposit = ExistentialDeposit;
 }
 
