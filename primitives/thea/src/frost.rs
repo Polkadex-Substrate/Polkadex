@@ -19,8 +19,10 @@
 
 #[cfg(feature = "std")]
 use frost_secp256k1 as frost;
-use frost_secp256k1::Identifier;
-use frost_secp256k1::round1::{SigningCommitments, SigningNonces};
+use frost_secp256k1::{
+	round1::{SigningCommitments, SigningNonces},
+	Identifier,
+};
 use parity_scale_codec::{Decode, Encode};
 #[cfg(feature = "std")]
 use rand::thread_rng;
@@ -135,23 +137,26 @@ pub trait TheaFrostExt {
 				log::error!(target:"frost","Error while DKG_3: {:?}",err);
 				return Err(())
 			},
-			Ok((key_package, public_key_package)) => {
-                Ok((key_package.serialize().unwrap(), public_key_package.serialize().unwrap()))
-            }
+			Ok((key_package, public_key_package)) =>
+				Ok((key_package.serialize().unwrap(), public_key_package.serialize().unwrap())),
 		}
 	}
 
-	fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>,Vec<u8>),()>{
-        let mut rng = thread_rng();
+	fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), ()> {
+		let mut rng = thread_rng();
 
-        let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
-        let (signing_nonces, signing_commitments) = frost::round1::commit(key_package.signing_share(), &mut rng);
-		// TODO: Implement serialize() for signing nonce
-        Ok((Vec::new(),
-           signing_commitments.serialize().unwrap()))
-    }
+		let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
+		let (signing_nonces, signing_commitments) =
+			frost::round1::commit(key_package.signing_share(), &mut rng);
+		Ok((signing_nonces.serialize().unwrap(), signing_commitments.serialize().unwrap()))
+	}
 
-	fn sign(encoded_commitments_map: Vec<u8>, encoded_signing_nonce: Vec<u8>, key_package: Vec<u8>, message: Vec<u8>) -> Result<(Vec<u8>,Vec<u8>),()> {
+	fn sign(
+		encoded_commitments_map: Vec<u8>,
+		encoded_signing_nonce: Vec<u8>,
+		key_package: Vec<u8>,
+		message: [u8; 32],
+	) -> Result<([u8; 32], Vec<u8>), ()> {
 		// Decode Commitments map
 		let mut encoded_commitments_map = encoded_commitments_map.clone(); // TODO: can we not do this?
 		let encoded_commitments_map: BTreeMap<[u8; 32], Vec<u8>> =
@@ -159,48 +164,66 @@ pub trait TheaFrostExt {
 				log::error!(target:"frost","Error while scale decoding the encoded map: {:?}",err);
 				()
 			})?;
-		let mut commitments_map: BTreeMap<Identifier,SigningCommitments> = BTreeMap::new();
+		let mut commitments_map: BTreeMap<Identifier, SigningCommitments> = BTreeMap::new();
 
-		for (k,v) in encoded_commitments_map{
+		for (k, v) in encoded_commitments_map {
 			commitments_map.insert(
-				Identifier::deserialize(k).unwrap(),
-				SigningCommitments::deserialize(&v).unwrap()
-			)
+				Identifier::deserialize(&k).unwrap(),
+				SigningCommitments::deserialize(&v).unwrap(),
+			);
 		}
 
-
-		// let signing_nonce = SigningNonces::deserialize(&encoded_signing_nonce).unwrap() // TODO: IMplement this
+		let signing_nonce = SigningNonces::deserialize(&encoded_signing_nonce).unwrap();
 		let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
-		let signing_package = frost::SigningPackage::new(commitments_map, message);
-		match frost::round2::sign(&signing_package,&signing_nonce,&key_package){
+		let signing_package = frost::SigningPackage::new(commitments_map, &message);
+		match frost::round2::sign(&signing_package, &signing_nonce, &key_package) {
 			Err(err) => {
 				log::error!(target:"frost","Error while frost sign(): {:?}",err);
 				return Err(())
 			},
-			Ok(signature_share) => {
-				return Ok(
-					signature_share.serialize(),
-					signing_package.serialize().unwrap()
-				)
-			}
+			Ok(signature_share) =>
+				return Ok((signature_share.serialize(), signing_package.serialize().unwrap())),
 		}
 	}
 
-	fn aggregate(signing_package: Vec<u8>, encoded_signing_shares_map: Vec<u8>, publickey_package: Vec<u8> ) {
+	fn aggregate(
+		signing_package: Vec<u8>,
+		encoded_signing_shares_map: Vec<u8>,
+		publickey_package: Vec<u8>,
+		message: [u8; 32],
+	) -> Result<([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20]), ()> {
 		let signing_package = frost::SigningPackage::deserialize(&signing_package).unwrap();
-		let publickey_package = frost::keys::PublicKeyPackage::deserialize(&publickey_package).unwrap();
-		//TODO: deocde the map
+		let publickey_package =
+			frost::keys::PublicKeyPackage::deserialize(&publickey_package).unwrap();
 
-		let mut signing_shares: BTreeMap<Identifier, round2::SignatureShare> = BTreeMap::new();
-		match frost::aggregate(&signing_package,&signing_shares, publickey_package) {
+		let encoded_signing_shares_map: BTreeMap<[u8; 32], [u8; 32]> =
+			Decode::decode(&mut &encoded_signing_shares_map[..]).map_err(|err| {
+				log::error!(target:"frost","Error while scale decoding the encoded signing shares map: {:?}",err);
+				()
+			})?;
+
+		let mut signing_shares: BTreeMap<Identifier, frost::round2::SignatureShare> =
+			BTreeMap::new();
+
+		for (k, v) in encoded_signing_shares_map {
+			signing_shares.insert(
+				Identifier::deserialize(&k).unwrap(),
+				frost::round2::SignatureShare::deserialize(v).unwrap(),
+			);
+		}
+		match frost::aggregate(&signing_package, &signing_shares, &publickey_package) {
 			Err(err) => {
 				log::error!(target:"frost","Error while frost signature aggregation: {:?}",err);
 				return Err(())
 			},
 			Ok(signature) => {
-				// TODO: construct the contract params
-				Ok(frost::params_for_contract())
-			}
+				// construct the contract params
+				Ok(frost::params_for_contract(
+					&signature,
+					&publickey_package.verifying_key(),
+					message,
+				))
+			},
 		}
 	}
 }
