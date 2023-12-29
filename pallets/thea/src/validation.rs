@@ -35,6 +35,8 @@ impl<T: Config> Pallet<T> {
 			return Ok(())
 		}
 
+		Self::run_thea_frost_logic()?;
+
 		let active_networks = <ActiveNetworks<T>>::get();
 		log::debug!(target:"thea","List of active networks: {:?}",active_networks);
 		// 2. Check for new nonce to process for all networks

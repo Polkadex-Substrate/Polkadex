@@ -20,6 +20,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use sp_std::collections::btree_map::BTreeMap;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,19 @@ use sp_std::cmp::Ordering;
 use sp_std::vec::Vec;
 
 use crate::{Network, ValidatorSetId};
+
+
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub struct AggregatedPayload {
+	/// Validator set id at which this message was executed.
+	pub validator_set_id: ValidatorSetId,
+	/// Aggregated nonce
+	pub nonce: u32,
+	/// Messages (is_key_change, Data)
+	pub messages: BTreeMap<Network, (bool,Vec<u8>)>
+}
 
 /// Defines the message structure.
 #[derive(

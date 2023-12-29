@@ -54,6 +54,7 @@ pub trait TheaFrostExt {
 			)),
 		}
 	}
+	/// Returns Round 2 secret and broadcast packages
 	fn dkg_part2(
 		round1_secret_package: &[u8],
 		encoded_round1_packages_map: Vec<u8>,
@@ -97,7 +98,7 @@ pub trait TheaFrostExt {
 		round2_secret_package: &[u8],
 		encoded_round1_packages_map: Vec<u8>,
 		encoded_round2_packages_map: Vec<u8>,
-	) -> Result<(Vec<u8>, Vec<u8>), ()> {
+	) -> Result<(Vec<u8>, [u8;65]), ()> {
 		let mut encoded_round1_packages_map = encoded_round1_packages_map.clone(); // TODO: can we not do this?
 		let encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>> =
 			Decode::decode(&mut &encoded_round1_packages_map[..]).map_err(|err| {
@@ -137,8 +138,9 @@ pub trait TheaFrostExt {
 				log::error!(target:"frost","Error while DKG_3: {:?}",err);
 				return Err(())
 			},
-			Ok((key_package, public_key_package)) =>
-				Ok((key_package.serialize().unwrap(), public_key_package.serialize().unwrap())),
+			Ok((key_package, public_key_package)) => {
+				Ok((key_package.serialize().unwrap(), public_key_package.verifying_key().serialize()))
+			}
 		}
 	}
 

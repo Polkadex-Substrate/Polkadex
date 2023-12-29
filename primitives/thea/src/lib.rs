@@ -24,7 +24,7 @@
 #![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod frost;
+pub mod frost;
 pub mod types;
 
 pub use crate::types::Message;

@@ -27,6 +27,7 @@
 //! * keep track of egress messages;
 //! * handle validator session changes;
 
+use crate::frost::KeygenStages;
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
@@ -35,9 +36,10 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	Percent, RuntimeAppPublic, SaturatedConversion,
+	BoundedBTreeSet, Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
+use std::collections::BTreeSet;
 use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -49,6 +51,7 @@ mod session;
 mod tests;
 
 pub mod aggregator;
+mod frost;
 pub mod resolver;
 pub mod validation;
 /// Export of auto-generated weights
@@ -89,7 +92,9 @@ pub trait TheaWeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use std::collections::BTreeMap;
 
+	use crate::frost::{KeygenStages, SigningStages};
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
 	use sp_std::collections::btree_set::BTreeSet;
@@ -172,6 +177,40 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn active_networks)]
 	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
+
+	/// Frost KeyGen Round1
+	#[pallet::storage]
+	pub(super) type KeygenR1<T: Config> = StorageValue<_, BTreeMap<[u8; 32], Vec<u8>>, ValueQuery>;
+
+	/// Frost KeyGen Round2
+	#[pallet::storage]
+	pub(super) type KeygenR2<T: Config> =
+		StorageValue<_, BTreeMap<[u8; 32], BTreeMap<[u8; 32], Vec<u8>>>, ValueQuery>;
+
+	/// Frost Signing Round1
+	#[pallet::storage]
+	pub(super) type SigningR1<T: Config> = StorageValue<_, BTreeMap<[u8; 32], Vec<u8>>, ValueQuery>;
+
+	/// Frost Signing Round2
+	#[pallet::storage]
+	pub(super) type SigningR2<T: Config> = StorageValue<_, BTreeMap<[u8; 32], Vec<u8>>, ValueQuery>;
+
+	/// Signed Outgoing Messages => signed params
+	#[pallet::storage]
+	pub(super) type SignedOutgoingMessages<T: Config> =
+		StorageMap<_, Identity, u32, ([u8; 32], [u8; 32], [u8; 32], [u8; 32]), ValueQuery>;
+
+	/// Last Signed OutgoingNonce
+	#[pallet::storage]
+	pub(super) type LastSignedOutgoingNonce<T: Config> = StorageValue<_, SigningStages, ValueQuery>;
+
+	/// Current Frost Public key
+	#[pallet::storage]
+	pub(super) type CurrentTheaPublicKey<T: Config> = StorageValue<_, [u8; 64], OptionQuery>;
+
+	/// Next Frost Public key
+	#[pallet::storage]
+	pub(super) type NextTheaPublicKey<T: Config> = StorageValue<_, KeygenStages, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -377,6 +416,7 @@ impl<T: Config> Pallet<T> {
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
+			<NextTheaPublicKey<T>>::put(KeygenStages::R1(new_id));
 			// TODO: Queued set will do keygen and send the new public key to other ecosystems.
 			// This should happen at the beginning of the last epoch
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
@@ -393,6 +433,22 @@ impl<T: Config> Pallet<T> {
 			<NextAuthorities<T>>::put(queued);
 		}
 		if incoming != outgoing {
+			match <NextTheaPublicKey<T>>::get() {
+				None => {
+					log::error!(target:"thea","This should never happen, next public key should be available at this time");
+				},
+				Some(key_stage) => match key_stage {
+					KeygenStages::Key(expected_new_id, key) =>
+						if new_id == expected_new_id {
+							<CurrentTheaPublicKey<T>>::put(key)
+						} else {
+							log::error!(target:"thea","This should never happen, validator set id should be correct");
+						},
+					_ => {
+						log::error!(target:"thea","This should never happen, next public key should be available at this time");
+					},
+				},
+			}
 			// TODO: New public key takes effect
 			// This will happen when new era starts, or end of the last epoch
 			<Authorities<T>>::insert(new_id, incoming);
