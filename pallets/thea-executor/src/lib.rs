@@ -49,7 +49,11 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
-		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
+		traits::{
+			fungible::Mutate,
+			fungibles::Inspect,
+			tokens::{Fortitude, Precision, Preservation},
+		},
 		transactional,
 	};
 	use frame_system::pallet_prelude::*;
@@ -119,6 +123,8 @@ pub mod pallet {
 		type ExistentialDeposit: Get<u128>;
 		/// Para Id
 		type ParaId: Get<u32>;
+		/// Governance Origin
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Type representing the weight of this pallet
 		type WeightInfo: WeightInfo;
 	}
@@ -181,6 +187,8 @@ pub mod pallet {
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
+		/// Native Token Burn event
+		NativeTokenBurned(T::AccountId, u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -368,6 +376,30 @@ pub mod pallet {
 			let metadata = AssetMetadata::new(decimal).ok_or(Error::<T>::InvalidDecimal)?;
 			<Metadata<T>>::insert(asset_id, metadata);
 			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));
+			Ok(())
+		}
+
+		/// Burn Native tokens of an account
+		///
+		/// # Parameters
+		///
+		/// * `who`: AccountId
+		/// * `amount`: Amount of native tokens to burn.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: Update the weights
+		pub fn burn_native_tokens(
+			origin: OriginFor<T>,
+			who: T::AccountId,
+			amount: u128,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let burned_amt = <T as Config>::Currency::burn_from(
+				&who,
+				amount.saturated_into(),
+				Precision::BestEffort,
+				Fortitude::Force,
+			)?;
+			Self::deposit_event(Event::<T>::NativeTokenBurned(who, burned_amt.saturated_into()));
 			Ok(())
 		}
 	}

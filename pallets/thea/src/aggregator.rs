@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{resolver::Resolver, Config};
+use crate::{resolver::Resolver, Config, OutgoingMessages};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use scale_info::prelude::string::String;
 use sp_std::{marker::PhantomData, prelude::ToOwned, vec, vec::Vec};
@@ -55,18 +55,7 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 		match destination {
 			Destination::Solochain => {
 				// Get the outgoing message with nonce: `nonce` for network: `network`
-				let key = Self::create_solo_outgoing_message_key(nonce, network);
-				match Self::get_storage_at_latest_finalized_head::<Message>(
-					"solo_outgoing_message",
-					destination,
-					key,
-				) {
-					Ok(message) => message,
-					Err(err) => {
-						log::error!(target:"thea","Unable to get finalized solo head: {:?}",err);
-						None
-					},
-				}
+				<OutgoingMessages<T>>::get(network, nonce)
 			},
 			Destination::Parachain => {
 				// Get the outgoing message with nonce: `nonce` from network
@@ -88,23 +77,6 @@ impl<S: Decode, T: Config> AggregatorClient<S, T> {
 				None
 			},
 		}
-	}
-
-	/// Returns the encoded key for outgoing message for given nonce
-	/// # Parameters
-	/// * `nonce`: Nonce of the outgoing message
-	/// * `network`: Network of the outgoing message
-	/// # Returns
-	/// * `Vec<u8>`: Encoded key for outgoing message for given nonce
-	fn create_solo_outgoing_message_key(nonce: u64, network: Network) -> Vec<u8> {
-		let module_name = sp_io::hashing::twox_128(b"Thea");
-		let storage_prefix = sp_io::hashing::twox_128(b"OutgoingMessages");
-		let mut key = Vec::new();
-		key.append(&mut module_name.to_vec());
-		key.append(&mut storage_prefix.to_vec());
-		key.append(&mut network.encode());
-		key.append(&mut nonce.encode());
-		key
 	}
 
 	/// Returns the encoded key for outgoing message for given nonce for parachain

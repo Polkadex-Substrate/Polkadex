@@ -201,6 +201,7 @@ impl thea_executor::Config for Test {
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type ExistentialDeposit = ExistentialDeposit;
 }
 
