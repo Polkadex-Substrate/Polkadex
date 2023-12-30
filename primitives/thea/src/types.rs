@@ -33,15 +33,39 @@ use sp_std::vec::Vec;
 
 use crate::{Network, ValidatorSetId};
 
-
 #[derive(
 Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub enum OnChainMessage{
+	KR1(Vec<u8>),
+	KR2(BTreeMap<[u8; 32], Vec<u8>>),
+	VerifyngKey([u8;65]),
+	SR1(Vec<u8>),
+	SR2([u8;32]),
+	SR3(([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20]))
+}
+
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialOrd, Deserialize, Serialize,
 )]
 pub struct AggregatedPayload {
 	/// Validator set id at which this message was executed.
 	pub validator_set_id: ValidatorSetId,
 	/// Messages (is_key_change, Data)
-	pub messages: BTreeSet<MessageV2>
+	pub messages: BTreeSet<MessageV2>,
+	/// Defines if authority was changed.
+	pub is_key_change: bool,
+}
+
+impl Ord for AggregatedPayload {
+	fn cmp(&self, other: &Self) -> Ordering {
+		match (self.is_key_change, other.is_key_change) {
+			(true, false) => Ordering::Less,
+			(false,true) => Ordering::Greater,
+			(true, true) => Ordering::Equal,
+			(false, false) => Ordering::Equal
+		}
+	}
 }
 
 impl AggregatedPayload {

@@ -27,7 +27,7 @@
 //! * keep track of egress messages;
 //! * handle validator session changes;
 
-use crate::frost::KeygenStages;
+use crate::frost::{KeygenStages, SigningStages};
 use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
@@ -39,8 +39,10 @@ use sp_runtime::{
 	BoundedBTreeSet, Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use std::collections::BTreeSet;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::{
+	types::{Message, OnChainMessage},
+	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -92,13 +94,15 @@ pub trait TheaWeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use std::collections::BTreeMap;
+	use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 
 	use crate::frost::{KeygenStages, SigningStages};
 	use frame_support::transactional;
 	use frame_system::offchain::SendTransactionTypes;
-	use sp_std::collections::btree_set::BTreeSet;
-	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
+	use thea_primitives::{
+		types::{AggregatedPayload, Message, OnChainMessage},
+		TheaIncomingExecutor, TheaOutgoingExecutor,
+	};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
@@ -193,19 +197,34 @@ pub mod pallet {
 
 	/// Frost Signing Round2
 	#[pallet::storage]
-	pub(super) type SigningR2<T: Config> = StorageValue<_, BTreeMap<[u8; 32], Vec<u8>>, ValueQuery>;
+	pub(super) type SigningR2<T: Config> =
+		StorageValue<_, BTreeMap<[u8; 32], [u8; 32]>, ValueQuery>;
 
-	/// Signed Outgoing Messages => signed params
+	/// Signed Aggregate Messages => signed params
 	#[pallet::storage]
-	pub(super) type SignedOutgoingMessages<T: Config> =
-		StorageMap<_, Identity, u32, ([u8; 32], [u8; 32], [u8; 32], [u8; 32]), ValueQuery>;
+	pub(super) type SignedAggregatePayloads<T: Config> = StorageMap<
+		_,
+		Identity,
+		u32,
+		(AggregatedPayload, ([u8; 32], [u8; 32], [u8; 32], [u8; 32])),
+		ValueQuery,
+	>;
+
+	/// Next Aggregate Payload
+	#[pallet::storage]
+	pub(super) type NextAggregatePayload<T: Config> =
+		StorageValue<_, BTreeSet<AggregatedPayload>, ValueQuery>;
+
+	/// Next Aggregate Seq number
+	#[pallet::storage]
+	pub(super) type NextAggregateSequence<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	/// Last Signed OutgoingNonce
 	#[pallet::storage]
 	pub(super) type LastSignedOutgoingNonce<T: Config> =
 		StorageMap<_, Identity, Network, u64, ValueQuery>;
 
-	/// Last Sigining Stage
+	/// Last Signing Stage
 	#[pallet::storage]
 	pub(super) type LastSigningStage<T: Config> = StorageValue<_, SigningStages, ValueQuery>;
 
@@ -231,10 +250,35 @@ pub mod pallet {
 		ErrorExecutingMessage,
 		/// Wrong nonce provided
 		MessageNonce,
+		/// Payload not found
+		PayloadNotFound,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_: BlockNumberFor<T>) -> Weight {
+			let active_networks = <ActiveNetworks<T>>::get();
+			let id = <ValidatorSetId<T>>::get();
+			let mut pending_messages = BTreeSet::new();
+			for network in active_networks {
+				let next_nonce = <LastSignedOutgoingNonce<T>>::get(network);
+				match <OutgoingMessages<T>>::get(network, next_nonce) {
+					None => continue,
+					Some(msg) => {
+						pending_messages.insert(msg.into());
+					},
+				}
+			}
+			let aggregated_payload = AggregatedPayload {
+				validator_set_id: id,
+				messages: pending_messages,
+				is_key_change: false,
+			};
+			<NextAggregatePayload<T>>::mutate(|queue| {
+				queue.insert(aggregated_payload);
+			});
+			Weight::default() // TODO: benchmark this
+		}
 		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");
 			if let Err(err) = Self::run_thea_validation(blk) {
@@ -251,6 +295,8 @@ pub mod pallet {
 			match call {
 				Call::incoming_message { payload, signatures } =>
 					Self::validate_incoming_message(payload, signatures),
+				Call::handle_thea_2_message { auth_index, identifier, payload, signature } =>
+					Self::validate_thea_2_message(auth_index, identifier, payload, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -340,13 +386,206 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Handles the verified thea v2 incoming messsage
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
+		#[transactional]
+		pub fn handle_thea_2_message(
+			origin: OriginFor<T>,
+			_auth_index: u16,
+			identifier: [u8; 32],
+			payload: OnChainMessage,
+			_signature: T::Signature,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			match payload {
+				OnChainMessage::KR1(data) => {
+					let mut map_complete = false;
+					<KeygenR1<T>>::mutate(|map| {
+						map.insert(identifier, data);
+						if map.len() == Self::get_next_auth_max_signers() {
+							map_complete = true;
+						}
+					});
+					if map_complete {
+						<NextTheaPublicKey<T>>::put(KeygenStages::R2);
+					}
+				},
+				OnChainMessage::KR2(data) => {
+					// Remove Keygen Round1 storage
+					if <KeygenR1<T>>::get().is_some() {
+						<KeygenR1<T>>::take();
+					};
+					let mut map_complete = false;
+					<KeygenR2<T>>::mutate(|map| {
+						map.insert(identifier, data);
+						if map.len() == Self::get_next_auth_max_signers() {
+							map_complete = true;
+						}
+					});
+					if map_complete {
+						let id = <ValidatorSetId<T>>::get().saturating_add(1);
+						<NextTheaPublicKey<T>>::put(KeygenStages::R3(id));
+					}
+				},
+				OnChainMessage::VerifyngKey(_) => {
+					if <KeygenR2<T>>::get().is_some() {
+						<KeygenR2<T>>::take();
+					};
+					// TODO: Handle majority voting and thea payload generation
+				},
+				OnChainMessage::SR1(commitment) => {
+					let mut map_complete = false;
+					<SigningR1<T>>::mutate(|map| {
+						map.insert(identifier, commitment);
+						if map.len() == Self::get_min_signers() {
+							map_complete = true;
+						}
+					});
+					let mut payloads = <NextAggregatePayload<T>>::get();
+					let agg_payload = payloads.pop_first().ok_or(Error::<T>::PayloadNotFound)?;
+					if map_complete {
+						<LastSigningStage<T>>::put(SigningStages::R1(agg_payload));
+					}
+					<NextAggregatePayload<T>>::put(payloads);
+				},
+				OnChainMessage::SR2(signature_share) => {
+					if <SigningR1<T>>::get().is_some() {
+						<SigningR1<T>>::take();
+					};
+					let mut map_complete = false;
+					<SigningR2<T>>::mutate(|map| {
+						map.insert(identifier, signature_share);
+						if map.len() == Self::get_min_signers() {
+							map_complete = true;
+						}
+					});
+					if map_complete {
+						let stage = <LastSigningStage<T>>::take();
+						if let SigningStages::R1(payload) = stage {
+							<LastSigningStage<T>>::put(SigningStages::R2(payload));
+						}else{
+							return Err(Error::<T>::InvalidSigningStage)
+						}
+					}
+				},
+				OnChainMessage::SR3(params) => {
+					// Remove old data
+					if <SigningR2<T>>::get().is_some() {
+						<SigningR2<T>>::take();
+					};
+					// Store these params in storage for relayers
+					let stage = <LastSigningStage<T>>::take();
+					let agg_payload = if let SigningStages::R1(payload) = stage {
+						<LastSigningStage<T>>::put(SigningStages::None);
+						payload
+					}else{
+						return Err(Error::<T>::InvalidSigningStage)
+					};
+					let seq = <NextAggregateSequence<T>>::get().saturating_add(1);
+					<SignedAggregatePayloads<T>>::insert(seq, (agg_payload, params));
+					<NextAggregateSequence<T>>::put(seq);
+					<NextAggregatePayload<T>>::put(payloads);
+				},
+			}
+			Ok(())
+		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
+	pub fn get_next_auth_max_signers() -> usize {
+		<NextAuthorities<T>>::get().to_vec().len()
+	}
+	pub fn get_min_signers() -> usize {
+		let id = Self::validator_set_id();
+		<Authorities<T>>::get(id)
+			.to_vec()
+			.len()
+			.saturating_mul(2)
+			.saturating_div(3)
+			.saturating_add(1)
+	}
 	pub fn active_validators() -> Vec<T::TheaId> {
 		let id = Self::validator_set_id();
 		<Authorities<T>>::get(id).to_vec()
+	}
+
+	fn validate_thea_2_message(
+		auth_index: &u16,
+		payload: &OnChainMessage,
+		signature: &<T as Config>::Signature,
+	) -> TransactionValidity {
+		// Check signature
+		let authorities = match payload {
+			OnChainMessage::KR1(_) | OnChainMessage::KR2(_) | OnChainMessage::VerifyngKey(_) =>
+				<NextAuthorities<T>>::get(),
+			_ => {
+				let id = <ValidatorSetId<T>>::get();
+				<Authorities<T>>::get(id);
+			},
+		};
+
+		let encoded_payload = payload.encode();
+		let msg_hash = sp_io::hashing::blake2_256(&encoded_payload);
+		match authorities.get(*auth_index as usize) {
+			None => return InvalidTransaction::Custom(1).into(),
+			Some(auth) =>
+				if !auth.verify(&msg_hash, &((*signature).clone().into())) {
+					return InvalidTransaction::Custom(2).into()
+				},
+		}
+
+		// Now we need to verify only verifying share and final params
+		match payload {
+			OnChainMessage::VerifyngKey(pub_key) => {
+				match <NextTheaPublicKey<T>>::get() {
+					None => return InvalidTransaction::Custom(3).into(),
+					Some(stage) => match stage {
+						KeygenStages::R3(id) => {},
+						_ => return InvalidTransaction::Custom(3).into(),
+					},
+				}
+			},
+			OnChainMessage::SR3(params) => {
+				match <LastSigningStage<T>>::get() {
+					SigningStages::R2 => {},
+					_ => return InvalidTransaction::Custom(3).into(),
+				}
+
+				// TODO: Verify params
+			},
+			OnChainMessage::KR1(_) => match <NextTheaPublicKey<T>>::get() {
+				None => return InvalidTransaction::Custom(3).into(),
+				Some(stage) => match stage {
+					KeygenStages::R1 => {},
+					_ => return InvalidTransaction::Custom(3).into(),
+				},
+			},
+			OnChainMessage::KR2(_) => match <NextTheaPublicKey<T>>::get() {
+				None => return InvalidTransaction::Custom(3).into(),
+				Some(stage) => match stage {
+					KeygenStages::R2 => {},
+					_ => return InvalidTransaction::Custom(3).into(),
+				},
+			},
+			OnChainMessage::SR1(_) => match <LastSigningStage<T>>::get() {
+				SigningStages::None => {},
+				_ => return InvalidTransaction::Custom(3).into(),
+			},
+			OnChainMessage::SR2(_) => match <LastSigningStage<T>>::get() {
+				SigningStages::R1 => {},
+				_ => return InvalidTransaction::Custom(3).into(),
+			},
+		}
+
+		ValidTransaction::with_tag_prefix("thea")
+			.and_provides(payload)
+			.longevity(1)
+			.propagate(true)
+			.build()
 	}
 
 	fn validate_incoming_message(
@@ -421,7 +660,7 @@ impl<T: Config> Pallet<T> {
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
-			<NextTheaPublicKey<T>>::put(KeygenStages::R1(new_id));
+			<NextTheaPublicKey<T>>::put(KeygenStages::R1);
 			// TODO: Queued set will do keygen and send the new public key to other ecosystems.
 			// This should happen at the beginning of the last epoch
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {

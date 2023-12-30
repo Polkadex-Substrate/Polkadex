@@ -1,7 +1,8 @@
 use crate::{
 	pallet::{
 		ActiveNetworks, Authorities, KeygenR1, KeygenR2, LastSignedOutgoingNonce, LastSigningStage,
-		NextAuthorities, NextTheaPublicKey, OutgoingMessages, SigningR1, SigningR2, ValidatorSetId,
+		NextAggregatePayload, NextAuthorities, NextTheaPublicKey, OutgoingMessages, SigningR1,
+		SigningR2, ValidatorSetId,
 	},
 	Config, Pallet,
 };
@@ -21,8 +22,8 @@ const SIGNING_R2: [u8; 10] = *b"signing-r2";
 
 #[derive(Decode, Encode, Copy, Clone)]
 pub enum KeygenStages {
-	R1(Id),
-	R2(Id),
+	R1,
+	R2,
 	R3(Id),
 	Key(Id, [u8; 64]),
 }
@@ -105,17 +106,19 @@ impl<T: Config> Pallet<T> {
 
 		match <LastSigningStage<T>>::get() {
 			SigningStages::None => Self::start_new_signing_round()?,
-			SigningStages::R1(agg_payload) => Self::complete_signing_round2(agg_payload)?,
-			SigningStages::R2(agg_payload) => Self::aggregate_signature_shares(agg_payload)?,
+			SigningStages::R1 => Self::complete_signing_round2()?,
+			SigningStages::R2 => Self::aggregate_signature_shares()?,
 		}
 
 		Ok(())
 	}
 
-	pub fn aggregate_signature_shares(
-		aggregated_payload: AggregatedPayload,
-	) -> Result<(), &'static str> {
+	pub fn aggregate_signature_shares() -> Result<(), &'static str> {
 		let id = <ValidatorSetId<T>>::get();
+		let aggregated_payload = <NextAggregatePayload<T>>::get()
+			.first()
+			.ok_or("No aggregated payload available")?
+			.clone();
 		let message = aggregated_payload.root().0;
 		let mut key = PUBLIC_KEY_PACKAGE.to_vec();
 		key.append(&mut id.encode());
@@ -149,10 +152,12 @@ impl<T: Config> Pallet<T> {
 		// TODO: Submit params to on-chain storage
 	}
 
-	pub fn complete_signing_round2(
-		aggregated_payload: AggregatedPayload,
-	) -> Result<(), &'static str> {
+	pub fn complete_signing_round2() -> Result<(), &'static str> {
 		let id = <ValidatorSetId<T>>::get();
+		let aggregated_payload = <NextAggregatePayload<T>>::get()
+			.first()
+			.ok_or("No aggregated payload available")?
+			.clone();
 		let message = aggregated_payload.root().0;
 		let mut key = KEY_PACKAGE.to_vec();
 		key.append(&mut id.encode());
@@ -195,21 +200,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn start_new_signing_round() -> Result<(), &'static str> {
-		let active_networks = <ActiveNetworks<T>>::get();
-		let id = <ValidatorSetId<T>>::get();
-		let mut pending_messages = BTreeSet::new();
-		for network in active_networks {
-			let next_nonce = <LastSignedOutgoingNonce<T>>::get(network);
-			match <OutgoingMessages<T>>::get(network, next_nonce) {
-				None => continue,
-				Some(msg) => {
-					pending_messages.insert(msg.into());
-				},
-			}
-		}
-		let aggregated_payload =
-			AggregatedPayload { validator_set_id: id, messages: pending_messages };
-
 		let mut key = KEY_PACKAGE.to_vec();
 		key.append(&mut id.encode());
 
@@ -242,7 +232,7 @@ impl<T: Config> Pallet<T> {
 			None => return Ok(()),
 			Some(keygen_stage) => {
 				match keygen_stage {
-					KeygenStages::R1(id) => {
+					KeygenStages::R1 => {
 						let (r1_secret, r1_broadcast) =
 							thea_primitives::frost::thea_frost_ext::dkg_part1(
 								auth_index as u16,
@@ -254,7 +244,7 @@ impl<T: Config> Pallet<T> {
 						storage.set(&r1_secret);
 						// TODO: Submit on chain
 					},
-					KeygenStages::R2(id) => {
+					KeygenStages::R2 => {
 						let storage = StorageValueRef::persistent(&KEYGEN_R1);
 						let r1_secret = match storage.get::<Vec<u8>>() {
 							Ok(Some(r1_secret)) => r1_secret,
@@ -269,7 +259,7 @@ impl<T: Config> Pallet<T> {
 							log::error!(target: "thea","R1 packages submitted: {:?}, required: {:?}",r1_packages.len(),max_signers);
 							return Err("All validators didn't submit r1 packages")
 						}
-						let (r2_secret, r2_broadcast) =
+						let (r2_secret, encoded_r2) =
 							thea_primitives::frost::thea_frost_ext::dkg_part2(
 								&r1_secret,
 								r1_packages.encode(),
@@ -278,6 +268,12 @@ impl<T: Config> Pallet<T> {
 
 						let storage = StorageValueRef::persistent(&KEYGEN_R2);
 						storage.set(&r2_secret);
+
+						let r2_broadcast: BTreeMap<[u8; 32], Vec<u8>> =
+							Decode::decode(&mut &encoded_r2[..]).map_err(|err| {
+								log::error!(target:"thea","Keygen R2 broadcast decode error: {:?}",err);
+								"Error while decoding r2 broadcast"
+							})?;
 						// TODO: Submit on-chain
 					},
 					KeygenStages::R3(id) => {

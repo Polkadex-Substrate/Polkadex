@@ -236,4 +236,13 @@ pub trait TheaFrostExt {
 			},
 		}
 	}
+
+	fn index_to_identifier(index: u16) -> Result<[u8;16],()> {
+		Ok(frost::Identifier::try_from(index).ok_or(())?.serialize())
+	}
+
+	/// Verify a the params with signature like we do in ethereum.
+	fn verify_params(message: [u8;32], params: ([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20])) -> bool {
+
+	}
 }
