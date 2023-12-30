@@ -20,10 +20,13 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use std::collections::BTreeSet;
+use binary_merkle_tree::merkle_root;
 use sp_std::collections::btree_map::BTreeMap;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+use sp_core::H256;
 use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
@@ -37,10 +40,41 @@ Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserial
 pub struct AggregatedPayload {
 	/// Validator set id at which this message was executed.
 	pub validator_set_id: ValidatorSetId,
-	/// Aggregated nonce
-	pub nonce: u32,
 	/// Messages (is_key_change, Data)
-	pub messages: BTreeMap<Network, (bool,Vec<u8>)>
+	pub messages: BTreeSet<MessageV2>
+}
+
+impl AggregatedPayload {
+	/// Returns the merkle root of all messages
+	pub fn root(&self) -> H256 {
+		let messages: Vec<[u8;32]> = self.messages.iter().map(|x| sp_io::hashing::keccak_256(&x.encode())).collect();
+		merkle_root::<sp_core::KeccakHasher, _>(messages)
+	}
+}
+
+
+/// Defines the message structure in thea version2
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub struct MessageV2 {
+	/// Message nonce (e.g. identifier).
+	pub nonce: u64,
+	/// Payload of the message.
+	pub data: Vec<u8>,
+	/// Message originated from this network if it's an incoming message
+	/// and destination network if it's an outgoing message
+	pub network: Network,
+}
+
+impl From<Message> for MessageV2 {
+	fn from(value: Message) -> Self {
+		MessageV2{
+			nonce: value.nonce,
+			data: value.data,
+			network: value.network,
+		}
+	}
 }
 
 /// Defines the message structure.

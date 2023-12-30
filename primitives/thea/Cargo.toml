@@ -22,11 +22,13 @@ serde_json = { workspace = true, default-features = false, features = ["alloc"] 
 frost-secp256k1 = {git ="https://github.com/Polkadex-Substrate/frost.git", branch = "ethereum", optional = true, features = ["serialization"]}
 rand = { version = "0.8.5", optional = true }
 log = "0.4.20"
+binary-merkle-tree = { version = "12.0.0", default-features = false }
 
 
 [features]
 default = ["std"]
 std = [
+  "binary-merkle-tree/std",
   "log/std",
   "rand",
   "frost-secp256k1",

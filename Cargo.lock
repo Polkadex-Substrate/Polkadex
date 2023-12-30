@@ -800,6 +800,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "binary-merkle-tree"
+version = "12.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c2839a4cb8e9e2c1f2cadb92de7a151c68de424a2e6433ced90e4d67c2ace0b"
+dependencies = [
+ "hash-db",
+ "log",
+]
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6474,7 +6484,7 @@ version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
  "array-bytes",
- "binary-merkle-tree",
+ "binary-merkle-tree 4.0.0-dev",
  "frame-support",
  "frame-system",
  "log",
@@ -10052,7 +10062,7 @@ name = "rococo-runtime"
 version = "1.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
- "binary-merkle-tree",
+ "binary-merkle-tree 4.0.0-dev",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -12972,7 +12982,7 @@ name = "staging-kusama-runtime"
 version = "1.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
- "binary-merkle-tree",
+ "binary-merkle-tree 4.0.0-dev",
  "bitvec",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -13694,6 +13704,7 @@ dependencies = [
 name = "thea-primitives"
 version = "1.1.0"
 dependencies = [
+ "binary-merkle-tree 12.0.0",
  "frame-support",
  "frost-secp256k1",
  "hex",
@@ -14924,7 +14935,7 @@ name = "westend-runtime"
 version = "1.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
- "binary-merkle-tree",
+ "binary-merkle-tree 4.0.0-dev",
  "bitvec",
  "frame-benchmarking",
  "frame-election-provider-support",

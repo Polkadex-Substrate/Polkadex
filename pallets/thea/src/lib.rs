@@ -202,7 +202,12 @@ pub mod pallet {
 
 	/// Last Signed OutgoingNonce
 	#[pallet::storage]
-	pub(super) type LastSignedOutgoingNonce<T: Config> = StorageValue<_, SigningStages, ValueQuery>;
+	pub(super) type LastSignedOutgoingNonce<T: Config> =
+		StorageMap<_, Identity, Network, u64, ValueQuery>;
+
+	/// Last Sigining Stage
+	#[pallet::storage]
+	pub(super) type LastSigningStage<T: Config> = StorageValue<_, SigningStages, ValueQuery>;
 
 	/// Current Frost Public key
 	#[pallet::storage]

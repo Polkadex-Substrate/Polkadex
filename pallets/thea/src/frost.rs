@@ -1,7 +1,7 @@
 use crate::{
 	pallet::{
-		ActiveNetworks, Authorities, KeygenR1, KeygenR2, LastSignedOutgoingNonce, NextAuthorities,
-		NextTheaPublicKey, ValidatorSetId,
+		ActiveNetworks, Authorities, KeygenR1, KeygenR2, LastSignedOutgoingNonce, LastSigningStage,
+		NextAuthorities, NextTheaPublicKey, OutgoingMessages, SigningR1, SigningR2, ValidatorSetId,
 	},
 	Config, Pallet,
 };
@@ -9,11 +9,13 @@ use frame_support::traits::Len;
 use parity_scale_codec::{Decode, Encode};
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::offchain::storage::{StorageRetrievalError, StorageValueRef};
-use thea_primitives::ValidatorSetId as Id;
+use std::collections::{BTreeMap, BTreeSet};
+use thea_primitives::{types::AggregatedPayload, Message, ValidatorSetId as Id};
 
 const KEYGEN_R1: [u8; 9] = *b"keygen-r1";
 const KEYGEN_R2: [u8; 9] = *b"keygen-r2";
 const KEY_PACKAGE: [u8; 17] = *b"keypackage-index-";
+const PUBLIC_KEY_PACKAGE: [u8; 24] = *b"public-keypackage-index-";
 const SIGNING_R1: [u8; 10] = *b"signing-r1";
 const SIGNING_R2: [u8; 10] = *b"signing-r2";
 
@@ -28,9 +30,8 @@ pub enum KeygenStages {
 #[derive(Decode, Encode, Copy, Clone)]
 pub enum SigningStages {
 	None,
-	R1(u32),
-	R2(u32),
-	Signed(u32, ([u8; 32], [u8; 32], [u8; 32], [u8; 32])),
+	R1(AggregatedPayload),
+	R2(AggregatedPayload),
 }
 
 impl Default for SigningStages {
@@ -101,17 +102,135 @@ impl<T: Config> Pallet<T> {
 
 	pub fn sign_messages() -> Result<(), &'static str> {
 		let (current_auth_index, current_signer) = Self::load_validator_signing_key()?;
-		match <LastSignedOutgoingNonce<T>>::get() {
-			SigningStages::None => {
-                // Don't do anything
-				return Ok(())
-            },
-			SigningStages::R1(agg_nonce) => {},
-			SigningStages::R2(agg_nonce) => {},
-			SigningStages::Signed(agg_nonce, _) => {
-				// TODO: Get new aggregated message and start signing
-			},
+
+		match <LastSigningStage<T>>::get() {
+			SigningStages::None => Self::start_new_signing_round()?,
+			SigningStages::R1(agg_payload) => Self::complete_signing_round2(agg_payload)?,
+			SigningStages::R2(agg_payload) => Self::aggregate_signature_shares(agg_payload)?,
 		}
+
+		Ok(())
+	}
+
+	pub fn aggregate_signature_shares(
+		aggregated_payload: AggregatedPayload,
+	) -> Result<(), &'static str> {
+		let id = <ValidatorSetId<T>>::get();
+		let message = aggregated_payload.root().0;
+		let mut key = PUBLIC_KEY_PACKAGE.to_vec();
+		key.append(&mut id.encode());
+		let storage = StorageValueRef::persistent(&key);
+		let public_key_package = match storage.get::<Vec<u8>>() {
+			Ok(Some(key_package)) => key_package,
+			Ok(None) => return Err("Private key package not found"),
+			Err(err) => {
+				log::error!(target:"thea","private key package retrieval error: {:?}",err);
+				return Err("private key package retrieval error")
+			},
+		};
+
+		let storage = StorageValueRef::persistent(&SIGNING_R2);
+		let encoded_signing_package = match storage.get::<Vec<u8>>() {
+			Ok(Some(encoded_signing_package)) => encoded_signing_package,
+			Ok(None) => return Err("Private encoded_signing_package not found"),
+			Err(err) => {
+				log::error!(target:"thea","private encoded_signing_package retrieval error: {:?}",err);
+				return Err("private encoded_signing_package retrieval error")
+			},
+		};
+		let encoded_signature_shares_map = <SigningR2<T>>::get().encode();
+		let params_for_contract = thea_primitives::frost::thea_frost_ext::aggregate(
+			encoded_signing_package,
+			encoded_signature_shares_map,
+			public_key_package,
+			message,
+		)
+		.map_err(|()| "Error while aggregating signatures")?;
+		// TODO: Submit params to on-chain storage
+	}
+
+	pub fn complete_signing_round2(
+		aggregated_payload: AggregatedPayload,
+	) -> Result<(), &'static str> {
+		let id = <ValidatorSetId<T>>::get();
+		let message = aggregated_payload.root().0;
+		let mut key = KEY_PACKAGE.to_vec();
+		key.append(&mut id.encode());
+
+		let storage = StorageValueRef::persistent(&key);
+		let key_package = match storage.get::<Vec<u8>>() {
+			Ok(Some(key_package)) => key_package,
+			Ok(None) => return Err("Private key package not found"),
+			Err(err) => {
+				log::error!(target:"thea","private key package retrieval error: {:?}",err);
+				return Err("private key package retrieval error")
+			},
+		};
+
+		let storage = StorageValueRef::persistent(&SIGNING_R1);
+		let encoded_signing_nonce = match storage.get::<Vec<u8>>() {
+			Ok(Some(signing_nonce)) => signing_nonce,
+			Ok(None) => return Err("Private signing_nonce not found"),
+			Err(err) => {
+				log::error!(target:"thea","private signing_nonce retrieval error: {:?}",err);
+				return Err("private signing_nonce retrieval error")
+			},
+		};
+
+		let encoded_commitments_map = <SigningR1<T>>::get().encode();
+
+		let (signature_share, signing_package) = thea_primitives::frost::thea_frost_ext::sign(
+			encoded_commitments_map,
+			encoded_signing_nonce,
+			key_package,
+			message,
+		)
+		.map_err(|()| "Error while signing thea message")?;
+
+		let storage = StorageValueRef::persistent(&SIGNING_R2);
+		storage.set(&signing_package);
+
+		// TODO: Submit signature share on-chain
+		Ok(())
+	}
+
+	pub fn start_new_signing_round() -> Result<(), &'static str> {
+		let active_networks = <ActiveNetworks<T>>::get();
+		let id = <ValidatorSetId<T>>::get();
+		let mut pending_messages = BTreeSet::new();
+		for network in active_networks {
+			let next_nonce = <LastSignedOutgoingNonce<T>>::get(network);
+			match <OutgoingMessages<T>>::get(network, next_nonce) {
+				None => continue,
+				Some(msg) => {
+					pending_messages.insert(msg.into());
+				},
+			}
+		}
+		let aggregated_payload =
+			AggregatedPayload { validator_set_id: id, messages: pending_messages };
+
+		let mut key = KEY_PACKAGE.to_vec();
+		key.append(&mut id.encode());
+
+		let storage = StorageValueRef::persistent(&key);
+		let key_package = match storage.get::<Vec<u8>>() {
+			Ok(Some(key_package)) => key_package,
+			Ok(None) => return Err("Private key package not found"),
+			Err(err) => {
+				log::error!(target:"thea","private key package retrieval error: {:?}",err);
+				return Err("private key package retrieval error")
+			},
+		};
+
+		let (nonces, commitments) =
+			thea_primitives::frost::thea_frost_ext::nonce_commit(key_package)
+				.map_err(|_| "Error generating nonce and commitments for signing")?;
+
+		let storage = StorageValueRef::persistent(&SIGNING_R1);
+		storage.set(&nonces);
+
+		// TODO: Submit commitments and aggregate payload on-chain
 		Ok(())
 	}
 
@@ -177,7 +296,7 @@ impl<T: Config> Pallet<T> {
 							log::error!(target: "thea","R2 packages submitted: {:?}, required: {:?}",r2_packages.len(),max_signers);
 							return Err("All validators didn't submit r2 packages")
 						}
-						let (key_package, verifying_key) =
+						let (key_package, publickey_package, verifying_key) =
 							thea_primitives::frost::thea_frost_ext::dkg_part3(
 								&r2_secret,
 								r1_packages.encode(),
@@ -190,6 +309,13 @@ impl<T: Config> Pallet<T> {
 
 						let storage = StorageValueRef::persistent(&key);
 						storage.set(&key_package);
+
+						let mut key = PUBLIC_KEY_PACKAGE.to_vec();
+						key.append(&mut id.encode());
+
+						let storage = StorageValueRef::persistent(&key);
+						storage.set(&publickey_package);
+
 						// TODO: Submit verifying key on chain
 					},
 					KeygenStages::Key(id, key) => return Ok(()),

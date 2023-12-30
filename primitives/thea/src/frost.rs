@@ -94,11 +94,14 @@ pub trait TheaFrostExt {
 		}
 	}
 
+
+	/// Performs the third and final part of the distributed key generation protocol for the participant holding the given round2::SecretPackage, given the received round1::Packages and round2::Packages received from the other participants.
+	/// It returns the KeyPackage that has the long-lived key share for the participant, and the PublicKeyPackages that has public information about all participants; both of which are required to compute FROST signatures.
 	fn dkg_part3(
 		round2_secret_package: &[u8],
 		encoded_round1_packages_map: Vec<u8>,
 		encoded_round2_packages_map: Vec<u8>,
-	) -> Result<(Vec<u8>, [u8;65]), ()> {
+	) -> Result<(Vec<u8>,Vec<u8>, [u8;65]), ()> {
 		let mut encoded_round1_packages_map = encoded_round1_packages_map.clone(); // TODO: can we not do this?
 		let encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>> =
 			Decode::decode(&mut &encoded_round1_packages_map[..]).map_err(|err| {
@@ -139,11 +142,13 @@ pub trait TheaFrostExt {
 				return Err(())
 			},
 			Ok((key_package, public_key_package)) => {
-				Ok((key_package.serialize().unwrap(), public_key_package.verifying_key().serialize()))
+				Ok((key_package.serialize().unwrap(),public_key_package.serialize().unwrap(), public_key_package.verifying_key().serialize()))
 			}
 		}
 	}
 
+	/// Performed once by each participant selected for the signing operation.
+	/// Generates the signing nonces and commitments to be used in the signing operation.
 	fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), ()> {
 		let mut rng = thread_rng();
 
@@ -153,6 +158,9 @@ pub trait TheaFrostExt {
 		Ok((signing_nonces.serialize().unwrap(), signing_commitments.serialize().unwrap()))
 	}
 
+	/// Performed once by each participant selected for the signing operation.
+	/// Receives the message to be signed and a set of signing commitments and a set of randomizing commitments to be used in that signing operation, including that for this participant.
+	/// Assumes the participant has already determined which nonce corresponds with the commitment that was assigned by the coordinator in the SigningPackage.
 	fn sign(
 		encoded_commitments_map: Vec<u8>,
 		encoded_signing_nonce: Vec<u8>,
@@ -178,13 +186,13 @@ pub trait TheaFrostExt {
 		let signing_nonce = SigningNonces::deserialize(&encoded_signing_nonce).unwrap();
 		let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
 		let signing_package = frost::SigningPackage::new(commitments_map, &message);
-		match frost::round2::sign(&signing_package, &signing_nonce, &key_package) {
+		return match frost::round2::sign(&signing_package, &signing_nonce, &key_package) {
 			Err(err) => {
 				log::error!(target:"frost","Error while frost sign(): {:?}",err);
-				return Err(())
+				Err(())
 			},
 			Ok(signature_share) =>
-				return Ok((signature_share.serialize(), signing_package.serialize().unwrap())),
+				Ok((signature_share.serialize(), signing_package.serialize().unwrap())),
 		}
 	}
 
