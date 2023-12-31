@@ -288,18 +288,13 @@ impl<T: Config> Pallet<T> {
 							log::error!(target: "thea","R1 packages submitted: {:?}, required: {:?}",r1_packages.len(),max_signers);
 							return Err("All validators didn't submit r1 packages")
 						}
-						let (r2_secret, encoded_r2) =
+						let (r2_secret, r2_broadcast) =
 							thea_primitives::frost::dkg_part2(&r1_secret, r1_packages)
 								.map_err(|_| "Error while executing dkg_part2")?;
 
 						let storage = StorageValueRef::persistent(&KEYGEN_R2);
 						storage.set(&r2_secret);
 
-						let r2_broadcast: BTreeMap<[u8; 32], Vec<u8>> =
-							Decode::decode(&mut &encoded_r2[..]).map_err(|err| {
-								log::error!(target:"thea","Keygen R2 broadcast decode error: {:?}",err);
-								"Error while decoding r2 broadcast"
-							})?;
 						// Submit on-chain
 						let (auth_index, signer) = Self::load_next_validator_signing_key()?;
 						Self::submit_transaction(

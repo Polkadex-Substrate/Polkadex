@@ -54,7 +54,7 @@ pub fn dkg_part1(
 pub fn dkg_part2(
 	round1_secret_package: &[u8],
 	encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>>,
-) -> Result<(Vec<u8>, Vec<u8>), ()> {
+) -> Result<(Vec<u8>, BTreeMap<[u8; 32], Vec<u8>>), ()> {
 	let secret_package =
 		frost::keys::dkg::round1::SecretPackage::deserialize(round1_secret_package).unwrap();
 	let mut round1_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round1::Package> =
@@ -79,7 +79,7 @@ pub fn dkg_part2(
 				encoded_round2_packages.insert(k.serialize(), v.serialize().unwrap());
 			}
 
-			Ok((round2_secret_package.serialize().unwrap(), encoded_round2_packages.encode()))
+			Ok((round2_secret_package.serialize().unwrap(), encoded_round2_packages))
 		},
 	}
 }
@@ -96,6 +96,7 @@ pub fn dkg_part3(
 ) -> Result<(Vec<u8>, Vec<u8>, [u8; 65]), ()> {
 	let round2_secret_package =
 		frost::keys::dkg::round2::SecretPackage::deserialize(round2_secret_package).unwrap();
+
 	let mut round1_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round1::Package> =
 		BTreeMap::new();
 
@@ -108,13 +109,25 @@ pub fn dkg_part3(
 
 	let mut round2_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round2::Package> =
 		BTreeMap::new();
+	let local_identifier = round2_secret_package.identifier.serialize();
 
-	// for (k, v) in encoded_round2_packages {
-	// 	round2_packages.insert(
-	// 		frost::Identifier::deserialize(&k).unwrap(),
-	// 		frost::keys::dkg::round2::Package::deserialize(&v).unwrap(),
-	// 	);
-	// }
+	for (k, v) in encoded_round2_packages {
+		if k == local_identifier {
+			continue
+		}
+		match v.get(&local_identifier) {
+			None => {
+				log::error!(target: "thea","Expected to find a package for this local node here: local: {:?}, other: {:?}",local_identifier,k);
+				return Err(())
+			}
+			Some(data) => {
+				round2_packages.insert(
+					frost::Identifier::deserialize(&k).unwrap(),
+					frost::keys::dkg::round2::Package::deserialize(data).unwrap(),
+				);
+			}
+		}
+	}
 
 	match frost::keys::dkg::part3(&round2_secret_package, &round1_packages, &round2_packages) {
 		Err(err) => {
@@ -213,6 +226,6 @@ pub fn index_to_identifier(index: u16) -> Result<[u8; 32], ()> {
 }
 
 /// Verify a the params with signature like we do in ethereum.
-pub fn verify_params(_message: [u8; 32], _params: ParamsForContract) -> bool {
+pub fn verify_params(_verifying_key: [u8;65], _params: &ParamsForContract) -> bool {
 	todo!()
 }

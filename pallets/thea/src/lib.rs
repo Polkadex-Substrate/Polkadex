@@ -40,6 +40,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use thea_primitives::{
+	frost::verify_params,
 	types::{Message, OnChainMessage},
 	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
@@ -60,7 +61,7 @@ pub mod validation;
 pub mod weights;
 
 // TODO:
-//	 1. Detect and Slash misbehaving validator during keygen and signing
+// 	 1. Detect and Slash misbehaving validator during keygen and signing
 // 	 2. Redo keygen after removing misbehaving validator
 
 pub const THEA: KeyTypeId = KeyTypeId(*b"thea");
@@ -259,6 +260,8 @@ pub mod pallet {
 		PayloadNotFound,
 		/// Invalid Signing Stage
 		InvalidSigningStage,
+		/// Invalid Thea Payload
+		InvalidTheaMessage,
 	}
 
 	#[pallet::hooks]
@@ -587,36 +590,55 @@ impl<T: Config> Pallet<T> {
 					_ => return InvalidTransaction::Custom(3).into(),
 				}
 
-				// TODO: Verify params
+				match <CurrentTheaPublicKey<T>>::get() {
+					None => return InvalidTransaction::Custom(5).into(),
+					Some(verifying_key) => {
+						// Verify params with verifying key
+						if !verify_params(verifying_key, params) {
+							return InvalidTransaction::Custom(6).into();
+						}
+					},
+				}
 			},
-			OnChainMessage::KR1(_) => match <NextTheaPublicKey<T>>::get() {
+			OnChainMessage::KR1(data) => match <NextTheaPublicKey<T>>::get() {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(stage) => match stage {
 					KeygenStages::R1 => {
-						// TODO: Deserialize the data and check, frost library is available here
+						if !frost_secp256k1::keys::dkg::round1::Package::deserialize(&data).is_ok()
+						{
+							// TODO: Slash this authority
+							return InvalidTransaction::Custom(4).into()
+						}
 					},
 					_ => return InvalidTransaction::Custom(3).into(),
 				},
 			},
-			OnChainMessage::KR2(_) => match <NextTheaPublicKey<T>>::get() {
+			OnChainMessage::KR2(data_map) => match <NextTheaPublicKey<T>>::get() {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(stage) => match stage {
 					KeygenStages::R2 => {
-						// TODO: Deserialize the data and check, frost library is available here
+						for (_, v) in data_map {
+							if !frost_secp256k1::keys::dkg::round2::Package::deserialize(v).is_ok()
+							{
+								// TODO: Slash this authority
+								return InvalidTransaction::Custom(4).into()
+							}
+						}
 					},
 					_ => return InvalidTransaction::Custom(3).into(),
 				},
 			},
-			OnChainMessage::SR1(_) => match <LastSigningStage<T>>::get() {
+			OnChainMessage::SR1(data) => match <LastSigningStage<T>>::get() {
 				SigningStages::None => {
-					// TODO: Deserialize the data and check, frost library is available here
+					if !frost_secp256k1::round1::SigningCommitments::deserialize(data).is_ok() {
+						// TODO: Slash this authority
+						return InvalidTransaction::Custom(4).into()
+					}
 				},
 				_ => return InvalidTransaction::Custom(3).into(),
 			},
 			OnChainMessage::SR2(_) => match <LastSigningStage<T>>::get() {
-				SigningStages::R1(_) => {
-					// TODO: Deserialize the data and check, frost library is available here
-				},
+				SigningStages::R1(_) => {},
 				_ => return InvalidTransaction::Custom(3).into(),
 			},
 		}
