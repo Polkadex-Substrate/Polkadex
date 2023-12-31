@@ -20,7 +20,7 @@ hex = { version = "0.4", default-features = false }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 frost-secp256k1 = {git ="https://github.com/Polkadex-Substrate/frost.git", branch = "ethereum", optional = true, features = ["serialization"]}
-rand = { version = "0.8.5", optional = true }
+rand_chacha = {version = "0.3.1", optional = true}
 log = "0.4.20"
 binary-merkle-tree = { version = "12.0.0", default-features = false }
 
@@ -30,7 +30,7 @@ default = ["std"]
 std = [
   "binary-merkle-tree/std",
   "log/std",
-  "rand",
+  "rand_chacha/std",
   "frost-secp256k1",
   "serde/std",
   "serde_json/std",
