@@ -94,14 +94,16 @@ pub trait TheaFrostExt {
 		}
 	}
 
-
-	/// Performs the third and final part of the distributed key generation protocol for the participant holding the given round2::SecretPackage, given the received round1::Packages and round2::Packages received from the other participants.
-	/// It returns the KeyPackage that has the long-lived key share for the participant, and the PublicKeyPackages that has public information about all participants; both of which are required to compute FROST signatures.
+	/// Performs the third and final part of the distributed key generation protocol for the
+	/// participant holding the given round2::SecretPackage, given the received round1::Packages and
+	/// round2::Packages received from the other participants. It returns the KeyPackage that has
+	/// the long-lived key share for the participant, and the PublicKeyPackages that has public
+	/// information about all participants; both of which are required to compute FROST signatures.
 	fn dkg_part3(
 		round2_secret_package: &[u8],
 		encoded_round1_packages_map: Vec<u8>,
 		encoded_round2_packages_map: Vec<u8>,
-	) -> Result<(Vec<u8>,Vec<u8>, [u8;65]), ()> {
+	) -> Result<(Vec<u8>, Vec<u8>, [u8; 65]), ()> {
 		let mut encoded_round1_packages_map = encoded_round1_packages_map.clone(); // TODO: can we not do this?
 		let encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>> =
 			Decode::decode(&mut &encoded_round1_packages_map[..]).map_err(|err| {
@@ -141,9 +143,11 @@ pub trait TheaFrostExt {
 				log::error!(target:"frost","Error while DKG_3: {:?}",err);
 				return Err(())
 			},
-			Ok((key_package, public_key_package)) => {
-				Ok((key_package.serialize().unwrap(),public_key_package.serialize().unwrap(), public_key_package.verifying_key().serialize()))
-			}
+			Ok((key_package, public_key_package)) => Ok((
+				key_package.serialize().unwrap(),
+				public_key_package.serialize().unwrap(),
+				public_key_package.verifying_key().serialize(),
+			)),
 		}
 	}
 
@@ -159,8 +163,10 @@ pub trait TheaFrostExt {
 	}
 
 	/// Performed once by each participant selected for the signing operation.
-	/// Receives the message to be signed and a set of signing commitments and a set of randomizing commitments to be used in that signing operation, including that for this participant.
-	/// Assumes the participant has already determined which nonce corresponds with the commitment that was assigned by the coordinator in the SigningPackage.
+	/// Receives the message to be signed and a set of signing commitments and a set of randomizing
+	/// commitments to be used in that signing operation, including that for this participant.
+	/// Assumes the participant has already determined which nonce corresponds with the commitment
+	/// that was assigned by the coordinator in the SigningPackage.
 	fn sign(
 		encoded_commitments_map: Vec<u8>,
 		encoded_signing_nonce: Vec<u8>,
@@ -237,12 +243,15 @@ pub trait TheaFrostExt {
 		}
 	}
 
-	fn index_to_identifier(index: u16) -> Result<[u8;16],()> {
-		Ok(frost::Identifier::try_from(index).ok_or(())?.serialize())
+	fn index_to_identifier(index: u16) -> Result<[u8; 32], ()> {
+		Ok(frost::Identifier::try_from(index).map_err(|_| ())?.serialize())
 	}
 
 	/// Verify a the params with signature like we do in ethereum.
-	fn verify_params(message: [u8;32], params: ([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20])) -> bool {
-
+	fn verify_params(
+		message: [u8; 32],
+		params: ([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20]),
+	) -> bool {
+		todo!()
 	}
 }
