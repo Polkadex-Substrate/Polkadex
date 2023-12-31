@@ -32,6 +32,15 @@ use std::collections::BTreeSet;
 
 use crate::{Network, ValidatorSetId};
 
+#[derive(Clone, Copy, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ParamsForContract {
+	pub(crate) p_x: [u8; 32],
+	pub(crate) nonce_parity: u8,
+	pub(crate) signature: [u8; 32],
+	pub(crate) message: [u8; 32],
+	pub(crate) nonce_times_generator: [u8;20]
+}
+
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum OnChainMessage {
 	KR1(Vec<u8>),
@@ -39,7 +48,7 @@ pub enum OnChainMessage {
 	VerifyingKey([u8; 65]),
 	SR1(Vec<u8>),
 	SR2([u8; 32]),
-	SR3(([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20])),
+	SR3(ParamsForContract),
 }
 
 #[derive(

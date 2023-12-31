@@ -1,17 +1,17 @@
 use crate::{
 	pallet::{
-		ActiveNetworks, Authorities, KeygenR1, KeygenR2, LastSignedOutgoingNonce, LastSigningStage,
-		NextAggregatePayload, NextAuthorities, NextTheaPublicKey, OutgoingMessages, SigningR1,
-		SigningR2, ValidatorSetId,
+		Authorities, KeygenR1, KeygenR2, LastSigningStage, NextAuthorities, NextTheaPublicKey,
+		SigningR1, SigningR2, ValidatorSetId,
 	},
 	Config, Pallet,
 };
 use frame_support::traits::Len;
 use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 use sp_application_crypto::RuntimeAppPublic;
-use sp_runtime::offchain::storage::{StorageRetrievalError, StorageValueRef};
-use std::collections::{BTreeMap, BTreeSet};
-use thea_primitives::{types::AggregatedPayload, Message, ValidatorSetId as Id};
+use sp_runtime::offchain::storage::StorageValueRef;
+use std::collections::BTreeMap;
+use thea_primitives::{types::AggregatedPayload, ValidatorSetId as Id};
 
 const KEYGEN_R1: [u8; 9] = *b"keygen-r1";
 const KEYGEN_R2: [u8; 9] = *b"keygen-r2";
@@ -20,15 +20,15 @@ const PUBLIC_KEY_PACKAGE: [u8; 24] = *b"public-keypackage-index-";
 const SIGNING_R1: [u8; 10] = *b"signing-r1";
 const SIGNING_R2: [u8; 10] = *b"signing-r2";
 
-#[derive(Decode, Encode, Copy, Clone)]
+#[derive(Decode, Encode, Copy, Clone, TypeInfo)]
 pub enum KeygenStages {
 	R1,
 	R2,
 	R3(Id),
-	Key(Id, [u8; 64]),
+	Key(Id, [u8; 65]),
 }
 
-#[derive(Decode, Encode, Copy, Clone)]
+#[derive(Decode, Encode, Clone, TypeInfo)]
 pub enum SigningStages {
 	None,
 	R1(AggregatedPayload),
@@ -65,7 +65,7 @@ impl<T: Config> Pallet<T> {
 			return Err("No active keys available")
 		}
 
-		*available_keys.first().ok_or("Key not avaialble")
+		available_keys.first().cloned().ok_or("Key not avaialble")
 	}
 
 	pub fn load_next_validator_signing_key() -> Result<(u32, T::TheaId), &'static str> {
@@ -89,7 +89,7 @@ impl<T: Config> Pallet<T> {
 			return Err("No active keys available")
 		}
 
-		*available_keys.first().ok_or("Key not avaialble")
+		available_keys.first().cloned().ok_or("Key not avaialble")
 	}
 
 	pub fn run_thea_frost_logic() -> Result<(), &'static str> {
@@ -106,19 +106,17 @@ impl<T: Config> Pallet<T> {
 
 		match <LastSigningStage<T>>::get() {
 			SigningStages::None => Self::start_new_signing_round()?,
-			SigningStages::R1 => Self::complete_signing_round2()?,
-			SigningStages::R2 => Self::aggregate_signature_shares()?,
+			SigningStages::R1(agg_payload) => Self::complete_signing_round2(agg_payload)?,
+			SigningStages::R2(agg_payload) => Self::aggregate_signature_shares(agg_payload)?,
 		}
 
 		Ok(())
 	}
 
-	pub fn aggregate_signature_shares() -> Result<(), &'static str> {
+	pub fn aggregate_signature_shares(
+		aggregated_payload: AggregatedPayload,
+	) -> Result<(), &'static str> {
 		let id = <ValidatorSetId<T>>::get();
-		let aggregated_payload = <NextAggregatePayload<T>>::get()
-			.first()
-			.ok_or("No aggregated payload available")?
-			.clone();
 		let message = aggregated_payload.root().0;
 		let mut key = PUBLIC_KEY_PACKAGE.to_vec();
 		key.append(&mut id.encode());
@@ -141,23 +139,22 @@ impl<T: Config> Pallet<T> {
 				return Err("private encoded_signing_package retrieval error")
 			},
 		};
-		let encoded_signature_shares_map = <SigningR2<T>>::get().encode();
-		let params_for_contract = thea_primitives::frost::thea_frost_ext::aggregate(
+
+		let params_for_contract = thea_primitives::frost::aggregate(
 			encoded_signing_package,
-			encoded_signature_shares_map,
+			<SigningR2<T>>::get(),
 			public_key_package,
 			message,
 		)
 		.map_err(|()| "Error while aggregating signatures")?;
 		// TODO: Submit params to on-chain storage
+		Ok(())
 	}
 
-	pub fn complete_signing_round2() -> Result<(), &'static str> {
+	pub fn complete_signing_round2(
+		aggregated_payload: AggregatedPayload,
+	) -> Result<(), &'static str> {
 		let id = <ValidatorSetId<T>>::get();
-		let aggregated_payload = <NextAggregatePayload<T>>::get()
-			.first()
-			.ok_or("No aggregated payload available")?
-			.clone();
 		let message = aggregated_payload.root().0;
 		let mut key = KEY_PACKAGE.to_vec();
 		key.append(&mut id.encode());
@@ -182,10 +179,8 @@ impl<T: Config> Pallet<T> {
 			},
 		};
 
-		let encoded_commitments_map = <SigningR1<T>>::get().encode();
-
-		let (signature_share, signing_package) = thea_primitives::frost::thea_frost_ext::sign(
-			encoded_commitments_map,
+		let (signature_share, signing_package) = thea_primitives::frost::sign(
+			<SigningR1<T>>::get(),
 			encoded_signing_nonce,
 			key_package,
 			message,
@@ -200,6 +195,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn start_new_signing_round() -> Result<(), &'static str> {
+		let id = <ValidatorSetId<T>>::get();
 		let mut key = KEY_PACKAGE.to_vec();
 		key.append(&mut id.encode());
 
@@ -213,9 +209,8 @@ impl<T: Config> Pallet<T> {
 			},
 		};
 
-		let (nonces, commitments) =
-			thea_primitives::frost::thea_frost_ext::nonce_commit(key_package)
-				.map_err(|_| "Error generating nonce and commitments for signing")?;
+		let (nonces, commitments) = thea_primitives::frost::nonce_commit(key_package)
+			.map_err(|_| "Error generating nonce and commitments for signing")?;
 
 		let storage = StorageValueRef::persistent(&SIGNING_R1);
 		storage.set(&nonces);
@@ -233,13 +228,12 @@ impl<T: Config> Pallet<T> {
 			Some(keygen_stage) => {
 				match keygen_stage {
 					KeygenStages::R1 => {
-						let (r1_secret, r1_broadcast) =
-							thea_primitives::frost::thea_frost_ext::dkg_part1(
-								auth_index as u16,
-								max_signers,
-								min_signers,
-							)
-							.map_err(|_| "Error while executing dkg_part1")?;
+						let (r1_secret, r1_broadcast) = thea_primitives::frost::dkg_part1(
+							auth_index as u16,
+							max_signers,
+							min_signers,
+						)
+						.map_err(|_| "Error while executing dkg_part1")?;
 						let storage = StorageValueRef::persistent(&KEYGEN_R1);
 						storage.set(&r1_secret);
 						// TODO: Submit on chain
@@ -255,16 +249,13 @@ impl<T: Config> Pallet<T> {
 							},
 						};
 						let r1_packages = <KeygenR1<T>>::get();
-						if r1_packages.len() != max_signers {
+						if r1_packages.len() as u16 != max_signers {
 							log::error!(target: "thea","R1 packages submitted: {:?}, required: {:?}",r1_packages.len(),max_signers);
 							return Err("All validators didn't submit r1 packages")
 						}
 						let (r2_secret, encoded_r2) =
-							thea_primitives::frost::thea_frost_ext::dkg_part2(
-								&r1_secret,
-								r1_packages.encode(),
-							)
-							.map_err(|_| "Error while executing dkg_part2")?;
+							thea_primitives::frost::dkg_part2(&r1_secret, r1_packages)
+								.map_err(|_| "Error while executing dkg_part2")?;
 
 						let storage = StorageValueRef::persistent(&KEYGEN_R2);
 						storage.set(&r2_secret);
@@ -288,17 +279,13 @@ impl<T: Config> Pallet<T> {
 						};
 						let r1_packages = <KeygenR1<T>>::get();
 						let r2_packages = <KeygenR2<T>>::get();
-						if r2_packages.len() != max_signers {
+						if r2_packages.len() as u16 != max_signers {
 							log::error!(target: "thea","R2 packages submitted: {:?}, required: {:?}",r2_packages.len(),max_signers);
 							return Err("All validators didn't submit r2 packages")
 						}
 						let (key_package, publickey_package, verifying_key) =
-							thea_primitives::frost::thea_frost_ext::dkg_part3(
-								&r2_secret,
-								r1_packages.encode(),
-								r2_packages.encode(),
-							)
-							.map_err(|_| "Error while executing dkg_part3")?;
+							thea_primitives::frost::dkg_part3(&r2_secret, r1_packages, r2_packages)
+								.map_err(|_| "Error while executing dkg_part3")?;
 
 						let mut key = KEY_PACKAGE.to_vec();
 						key.append(&mut id.encode());

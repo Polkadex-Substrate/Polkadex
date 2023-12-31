@@ -26,10 +26,11 @@ use rand_chacha::ChaCha20Rng;
 use parity_scale_codec::{ Encode};
 use rand_chacha::rand_core::SeedableRng;
 use sp_std::collections::btree_map::BTreeMap;
+use crate::types::ParamsForContract;
 
 
 /// Returns round1 secret package and round1 package for broadcast
-fn dkg_part1(
+pub fn dkg_part1(
 	participant_identifier: u16,
 	max_signers: u16,
 	min_signers: u16,
@@ -50,7 +51,7 @@ fn dkg_part1(
 	}
 }
 /// Returns Round 2 secret and broadcast packages
-fn dkg_part2(
+pub fn dkg_part2(
 	round1_secret_package: &[u8],
 	encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>>,
 ) -> Result<(Vec<u8>, Vec<u8>), ()> {
@@ -88,10 +89,10 @@ fn dkg_part2(
 /// round2::Packages received from the other participants. It returns the KeyPackage that has
 /// the long-lived key share for the participant, and the PublicKeyPackages that has public
 /// information about all participants; both of which are required to compute FROST signatures.
-fn dkg_part3(
+pub fn dkg_part3(
 	round2_secret_package: &[u8],
 	encoded_round1_packages: BTreeMap<[u8; 32], Vec<u8>>,
-	encoded_round2_packages: BTreeMap<[u8; 32], Vec<u8>>,
+	encoded_round2_packages: BTreeMap<[u8; 32], BTreeMap<[u8; 32], Vec<u8>>>,
 ) -> Result<(Vec<u8>, Vec<u8>, [u8; 65]), ()> {
 	let round2_secret_package =
 		frost::keys::dkg::round2::SecretPackage::deserialize(round2_secret_package).unwrap();
@@ -108,12 +109,12 @@ fn dkg_part3(
 	let mut round2_packages: BTreeMap<frost::Identifier, frost::keys::dkg::round2::Package> =
 		BTreeMap::new();
 
-	for (k, v) in encoded_round2_packages {
-		round2_packages.insert(
-			frost::Identifier::deserialize(&k).unwrap(),
-			frost::keys::dkg::round2::Package::deserialize(&v).unwrap(),
-		);
-	}
+	// for (k, v) in encoded_round2_packages {
+	// 	round2_packages.insert(
+	// 		frost::Identifier::deserialize(&k).unwrap(),
+	// 		frost::keys::dkg::round2::Package::deserialize(&v).unwrap(),
+	// 	);
+	// }
 
 	match frost::keys::dkg::part3(&round2_secret_package, &round1_packages, &round2_packages) {
 		Err(err) => {
@@ -130,7 +131,7 @@ fn dkg_part3(
 
 /// Performed once by each participant selected for the signing operation.
 /// Generates the signing nonces and commitments to be used in the signing operation.
-fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), ()> {
+pub fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), ()> {
 	let mut rng = ChaCha20Rng::from_seed(sp_io::offchain::random_seed());
 	let key_package = frost::keys::KeyPackage::deserialize(&key_package).unwrap();
 	let (signing_nonces, signing_commitments) =
@@ -143,7 +144,7 @@ fn nonce_commit(key_package: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), ()> {
 /// commitments to be used in that signing operation, including that for this participant.
 /// Assumes the participant has already determined which nonce corresponds with the commitment
 /// that was assigned by the coordinator in the SigningPackage.
-fn sign(
+pub fn sign(
 	encoded_commitments_map: BTreeMap<[u8; 32], Vec<u8>>,
 	encoded_signing_nonce: Vec<u8>,
 	key_package: Vec<u8>,
@@ -171,12 +172,12 @@ fn sign(
 	}
 }
 
-fn aggregate(
+pub fn aggregate(
 	signing_package: Vec<u8>,
 	encoded_signing_shares_map: BTreeMap<[u8; 32], [u8; 32]>,
 	publickey_package: Vec<u8>,
 	message: [u8; 32],
-) -> Result<([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20]), ()> {
+) -> Result<ParamsForContract, ()> {
 	let signing_package = frost::SigningPackage::deserialize(&signing_package).unwrap();
 	let publickey_package = frost::keys::PublicKeyPackage::deserialize(&publickey_package).unwrap();
 
@@ -195,16 +196,23 @@ fn aggregate(
 		},
 		Ok(signature) => {
 			// construct the contract params
-			Ok(frost::params_for_contract(&signature, &publickey_package.verifying_key(), message))
+			let (a,b,c,d,e) =frost::params_for_contract(&signature, &publickey_package.verifying_key(), message);
+			Ok(ParamsForContract{
+				p_x: a,
+				nonce_parity: b,
+				signature: c,
+				message: d,
+				nonce_times_generator: e,
+			})
 		},
 	}
 }
 
-fn index_to_identifier(index: u16) -> Result<[u8; 32], ()> {
+pub fn index_to_identifier(index: u16) -> Result<[u8; 32], ()> {
 	Ok(frost::Identifier::try_from(index).map_err(|_| ())?.serialize())
 }
 
 /// Verify a the params with signature like we do in ethereum.
-fn verify_params(message: [u8; 32], params: ([u8; 32], u8, [u8; 32], [u8; 32], [u8; 20])) -> bool {
+pub fn verify_params(_message: [u8; 32], _params: ParamsForContract) -> bool {
 	todo!()
 }

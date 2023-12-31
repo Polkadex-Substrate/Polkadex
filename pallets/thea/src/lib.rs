@@ -36,7 +36,7 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	BoundedBTreeSet, Percent, RuntimeAppPublic, SaturatedConversion,
+	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 use thea_primitives::{
@@ -95,6 +95,7 @@ pub trait TheaWeightInfo {
 pub mod pallet {
 	use super::*;
 	use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
+	use thea_primitives::types::{MessageV2, ParamsForContract};
 
 	use crate::frost::{KeygenStages, SigningStages};
 	use frame_support::transactional;
@@ -202,13 +203,8 @@ pub mod pallet {
 
 	/// Signed Aggregate Messages => signed params
 	#[pallet::storage]
-	pub(super) type SignedAggregatePayloads<T: Config> = StorageMap<
-		_,
-		Identity,
-		u32,
-		(AggregatedPayload, ([u8; 32], [u8; 32], [u8; 32], [u8; 32])),
-		ValueQuery,
-	>;
+	pub(super) type SignedAggregatePayloads<T: Config> =
+		StorageMap<_, Identity, u32, (AggregatedPayload, ParamsForContract), OptionQuery>;
 
 	/// Next Aggregate Payload
 	#[pallet::storage]
@@ -257,6 +253,8 @@ pub mod pallet {
 		MessageNonce,
 		/// Payload not found
 		PayloadNotFound,
+		/// Invalid Signing Stage
+		InvalidSigningStage,
 	}
 
 	#[pallet::hooks]
@@ -302,8 +300,8 @@ pub mod pallet {
 			match call {
 				Call::incoming_message { payload, signatures } =>
 					Self::validate_incoming_message(payload, signatures),
-				Call::handle_thea_2_message { auth_index, identifier, payload, signature } =>
-					Self::validate_thea_2_message(auth_index, identifier, payload, signature),
+				Call::handle_thea_2_message { auth_index, payload, signature } =>
+					Self::validate_thea_2_message(auth_index, payload, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -400,13 +398,12 @@ pub mod pallet {
 		#[transactional]
 		pub fn handle_thea_2_message(
 			origin: OriginFor<T>,
-			_auth_index: u16,
-			identifier: [u8; 32],
+			auth_index: u16,
 			payload: OnChainMessage,
 			_signature: T::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-
+			let identifier = thea_primitives::frost::index_to_identifier(auth_index).unwrap();
 			match payload {
 				OnChainMessage::KR1(data) => {
 					let mut map_complete = false;
@@ -422,9 +419,7 @@ pub mod pallet {
 				},
 				OnChainMessage::KR2(data) => {
 					// Remove Keygen Round1 storage
-					if <KeygenR1<T>>::get().is_some() {
-						<KeygenR1<T>>::take();
-					};
+					<KeygenR1<T>>::take();
 					let mut map_complete = false;
 					<KeygenR2<T>>::mutate(|map| {
 						map.insert(identifier, data);
@@ -437,17 +432,15 @@ pub mod pallet {
 						<NextTheaPublicKey<T>>::put(KeygenStages::R3(id));
 					}
 				},
-				OnChainMessage::VerifyngKey(key) => {
-					if <KeygenR2<T>>::get().is_some() {
-						<KeygenR2<T>>::take();
-					};
+				OnChainMessage::VerifyingKey(key) => {
+					<KeygenR2<T>>::take();
 					// Handle majority voting and thea payload generation
 					let mut got_majority = false;
 					<NextTheaPublicKeyVoting<T>>::mutate(|map| {
 						map.entry(key)
 							.and_modify(|votes| {
 								*votes = votes.saturating_add(1);
-								if votes >= Self::min_signers() {
+								if *votes >= Self::get_min_signers() as u16 {
 									got_majority = true;
 								}
 							})
@@ -467,7 +460,11 @@ pub mod pallet {
 							messages.insert(message);
 						}
 						let id = <ValidatorSetId<T>>::get();
-						let agg_payload = AggregatedPayload { id, messages, is_key_change: true };
+						let agg_payload = AggregatedPayload {
+							validator_set_id: id,
+							messages,
+							is_key_change: true,
+						};
 						<NextAggregatePayload<T>>::mutate(|queue| {
 							queue.insert(agg_payload);
 						});
@@ -490,9 +487,7 @@ pub mod pallet {
 					<NextAggregatePayload<T>>::put(payloads);
 				},
 				OnChainMessage::SR2(signature_share) => {
-					if <SigningR1<T>>::get().is_some() {
-						<SigningR1<T>>::take();
-					};
+					<SigningR1<T>>::take();
 					let mut map_complete = false;
 					<SigningR2<T>>::mutate(|map| {
 						map.insert(identifier, signature_share);
@@ -505,27 +500,24 @@ pub mod pallet {
 						if let SigningStages::R1(payload) = stage {
 							<LastSigningStage<T>>::put(SigningStages::R2(payload));
 						} else {
-							return Err(Error::<T>::InvalidSigningStage)
+							return Err(Error::<T>::InvalidSigningStage.into())
 						}
 					}
 				},
 				OnChainMessage::SR3(params) => {
 					// Remove old data
-					if <SigningR2<T>>::get().is_some() {
-						<SigningR2<T>>::take();
-					};
+					<SigningR2<T>>::take();
 					// Store these params in storage for relayers
 					let stage = <LastSigningStage<T>>::take();
 					let agg_payload = if let SigningStages::R1(payload) = stage {
 						<LastSigningStage<T>>::put(SigningStages::None);
 						payload
 					} else {
-						return Err(Error::<T>::InvalidSigningStage)
+						return Err(Error::<T>::InvalidSigningStage.into())
 					};
 					let seq = <NextAggregateSequence<T>>::get().saturating_add(1);
 					<SignedAggregatePayloads<T>>::insert(seq, (agg_payload, params));
 					<NextAggregateSequence<T>>::put(seq);
-					<NextAggregatePayload<T>>::put(payloads);
 				},
 			}
 			Ok(())
@@ -558,11 +550,11 @@ impl<T: Config> Pallet<T> {
 	) -> TransactionValidity {
 		// Check signature
 		let authorities = match payload {
-			OnChainMessage::KR1(_) | OnChainMessage::KR2(_) | OnChainMessage::VerifyngKey(_) =>
+			OnChainMessage::KR1(_) | OnChainMessage::KR2(_) | OnChainMessage::VerifyingKey(_) =>
 				<NextAuthorities<T>>::get(),
 			_ => {
 				let id = <ValidatorSetId<T>>::get();
-				<Authorities<T>>::get(id);
+				<Authorities<T>>::get(id)
 			},
 		};
 
@@ -578,7 +570,7 @@ impl<T: Config> Pallet<T> {
 
 		// Now we need to verify only verifying share and final params
 		match payload {
-			OnChainMessage::VerifyngKey(pub_key) => match <NextTheaPublicKey<T>>::get() {
+			OnChainMessage::VerifyingKey(pub_key) => match <NextTheaPublicKey<T>>::get() {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(stage) => match stage {
 					KeygenStages::R3(id) => {},
