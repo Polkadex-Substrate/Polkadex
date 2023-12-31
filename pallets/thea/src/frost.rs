@@ -3,15 +3,19 @@ use crate::{
 		Authorities, KeygenR1, KeygenR2, LastSigningStage, NextAuthorities, NextTheaPublicKey,
 		SigningR1, SigningR2, ValidatorSetId,
 	},
-	Config, Pallet,
+	Call, Config, Pallet,
 };
 use frame_support::traits::Len;
+use frame_system::offchain::SubmitTransaction;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::offchain::storage::StorageValueRef;
 use std::collections::BTreeMap;
-use thea_primitives::{types::AggregatedPayload, ValidatorSetId as Id};
+use thea_primitives::{
+	types::{AggregatedPayload, OnChainMessage},
+	ValidatorSetId as Id,
+};
 
 const KEYGEN_R1: [u8; 9] = *b"keygen-r1";
 const KEYGEN_R2: [u8; 9] = *b"keygen-r2";
@@ -42,7 +46,26 @@ impl Default for SigningStages {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn load_validator_signing_key() -> Result<(u32, T::TheaId), &'static str> {
+	pub fn submit_transaction(
+		auth_index: u16,
+		signer: T::TheaId,
+		message: OnChainMessage,
+	) -> Result<(), &'static str> {
+		let encoded_payload = message.encode();
+		let msg_hash = sp_io::hashing::blake2_256(&encoded_payload);
+		let signature = signer.sign(&msg_hash).ok_or("error while signing ecdsa signature")?;
+
+		let call = Call::<T>::handle_thea_2_message {
+			auth_index,
+			payload: message,
+			signature: signature.into(),
+		};
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|()| {
+			log::error!(target: "thea","Unable to submit thea unsigned txn");
+			"Unable to submit thea unsigned txn"
+		})
+	}
+	pub fn load_validator_signing_key() -> Result<(u16, T::TheaId), &'static str> {
 		let id = <ValidatorSetId<T>>::get();
 		let authorities = <Authorities<T>>::get(id).to_vec();
 
@@ -55,9 +78,9 @@ impl<T: Config> Pallet<T> {
 				local_keys
 					.binary_search(authority)
 					.ok()
-					.map(|location| (index as u32, local_keys[location].clone()))
+					.map(|location| (index as u16, local_keys[location].clone()))
 			})
-			.collect::<Vec<(u32, T::TheaId)>>();
+			.collect::<Vec<(u16, T::TheaId)>>();
 
 		available_keys.sort();
 
@@ -68,7 +91,7 @@ impl<T: Config> Pallet<T> {
 		available_keys.first().cloned().ok_or("Key not avaialble")
 	}
 
-	pub fn load_next_validator_signing_key() -> Result<(u32, T::TheaId), &'static str> {
+	pub fn load_next_validator_signing_key() -> Result<(u16, T::TheaId), &'static str> {
 		let authorities = <NextAuthorities<T>>::get().to_vec();
 		let local_keys = T::TheaId::all();
 
@@ -79,9 +102,9 @@ impl<T: Config> Pallet<T> {
 				local_keys
 					.binary_search(authority)
 					.ok()
-					.map(|location| (index as u32, local_keys[location].clone()))
+					.map(|location| (index as u16, local_keys[location].clone()))
 			})
-			.collect::<Vec<(u32, T::TheaId)>>();
+			.collect::<Vec<(u16, T::TheaId)>>();
 
 		available_keys.sort();
 
@@ -147,7 +170,9 @@ impl<T: Config> Pallet<T> {
 			message,
 		)
 		.map_err(|()| "Error while aggregating signatures")?;
-		// TODO: Submit params to on-chain storage
+		// Submit params to on-chain storage
+		let (auth_index, signer) = Self::load_validator_signing_key()?;
+		Self::submit_transaction(auth_index, signer, OnChainMessage::SR3(params_for_contract))?;
 		Ok(())
 	}
 
@@ -190,7 +215,9 @@ impl<T: Config> Pallet<T> {
 		let storage = StorageValueRef::persistent(&SIGNING_R2);
 		storage.set(&signing_package);
 
-		// TODO: Submit signature share on-chain
+		// Submit on-chain
+		let (auth_index, signer) = Self::load_validator_signing_key()?;
+		Self::submit_transaction(auth_index, signer, OnChainMessage::SR2(signature_share))?;
 		Ok(())
 	}
 
@@ -215,7 +242,9 @@ impl<T: Config> Pallet<T> {
 		let storage = StorageValueRef::persistent(&SIGNING_R1);
 		storage.set(&nonces);
 
-		// TODO: Submit commitments and aggregate payload on-chain
+		// Submit commitments and aggregate payload on-chain
+		let (auth_index, signer) = Self::load_validator_signing_key()?;
+		Self::submit_transaction(auth_index, signer, OnChainMessage::SR1(commitments))?;
 		Ok(())
 	}
 
@@ -236,7 +265,13 @@ impl<T: Config> Pallet<T> {
 						.map_err(|_| "Error while executing dkg_part1")?;
 						let storage = StorageValueRef::persistent(&KEYGEN_R1);
 						storage.set(&r1_secret);
-						// TODO: Submit on chain
+						// Submit on chain
+						let (auth_index, signer) = Self::load_next_validator_signing_key()?;
+						Self::submit_transaction(
+							auth_index,
+							signer,
+							OnChainMessage::KR1(r1_broadcast),
+						)?;
 					},
 					KeygenStages::R2 => {
 						let storage = StorageValueRef::persistent(&KEYGEN_R1);
@@ -265,7 +300,13 @@ impl<T: Config> Pallet<T> {
 								log::error!(target:"thea","Keygen R2 broadcast decode error: {:?}",err);
 								"Error while decoding r2 broadcast"
 							})?;
-						// TODO: Submit on-chain
+						// Submit on-chain
+						let (auth_index, signer) = Self::load_next_validator_signing_key()?;
+						Self::submit_transaction(
+							auth_index,
+							signer,
+							OnChainMessage::KR2(r2_broadcast),
+						)?;
 					},
 					KeygenStages::R3(id) => {
 						let storage = StorageValueRef::persistent(&KEYGEN_R2);
@@ -299,7 +340,13 @@ impl<T: Config> Pallet<T> {
 						let storage = StorageValueRef::persistent(&key);
 						storage.set(&publickey_package);
 
-						// TODO: Submit verifying key on chain
+						// Submit verifying key on chain
+						let (auth_index, signer) = Self::load_next_validator_signing_key()?;
+						Self::submit_transaction(
+							auth_index,
+							signer,
+							OnChainMessage::VerifyingKey(verifying_key),
+						)?;
 					},
 					KeygenStages::Key(id, key) => return Ok(()),
 				}
