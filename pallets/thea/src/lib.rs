@@ -262,6 +262,8 @@ pub mod pallet {
 		InvalidSigningStage,
 		/// Invalid Thea Payload
 		InvalidTheaMessage,
+		/// Invalid Auth Index
+		InvalidAuthIndex,
 	}
 
 	#[pallet::hooks]
@@ -410,7 +412,8 @@ pub mod pallet {
 			_signature: T::Signature,
 		) -> DispatchResult {
 			ensure_none(origin)?;
-			let identifier = thea_primitives::frost::index_to_identifier(auth_index).unwrap();
+			let identifier = thea_primitives::frost::index_to_identifier(auth_index)
+				.map_err(|_| Error::<T>::InvalidAuthIndex)?;
 			match payload {
 				OnChainMessage::KR1(data) => {
 					let mut map_complete = false;
@@ -577,10 +580,10 @@ impl<T: Config> Pallet<T> {
 
 		// Now we need to verify only verifying share and final params
 		match payload {
-			OnChainMessage::VerifyingKey(pub_key) => match <NextTheaPublicKey<T>>::get() {
+			OnChainMessage::VerifyingKey(_pub_key) => match <NextTheaPublicKey<T>>::get() {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(stage) => match stage {
-					KeygenStages::R3(id) => {},
+					KeygenStages::R3(_) => {},
 					_ => return InvalidTransaction::Custom(3).into(),
 				},
 			},

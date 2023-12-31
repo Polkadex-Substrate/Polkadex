@@ -23,7 +23,6 @@ use frost_secp256k1::{
 	Identifier,
 };
 use rand_chacha::ChaCha20Rng;
-use parity_scale_codec::{ Encode};
 use rand_chacha::rand_core::SeedableRng;
 use sp_std::collections::btree_map::BTreeMap;
 use crate::types::ParamsForContract;

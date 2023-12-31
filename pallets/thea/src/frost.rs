@@ -11,7 +11,6 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_runtime::offchain::storage::StorageValueRef;
-use std::collections::BTreeMap;
 use thea_primitives::{
 	types::{AggregatedPayload, OnChainMessage},
 	ValidatorSetId as Id,
@@ -125,14 +124,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn sign_messages() -> Result<(), &'static str> {
-		let (current_auth_index, current_signer) = Self::load_validator_signing_key()?;
-
 		match <LastSigningStage<T>>::get() {
 			SigningStages::None => Self::start_new_signing_round()?,
 			SigningStages::R1(agg_payload) => Self::complete_signing_round2(agg_payload)?,
 			SigningStages::R2(agg_payload) => Self::aggregate_signature_shares(agg_payload)?,
 		}
-
 		Ok(())
 	}
 
@@ -249,7 +245,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn frost_keygen() -> Result<(), &'static str> {
-		let (auth_index, signer) = Self::load_next_validator_signing_key()?;
+		let (auth_index, _) = Self::load_next_validator_signing_key()?;
 		let max_signers = <NextAuthorities<T>>::get().len() as u16;
 		let min_signers = (2 * max_signers) / 3;
 		match <NextTheaPublicKey<T>>::get() {
@@ -343,7 +339,7 @@ impl<T: Config> Pallet<T> {
 							OnChainMessage::VerifyingKey(verifying_key),
 						)?;
 					},
-					KeygenStages::Key(id, key) => return Ok(()),
+					KeygenStages::Key(_id, _key) => return Ok(()),
 				}
 			},
 		}
