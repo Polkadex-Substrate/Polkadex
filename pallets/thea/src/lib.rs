@@ -230,7 +230,12 @@ pub mod pallet {
 
 	/// Current Frost Public key
 	#[pallet::storage]
-	pub(super) type CurrentTheaPublicKey<T: Config> = StorageValue<_, [u8; 64], OptionQuery>;
+	pub(super) type CurrentTheaPublicKey<T: Config> = StorageValue<_, [u8; 65], OptionQuery>;
+
+	/// Next Frost key voting map
+	#[pallet::storage]
+	pub(super) type NextTheaPublicKeyVoting<T: Config> =
+		StorageValue<_, BTreeMap<[u8; 65], u16>, ValueQuery>;
 
 	/// Next Frost Public key
 	#[pallet::storage]
@@ -260,6 +265,8 @@ pub mod pallet {
 			let active_networks = <ActiveNetworks<T>>::get();
 			let id = <ValidatorSetId<T>>::get();
 			let mut pending_messages = BTreeSet::new();
+			// TODO: This will happen again in every block, next_nonce message might not be used up
+			// by then.
 			for network in active_networks {
 				let next_nonce = <LastSignedOutgoingNonce<T>>::get(network);
 				match <OutgoingMessages<T>>::get(network, next_nonce) {
@@ -430,11 +437,42 @@ pub mod pallet {
 						<NextTheaPublicKey<T>>::put(KeygenStages::R3(id));
 					}
 				},
-				OnChainMessage::VerifyngKey(_) => {
+				OnChainMessage::VerifyngKey(key) => {
 					if <KeygenR2<T>>::get().is_some() {
 						<KeygenR2<T>>::take();
 					};
-					// TODO: Handle majority voting and thea payload generation
+					// Handle majority voting and thea payload generation
+					let mut got_majority = false;
+					<NextTheaPublicKeyVoting<T>>::mutate(|map| {
+						map.entry(key)
+							.and_modify(|votes| {
+								*votes = votes.saturating_add(1);
+								if votes >= Self::min_signers() {
+									got_majority = true;
+								}
+							})
+							.or_insert(1);
+					});
+					if got_majority {
+						<NextTheaPublicKeyVoting<T>>::take();
+						let active_networks = <ActiveNetworks<T>>::get();
+						let mut messages = BTreeSet::new();
+						for network in active_networks {
+							let message = MessageV2 {
+								nonce: 0, /* Nonce is set to zero for key change payloads, it's
+								           * replay attack is handled by set id */
+								data: key.to_vec(),
+								network,
+							};
+							messages.insert(message);
+						}
+						let id = <ValidatorSetId<T>>::get();
+						let agg_payload = AggregatedPayload { id, messages, is_key_change: true };
+						<NextAggregatePayload<T>>::mutate(|queue| {
+							queue.insert(agg_payload);
+						});
+						<NextTheaPublicKey<T>>::put(KeygenStages::Key(id.saturating_add(1), key));
+					}
 				},
 				OnChainMessage::SR1(commitment) => {
 					let mut map_complete = false;
@@ -466,7 +504,7 @@ pub mod pallet {
 						let stage = <LastSigningStage<T>>::take();
 						if let SigningStages::R1(payload) = stage {
 							<LastSigningStage<T>>::put(SigningStages::R2(payload));
-						}else{
+						} else {
 							return Err(Error::<T>::InvalidSigningStage)
 						}
 					}
@@ -481,7 +519,7 @@ pub mod pallet {
 					let agg_payload = if let SigningStages::R1(payload) = stage {
 						<LastSigningStage<T>>::put(SigningStages::None);
 						payload
-					}else{
+					} else {
 						return Err(Error::<T>::InvalidSigningStage)
 					};
 					let seq = <NextAggregateSequence<T>>::get().saturating_add(1);
@@ -540,18 +578,16 @@ impl<T: Config> Pallet<T> {
 
 		// Now we need to verify only verifying share and final params
 		match payload {
-			OnChainMessage::VerifyngKey(pub_key) => {
-				match <NextTheaPublicKey<T>>::get() {
-					None => return InvalidTransaction::Custom(3).into(),
-					Some(stage) => match stage {
-						KeygenStages::R3(id) => {},
-						_ => return InvalidTransaction::Custom(3).into(),
-					},
-				}
+			OnChainMessage::VerifyngKey(pub_key) => match <NextTheaPublicKey<T>>::get() {
+				None => return InvalidTransaction::Custom(3).into(),
+				Some(stage) => match stage {
+					KeygenStages::R3(id) => {},
+					_ => return InvalidTransaction::Custom(3).into(),
+				},
 			},
 			OnChainMessage::SR3(params) => {
 				match <LastSigningStage<T>>::get() {
-					SigningStages::R2 => {},
+					SigningStages::R2(_) => {},
 					_ => return InvalidTransaction::Custom(3).into(),
 				}
 
@@ -560,23 +596,31 @@ impl<T: Config> Pallet<T> {
 			OnChainMessage::KR1(_) => match <NextTheaPublicKey<T>>::get() {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(stage) => match stage {
-					KeygenStages::R1 => {},
+					KeygenStages::R1 => {
+						// TODO: Deserialize the data and check, frost library is available here
+					},
 					_ => return InvalidTransaction::Custom(3).into(),
 				},
 			},
 			OnChainMessage::KR2(_) => match <NextTheaPublicKey<T>>::get() {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(stage) => match stage {
-					KeygenStages::R2 => {},
+					KeygenStages::R2 => {
+						// TODO: Deserialize the data and check, frost library is available here
+					},
 					_ => return InvalidTransaction::Custom(3).into(),
 				},
 			},
 			OnChainMessage::SR1(_) => match <LastSigningStage<T>>::get() {
-				SigningStages::None => {},
+				SigningStages::None => {
+					// TODO: Deserialize the data and check, frost library is available here
+				},
 				_ => return InvalidTransaction::Custom(3).into(),
 			},
 			OnChainMessage::SR2(_) => match <LastSigningStage<T>>::get() {
-				SigningStages::R1 => {},
+				SigningStages::R1(_) => {
+					// TODO: Deserialize the data and check, frost library is available here
+				},
 				_ => return InvalidTransaction::Custom(3).into(),
 			},
 		}
@@ -661,12 +705,12 @@ impl<T: Config> Pallet<T> {
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
 			<NextTheaPublicKey<T>>::put(KeygenStages::R1);
-			// TODO: Queued set will do keygen and send the new public key to other ecosystems.
+			// Queued set will do keygen and send the new public key to other ecosystems.
 			// This should happen at the beginning of the last epoch
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
 				let payload = validator_set.encode();
 				// TODO: Instead of generating the same payload for all active networks,
-				// just sign one payload and send it to everyone
+				// just sign one payload and send it to everyone - Done in Thea v2
 				for network in &active_networks {
 					let message = Self::generate_payload(true, *network, payload.clone());
 					// Update nonce
@@ -693,12 +737,11 @@ impl<T: Config> Pallet<T> {
 					},
 				},
 			}
-			// TODO: New public key takes effect
+			// New public key takes effect
 			// This will happen when new era starts, or end of the last epoch
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
-			// TODO: Instead of generating the same payload for all active networks,
-			// just sign one payload and send it to everyone
+			// TODO: Remove the below code block once Thea V2 is active
 			for network in active_networks {
 				let message = Self::generate_payload(false, network, Vec::new());
 				<OutgoingNonce<T>>::insert(network, message.nonce);

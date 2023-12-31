@@ -21,6 +21,7 @@ thea-primitives = { path = "../../primitives/thea", default-features = false }
 sp-application-crypto = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 hex = { workspace = true, default-features = false, features = ["alloc"] }
+frost-secp256k1 = {git ="https://github.com/Polkadex-Substrate/frost.git", branch = "ethereum"}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
