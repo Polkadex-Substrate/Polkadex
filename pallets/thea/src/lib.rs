@@ -59,6 +59,10 @@ pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
 
+// TODO:
+//	 1. Detect and Slash misbehaving validator during keygen and signing
+// 	 2. Redo keygen after removing misbehaving validator
+
 pub const THEA: KeyTypeId = KeyTypeId(*b"thea");
 
 pub mod ecdsa {
