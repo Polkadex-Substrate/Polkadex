@@ -167,6 +167,9 @@ pub fn get_q_score_and_uptime(
 	}
 }
 
+// TODO: @ksr
+// Maker and taker Volume, Fees
+
 impl<T: Config> Pallet<T> {
 	pub fn update_lmp_storage_from_trade(
 		state: &mut OffchainState,

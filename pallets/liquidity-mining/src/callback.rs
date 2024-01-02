@@ -18,6 +18,7 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 		<SnapshotFlag<T>>::put(frame_system::Pallet::<T>::current_block_number());
 	}
 
+	// TODO: @ksr this fn should not fail.
 	fn add_liquidity_success(
 		market: TradingPair,
 		pool: &T::AccountId,
@@ -43,6 +44,7 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 			.to_u128()
 			.ok_or(Error::<T>::ConversionError)?
 			.saturated_into();
+		//FIXME: What if recipient account doesnt have pdex?
 		T::OtherAssets::mint_into(pool_config.share_id, lp, new_shared_issued.saturated_into())?;
 		// Note the block in which they deposited and
 		// use it to pro-rate the rewards for initial epoch

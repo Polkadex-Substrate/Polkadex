@@ -25,6 +25,14 @@ orderbook-primitives = {path="../../primitives/orderbook", default-features = fa
 polkadex-primitives = {path="../../primitives/polkadex", default-features = false}
 rust_decimal = {workspace = true, default-features = false}
 
+[dev-dependencies]
+pallet-ocex-lmp = {path = "../ocex", default-features = false}
+pallet-assets = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
+sp-application-crypto = { workspace = true }
+sp-io = { workspace = true, default-features = false }
+
 [features]
 default = [ "std" ]
 std = [
@@ -38,5 +46,11 @@ std = [
     "rust_decimal/std",
     "sp-core/std",
     "sp-runtime/std",
-    "sp-std/std"
+    "sp-std/std",
+    "pallet-ocex-lmp/std",
+    "pallet-assets/std",
+    "pallet-balances/std",
+    "pallet-timestamp/std",
+    "sp-io/std",
+    "sp-application-crypto/std"
 ]

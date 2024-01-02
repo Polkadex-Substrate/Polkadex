@@ -15,9 +15,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
+#![cfg_attr(not(feature = "std"), no_std)]
 
 mod callback;
 pub mod types;
+
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -325,7 +332,7 @@ pub mod pallet {
 			// Check if commission and exit fee are between 0-1
 			let mut commission =
 				Decimal::from_u128(commission).ok_or(Error::<T>::ConversionError)?;
-			let mut exit_fee = Decimal::from_u128(exit_fee).ok_or(Error::<T>::ConversionError)?;
+			let mut exit_fee = Decimal::from_u128(exit_fee).ok_or(Error::<T>::ConversionError)?; //TODO: @ksr Test Conversion
 			// Convert to Polkadex UNIT
 			commission.div_assign(Decimal::from(UNIT_BALANCE));
 			exit_fee.div_assign(Decimal::from(UNIT_BALANCE));
@@ -370,7 +377,7 @@ pub mod pallet {
 			let config = <Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
 			ensure!(<SnapshotFlag<T>>::get().is_none(), Error::<T>::SnapshotInProgress); // TODO: @zktony Replace with pool level flags
 			ensure!(!config.force_closed, Error::<T>::PoolForceClosed);
-			if !config.public_funds_allowed && !config.force_closed {
+			if !config.public_funds_allowed && !config.force_closed { //TODO: @ksr why we need forced close here?
 				ensure!(lp == market_maker, Error::<T>::PublicDepositsNotAllowed);
 			}
 
