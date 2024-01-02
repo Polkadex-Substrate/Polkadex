@@ -31,8 +31,8 @@ use thea_primitives::{
 	Message,
 };
 
-const MAINNET_URL: &str = "https://solochain-testnet.polkadex.trade";
-const PARACHAIN_URL: &str = "https://parachain-testnet.polkadex.trade";
+const MAINNET_URL: &str = "http://localhost:10000";
+const PARACHAIN_URL: &str = "http://localhost:8845";
 const AGGREGRATOR_URL: &str = "http://localhost:9001";
 
 pub struct Resolver<T: Config>(pub PhantomData<T>);
