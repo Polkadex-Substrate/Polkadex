@@ -48,8 +48,6 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub mod aggregator;
-pub mod resolver;
 pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
@@ -86,7 +84,7 @@ pub trait TheaWeightInfo {
 	fn remove_thea_network() -> Weight;
 }
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
 
@@ -150,6 +148,13 @@ pub mod pallet {
 	pub(super) type OutgoingMessages<T: Config> =
 		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
 
+	/// Signed Outgoing messages
+	/// first key: Network
+	/// second key: Message nonce
+	#[pallet::storage]
+	pub(super) type SignedOutgoingMessages<T: Config> =
+		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
+
 	/// Incoming messages
 	/// first key: origin network
 	/// second key: origin network blocknumber
@@ -167,6 +172,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn outgoing_nonce)]
 	pub(super) type OutgoingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
+
+	/// Outgoing signed nonce's grouped by network
+	#[pallet::storage]
+	pub(super) type SignedOutgoingNonce<T: Config> =
+		StorageMap<_, Identity, Network, u64, ValueQuery>;
 
 	/// List of Active networks
 	#[pallet::storage]
@@ -207,6 +217,8 @@ pub mod pallet {
 			match call {
 				Call::incoming_message { payload, signatures } =>
 					Self::validate_incoming_message(payload, signatures),
+				Call::submit_signed_outgoing_messages { auth_index, signatures } =>
+					Self::validate_signed_outgoing_message(auth_index, signatures),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -296,6 +308,23 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Signed outgoing messages
+		#[pallet::call_index(6)]
+		#[pallet::weight(10_000)]
+		pub fn submit_signed_outgoing_messages(
+			origin: OriginFor<T>,
+			auth_index: u64,
+			signatures: Vec<(Network, u64, T::Signature)>,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			let id = <ValidatorSetId<T>>::get();
+			// Signatures are already verified during extrinsic validation
+			// TODO: Update storage
+
+			Ok(())
+		}
 	}
 }
 
@@ -303,6 +332,40 @@ impl<T: Config> Pallet<T> {
 	pub fn active_validators() -> Vec<T::TheaId> {
 		let id = Self::validator_set_id();
 		<Authorities<T>>::get(id).to_vec()
+	}
+
+	fn validate_signed_outgoing_message(
+		auth_index: &u64,
+		signatures: &Vec<(Network, u64, T::Signature)>,
+	) -> TransactionValidity {
+		let current_set_id = <ValidatorSetId<T>>::get();
+		let authorities = <Authorities<T>>::get(current_set_id).to_vec();
+		let signer: &T::TheaId = match authorities.get(*auth_index as usize) {
+			None => return InvalidTransaction::Custom(1).into(),
+			Some(signer) => signer,
+		};
+		for (network, nonce, signature) in signatures {
+			let next_outgoing_nonce = <SignedOutgoingNonce<T>>::get(network).saturating_add(1);
+			if *nonce != next_outgoing_nonce {
+				return InvalidTransaction::Custom(2).into()
+			}
+			let message = match <OutgoingMessages<T>>::get(network, nonce) {
+				None => return InvalidTransaction::Custom(3).into(),
+				Some(msg) => msg,
+			};
+			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+			if !signer.verify(&msg_hash, &((*signature).clone().into())) {
+				return InvalidTransaction::Custom(4).into();
+			}
+		}
+
+		// TODO: Reject if its already submitted
+
+		ValidTransaction::with_tag_prefix("thea")
+			.and_provides(signatures)
+			.longevity(3)
+			.propagate(true)
+			.build()
 	}
 
 	fn validate_incoming_message(
@@ -351,14 +414,12 @@ impl<T: Config> Pallet<T> {
 	pub fn generate_payload(is_key_change: bool, network: Network, data: Vec<u8>) -> Message {
 		// Generate the Thea payload to communicate with foreign chains
 		let nonce = <OutgoingNonce<T>>::get(network);
-		let id = Self::validator_set_id();
 		Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
 			is_key_change,
-			validator_set_id: id,
 		}
 	}
 

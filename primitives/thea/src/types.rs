@@ -27,7 +27,16 @@ use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
-use crate::{Network, ValidatorSetId};
+use crate::{Network};
+
+/// Defines the message structure.
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub struct SignedMessage<Signature> {
+	message: Message,
+	signatures: Vec<Signature>,
+}
 
 /// Defines the message structure.
 #[derive(
@@ -45,8 +54,6 @@ pub struct Message {
 	pub network: Network,
 	/// Defines if authority was changed.
 	pub is_key_change: bool,
-	/// Validator set id at which this message was executed.
-	pub validator_set_id: ValidatorSetId,
 }
 
 /// Defines the destination of a thea message
