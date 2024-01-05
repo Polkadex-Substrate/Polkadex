@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use sp_std::cmp::Ordering;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
+use polkadex_primitives::UNIT_BALANCE;
 
 use crate::{Network};
 
@@ -36,6 +37,46 @@ Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserial
 pub struct SignedMessage<Signature> {
 	message: Message,
 	signatures: Vec<Signature>,
+}
+
+pub const THEA_HOLD_REASON: [u8; 8] = *b"theaRela";
+
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd,
+)]
+pub struct NetworkConfig{
+	pub fork_period: u32,
+	pub min_stake: u128,
+	pub fisherman_stake: u128
+}
+
+impl Default for NetworkConfig {
+	fn default() -> Self {
+		Self{
+			fork_period: 20,
+			min_stake: 1000*UNIT_BALANCE,
+			fisherman_stake: 100*UNIT_BALANCE,
+		}
+	}
+}
+
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub struct MisbehaviourReport<AccountId,Balance> {
+	pub reported_msg: IncomingMessage<AccountId,Balance>,
+	pub fisherman: AccountId,
+	pub stake: Balance
+}
+
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub struct IncomingMessage<AccountId,Balance>{
+	pub message: Message,
+	pub relayer: AccountId,
+	pub stake: Balance,
+	pub execute_at: u32
 }
 
 /// Defines the message structure.

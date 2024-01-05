@@ -35,7 +35,7 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	Percent, RuntimeAppPublic, SaturatedConversion,
+	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
 use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
@@ -88,10 +88,21 @@ pub trait TheaWeightInfo {
 pub mod pallet {
 	use super::*;
 
-	use frame_support::transactional;
+	use frame_support::{
+		traits::{
+			fungible::{Inspect, Mutate as OtherMutate},
+			tokens::{fungible::hold::Mutate, Fortitude, Precision, Preservation},
+		},
+		transactional,
+	};
 	use frame_system::offchain::SendTransactionTypes;
+	use polkadex_primitives::Balance;
+	use sp_runtime::Saturating;
 	use sp_std::collections::btree_set::BTreeSet;
-	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
+	use thea_primitives::{
+		types::{IncomingMessage, Message, MisbehaviourReport, THEA_HOLD_REASON},
+		TheaIncomingExecutor, TheaOutgoingExecutor,
+	};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
@@ -108,6 +119,14 @@ pub mod pallet {
 
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaIncomingExecutor;
+
+		/// Balances Pallet
+		type Currency: frame_support::traits::fungible::Mutate<Self::AccountId>
+			+ frame_support::traits::fungible::Inspect<Self::AccountId>
+			+ frame_support::traits::fungible::hold::Mutate<Self::AccountId, Reason = [u8; 8]>;
+
+		/// Governance Origin
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: TheaWeightInfo;
@@ -155,6 +174,20 @@ pub mod pallet {
 	pub(super) type SignedOutgoingMessages<T: Config> =
 		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
 
+	/// Incoming messages queue
+	/// first key: origin network
+	/// second key: blocknumber at which it will execute
+	#[pallet::storage]
+	pub(super) type IncomingMessagesQueue<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		u64,
+		thea_primitives::types::IncomingMessage<T::AccountId, Balance>,
+		OptionQuery,
+	>;
+
 	/// Incoming messages
 	/// first key: origin network
 	/// second key: origin network blocknumber
@@ -183,6 +216,25 @@ pub mod pallet {
 	#[pallet::getter(fn active_networks)]
 	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
 
+	/// Network Config
+	#[pallet::storage]
+	pub(super) type NetworkConfig<T: Config> =
+		StorageMap<_, Identity, Network, thea_primitives::types::NetworkConfig, ValueQuery>;
+
+	/// Misbehavour Reports
+	/// first key: origin network
+	/// second key: nonce
+	#[pallet::storage]
+	pub(super) type MisbehaviourReports<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		u64,
+		thea_primitives::types::MisbehaviourReport<T::AccountId, Balance>,
+		OptionQuery,
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -197,10 +249,52 @@ pub mod pallet {
 		ErrorExecutingMessage,
 		/// Wrong nonce provided
 		MessageNonce,
+		/// Not enough stake
+		NotEnoughStake,
+		/// MessageNotFound
+		MessageNotFound,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(blk: BlockNumberFor<T>) -> Weight {
+			// Every block check the next incoming nonce and if fork period is over, execute them
+			let active_networks = <ActiveNetworks<T>>::get();
+			for network in active_networks {
+				let next_nonce = <IncomingNonce<T>>::get(network);
+				match <IncomingMessagesQueue<T>>::get(network, next_nonce) {
+					None => continue,
+					Some(msg) => {
+						if msg.execute_at <= blk.saturated_into::<u32>() {
+							T::Executor::execute_deposits(
+								msg.message.network,
+								msg.message.data.clone(),
+							);
+							<IncomingNonce<T>>::insert(msg.message.network, msg.message.nonce);
+							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
+								msg.message.network,
+								msg.message.nonce,
+							));
+							// Save the incoming message for some time
+							<IncomingMessages<T>>::insert(
+								msg.message.network,
+								msg.message.nonce,
+								msg.message,
+							);
+							if let Err(err) = T::Currency::release(
+								&THEA_HOLD_REASON,
+								&msg.relayer,
+								msg.stake.saturated_into(),
+								Precision::BestEffort,
+							) {
+								// TODO: Emit an event
+							}
+						}
+					},
+				}
+			}
+			Weight::zero()
+		}
 		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");
 			if let Err(err) = Self::run_thea_validation(blk) {
@@ -215,8 +309,6 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { payload, signatures } =>
-					Self::validate_incoming_message(payload, signatures),
 				Call::submit_signed_outgoing_messages { auth_index, signatures } =>
 					Self::validate_signed_outgoing_message(auth_index, signatures),
 				_ => InvalidTransaction::Call.into(),
@@ -226,22 +318,70 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Handles the verified incoming message
+		/// Submit incoming message
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
 		#[transactional]
-		pub fn incoming_message(
+		pub fn submit_incoming_message(
 			origin: OriginFor<T>,
 			payload: Message,
-			_signatures: Vec<(u16, T::Signature)>,
+			stake: Balance,
 		) -> DispatchResult {
-			ensure_none(origin)?;
-			// Signature and nonce are already verified in validate_unsigned, no need to do it again
-			T::Executor::execute_deposits(payload.network, payload.data.clone());
-			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
-			Self::deposit_event(Event::<T>::TheaPayloadProcessed(payload.network, payload.nonce));
-			// Save the incoming message for some time
-			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
+			let signer = ensure_signed(origin)?;
+			let config = <NetworkConfig<T>>::get(payload.network);
+
+			if stake < config.min_stake {
+				return Err(Error::<T>::NotEnoughStake.into())
+			}
+
+			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
+				None => {
+					// Lock balance
+					T::Currency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+					// Put it in a queue
+					<IncomingMessagesQueue<T>>::insert(
+						payload.network,
+						payload.nonce,
+						IncomingMessage {
+							message: payload,
+							relayer: signer,
+							stake,
+							execute_at: frame_system::Pallet::<T>::current_block_number()
+								.saturated_into::<u32>()
+								.saturating_add(config.fork_period),
+						},
+					);
+				},
+				Some(mut existing_payload) => {
+					// Update the message only if stake is higher.
+					if existing_payload.stake < stake {
+						T::Currency::release(
+							&THEA_HOLD_REASON.into(),
+							&existing_payload.relayer,
+							existing_payload.stake.saturated_into(),
+							Precision::BestEffort,
+						)?;
+						T::Currency::hold(
+							&THEA_HOLD_REASON.into(),
+							&signer,
+							stake.saturated_into(),
+						)?;
+						existing_payload.message = payload;
+						existing_payload.relayer = signer;
+						existing_payload.stake = stake;
+						existing_payload.execute_at =
+							frame_system::Pallet::<T>::current_block_number()
+								.saturated_into::<u32>()
+								.saturating_add(config.fork_period);
+						<IncomingMessagesQueue<T>>::insert(
+							existing_payload.message.network,
+							existing_payload.message.nonce,
+							existing_payload,
+						);
+					}
+				},
+			}
+
 			Ok(())
 		}
 
@@ -290,8 +430,18 @@ pub mod pallet {
 		/// Add a network to active networks
 		#[pallet::call_index(4)]
 		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
-		pub fn add_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
+		pub fn add_thea_network(
+			origin: OriginFor<T>,
+			network: Network,
+			fork_period: u32,
+			min_stake: u128,
+			fisherman_stake: u128,
+		) -> DispatchResult {
 			ensure_root(origin)?;
+			<NetworkConfig<T>>::insert(
+				network,
+				thea_primitives::types::NetworkConfig { fork_period, min_stake, fisherman_stake },
+			);
 			<ActiveNetworks<T>>::mutate(|list| {
 				list.insert(network);
 			});
@@ -323,6 +473,103 @@ pub mod pallet {
 			// Signatures are already verified during extrinsic validation
 			// TODO: Update storage
 
+			Ok(())
+		}
+
+		/// Report misbehavour as fisherman
+		#[pallet::call_index(7)]
+		#[pallet::weight(10_000)]
+		#[transactional]
+		pub fn report_misbehaviour(
+			origin: OriginFor<T>,
+			network: Network,
+			nonce: u64,
+		) -> DispatchResult {
+			let fisherman = ensure_signed(origin)?;
+			let config = <NetworkConfig<T>>::get(network);
+			// TODO: Check if min stake is given
+			if T::Currency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite) <
+				config.fisherman_stake.saturated_into()
+			{
+				return Err(Error::<T>::NotEnoughStake.into())
+			}
+			T::Currency::hold(
+				&THEA_HOLD_REASON.into(),
+				&fisherman,
+				config.fisherman_stake.saturated_into(),
+			)?;
+			// Message from incoming message queue
+			match <IncomingMessagesQueue<T>>::take(network, nonce) {
+				None => return Err(Error::<T>::MessageNotFound.into()),
+				Some(reported_msg) => {
+					// Place it in misbehaviour reports
+					let report = MisbehaviourReport {
+						reported_msg,
+						fisherman,
+						stake: config.fisherman_stake,
+					};
+					<MisbehaviourReports<T>>::insert(network, nonce, report);
+					// TODO: Emit an event
+				},
+			}
+			Ok(())
+		}
+
+		/// Handle misbehaviour via governance
+		#[pallet::call_index(8)]
+		#[pallet::weight(10_000)]
+		#[transactional]
+		pub fn handle_misbehaviour(
+			origin: OriginFor<T>,
+			network: Network,
+			nonce: u64,
+			acceptance: bool,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+
+			match <MisbehaviourReports<T>>::take(network, nonce) {
+				None => {},
+				Some(report) => {
+					// Release lock on relayer
+					T::Currency::release(
+						&THEA_HOLD_REASON.into(),
+						&report.reported_msg.relayer,
+						report.reported_msg.stake.saturated_into(),
+						Precision::BestEffort,
+					)?;
+
+					if acceptance {
+						// Transfer to fisherman
+						T::Currency::transfer(
+							&report.reported_msg.relayer,
+							&report.fisherman,
+							report.reported_msg.stake.saturated_into(),
+							Preservation::Expendable,
+						)?;
+						// Release fisherman lock
+						T::Currency::release(
+							&THEA_HOLD_REASON.into(),
+							&report.fisherman,
+							report.stake.saturated_into(),
+							Precision::BestEffort,
+						)?;
+					} else {
+						// Insert back the message to queue
+						<IncomingMessagesQueue<T>>::insert(
+							report.reported_msg.message.network,
+							report.reported_msg.message.nonce,
+							report.reported_msg,
+						);
+						// burn fisherman stake
+						T::Currency::burn_from(
+							&report.fisherman,
+							report.stake.saturated_into(),
+							Precision::BestEffort,
+							Fortitude::Force,
+						)?;
+					}
+				},
+			}
 			Ok(())
 		}
 	}
@@ -363,49 +610,6 @@ impl<T: Config> Pallet<T> {
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides(signatures)
-			.longevity(3)
-			.propagate(true)
-			.build()
-	}
-
-	fn validate_incoming_message(
-		payload: &Message,
-		signatures: &Vec<(u16, T::Signature)>,
-	) -> TransactionValidity {
-		// Check if this message can be processed next by checking its nonce
-		let next_nonce = <IncomingNonce<T>>::get(payload.network).saturating_add(1);
-
-		if payload.nonce != next_nonce {
-			return InvalidTransaction::Custom(1).into()
-		}
-
-		// Incoming messages are always signed by the current validators.
-		let current_set_id = <ValidatorSetId<T>>::get();
-		let authorities = <Authorities<T>>::get(current_set_id).to_vec();
-
-		// Check for super majority
-		const MAJORITY: u8 = 67;
-		let p = Percent::from_percent(MAJORITY);
-		let threshold = p * authorities.len();
-
-		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(4).into()
-		}
-
-		let encoded_payload = payload.encode();
-		let msg_hash = sp_io::hashing::sha2_256(&encoded_payload);
-		for (index, signature) in signatures {
-			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(2).into(),
-				Some(auth) =>
-					if !auth.verify(&msg_hash, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(3).into()
-					},
-			}
-		}
-
-		ValidTransaction::with_tag_prefix("thea")
-			.and_provides(payload)
 			.longevity(3)
 			.propagate(true)
 			.build()
