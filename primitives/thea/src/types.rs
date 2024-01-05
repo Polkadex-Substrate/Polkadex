@@ -20,6 +20,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use std::collections::BTreeMap;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -28,15 +29,49 @@ use sp_std::cmp::Ordering;
 use sp_std::vec::Vec;
 use polkadex_primitives::UNIT_BALANCE;
 
-use crate::{Network};
+use crate::{Network, ValidatorSetId};
 
 /// Defines the message structure.
 #[derive(
 Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
 )]
 pub struct SignedMessage<Signature> {
+	pub validator_set_id: ValidatorSetId,
 	message: Message,
-	signatures: Vec<Signature>,
+	signatures: BTreeMap<u32,Signature>,
+}
+
+impl<Signature> SignedMessage<Signature> {
+	pub fn new(message: Message, validator_set_id: ValidatorSetId, auth_index: u32, signature: Signature) -> Self {
+		let mut signatures = BTreeMap::new();
+		signatures.insert(auth_index,signature);
+		Self {
+			validator_set_id,
+			message,
+			signatures
+		}
+	}
+
+	pub fn add_signature(&mut self, message: Message, validator_set_id: ValidatorSetId, auth_index: u32, signature: Signature) {
+		if self.message != message {
+			// silently drop if message is different
+			return;
+		}
+		if self.validator_set_id < validator_set_id{
+			self.validator_set_id = validator_set_id
+		}
+		self.signatures.clear();
+		self.signatures.insert(auth_index,signature);
+	}
+
+	pub fn threshold_reached(&self, max_len: usize) -> bool {
+		let threshold = (2*max_len)/3;
+		self.signatures.len() >= threshold
+	}
+
+	pub fn contains_signature(&self, auth_index: &u32) -> bool {
+		self.signatures.contains_key(auth_index)
+	}
 }
 
 pub const THEA_HOLD_REASON: [u8; 8] = *b"theaRela";

@@ -18,9 +18,9 @@
 
 use crate::{
 	pallet::{ActiveNetworks, Authorities, OutgoingMessages, SignedOutgoingNonce, ValidatorSetId},
-	Config, Pallet,
+	Call, Config, Pallet,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_system::{offchain::SubmitTransaction, pallet_prelude::BlockNumberFor};
 use parity_scale_codec::Encode;
 use sp_application_crypto::RuntimeAppPublic;
 use thea_primitives::Network;
@@ -68,8 +68,18 @@ impl<T: Config> Pallet<T> {
 			// Note: this is a double hash signing
 			let signature = signer.sign(&msg_hash).ok_or("Expected signature to be returned")?;
 			signed_messages.push((network, next_outgoing_nonce, signature.into()));
-			//TODO: Later we should batch these signatures into a single extrinsic ( not in this
-			// release) submit on-chain
+		}
+
+		//	we batch these signatures into a single extrinsic and submit on-chain
+		if let Err(()) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(
+			Call::<T>::submit_signed_outgoing_messages {
+				auth_index: *auth_index as u32,
+				id,
+				signatures: signed_messages,
+			}
+			.into(),
+		) {
+			log::error!(target:"thea","Error submitting thea unsigned txn");
 		}
 
 		log::debug!(target:"thea","Thea offchain worker exiting..");

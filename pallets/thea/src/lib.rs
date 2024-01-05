@@ -87,7 +87,6 @@ pub trait TheaWeightInfo {
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
-
 	use frame_support::{
 		traits::{
 			fungible::{Inspect, Mutate as OtherMutate},
@@ -97,10 +96,9 @@ pub mod pallet {
 	};
 	use frame_system::offchain::SendTransactionTypes;
 	use polkadex_primitives::Balance;
-	use sp_runtime::Saturating;
 	use sp_std::collections::btree_set::BTreeSet;
 	use thea_primitives::{
-		types::{IncomingMessage, Message, MisbehaviourReport, THEA_HOLD_REASON},
+		types::{IncomingMessage, Message, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON},
 		TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
 
@@ -171,8 +169,15 @@ pub mod pallet {
 	/// first key: Network
 	/// second key: Message nonce
 	#[pallet::storage]
-	pub(super) type SignedOutgoingMessages<T: Config> =
-		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
+	pub(super) type SignedOutgoingMessages<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		u64,
+		SignedMessage<T::Signature>,
+		OptionQuery,
+	>;
 
 	/// Incoming messages queue
 	/// first key: origin network
@@ -239,6 +244,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		TheaPayloadProcessed(Network, u64),
+		ErrorWhileReleasingLock(T::AccountId, DispatchError),
+		/// Misbehaviour Reported (fisherman, network, nonce)
+		MisbehaviourReported(T::AccountId, Network, u64),
 	}
 
 	#[pallet::error]
@@ -287,7 +295,11 @@ pub mod pallet {
 								msg.stake.saturated_into(),
 								Precision::BestEffort,
 							) {
-								// TODO: Emit an event
+								// Emit an error event
+								Self::deposit_event(Event::<T>::ErrorWhileReleasingLock(
+									msg.relayer,
+									err,
+								));
 							}
 						}
 					},
@@ -309,8 +321,8 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::submit_signed_outgoing_messages { auth_index, signatures } =>
-					Self::validate_signed_outgoing_message(auth_index, signatures),
+				Call::submit_signed_outgoing_messages { auth_index, signatures, id } =>
+					Self::validate_signed_outgoing_message(auth_index, id, signatures),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -464,19 +476,37 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn submit_signed_outgoing_messages(
 			origin: OriginFor<T>,
-			auth_index: u64,
+			auth_index: u32,
+			id: thea_primitives::ValidatorSetId,
 			signatures: Vec<(Network, u64, T::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
-			let id = <ValidatorSetId<T>>::get();
-			// Signatures are already verified during extrinsic validation
-			// TODO: Update storage
+			for (network, nonce, signature) in signatures {
+				let message = match <OutgoingMessages<T>>::get(network, nonce) {
+					None => return Err(Error::<T>::MessageNotFound.into()),
+					Some(msg) => msg,
+				};
+				match <SignedOutgoingMessages<T>>::get(network, nonce) {
+					None => {
+						let signed_msg = SignedMessage::new(message, id, auth_index, signature);
+						<SignedOutgoingMessages<T>>::insert(network, nonce, signed_msg);
+					},
+					Some(mut signed_msg) => {
+						signed_msg.add_signature(message, id, auth_index, signature);
+						let auth_len = <Authorities<T>>::get(signed_msg.validator_set_id).len();
+						if signed_msg.threshold_reached(auth_len) {
+							<SignedOutgoingNonce<T>>::insert(network, nonce);
+						}
+						<SignedOutgoingMessages<T>>::insert(network, nonce, signed_msg);
+					},
+				}
+			}
 
 			Ok(())
 		}
 
-		/// Report misbehavour as fisherman
+		/// Report misbehaviour as fisherman
 		#[pallet::call_index(7)]
 		#[pallet::weight(10_000)]
 		#[transactional]
@@ -487,7 +517,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let fisherman = ensure_signed(origin)?;
 			let config = <NetworkConfig<T>>::get(network);
-			// TODO: Check if min stake is given
+			//  Check if min stake is given
 			if T::Currency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite) <
 				config.fisherman_stake.saturated_into()
 			{
@@ -505,11 +535,14 @@ pub mod pallet {
 					// Place it in misbehaviour reports
 					let report = MisbehaviourReport {
 						reported_msg,
-						fisherman,
+						fisherman: fisherman.clone(),
 						stake: config.fisherman_stake,
 					};
 					<MisbehaviourReports<T>>::insert(network, nonce, report);
-					// TODO: Emit an event
+					// Emit an event
+					Self::deposit_event(Event::<T>::MisbehaviourReported(
+						fisherman, network, nonce,
+					));
 				},
 			}
 			Ok(())
@@ -530,15 +563,14 @@ pub mod pallet {
 			match <MisbehaviourReports<T>>::take(network, nonce) {
 				None => {},
 				Some(report) => {
-					// Release lock on relayer
-					T::Currency::release(
-						&THEA_HOLD_REASON.into(),
-						&report.reported_msg.relayer,
-						report.reported_msg.stake.saturated_into(),
-						Precision::BestEffort,
-					)?;
-
 					if acceptance {
+						// Release lock on relayer
+						T::Currency::release(
+							&THEA_HOLD_REASON.into(),
+							&report.reported_msg.relayer,
+							report.reported_msg.stake.saturated_into(),
+							Precision::BestEffort,
+						)?;
 						// Transfer to fisherman
 						T::Currency::transfer(
 							&report.reported_msg.relayer,
@@ -582,11 +614,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_signed_outgoing_message(
-		auth_index: &u64,
+		auth_index: &u32,
+		id: &thea_primitives::ValidatorSetId,
 		signatures: &Vec<(Network, u64, T::Signature)>,
 	) -> TransactionValidity {
-		let current_set_id = <ValidatorSetId<T>>::get();
-		let authorities = <Authorities<T>>::get(current_set_id).to_vec();
+		let authorities = <Authorities<T>>::get(id).to_vec();
 		let signer: &T::TheaId = match authorities.get(*auth_index as usize) {
 			None => return InvalidTransaction::Custom(1).into(),
 			Some(signer) => signer,
@@ -596,6 +628,16 @@ impl<T: Config> Pallet<T> {
 			if *nonce != next_outgoing_nonce {
 				return InvalidTransaction::Custom(2).into()
 			}
+
+			// Reject if it contains already submitted message signatures
+			match <SignedOutgoingMessages<T>>::get(network, nonce) {
+				None => {},
+				Some(signed_msg) =>
+					if signed_msg.contains_signature(auth_index) {
+						return InvalidTransaction::Custom(4).into()
+					},
+			}
+
 			let message = match <OutgoingMessages<T>>::get(network, nonce) {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(msg) => msg,
@@ -606,11 +648,9 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		// TODO: Reject if its already submitted
-
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides(signatures)
-			.longevity(3)
+			.longevity(1)
 			.propagate(true)
 			.build()
 	}
