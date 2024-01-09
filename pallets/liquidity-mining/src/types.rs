@@ -10,7 +10,7 @@ pub struct MarketMakerConfig<AccountId> {
 	pub(crate) exit_fee: Decimal,
 	pub(crate) public_funds_allowed: bool,
 	pub(crate) name: [u8; 10],
-	pub(crate) share_id: AssetId,
+	pub(crate) share_id: u128,
 	pub(crate) force_closed: bool,
 }
 

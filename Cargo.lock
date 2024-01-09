@@ -5827,6 +5827,7 @@ dependencies = [
  "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",
+ "pallet-lmp",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",

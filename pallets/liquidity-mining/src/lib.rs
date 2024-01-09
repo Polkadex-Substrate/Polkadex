@@ -59,6 +59,16 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId,
 	>>::Balance;
 
+	// (
+	// BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, // (score, claim_flag)
+	// BalanceOf<T>,                                 // sum of scores of all lps
+	// bool,                                         // MM claim flag
+	// )
+	type SumOfScores<T: Config> = BalanceOf<T>;
+	type MMScore<T: Config> = BalanceOf<T>;
+	type MMClaimFlag = bool;
+	type MMInfo<T: Config> = (BTreeMap<T::AccountId, (MMScore<T>, MMClaimFlag)>, SumOfScores<T>, MMClaimFlag);
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: IsType<<Self as frame_system::Config>::RuntimeEvent> + From<Event<Self>>;
@@ -77,7 +87,7 @@ pub mod pallet {
 		type OtherAssets: Mutate<
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
-				AssetId = AssetId,
+				AssetId = u128,
 			> + Inspect<<Self as frame_system::Config>::AccountId>
 			+ Create<<Self as frame_system::Config>::AccountId>;
 	}
@@ -90,7 +100,7 @@ pub mod pallet {
 	pub(super) type LPShares<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		AssetId, // share_id
+		u128, // share_id
 		Identity,
 		T::AccountId, // LP
 		BalanceOf<T>,
@@ -99,6 +109,7 @@ pub mod pallet {
 
 	/// Pools
 	#[pallet::storage]
+	#[pallet::getter(fn lmp_pool)]
 	pub(super) type Pools<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -155,11 +166,7 @@ pub mod pallet {
 		u16, // Epoch
 		Identity,
 		T::AccountId, // Pool address
-		(
-			BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, // (score, claim_flag)
-			BalanceOf<T>,                                 // sum of scores of all lps
-			bool,                                         // MM claim flag
-		),
+		MMInfo<T>,
 		ValueQuery,
 	>;
 
@@ -346,9 +353,41 @@ pub mod pallet {
 			);
 			// Create the a pool address with origin and market combo if it doesn't exist
 			let (pool, share_id) = Self::create_pool_account(&market_maker, market);
-			T::OtherAssets::create(AssetId::Asset(share_id), pool.clone(), false, Zero::zero())?;
+			T::OtherAssets::create(share_id, pool.clone(), true, One::one())?;
+			// Transfer existential balance to pool id as fee, so that it never dies
+			T::NativeCurrency::transfer(
+				&market_maker,
+				&pool,
+				T::NativeCurrency::minimum_balance(),
+				ExistenceRequirement::KeepAlive,
+			)?;
+			if let Some(base_asset) = market.base.asset_id() {
+				T::OtherAssets::transfer(
+					base_asset,
+					&market_maker,
+					&pool,
+					T::OtherAssets::minimum_balance(base_asset),
+					Preservation::Preserve,
+				)?;
+			}
+			if let Some(quote_asset) = market.quote.asset_id() {
+				T::OtherAssets::transfer(
+					quote_asset,
+					&market_maker,
+					&pool,
+					T::OtherAssets::minimum_balance(quote_asset),
+					Preservation::Preserve,
+				)?;
+			}
+			T::OtherAssets::transfer(
+				market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
+				&market_maker,
+				&pool,
+				T::OtherAssets::minimum_balance(market.quote.asset_id().ok_or(Error::<T>::ConversionError)?),
+				Preservation::Preserve,
+			)?;
 			// Register on OCEX pallet
-			T::OCEX::register_pool(pool.clone(), trading_account)?;
+			T::OCEX::register_pool(pool.clone(), trading_account)?; //TODO: @ksr check if this can fail? // Tobe tested more
 			// Start cycle
 			let config = MarketMakerConfig {
 				pool_id: pool,
@@ -356,7 +395,7 @@ pub mod pallet {
 				exit_fee,
 				public_funds_allowed,
 				name,
-				share_id: AssetId::Asset(share_id),
+				share_id: share_id,
 				force_closed: false,
 			};
 			<Pools<T>>::insert(market, market_maker, config);
@@ -395,15 +434,12 @@ pub mod pallet {
 			// Calculate the required quote asset
 			let required_quote_amount = average_price.saturating_mul(base_amount);
 			ensure!(required_quote_amount <= max_quote_amount, Error::<T>::NotEnoughQuoteAmount);
-
 			Self::transfer_asset(&lp, &config.pool_id, base_amount, market.base)?;
 			Self::transfer_asset(&lp, &config.pool_id, required_quote_amount, market.quote)?;
-
 			let total_shares_issued = Decimal::from(
 				T::OtherAssets::total_issuance(config.share_id).saturated_into::<u128>(),
 			)
 			.div(Decimal::from(UNIT_BALANCE));
-
 			T::OCEX::add_liquidity(
 				market,
 				config.pool_id,
@@ -538,8 +574,11 @@ pub mod pallet {
 			};
 
 			// Get the rewards for this LP after commission and exit fee
-			let (scores_map, total_score, _) =
+			let (scores_map, total_score, already_claimed) =
 				<LiquidityProviders<T>>::get(epoch, &pool_config.pool_id);
+			if already_claimed {
+				return Err(Error::<T>::AlreadyClaimed.into());
+			}
 
 			let rewards_for_mm = pool_config
 				.commission
@@ -647,7 +686,7 @@ pub mod pallet {
 			let total_issuance = T::OtherAssets::total_issuance(pool_config.share_id);
 
 			let base_balance = T::OtherAssets::reducible_balance(
-				market.base,
+				market.base.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				Preservation::Expendable,
 				Fortitude::Force,
@@ -659,7 +698,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::InvalidTotalIssuance)?;
 
 			let quote_balance = T::OtherAssets::reducible_balance(
-				market.base,
+				market.base.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				Preservation::Expendable,
 				Fortitude::Force,
@@ -678,20 +717,20 @@ pub mod pallet {
 				Fortitude::Force,
 			)?;
 			T::OtherAssets::transfer(
-				market.base,
+				market.base.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				&lp,
 				base_amt_to_claim,
 				Preservation::Expendable,
 			)?;
 			T::OtherAssets::transfer(
-				market.quote,
+				market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				&lp,
 				quote_amt_to_claim,
 				Preservation::Expendable,
 			)?;
-			// TODO: Emit events
+			// TODO: Emit events (Ask @frontend team about this)
 			Ok(())
 		}
 	}

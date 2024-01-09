@@ -65,7 +65,7 @@ use sp_std::vec::Vec;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub mod weights;
 
@@ -150,9 +150,7 @@ pub mod pallet {
 		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
-	use orderbook_primitives::{
-		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
-	};
+	use orderbook_primitives::{constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary, TradingPairMetricsMap};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ingress::EgressMessages,
@@ -1161,11 +1159,13 @@ pub mod pallet {
 			)?;
 			Ok(total_in_u128)
 		}
+
+		// Current :0
+		// 1 > Config
+		// LMPEpoch => 1
+
 		pub fn update_lmp_scores(
-			trader_metrics: &BTreeMap<
-				TradingPair,
-				(BTreeMap<T::AccountId, (Decimal, Decimal)>, (Decimal, Decimal)),
-			>,
+			trader_metrics: &TradingPairMetricsMap<T::AccountId>,
 		) -> DispatchResult {
 			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
 			let config = <LMPConfig<T>>::get(current_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
@@ -1347,7 +1347,6 @@ pub mod pallet {
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
 				.checked_div(Decimal::from(UNIT_BALANCE))
 				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-
 			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
 			// Get Storage Map Value
 			if let Some(expected_total_amount) =
@@ -1786,7 +1785,7 @@ pub mod pallet {
 
 	/// Price Map showing the average prices ( value = (avg_price, ticks)
 	#[pallet::storage]
-	pub(super) type PriceOracle<T: Config> =
+	pub type PriceOracle<T: Config> =
 		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
 }
 
@@ -1895,7 +1894,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 					payer,
 					payee,
 					amount.unique_saturated_into(),
-					Preservation::Preserve,
+					Preservation::Expendable,
 				)?;
 			},
 		}

@@ -12,9 +12,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Starts new liquidity mining epoch
-	pub(crate) fn start_new_epoch() {
+	pub fn start_new_epoch() {
 		let mut current_epoch: u16 = <LMPEpoch<T>>::get();
-		if <FinalizeLMPScore<T>>::get().is_none() {
+		if <FinalizeLMPScore<T>>::get().is_none() && current_epoch > 0 {
 			<FinalizeLMPScore<T>>::put(current_epoch);
 		}
 		current_epoch = current_epoch.saturating_add(1);

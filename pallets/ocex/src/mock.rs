@@ -45,6 +45,7 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		Assets: pallet_assets,
 		Timestamp: pallet_timestamp,
+		LiqudityMining: pallet_lmp::pallet,
 		OCEX: crate,
 	}
 );
@@ -116,17 +117,30 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
 	pub const ProxyLimit: u32 = 2;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const TreasuryPalletId: PalletId = PalletId(*b"OCEX_TRS");
+	//pub const TreasuryPalletId: PalletId = PalletId(*b"OCEX_CRW");
 	pub const MsPerDay: u64 = 86_400_000;
+}
+
+impl pallet_lmp::pallet::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type PalletId = OcexPalletId;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
+	type OCEX = OCEX;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = OcexPalletId;
+	type TreasuryPalletId = TreasuryPalletId;
+	type LMPRewardsPalletId = OcexPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type AuthorityId = crate::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type CrowdSourceLiqudityMining = LiqudityMining;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
