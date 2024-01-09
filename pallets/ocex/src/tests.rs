@@ -2827,17 +2827,6 @@ fn register_trading_pair() {
 		));
 }
 
-// #[test]
-// pub fn test_update_lmp_scores_happy_path() {
-// 	new_test_ext().execute_with(|| {
-// 		// Add LMP Epoch
-// 		<LMPEpoch<Test>>::put(1);
-// 		// Add LMP Config
-//
-//
-// 	})
-// }
-
 //FIXME: This test case is not building. Check if it relevant or not
 // #[test]
 // fn test_scale_encode_with_old_user_action_enum_with_new_returns_ok() {

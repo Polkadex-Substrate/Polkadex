@@ -779,7 +779,7 @@ impl<T: Config> Pallet<T> {
 					let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, &main)?;
 					let uptime = Decimal::from(uptime);
 					// Compute the final score
-					let final_score = q_score //TODO: @ksr look into this
+					let final_score = q_score
 						.pow(0.15f64)
 						.saturating_mul(uptime.pow(5.0f64))
 						.saturating_mul(maker_volume.pow(0.85f64)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85

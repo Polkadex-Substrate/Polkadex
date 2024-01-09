@@ -339,7 +339,7 @@ pub mod pallet {
 			// Check if commission and exit fee are between 0-1
 			let mut commission =
 				Decimal::from_u128(commission).ok_or(Error::<T>::ConversionError)?;
-			let mut exit_fee = Decimal::from_u128(exit_fee).ok_or(Error::<T>::ConversionError)?; //TODO: @ksr Test Conversion
+			let mut exit_fee = Decimal::from_u128(exit_fee).ok_or(Error::<T>::ConversionError)?;
 			// Convert to Polkadex UNIT
 			commission.div_assign(Decimal::from(UNIT_BALANCE));
 			exit_fee.div_assign(Decimal::from(UNIT_BALANCE));
@@ -387,7 +387,7 @@ pub mod pallet {
 				Preservation::Preserve,
 			)?;
 			// Register on OCEX pallet
-			T::OCEX::register_pool(pool.clone(), trading_account)?; //TODO: @ksr check if this can fail? // Tobe tested more
+			T::OCEX::register_pool(pool.clone(), trading_account)?;
 			// Start cycle
 			let config = MarketMakerConfig {
 				pool_id: pool,
@@ -416,7 +416,7 @@ pub mod pallet {
 			let config = <Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
 			ensure!(<SnapshotFlag<T>>::get().is_none(), Error::<T>::SnapshotInProgress); // TODO: @zktony Replace with pool level flags
 			ensure!(!config.force_closed, Error::<T>::PoolForceClosed);
-			if !config.public_funds_allowed && !config.force_closed { //TODO: @ksr why we need forced close here?
+			if !config.public_funds_allowed && !config.force_closed {
 				ensure!(lp == market_maker, Error::<T>::PublicDepositsNotAllowed);
 			}
 

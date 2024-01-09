@@ -18,7 +18,6 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 		<SnapshotFlag<T>>::put(frame_system::Pallet::<T>::current_block_number());
 	}
 
-	// TODO: @ksr this fn should not fail.
 	fn add_liquidity_success(
 		market: TradingPair,
 		market_maker: &T::AccountId,
