@@ -1160,10 +1160,6 @@ pub mod pallet {
 			Ok(total_in_u128)
 		}
 
-		// Current :0
-		// 1 > Config
-		// LMPEpoch => 1
-
 		pub fn update_lmp_scores(
 			trader_metrics: &TradingPairMetricsMap<T::AccountId>,
 		) -> DispatchResult {
