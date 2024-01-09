@@ -58,12 +58,6 @@ pub mod pallet {
 	type BalanceOf<T> = <<T as Config>::NativeCurrency as Currency<
 		<T as frame_system::Config>::AccountId,
 	>>::Balance;
-
-	// (
-	// BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, // (score, claim_flag)
-	// BalanceOf<T>,                                 // sum of scores of all lps
-	// bool,                                         // MM claim flag
-	// )
 	type SumOfScores<T: Config> = BalanceOf<T>;
 	type MMScore<T: Config> = BalanceOf<T>;
 	type MMClaimFlag = bool;
