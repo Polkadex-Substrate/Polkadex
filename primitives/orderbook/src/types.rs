@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! In this module defined "Orderbook" specific operations and types.
-
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
@@ -28,6 +27,7 @@ use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
+use rust_decimal::prelude::FromPrimitive;
 
 #[cfg(not(feature = "std"))]
 use sp_std::fmt::{Display, Formatter};
@@ -130,7 +130,6 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
-use rust_decimal::prelude::FromPrimitive;
 
 impl Trade {
 	/// Constructor.

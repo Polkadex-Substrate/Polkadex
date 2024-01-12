@@ -24,6 +24,7 @@ use frame_system::{offchain::SubmitTransaction, pallet_prelude::BlockNumberFor};
 use parity_scale_codec::Encode;
 use sp_application_crypto::RuntimeAppPublic;
 use thea_primitives::Network;
+use sp_std::vec::Vec;
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages

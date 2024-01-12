@@ -20,11 +20,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::cmp::Ordering;
+
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 use polkadex_primitives::UNIT_BALANCE;
