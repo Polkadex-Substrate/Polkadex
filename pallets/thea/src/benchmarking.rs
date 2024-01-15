@@ -21,7 +21,7 @@
 
 use super::*;
 use frame_benchmarking::benchmarks;
-use frame_support::BoundedVec;
+use frame_support::{traits::fungible::Mutate, BoundedVec};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
@@ -52,10 +52,13 @@ benchmarks! {
 		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
 		set.try_push(key).unwrap();
 		<Authorities::<T>>::insert(0, set);
-	}: _(RawOrigin::None, message, 100*UNIT_BALANCE)
+		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+	}: _(RawOrigin::Signed(relayer), message, 10000*UNIT_BALANCE)
 	verify {
-		assert!(<IncomingNonce::<T>>::get(0) == 1);
-		assert!(<IncomingMessages::<T>>::iter().count() == 1);
+		// Nonce is updated only after execute_at number of blocks
+		assert_eq!(<IncomingNonce::<T>>::get(0),0);
+		assert_eq!(<IncomingMessages::<T>>::iter().count(), 0);
 	}
 
 	send_thea_message {
