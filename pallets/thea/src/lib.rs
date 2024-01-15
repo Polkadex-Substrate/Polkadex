@@ -374,13 +374,13 @@ pub mod pallet {
 					// Update the message only if stake is higher.
 					if existing_payload.stake < stake {
 						T::Currency::release(
-							&THEA_HOLD_REASON.into(),
+							&THEA_HOLD_REASON,
 							&existing_payload.relayer,
 							existing_payload.stake.saturated_into(),
 							Precision::BestEffort,
 						)?;
 						T::Currency::hold(
-							&THEA_HOLD_REASON.into(),
+							&THEA_HOLD_REASON,
 							&signer,
 							stake.saturated_into(),
 						)?;
@@ -530,7 +530,7 @@ pub mod pallet {
 				return Err(Error::<T>::NotEnoughStake.into())
 			}
 			T::Currency::hold(
-				&THEA_HOLD_REASON.into(),
+				&THEA_HOLD_REASON,
 				&fisherman,
 				config.fisherman_stake.saturated_into(),
 			)?;
@@ -572,7 +572,7 @@ pub mod pallet {
 					if acceptance {
 						// Release lock on relayer
 						T::Currency::release(
-							&THEA_HOLD_REASON.into(),
+							&THEA_HOLD_REASON,
 							&report.reported_msg.relayer,
 							report.reported_msg.stake.saturated_into(),
 							Precision::BestEffort,
@@ -586,7 +586,7 @@ pub mod pallet {
 						)?;
 						// Release fisherman lock
 						T::Currency::release(
-							&THEA_HOLD_REASON.into(),
+							&THEA_HOLD_REASON,
 							&report.fisherman,
 							report.stake.saturated_into(),
 							Precision::BestEffort,
