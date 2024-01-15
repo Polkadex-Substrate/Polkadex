@@ -110,10 +110,10 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize + Ord;
+		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize + Ord + Into<sp_core::ecdsa::Public>;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter + From<sp_core::ecdsa::Signature> + Into<sp_core::ecdsa::Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -645,8 +645,9 @@ impl<T: Config> Pallet<T> {
 				Some(msg) => msg,
 			};
 			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
-			if !signer.verify(&msg_hash, &((*signature).clone().into())) {
-				return InvalidTransaction::Custom(6).into();
+
+			if !sp_io::crypto::ecdsa_verify_prehashed(&signature.clone().into(), &msg_hash, &signer.clone().into()) {
+				return InvalidTransaction::Custom(6).into()
 			}
 		}
 
