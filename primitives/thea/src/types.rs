@@ -136,8 +136,6 @@ pub struct Message {
 	pub nonce: u64,
 	/// Network
 	pub network: Network,
-	/// Validator set id at which this message was executed.
-	pub validator_set_id: ValidatorSetId,
 	/// Defines how the payload must be decoded
 	pub payload_type: PayloadType,
 	/// Payload of the message.
