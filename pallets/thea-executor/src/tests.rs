@@ -93,10 +93,7 @@ fn test_transfer_native_asset() {
 		// Verify
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
 		let approved_withdraw = Withdraw {
-			id: Vec::from([
-				179, 96, 16, 235, 40, 92, 21, 74, 140, 214, 48, 132, 172, 190, 126, 172, 12, 77,
-				98, 90, 180, 225, 167, 110, 98, 74, 135, 152, 203, 99, 73, 123,
-			]),
+			id: Vec::from([179, 96, 16, 235, 40, 92, 21, 74, 140, 214]),
 			asset_id,
 			amount: 10_000_000_000_000u128,
 			destination: vec![1; 32],

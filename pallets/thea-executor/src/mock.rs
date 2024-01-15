@@ -89,7 +89,7 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type ReserveIdentifier = [u8; 8];
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = [u8; 8];
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
@@ -140,6 +140,8 @@ impl thea::Config for Test {
 	type TheaId = AuthorityId;
 	type Signature = AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
@@ -186,7 +188,7 @@ parameter_types! {
 	pub const PolkadexAssetId: u128 = 0;
 	pub const ParaId: u32 = 2040;
 }
-use polkadex_primitives::AssetId;
+use polkadex_primitives::{AssetId};
 use sp_core::ConstU32;
 use sp_runtime::Permill;
 
