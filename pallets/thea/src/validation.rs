@@ -16,11 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{pallet::{ActiveNetworks, Authorities, OutgoingMessages, SignedOutgoingNonce, ValidatorSetId}, Call, Config, Pallet, THEA};
+use crate::{
+	pallet::{ActiveNetworks, Authorities, OutgoingMessages, SignedOutgoingNonce, ValidatorSetId},
+	Call, Config, Pallet, THEA,
+};
 use frame_system::{offchain::SubmitTransaction, pallet_prelude::BlockNumberFor};
 use parity_scale_codec::Encode;
 use sp_application_crypto::RuntimeAppPublic;
-use sp_core::ecdsa;
 use sp_std::vec::Vec;
 use thea_primitives::Network;
 
@@ -65,9 +67,9 @@ impl<T: Config> Pallet<T> {
 			};
 			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
 			// Note: this is a double hash signing
-			let signature = sp_io::crypto::ecdsa_sign_prehashed(THEA, &signer.clone().into(), &msg_hash)
-				.ok_or("Expected signature to be returned")?;
-			//let signature = signer.sign(&msg_hash).ok_or("Expected signature to be returned")?;
+			let signature =
+				sp_io::crypto::ecdsa_sign_prehashed(THEA, &signer.clone().into(), &msg_hash)
+					.ok_or("Expected signature to be returned")?;
 			signed_messages.push((network, next_outgoing_nonce, signature.into()));
 		}
 
