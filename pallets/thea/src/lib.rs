@@ -39,6 +39,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::types::PayloadType;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -278,7 +279,7 @@ pub mod pallet {
 								msg.message.network,
 								msg.message.data.clone(),
 							);
-							<IncomingNonce<T>>::insert(msg.message.network, msg.message.nonce);
+							<IncomingNonce<T>>::insert(msg.message.network, next_nonce.saturating_add(1));
 							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
 								msg.message.network,
 								msg.message.nonce,
@@ -644,7 +645,7 @@ impl<T: Config> Pallet<T> {
 			};
 			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
 			if !signer.verify(&msg_hash, &((*signature).clone().into())) {
-				return InvalidTransaction::Custom(4).into();
+				return InvalidTransaction::Custom(6).into();
 			}
 		}
 
@@ -655,15 +656,19 @@ impl<T: Config> Pallet<T> {
 			.build()
 	}
 
+	//FIXME: Fix types of this function
 	pub fn generate_payload(is_key_change: bool, network: Network, data: Vec<u8>) -> Message {
 		// Generate the Thea payload to communicate with foreign chains
 		let nonce = <OutgoingNonce<T>>::get(network);
+		let payload_type = if is_key_change { PayloadType::ScheduledRotateValidators } else {PayloadType::L1Deposit};
+		let id = Self::validator_set_id();
 		Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
-			is_key_change,
+			validator_set_id: id,
+			payload_type
 		}
 	}
 
@@ -699,7 +704,7 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				let message = Self::generate_payload(false, network, Vec::new());
+				let message = Self::generate_payload(false, network, Vec::new()); //Empty data means acitvate the next set_id
 				<OutgoingNonce<T>>::insert(network, message.nonce);
 				<OutgoingMessages<T>>::insert(network, message.nonce, message);
 			}

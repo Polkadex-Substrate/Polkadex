@@ -411,6 +411,8 @@ impl pallet_indices::Config for Runtime {
 parameter_types! {
 	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
+	pub const MaxHolds: u32 = 50;
+	pub const MaxFreezes: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
 
@@ -426,8 +428,8 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type MaxHolds = ();
-	type MaxFreezes = ();
+	type MaxHolds = MaxHolds;
+	type MaxFreezes = MaxFreezes;
 }
 use sp_runtime::traits::{Bounded, ConvertInto};
 parameter_types! {
