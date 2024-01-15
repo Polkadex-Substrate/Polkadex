@@ -25,6 +25,7 @@ use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use sp_std::collections::btree_set::BTreeSet;
+use polkadex_primitives::UNIT_BALANCE;
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
@@ -37,7 +38,7 @@ fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 }
 
 benchmarks! {
-	incoming_message {
+	submit_incoming_message {
 		let b in 0 .. 256; // keep withing u8 range
 		let key = <T as crate::Config>::TheaId::generate_pair(None);
 		let message = Message {
@@ -45,15 +46,13 @@ benchmarks! {
 			nonce: 1,
 			data: generate_deposit_payload::<T>().encode(),
 			network: 0u8,
-			is_key_change: false,
-			validator_set_id: 0,
+			payload_type: PayloadType::L1Deposit
 		};
-		let signature = key.sign(&message.encode()).unwrap();
 
 		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
 		set.try_push(key).unwrap();
 		<Authorities::<T>>::insert(0, set);
-	}: _(RawOrigin::None, message, vec!((0, signature.into())))
+	}: _(RawOrigin::None, message, 100*UNIT_BALANCE)
 	verify {
 		assert!(<IncomingNonce::<T>>::get(0) == 1);
 		assert!(<IncomingMessages::<T>>::iter().count() == 1);
@@ -93,7 +92,7 @@ benchmarks! {
 
 	add_thea_network {
 		let network: u8 = 2;
-	}: _(RawOrigin::Root, network)
+	}: _(RawOrigin::Root, network, 20, 100*UNIT_BALANCE, 1000*UNIT_BALANCE)
 	verify {
 		let active_list = <ActiveNetworks<T>>::get();
 		assert!(active_list.contains(&network));

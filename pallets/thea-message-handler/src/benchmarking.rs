@@ -29,12 +29,6 @@ const KEY: [u8; 33] = [
 	176, 76, 179, 101, 236, 49, 83, 117, 86, 132, 217, 161,
 ];
 
-const SIG: [u8; 65] = [
-	246, 101, 246, 156, 149, 156, 74, 60, 188, 84, 236, 77, 232, 165, 102, 241, 137, 124, 100, 143,
-	230, 195, 58, 177, 5, 110, 241, 31, 205, 215, 173, 147, 127, 75, 174, 69, 64, 193, 140, 26, 76,
-	97, 172, 196, 168, 187, 140, 17, 202, 250, 175, 232, 160, 108, 251, 114, 152, 227, 249, 255,
-	186, 113, 211, 53, 0,
-];
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
@@ -59,13 +53,16 @@ benchmarks! {
 	}
 
 	incoming_message {
-		let bitmap = vec!(u128::MAX);
-		let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
-		<Authorities<T>>::insert(0, BoundedVec::truncate_from(vec![public]));
+		let public = <T as Config>::TheaId::generate_pair(None);
+
+		<Authorities<T>>::insert(0, BoundedVec::truncate_from(vec![public.clone()]));
 		<ValidatorSetId<T>>::put(0);
 		let message = Message { block_no: 11, nonce: 1, data: generate_deposit_payload::<T>().encode(),
-			network: 1, is_key_change: false, validator_set_id: 0 };
-	}: _(RawOrigin::None, message, vec!((0, <T as crate::Config>::Signature::decode(&mut SIG.as_ref()).unwrap())))
+			network: 1, payload_type: PayloadType::L1Deposit };
+
+		let signature = public.sign(&message.encode()).unwrap();
+		let signed_message = SignedMessage::new(message,0,0,signature.into());
+	}: _(RawOrigin::None, signed_message)
 	verify {
 		assert_eq!(1, <IncomingNonce<T>>::get());
 	}
