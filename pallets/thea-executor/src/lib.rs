@@ -64,7 +64,7 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use thea_primitives::{
 		types::{AssetMetadata, Deposit, Withdraw},
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
+		Network, TheaIncomingExecutor, TheaOutgoingExecutor, ETHEREUM_NETWORK, NATIVE_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
 
@@ -387,7 +387,7 @@ pub mod pallet {
 		/// * `who`: AccountId
 		/// * `amount`: Amount of native tokens to burn.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: Update the weights
+		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: @zktony Benchmarking
 		pub fn burn_native_tokens(
 			origin: OriginFor<T>,
 			who: T::AccountId,
@@ -405,7 +405,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: @zktony Benchmarking
 		pub fn ethereum_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -415,7 +415,7 @@ pub mod pallet {
 			pay_with_tokens: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			let network = 2; //FIXME make it part of config or constant
+			let network = ETHEREUM_NETWORK;
 			Self::do_withdraw(
 				user,
 				asset_id,

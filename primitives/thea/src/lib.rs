@@ -85,6 +85,8 @@ pub type Network = u8;
 
 /// Native network id.
 pub const NATIVE_NETWORK: Network = 0;
+pub const PARACHAIN_NETWORK: Network = 1;
+pub const ETHEREUM_NETWORK: Network = 2;
 
 /// TTL of the cached message.
 pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60;

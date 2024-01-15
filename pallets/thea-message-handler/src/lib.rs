@@ -183,7 +183,7 @@ pub mod pallet {
 
 		/// Handles the verified incoming message
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::incoming_message())]
+		#[pallet::weight(<T as Config>::WeightInfo::incoming_message())] // TODO: @zktony Benchmark again for updated logic
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,

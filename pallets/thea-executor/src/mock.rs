@@ -188,7 +188,7 @@ parameter_types! {
 	pub const PolkadexAssetId: u128 = 0;
 	pub const ParaId: u32 = 2040;
 }
-use polkadex_primitives::{AssetId};
+use polkadex_primitives::AssetId;
 use sp_core::ConstU32;
 use sp_runtime::Permill;
 

@@ -104,7 +104,6 @@ fn test_session_change() {
 	})
 }
 
-
 #[test]
 fn test_send_thea_message_proper_inputs() {
 	new_test_ext().execute_with(|| {
@@ -191,18 +190,48 @@ fn test_update_outgoing_nonce_all() {
 fn test_add_thea_network_full() {
 	new_test_ext().execute_with(|| {
 		// bad origins
-		assert_err!(Thea::add_thea_network(RuntimeOrigin::none(), 1, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE), BadOrigin);
-		assert_err!(Thea::add_thea_network(RuntimeOrigin::signed(1), 1, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE), BadOrigin);
+		assert_err!(
+			Thea::add_thea_network(
+				RuntimeOrigin::none(),
+				1,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			),
+			BadOrigin
+		);
+		assert_err!(
+			Thea::add_thea_network(
+				RuntimeOrigin::signed(1),
+				1,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			),
+			BadOrigin
+		);
 		// add max number of networks
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 			let an = <ActiveNetworks<Test>>::get();
 			assert_eq!(an.len(), net as usize + 1);
 			assert!(an.get(&net).is_some());
 		}
 		// no failures on adding same network again
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 		}
 	})
 }
@@ -219,14 +248,26 @@ fn test_remove_thea_network_full() {
 		}
 		// add one and remove one
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 			assert_ok!(Thea::remove_thea_network(RuntimeOrigin::root(), net));
 			let an = <ActiveNetworks<Test>>::get();
 			assert_eq!(an.len(), 0);
 		}
 		// populating everything
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 		}
 		// remove reverse order
 		for net in (0u8..=u8::MAX).rev() {

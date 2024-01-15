@@ -479,7 +479,7 @@ pub mod pallet {
 
 		/// Signed outgoing messages
 		#[pallet::call_index(6)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(10_000)] // TODO: @zktony Benchmarking.
 		pub fn submit_signed_outgoing_messages(
 			origin: OriginFor<T>,
 			auth_index: u32,
@@ -514,7 +514,7 @@ pub mod pallet {
 
 		/// Report misbehaviour as fisherman
 		#[pallet::call_index(7)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(10_000)] // TODO: @zktony Benchmarking
 		#[transactional]
 		pub fn report_misbehaviour(
 			origin: OriginFor<T>,
@@ -556,7 +556,7 @@ pub mod pallet {
 
 		/// Handle misbehaviour via governance
 		#[pallet::call_index(8)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(10_000)] // TODO: @zktony Benchmarking
 		#[transactional]
 		pub fn handle_misbehaviour(
 			origin: OriginFor<T>,

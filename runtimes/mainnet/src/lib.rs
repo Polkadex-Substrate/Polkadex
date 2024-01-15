@@ -1340,13 +1340,13 @@ parameter_types! {
 }
 
 impl thea::Config for Runtime {
-	type Currency = Balances;
-	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type RuntimeEvent = RuntimeEvent;
 	type TheaId = thea::ecdsa::AuthorityId;
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 
