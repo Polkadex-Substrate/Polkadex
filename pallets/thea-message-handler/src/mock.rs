@@ -91,12 +91,12 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = [u8; 8];
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type MaxHolds = ();
 	type MaxFreezes = ();
-	type RuntimeHoldReason = ();
 }
 
 parameter_types! {
@@ -143,6 +143,8 @@ impl thea::Config for Test {
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
 
