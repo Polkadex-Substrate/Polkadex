@@ -20,53 +20,59 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::collections::btree_map::BTreeMap;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_std::cmp::Ordering;
+use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 
+use polkadex_primitives::UNIT_BALANCE;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
-use polkadex_primitives::UNIT_BALANCE;
 
 use crate::{Network, ValidatorSetId};
 
 /// Defines the message structure.
 #[derive(
-Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
 )]
 pub struct SignedMessage<Signature> {
 	pub validator_set_id: ValidatorSetId,
 	pub message: Message,
-	pub signatures: BTreeMap<u32,Signature>,
+	pub signatures: BTreeMap<u32, Signature>,
 }
 
 impl<Signature> SignedMessage<Signature> {
-	pub fn new(message: Message, validator_set_id: ValidatorSetId, auth_index: u32, signature: Signature) -> Self {
+	pub fn new(
+		message: Message,
+		validator_set_id: ValidatorSetId,
+		auth_index: u32,
+		signature: Signature,
+	) -> Self {
 		let mut signatures = BTreeMap::new();
-		signatures.insert(auth_index,signature);
-		Self {
-			validator_set_id,
-			message,
-			signatures
-		}
+		signatures.insert(auth_index, signature);
+		Self { validator_set_id, message, signatures }
 	}
 
-	pub fn add_signature(&mut self, message: Message, validator_set_id: ValidatorSetId, auth_index: u32, signature: Signature) {
+	pub fn add_signature(
+		&mut self,
+		message: Message,
+		validator_set_id: ValidatorSetId,
+		auth_index: u32,
+		signature: Signature,
+	) {
 		if self.message != message {
 			// silently drop if message is different
 			return;
 		}
-		if self.validator_set_id < validator_set_id{
+		if self.validator_set_id < validator_set_id {
 			self.validator_set_id = validator_set_id
 		}
 		self.signatures.clear();
-		self.signatures.insert(auth_index,signature);
+		self.signatures.insert(auth_index, signature);
 	}
 
 	pub fn threshold_reached(&self, max_len: usize) -> bool {
-		let threshold = (2*max_len)/3;
+		let threshold = (2 * max_len) / 3;
 		self.signatures.len() >= threshold
 	}
 
@@ -77,47 +83,45 @@ impl<Signature> SignedMessage<Signature> {
 
 pub const THEA_HOLD_REASON: [u8; 8] = *b"theaRela";
 
-#[derive(
-Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd,
-)]
-pub struct NetworkConfig{
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct NetworkConfig {
 	pub fork_period: u32,
 	pub min_stake: u128,
-	pub fisherman_stake: u128
+	pub fisherman_stake: u128,
 }
 
 impl Default for NetworkConfig {
 	fn default() -> Self {
-		Self{
+		Self {
 			fork_period: 20,
-			min_stake: 1000*UNIT_BALANCE,
-			fisherman_stake: 100*UNIT_BALANCE,
+			min_stake: 1000 * UNIT_BALANCE,
+			fisherman_stake: 100 * UNIT_BALANCE,
 		}
 	}
 }
 
 #[derive(
-Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
 )]
-pub struct MisbehaviourReport<AccountId,Balance> {
-	pub reported_msg: IncomingMessage<AccountId,Balance>,
+pub struct MisbehaviourReport<AccountId, Balance> {
+	pub reported_msg: IncomingMessage<AccountId, Balance>,
 	pub fisherman: AccountId,
-	pub stake: Balance
+	pub stake: Balance,
 }
 
 #[derive(
-Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
 )]
-pub struct IncomingMessage<AccountId,Balance>{
+pub struct IncomingMessage<AccountId, Balance> {
 	pub message: Message,
 	pub relayer: AccountId,
 	pub stake: Balance,
-	pub execute_at: u32
+	pub execute_at: u32,
 }
 
 /// Define the type of thea message
 #[derive(
-Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
 )]
 pub enum PayloadType {
 	ScheduledRotateValidators,
@@ -139,7 +143,7 @@ pub struct Message {
 	/// Defines how the payload must be decoded
 	pub payload_type: PayloadType,
 	/// Payload of the message.
-	pub data: Vec<u8>
+	pub data: Vec<u8>,
 }
 
 /// Defines the destination of a thea message

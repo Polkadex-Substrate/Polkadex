@@ -38,8 +38,10 @@ use sp_runtime::{
 	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
-use thea_primitives::types::PayloadType;
+use thea_primitives::{
+	types::{Message, PayloadType},
+	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -279,7 +281,10 @@ pub mod pallet {
 								msg.message.network,
 								msg.message.data.clone(),
 							);
-							<IncomingNonce<T>>::insert(msg.message.network, next_nonce.saturating_add(1));
+							<IncomingNonce<T>>::insert(
+								msg.message.network,
+								next_nonce.saturating_add(1),
+							);
 							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
 								msg.message.network,
 								msg.message.nonce,
@@ -667,7 +672,7 @@ impl<T: Config> Pallet<T> {
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
-			payload_type
+			payload_type,
 		}
 	}
 
@@ -690,7 +695,11 @@ impl<T: Config> Pallet<T> {
 			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
 				let payload = validator_set.encode();
 				for network in &active_networks {
-					let message = Self::generate_payload(PayloadType::ScheduledRotateValidators, *network, payload.clone());
+					let message = Self::generate_payload(
+						PayloadType::ScheduledRotateValidators,
+						*network,
+						payload.clone(),
+					);
 					// Update nonce
 					<OutgoingNonce<T>>::insert(message.network, message.nonce);
 					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
@@ -703,7 +712,8 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				let message = Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new()); //Empty data means acitvate the next set_id
+				let message =
+					Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new()); //Empty data means acitvate the next set_id
 				<OutgoingNonce<T>>::insert(network, message.nonce);
 				<OutgoingMessages<T>>::insert(network, message.nonce, message);
 			}

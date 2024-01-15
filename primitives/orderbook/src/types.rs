@@ -22,12 +22,14 @@ use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
-use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
+use rust_decimal::{
+	prelude::{FromPrimitive, Zero},
+	Decimal, RoundingStrategy,
+};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
-use rust_decimal::prelude::FromPrimitive;
 
 #[cfg(not(feature = "std"))]
 use sp_std::fmt::{Display, Formatter};

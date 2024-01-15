@@ -58,8 +58,8 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use pallet_asset_conversion::Swap;
-	use sp_core::{H160, H256};
 	use polkadex_primitives::{AssetId, Resolver};
+	use sp_core::{H160, H256};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
@@ -416,10 +416,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			let network = 2; //FIXME make it part of config or constant
-			Self::do_withdraw(user, asset_id, amount, beneficiary.encode(), pay_for_remaining, network, pay_with_tokens)?;
+			Self::do_withdraw(
+				user,
+				asset_id,
+				amount,
+				beneficiary.encode(),
+				pay_for_remaining,
+				network,
+				pay_with_tokens,
+			)?;
 			Ok(())
 		}
-
 	}
 
 	impl<T: Config> Pallet<T> {
