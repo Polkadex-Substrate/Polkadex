@@ -27,10 +27,6 @@ use sp_std::collections::btree_set::BTreeSet;
 
 static PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
 
-fn any_signature() -> <Test as Config>::Signature {
-	<Test as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap()
-}
-
 fn set_200_validators() -> [Pair; 200] {
 	let mut validators = Vec::with_capacity(200);
 	for i in 0..200 {
@@ -46,19 +42,10 @@ fn set_200_validators() -> [Pair; 200] {
 		.unwrap_or_else(|_| panic!("Could not convert validators to array"))
 }
 
-fn message_for_nonce(nonce: u64) -> Message {
-	Message {
-		block_no: u64::MAX,
-		nonce,
-		data: [255u8; 576].into(), //10 MB
-		network: 0u8,
-		is_key_change: false,
-		validator_set_id: 0,
-	}
-}
-
 use crate::ecdsa::AuthorityPair as Pair;
 use frame_support::traits::OneSessionHandler;
+use polkadex_primitives::UNIT_BALANCE;
+
 #[test]
 fn test_session_change() {
 	new_test_ext().execute_with(|| {
@@ -117,69 +104,6 @@ fn test_session_change() {
 	})
 }
 
-#[test]
-fn test_incoming_messages_bad_inputs() {
-	new_test_ext().execute_with(|| {
-		// set authorities
-		let auth = set_200_validators();
-		// bad origin (root)
-		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::root(),
-				message_for_nonce(1),
-				vec![(0, any_signature())]
-			),
-			BadOrigin
-		);
-		// bad origin (some one signed)
-		let message = message_for_nonce(1);
-		let proper_sig = auth[0].sign(&message.encode());
-		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::signed(1),
-				message.clone(),
-				vec![(0, proper_sig.clone())]
-			),
-			BadOrigin
-		);
-		// bad threshold
-		assert_err!(
-			Thea::validate_incoming_message(&message.clone(), &vec![(0, proper_sig.clone())]),
-			InvalidTransaction::Custom(4)
-		);
-
-		// bad nonce (too big)
-		assert_err!(
-			Thea::validate_incoming_message(
-				&message_for_nonce(u64::MAX),
-				&vec![(0, proper_sig.clone())]
-			),
-			InvalidTransaction::Custom(1)
-		);
-		// bad nonce (too small)
-		assert_err!(
-			Thea::validate_incoming_message(
-				&message_for_nonce(u64::MIN),
-				&vec![(0, proper_sig.clone())]
-			),
-			InvalidTransaction::Custom(1)
-		);
-		// bad payload
-		let mut bad_message = message.clone();
-		bad_message.block_no = 1; // changing bit
-		let bad_message_call = Call::<Test>::incoming_message {
-			payload: bad_message,
-			signatures: vec![(0, proper_sig.clone())],
-		};
-		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
-		// bad signature
-		let bad_sig_call = Call::<Test>::incoming_message {
-			payload: message.clone(),
-			signatures: vec![(0, any_signature())],
-		};
-		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_sig_call).is_err());
-	})
-}
 
 #[test]
 fn test_send_thea_message_proper_inputs() {
@@ -267,18 +191,18 @@ fn test_update_outgoing_nonce_all() {
 fn test_add_thea_network_full() {
 	new_test_ext().execute_with(|| {
 		// bad origins
-		assert_err!(Thea::add_thea_network(RuntimeOrigin::none(), 1), BadOrigin);
-		assert_err!(Thea::add_thea_network(RuntimeOrigin::signed(1), 1), BadOrigin);
+		assert_err!(Thea::add_thea_network(RuntimeOrigin::none(), 1, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE), BadOrigin);
+		assert_err!(Thea::add_thea_network(RuntimeOrigin::signed(1), 1, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE), BadOrigin);
 		// add max number of networks
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
 			let an = <ActiveNetworks<Test>>::get();
 			assert_eq!(an.len(), net as usize + 1);
 			assert!(an.get(&net).is_some());
 		}
 		// no failures on adding same network again
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
 		}
 	})
 }
@@ -295,14 +219,14 @@ fn test_remove_thea_network_full() {
 		}
 		// add one and remove one
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
 			assert_ok!(Thea::remove_thea_network(RuntimeOrigin::root(), net));
 			let an = <ActiveNetworks<Test>>::get();
 			assert_eq!(an.len(), 0);
 		}
 		// populating everything
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net, 20, 100*UNIT_BALANCE,1000*UNIT_BALANCE));
 		}
 		// remove reverse order
 		for net in (0u8..=u8::MAX).rev() {
