@@ -24,8 +24,8 @@ use frame_benchmarking::benchmarks;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
-use sp_std::collections::btree_set::BTreeSet;
 use polkadex_primitives::UNIT_BALANCE;
+use sp_std::collections::btree_set::BTreeSet;
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {

@@ -379,11 +379,7 @@ pub mod pallet {
 							existing_payload.stake.saturated_into(),
 							Precision::BestEffort,
 						)?;
-						T::Currency::hold(
-							&THEA_HOLD_REASON,
-							&signer,
-							stake.saturated_into(),
-						)?;
+						T::Currency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
 						existing_payload.message = payload;
 						existing_payload.relayer = signer;
 						existing_payload.stake = stake;

@@ -29,7 +29,6 @@ const KEY: [u8; 33] = [
 	176, 76, 179, 101, 236, 49, 83, 117, 86, 132, 217, 161,
 ];
 
-
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
 		id: H256::zero().0.to_vec(),
