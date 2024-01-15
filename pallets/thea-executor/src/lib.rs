@@ -58,6 +58,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use pallet_asset_conversion::Swap;
+	use sp_core::{H160, H256};
 	use polkadex_primitives::{AssetId, Resolver};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
@@ -402,6 +403,23 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::NativeTokenBurned(who, burned_amt.saturated_into()));
 			Ok(())
 		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
+		pub fn ethereum_withdraw(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			amount: u128,
+			beneficiary: H160,
+			pay_for_remaining: bool,
+			pay_with_tokens: bool,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let network = 2; //FIXME make it part of config or constant
+			Self::do_withdraw(user, asset_id, amount, beneficiary.encode(), pay_for_remaining, network, pay_with_tokens)?;
+			Ok(())
+		}
+
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -411,6 +429,7 @@ pub mod pallet {
 			nonce = nonce.wrapping_add(1);
 			<RandomnessNonce<T>>::put(nonce);
 			let entropy = sp_io::hashing::blake2_256(&(NATIVE_NETWORK, nonce).encode());
+			let entropy = H256::from_slice(&entropy).0[..10].to_vec();
 			entropy.to_vec()
 		}
 		pub fn thea_account() -> T::AccountId {

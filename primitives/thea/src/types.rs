@@ -38,8 +38,8 @@ Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserial
 )]
 pub struct SignedMessage<Signature> {
 	pub validator_set_id: ValidatorSetId,
-	message: Message,
-	signatures: BTreeMap<u32,Signature>,
+	pub message: Message,
+	pub signatures: BTreeMap<u32,Signature>,
 }
 
 impl<Signature> SignedMessage<Signature> {
@@ -115,6 +115,16 @@ pub struct IncomingMessage<AccountId,Balance>{
 	pub execute_at: u32
 }
 
+/// Define the type of thea message
+#[derive(
+Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
+)]
+pub enum PayloadType {
+	ScheduledRotateValidators,
+	ValidatorsRotated,
+	L1Deposit,
+}
+
 /// Defines the message structure.
 #[derive(
 	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
@@ -124,13 +134,12 @@ pub struct Message {
 	pub block_no: u64,
 	/// Message nonce (e.g. identifier).
 	pub nonce: u64,
-	/// Payload of the message.
-	pub data: Vec<u8>,
-	/// Message originated from this network if it's an incoming message
-	/// and destination network if it's an outgoing message
+	/// Network
 	pub network: Network,
-	/// Defines if authority was changed.
-	pub is_key_change: bool,
+	/// Defines how the payload must be decoded
+	pub payload_type: PayloadType,
+	/// Payload of the message.
+	pub data: Vec<u8>
 }
 
 /// Defines the destination of a thea message
