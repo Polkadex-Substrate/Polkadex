@@ -645,12 +645,7 @@ impl<T: Config> Pallet<T> {
 				Some(msg) => msg,
 			};
 			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
-			// if !signer.verify(&msg_hash, &((*signature).clone().into())) {
-			// 	return InvalidTransaction::Custom(6).into();
-			// }
-			// if sp_io::crypto::ecdsa_recover(&msg_hash, &signature.clone().into()) != Some(signer.clone().into()) {
-			// 	return InvalidTransaction::Custom(6).into()
-			// }
+
 			if !sp_io::crypto::ecdsa_verify_prehashed(&signature.clone().into(), &msg_hash, &signer.clone().into()) {
 				return InvalidTransaction::Custom(6).into()
 			}
