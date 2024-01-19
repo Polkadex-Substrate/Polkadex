@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sc-executor = { workspace = true }
-bls-primitives = {path="../primitives/bls"}
+bls-primitives = { path = "../primitives/bls" }
 node-polkadex-runtime = { path = "../runtimes/mainnet" }
 frame-benchmarking = { workspace = true }
 sp-statement-store = { workspace = true }
