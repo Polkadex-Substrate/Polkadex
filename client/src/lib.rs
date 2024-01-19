@@ -24,6 +24,8 @@ pub struct ExecutorDispatch;
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 	type ExtendHostFunctions = (
 		frame_benchmarking::benchmarking::HostFunctions,
+		// NOTE: BLS host functions is a un-removable relic and should not be used or removed from here
+		bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
 		sp_statement_store::runtime_api::HostFunctions,
 	);
 
