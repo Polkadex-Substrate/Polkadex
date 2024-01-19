@@ -4153,9 +4153,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.21"
+version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91fc23aa11be92976ef4729127f1a74adf36d8436f7816b185d18df956790833"
+checksum = "bb2c4422095b67ee78da96fbb51a4cc413b3b25883c7717ff7ca1ab31022c9c9"
 dependencies = [
  "bytes",
  "fnv",
@@ -4163,7 +4163,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http",
- "indexmap 1.9.3",
+ "indexmap 2.1.0",
  "slab",
  "tokio",
  "tokio-util",
@@ -8281,7 +8281,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 
 [[package]]
 name = "polkadex-client"
-version = "5.3.0"
+version = "5.4.2"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -8292,7 +8292,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.4.1"
+version = "5.4.2"
 dependencies = [
  "clap 4.4.7",
  "frame-benchmarking-cli",
