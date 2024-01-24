@@ -16,6 +16,7 @@ use rust_decimal::{
 };
 use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
+use crate::pallet::TraderMetrics;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -246,6 +247,32 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 		Ok(())
+	}
+
+	/// Returns the top scored lmp account for the given epoch and market.
+	pub fn top_lmp_accounts(epoch: u16, trading_pair: TradingPair, sorted_by_mm_score: bool, limit: usize) -> Vec<T::AccountId> {
+		let mut accounts: BTreeMap<Decimal, T::AccountId> = BTreeMap::new();
+		let prefix = (epoch,trading_pair);
+		for (main, (mm_score,trading_score, _)) in <TraderMetrics<T>>::iter_prefix(prefix){
+			if sorted_by_mm_score {
+				accounts.insert(mm_score,main);
+			}else{
+				accounts.insert(trading_score,main);
+			}
+		}
+
+		let mut accounts = accounts.iter().map(|(_, main) | {
+			main.clone()
+		}).collect::<Vec<T::AccountId>>();
+
+		accounts.reverse(); // We want descending order
+
+		if accounts.len() > limit {
+			// Limit the items returned to top 'limit' accounts
+			accounts = accounts.split_at(limit).0.to_vec()
+		}
+
+		accounts
 	}
 }
 

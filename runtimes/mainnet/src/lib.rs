@@ -1703,6 +1703,9 @@ impl_runtime_apis! {
 		DispatchError> {
 			OCEX::calculate_inventory_deviation()
 		}
+		fn top_lmp_accounts(epoch: u32, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
+			OCEX::top_lmp_accounts(epoch, market, sorted_by_mm_score, limit as usize)
+		}
 	}
 
 	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
