@@ -5075,6 +5075,7 @@ dependencies = [
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-lmp",
  "pallet-membership",
  "pallet-multisig",
  "pallet-ocex-lmp",
@@ -5770,7 +5771,7 @@ dependencies = [
  "polkadex-primitives",
  "rust_decimal",
  "scale-info",
- "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

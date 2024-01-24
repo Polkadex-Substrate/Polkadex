@@ -16,6 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+
+// Ensure we're `no_std` when compiling for Wasm.
+#![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unused_crate_dependencies)]
+
+use sp_std::vec::Vec;
+
 mod callback;
 pub mod types;
 
@@ -40,13 +47,13 @@ pub mod pallet {
 	use orderbook_primitives::{constants::UNIT_BALANCE, types::TradingPair, LiquidityMining};
 	use polkadex_primitives::AssetId;
 	use rust_decimal::{prelude::*, Decimal};
-	use sp_core::blake2_128;
+	use sp_io::hashing::blake2_128;
 	use sp_runtime::{
 		traits::{CheckedDiv, UniqueSaturatedInto},
 		Saturating,
 	};
 	use sp_std::collections::btree_map::BTreeMap;
-	use std::ops::{Div, DivAssign, MulAssign};
+	use core::ops::{Div, DivAssign, MulAssign};
 
 	type BalanceOf<T> = <<T as Config>::NativeCurrency as Currency<
 		<T as frame_system::Config>::AccountId,
@@ -257,7 +264,7 @@ pub mod pallet {
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
 		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			if let Call::submit_scores_of_lps { ref results } = call {
+			if let Call::submit_scores_of_lps { results: _ } = call {
 				// This txn is only available during snapshotting
 				if <SnapshotFlag<T>>::get().is_none() {
 					return InvalidTransaction::Call.into()

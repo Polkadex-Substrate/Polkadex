@@ -52,7 +52,7 @@ use sp_runtime::{
 	offchain::storage::StorageValueRef, traits::AccountIdConversion, SaturatedConversion,
 };
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
-use std::ops::Div;
+use core::ops::Div;
 use trie_db::{TrieError, TrieMut};
 
 /// Key of the storage that stores the status of an offchain worker

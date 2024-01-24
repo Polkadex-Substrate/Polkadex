@@ -6,6 +6,7 @@ use rust_decimal::{
 };
 use scale_info::TypeInfo;
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 /// All metrics used for calculating the LMP score of a main account
 #[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq)]

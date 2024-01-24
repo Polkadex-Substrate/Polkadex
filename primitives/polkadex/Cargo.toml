@@ -8,7 +8,7 @@ edition = "2021"
 primitive-types = { version = "0.12.1", default-features = false, features = ["scale-info"] }
 anyhow = "1.0.56"
 codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive", "full"] }
-serde = { version = "1.0.152", default-features = false }
+serde = { workspace = true, default-features = false }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 frame-system = { default-features = false, workspace = true }
 pallet-asset-conversion = { default-features = false, workspace = true }

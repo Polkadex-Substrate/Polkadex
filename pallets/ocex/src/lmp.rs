@@ -8,6 +8,7 @@ use orderbook_primitives::{
 	types::{OrderSide, Trade, TradingPair},
 	LiquidityMining,
 };
+use sp_std::vec::Vec;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
 use rust_decimal::{

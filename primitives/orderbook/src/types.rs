@@ -17,13 +17,15 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! In this module defined "Orderbook" specific operations and types.
-
+#[cfg(feature = "std")]
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
-use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
+#[cfg(feature = "std")]
+use rust_decimal::{RoundingStrategy, prelude::Zero};
+use rust_decimal::{Decimal};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -43,16 +45,14 @@ use std::{
 pub type OrderId = H256;
 
 /// Defined account information required for the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Serialize, Deserialize)]
 pub struct AccountInfo {
 	/// Collection of the proxy accounts.
 	pub proxies: Vec<AccountId>,
 }
 
 /// Defines account to asset map DTO to be used in the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct AccountAsset {
 	/// Main account identifier.
 	pub main: AccountId,
@@ -73,8 +73,7 @@ impl AccountAsset {
 }
 
 /// Defines trade related structure DTO.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo , Serialize, Deserialize)]
 pub struct Trade {
 	/// Market order.
 	pub maker: Order,
@@ -130,6 +129,7 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
+#[cfg(feature = "std")]
 use rust_decimal::prelude::FromPrimitive;
 
 impl Trade {
@@ -163,8 +163,7 @@ impl Trade {
 }
 
 /// Defines "Orderbook" message structure DTO.
-#[derive(Clone, Debug, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Serialize, Deserialize)]
 #[cfg(feature = "std")]
 pub struct ObMessage {
 	/// State change identifier.
@@ -180,8 +179,7 @@ pub struct ObMessage {
 }
 
 /// A batch of user actions
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub struct UserActionBatch<AccountId: Ord + Clone + Codec + TypeInfo> {
 	/// Vector of user actions from engine in this batch
 	pub actions: Vec<UserActions<AccountId>>,
@@ -226,8 +224,7 @@ impl ObMessage {
 }
 
 /// Defines user specific operations variants.
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
@@ -248,8 +245,7 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 }
 
 /// Defines withdraw request DTO.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Decode, Encode, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub struct WithdrawalRequest<AccountId: Codec + Clone + TypeInfo> {
 	/// Signature.
 	pub signature: Signature,
@@ -298,14 +294,14 @@ use core::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
+use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
 use polkadex_primitives::ingress::{EgressMessages, IngressMessages};
 use scale_info::prelude::string::String;
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 
 /// Withdraw payload requested by user.
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct WithdrawPayloadCallByUser {
 	/// Asset identifier.
 	pub asset_id: AssetId,
@@ -316,8 +312,7 @@ pub struct WithdrawPayloadCallByUser {
 }
 
 /// Defines possible order sides variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
 pub enum OrderSide {
 	/// Asking order side.
 	Ask,
@@ -349,8 +344,7 @@ impl TryFrom<String> for OrderSide {
 }
 
 /// Defines possible order types variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
 pub enum OrderType {
 	/// Order limit type.
 	LIMIT,
@@ -372,8 +366,7 @@ impl TryFrom<String> for OrderType {
 }
 
 /// Defines possible order statuses variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
 pub enum OrderStatus {
 	/// Order open.
 	OPEN,
@@ -422,8 +415,9 @@ impl From<OrderStatus> for String {
 	Eq,
 	TypeInfo,
 	MaxEncodedLen,
+	Serialize,
+	Deserialize
 )]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	/// Base asset identifier.
 	pub base: AssetId,
@@ -536,8 +530,7 @@ impl Display for TradingPair {
 }
 
 /// Order structure definition.
-#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct Order {
 	/// State change identifier.
 	pub stid: u64,
@@ -778,8 +771,7 @@ pub struct OrderDetails {
 }
 
 /// Defines payload of the order.
-#[derive(Encode, Decode, Clone, Debug)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, Debug, Serialize, Deserialize)]
 pub struct OrderPayload {
 	/// Client order identifier.
 	pub client_order_id: H256,
@@ -876,8 +868,7 @@ impl TryFrom<OrderDetails> for Order {
 }
 
 /// Defines withdraw details DTO.
-#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, Serialize, Deserialize)]
 pub struct WithdrawalDetails {
 	/// Withdraw payload.
 	pub payload: WithdrawPayloadCallByUser,

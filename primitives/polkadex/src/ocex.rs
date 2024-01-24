@@ -23,8 +23,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
-
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
@@ -91,8 +89,8 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 /// Trading pair configuration structure definition.
 #[derive(
 	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq, Copy, Ord, PartialOrd,
+Serialize, Deserialize
 )]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TradingPairConfig {
 	/// Base asset identifier.
 	pub base_asset: AssetId,

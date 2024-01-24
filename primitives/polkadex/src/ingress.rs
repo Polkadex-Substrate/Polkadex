@@ -19,7 +19,6 @@
 //! In this module defined ingress messages related types.
 
 use crate::{ocex::TradingPairConfig, AssetId};
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -29,8 +28,7 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
 /// Definition of available ingress messages variants.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum IngressMessages<AccountId> {
 	/// Open Trading Pair.
 	OpenTradingPair(TradingPairConfig),
@@ -65,8 +63,7 @@ pub enum IngressMessages<AccountId> {
 	ForceClosePool(TradingPairConfig, AccountId),
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EgressMessages<AccountId> {
 	/// Add Liquidity Result ( Pool, LP, Shares issued, Market price, total Inventory ( in Quote) )
 	AddLiquidityResult(TradingPairConfig, AccountId, AccountId, Decimal, Decimal, Decimal),

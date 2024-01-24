@@ -86,11 +86,11 @@ use sp_runtime::{
 	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::{prelude::*, vec};
-use sp_storage as _;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
+use orderbook_primitives::types::TradingPair;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1286,17 +1286,21 @@ parameter_types! {
 parameter_types! {
 	pub const ProxyLimit: u32 = 3;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
 	pub const MsPerDay: u64 = 86_400_000;
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = OcexPalletId;
+	type TreasuryPalletId = TreasuryPalletId;
+	type LMPRewardsPalletId = LMPRewardsPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfCouncil;
+	type CrowdSourceLiqudityMining = CrowdSourceLMP;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
@@ -1316,18 +1320,15 @@ impl pallet_rewards::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQU/IDI");
+	pub const CrowdSourcingRewardsPalletId: PalletId = PalletId(*b"CROWSOUR");
 }
 
-impl liquidity::Config for Runtime {
+impl pallet_lmp::pallet::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type PalletId = LiquidityPalletId;
+	type OCEX = OCEX;
+	type PalletId = CrowdSourcingRewardsPalletId;
 	type NativeCurrency = Balances;
-	type Public = <Signature as traits::Verify>::Signer;
-	type Signature = Signature;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
-	type CallOcex = OCEX;
-	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
+	type OtherAssets = Assets;
 }
 
 use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
@@ -1357,17 +1358,17 @@ impl thea_executor::Config for Runtime {
 	type Currency = Balances;
 	type Assets = Assets;
 	type AssetId = u128;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type Executor = Thea;
 	type NativeAssetId = PolkadexAssetId;
 	type TheaPalletId = TheaPalletAccount;
+	type Swap = AssetConversion;
 	type WithdrawalSize = WithdrawalSize;
+	type ExistentialDeposit = ExistentialDeposit;
 	type ParaId = ParaId;
 	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
-	type Swap = AssetConversion;
-	type MultiAssetIdAdapter = AssetId;
-	type AssetBalanceAdapter = u128;
-	type ExistentialDeposit = ExistentialDeposit;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -1503,6 +1504,7 @@ construct_runtime!(
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 		Statement: pallet_statement = 48,
 		AssetTxPayment: pallet_asset_tx_payment = 49,
+		CrowdSourceLMP: pallet_lmp = 50,
 	}
 );
 
@@ -1548,12 +1550,12 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3> = 36,
 		Thea: thea::pallet = 39,
 		Rewards: pallet_rewards = 40,
-		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 		Statement: pallet_statement = 48,
 		AssetTxPayment: pallet_asset_tx_payment = 49,
+		CrowdSourceLMP: pallet_lmp::pallet = 50,
 	}
 );
 /// Digest item type.
@@ -1603,7 +1605,6 @@ pub type Executive = frame_executive::Executive<
 
 use crate::{
 	impls::CreditToBlockAuthor,
-	sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect,
 };
 use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
