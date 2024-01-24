@@ -1706,6 +1706,10 @@ impl_runtime_apis! {
 		fn top_lmp_accounts(epoch: u32, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
 			OCEX::top_lmp_accounts(epoch, market, sorted_by_mm_score, limit as usize)
 		}
+
+		fn calculate_lmp_rewards(main: AccountId, epoch: u32, market: TradingPair) -> (Decimal, Decimal, bool) {
+			OCEX::get_lmp_rewards(main, epoch, market)
+		}
 	}
 
 	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {

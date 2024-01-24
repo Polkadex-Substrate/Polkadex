@@ -5849,6 +5849,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "polkadex-primitives",
+ "rust_decimal",
  "sc-rpc",
  "sc-rpc-api",
  "serde",

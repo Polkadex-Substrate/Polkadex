@@ -1,5 +1,5 @@
 use crate::{
-	pallet::{IngressMessages, PriceOracle, TradingPairs},
+	pallet::{IngressMessages, PriceOracle, TraderMetrics, TradingPairs},
 	storage::OffchainState,
 	BalanceOf, Config, Error, LMPEpoch, Pallet,
 };
@@ -16,7 +16,6 @@ use rust_decimal::{
 };
 use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
-use crate::pallet::TraderMetrics;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -150,7 +149,7 @@ pub fn get_q_score_and_uptime(
 	main: &AccountId,
 ) -> Result<(Decimal, u16), &'static str> {
 	let key = (epoch, trading_pair, "q_score&uptime", main).encode();
-	return match state.get(&key)? {
+	match state.get(&key)? {
 		None => {
 			log::error!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main, trading_pair);
 			Err("Q score not found")
@@ -160,7 +159,7 @@ pub fn get_q_score_and_uptime(
 				.map_err(|_| "Unable to decode decimal")?;
 			let mut total_score = Decimal::zero();
 			// Add up all individual scores
-			for (_, score) in &map {
+			for score in map.values() {
 				total_score = total_score.saturating_add(*score);
 			}
 			Ok((total_score, map.len() as u16))
@@ -250,21 +249,23 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Returns the top scored lmp account for the given epoch and market.
-	pub fn top_lmp_accounts(epoch: u16, trading_pair: TradingPair, sorted_by_mm_score: bool, limit: usize) -> Vec<T::AccountId> {
+	pub fn top_lmp_accounts(
+		epoch: u16,
+		trading_pair: TradingPair,
+		sorted_by_mm_score: bool,
+		limit: usize,
+	) -> Vec<T::AccountId> {
 		let mut accounts: BTreeMap<Decimal, T::AccountId> = BTreeMap::new();
-		let prefix = (epoch,trading_pair);
-		for (main, (mm_score,trading_score, _)) in <TraderMetrics<T>>::iter_prefix(prefix){
+		let prefix = (epoch, trading_pair);
+		for (main, (mm_score, trading_score, _)) in <TraderMetrics<T>>::iter_prefix(prefix) {
 			if sorted_by_mm_score {
-				accounts.insert(mm_score,main);
-			}else{
-				accounts.insert(trading_score,main);
+				accounts.insert(mm_score, main);
+			} else {
+				accounts.insert(trading_score, main);
 			}
 		}
 
-		let mut accounts = accounts.iter().map(|(_, main) | {
-			main.clone()
-		}).collect::<Vec<T::AccountId>>();
-
+		let mut accounts = accounts.values().cloned().collect::<Vec<T::AccountId>>();
 		accounts.reverse(); // We want descending order
 
 		if accounts.len() > limit {

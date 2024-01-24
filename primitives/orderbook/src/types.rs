@@ -234,13 +234,17 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Withdraw operation requested. ( payload, stid)
 	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
-	BlockImport(u32, BTreeMap<IngressMessages<AccountId>,EgressMessages<AccountId>>, BTreeMap<(AssetId,AssetId), Decimal>),
+	BlockImport(
+		u32,
+		BTreeMap<IngressMessages<AccountId>, EgressMessages<AccountId>>,
+		BTreeMap<(AssetId, AssetId), Decimal>,
+	),
 	/// Reset Flag
 	Reset,
 	/// Withdraw operation requested.( request, stid)
 	WithdrawV1(WithdrawalRequest<AccountId>, u64),
 	/// One min LMP Report ( market, epoch, index, total_score, Q_scores)
-	OneMinLMPReport(TradingPair, u16, u16, Decimal, BTreeMap<AccountId, Decimal>)
+	OneMinLMPReport(TradingPair, u16, u16, Decimal, BTreeMap<AccountId, Decimal>),
 }
 
 /// Defines withdraw request DTO.
@@ -294,10 +298,10 @@ use core::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
-use std::collections::BTreeMap;
 use parity_scale_codec::alloc::string::ToString;
-use scale_info::prelude::string::String;
 use polkadex_primitives::ingress::{EgressMessages, IngressMessages};
+use scale_info::prelude::string::String;
+use std::collections::BTreeMap;
 
 /// Withdraw payload requested by user.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo)]
@@ -405,7 +409,20 @@ impl From<OrderStatus> for String {
 }
 
 /// Defines trading pair structure.
-#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Hash,
+	Ord,
+	PartialOrd,
+	Clone,
+	PartialEq,
+	Debug,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct TradingPair {
 	/// Base asset identifier.

@@ -39,6 +39,7 @@ use frame_support::{
 	},
 };
 use frame_system::ensure_signed;
+use num_traits::Zero;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
 use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE};
@@ -347,7 +348,7 @@ pub mod pallet {
 		/// Invalid LMP config
 		InvalidLMPConfig,
 		/// Rewards are already claimed
-		RewardAlreadyClaimed
+		RewardAlreadyClaimed,
 	}
 
 	#[pallet::hooks]
@@ -451,11 +452,11 @@ pub mod pallet {
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
-								trading_pair.clone(),
+								*trading_pair,
 							),
 						);
 					});
-					Self::deposit_event(Event::ShutdownTradingPair { pair: trading_pair.clone() });
+					Self::deposit_event(Event::ShutdownTradingPair { pair: *trading_pair });
 				} else {
 					//scope never executed, already ensured if trading pair exits above
 				}
@@ -483,11 +484,11 @@ pub mod pallet {
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
 							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
-								trading_pair.clone(),
+								*trading_pair,
 							),
 						);
 					});
-					Self::deposit_event(Event::OpenTradingPair { pair: trading_pair.clone() });
+					Self::deposit_event(Event::OpenTradingPair { pair: *trading_pair });
 				} else {
 					//scope never executed, already ensured if trading pair exits above
 				}
@@ -611,7 +612,7 @@ pub mod pallet {
 						quote_asset_precision: price_tick_size.scale() as u8,
 					};
 
-					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+					<TradingPairs<T>>::insert(base, quote, trading_pair_info);
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
@@ -740,7 +741,7 @@ pub mod pallet {
 						quote_asset_precision: qty_step_size.scale().saturated_into(),
 					};
 
-					<TradingPairs<T>>::insert(base, quote, trading_pair_info.clone());
+					<TradingPairs<T>>::insert(base, quote, trading_pair_info);
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
@@ -1132,22 +1133,12 @@ pub mod pallet {
 			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
-			// Get the score and fees paid portion of this 'main' account
-			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
-			let (score, fees_paid, is_claimed) = <TraderMetrics<T>>::get((epoch, market, main.clone()));
-			// Check if the main already claimed the reward or not
-			ensure!(!is_claimed, Error::<T>::RewardAlreadyClaimed);
-			// Calculate the rewards pool for this market
-			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
-			let trading_rewards_portion =
-				fees_paid.checked_div(total_fees_paid).unwrap_or_default();
-			// Calculate rewards portion and transfer it.
 			let config: LMPEpochConfig =
 				<LMPConfig<T>>::get(epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
-			let mm_rewards =
-				config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
-			let trading_rewards =
-				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
+			// Calculate the total eligible rewards
+			let (mm_rewards, trading_rewards, is_claimed) =
+				Self::calculate_lmp_rewards(&main, epoch, market, config);
+			ensure!(!is_claimed, Error::<T>::RewardAlreadyClaimed);
 			let total = mm_rewards.saturating_add(trading_rewards);
 			let total_in_u128 = total
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
@@ -1176,7 +1167,10 @@ pub mod pallet {
 			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
 				for (main, (score, fees_paid)) in map {
-					<TraderMetrics<T>>::insert((current_epoch, pair, main), (score, fees_paid, false));
+					<TraderMetrics<T>>::insert(
+						(current_epoch, pair, main),
+						(score, fees_paid, false),
+					);
 				}
 				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
 			}
@@ -1565,6 +1559,52 @@ pub mod pallet {
 		) -> Result<polkadex_primitives::AccountId, DispatchError> {
 			Decode::decode(&mut &account.encode()[..])
 				.map_err(|_| Error::<T>::AccountIdCannotBeDecoded.into())
+		}
+
+		/// Calculate Rewards for LMP
+		pub fn calculate_lmp_rewards(
+			main: &T::AccountId,
+			epoch: u16,
+			market: TradingPair,
+			config: LMPEpochConfig,
+		) -> (Decimal, Decimal, bool) {
+			// Get the score and fees paid portion of this 'main' account
+			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
+			let (score, fees_paid, is_claimed) =
+				<TraderMetrics<T>>::get((epoch, market, main.clone()));
+			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
+			let trading_rewards_portion =
+				fees_paid.checked_div(total_fees_paid).unwrap_or_default();
+			let mm_rewards =
+				config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
+			let trading_rewards =
+				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
+			(mm_rewards, trading_rewards, is_claimed)
+		}
+
+		/// Returns Rewards for LMP - called by RPC
+		pub fn get_lmp_rewards(
+			main: &T::AccountId,
+			epoch: u16,
+			market: TradingPair,
+		) -> (Decimal, Decimal, bool) {
+			let config = match <LMPConfig<T>>::get(epoch) {
+				Some(config) => config,
+				None => return (Decimal::zero(), Decimal::zero(), false),
+			};
+
+			// Get the score and fees paid portion of this 'main' account
+			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
+			let (score, fees_paid, is_claimed) =
+				<TraderMetrics<T>>::get((epoch, market, main.clone()));
+			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
+			let trading_rewards_portion =
+				fees_paid.checked_div(total_fees_paid).unwrap_or_default();
+			let mm_rewards =
+				config.total_liquidity_mining_rewards.saturating_mul(market_making_portion);
+			let trading_rewards =
+				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
+			(mm_rewards, trading_rewards, is_claimed)
 		}
 	}
 

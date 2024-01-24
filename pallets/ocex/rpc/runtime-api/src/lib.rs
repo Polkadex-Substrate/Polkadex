@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use orderbook_primitives::{ObCheckpointRaw, types::TradingPair};
+use orderbook_primitives::{types::TradingPair, ObCheckpointRaw};
 use parity_scale_codec::Codec;
 use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
@@ -35,5 +35,7 @@ sp_api::decl_runtime_apis! {
 		fn calculate_inventory_deviation() -> Result<BTreeMap<AssetId,Decimal>, sp_runtime::DispatchError>;
 		// Retrieve a sorted vector of accounts for a given epoch and market based on descending order of scores
 		fn top_lmp_accounts(epoch: u32, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId>;
+		// Returns the eligible rewards for given main, epoch and market
+		fn calculate_lmp_rewards(main: AccountId, epoch: u32, market: TradingPair) -> (Decimal, Decimal, bool);
 	}
 }
