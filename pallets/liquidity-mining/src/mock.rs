@@ -20,22 +20,22 @@
 
 use crate::*;
 use frame_support::{
-    parameter_types,
-    traits::{AsEnsureOriginWithArg, ConstU128, ConstU64, OnTimestampSet},
-    PalletId,
+	pallet_prelude::Weight,
+	parameter_types,
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU64, OnTimestampSet},
+	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::{Moment, Signature};
 use sp_application_crypto::sp_core::H256;
 use sp_std::cell::RefCell;
-use frame_support::pallet_prelude::Weight;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
-use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage,
-};
 use pallet_ocex_lmp as ocex;
+use sp_runtime::{
+	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
+};
 // Reexport crate as its pallet name for construct_runtime.
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -47,8 +47,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		Assets: pallet_assets,
 		Timestamp: pallet_timestamp,
-        LiqudityMining: crate::pallet,
-        OCEX: ocex,
+		LiqudityMining: crate::pallet,
+		OCEX: ocex,
 	}
 );
 
@@ -57,45 +57,45 @@ parameter_types! {
 		frame_system::limits::BlockWeights::simple_max(Weight::from_parts(1024, 64));
 }
 impl frame_system::Config for Test {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = sp_runtime::AccountId32;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = ConstU64<250>;
-    type DbWeight = ();
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u128>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
-    type Nonce = u64;
-    type Block = Block;
+	type BaseCallFilter = frame_support::traits::Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = sp_runtime::AccountId32;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = ConstU64<250>;
+	type DbWeight = ();
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<u128>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = ();
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type Nonce = u64;
+	type Block = Block;
 }
 
 impl pallet_balances::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = ();
-    type Balance = u128;
-    type DustRemoval = ();
-    type ExistentialDeposit = ConstU128<1>;
-    type AccountStore = System;
-    type ReserveIdentifier = [u8; 8];
-    type RuntimeHoldReason = ();
-    type FreezeIdentifier = ();
-    type MaxLocks = ();
-    type MaxReserves = ();
-    type MaxHolds = ();
-    type MaxFreezes = ();
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type Balance = u128;
+	type DustRemoval = ();
+	type ExistentialDeposit = ConstU128<1>;
+	type AccountStore = System;
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = ();
+	type FreezeIdentifier = ();
+	type MaxLocks = ();
+	type MaxReserves = ();
+	type MaxHolds = ();
+	type MaxFreezes = ();
 }
 
 thread_local! {
@@ -104,48 +104,47 @@ thread_local! {
 
 pub struct MockOnTimestampSet;
 impl OnTimestampSet<Moment> for MockOnTimestampSet {
-    fn on_timestamp_set(moment: Moment) {
-        CAPTURED_MOMENT.with(|x| *x.borrow_mut() = Some(moment));
-    }
+	fn on_timestamp_set(moment: Moment) {
+		CAPTURED_MOMENT.with(|x| *x.borrow_mut() = Some(moment));
+	}
 }
 
 impl pallet_timestamp::Config for Test {
-    type Moment = Moment;
-    type OnTimestampSet = MockOnTimestampSet;
-    type MinimumPeriod = ConstU64<5>;
-    type WeightInfo = ();
+	type Moment = Moment;
+	type OnTimestampSet = MockOnTimestampSet;
+	type MinimumPeriod = ConstU64<5>;
+	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const ProxyLimit: u32 = 2;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
-    pub const TresuryPalletId: PalletId = PalletId(*b"OCEX_TRE");
-    pub const LMPRewardsPalletId: PalletId = PalletId(*b"OCEX_TMP");
+	pub const TresuryPalletId: PalletId = PalletId(*b"OCEX_TRE");
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"OCEX_TMP");
 	pub const MsPerDay: u64 = 86_400_000;
 }
 
 impl crate::pallet::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type OCEX = OCEX;
-    type PalletId = LMPRewardsPalletId;
-    type NativeCurrency = Balances;
-    type OtherAssets = Assets;
+	type RuntimeEvent = RuntimeEvent;
+	type OCEX = OCEX;
+	type PalletId = LMPRewardsPalletId;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
 }
 
 impl ocex::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type PalletId = OcexPalletId;
-    type TreasuryPalletId = TresuryPalletId;
-    type LMPRewardsPalletId = LMPRewardsPalletId;
-    type NativeCurrency = Balances;
-    type OtherAssets = Assets;
-    type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-    type AuthorityId = ocex::sr25519::AuthorityId;
-    type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
-    type CrowdSourceLiqudityMining = LiqudityMining;
-    type WeightInfo = ocex::weights::WeightInfo<Test>;
+	type RuntimeEvent = RuntimeEvent;
+	type PalletId = OcexPalletId;
+	type TreasuryPalletId = TresuryPalletId;
+	type LMPRewardsPalletId = LMPRewardsPalletId;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
+	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type AuthorityId = ocex::sr25519::AuthorityId;
+	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type CrowdSourceLiqudityMining = LiqudityMining;
+	type WeightInfo = ocex::weights::WeightInfo<Test>;
 }
-
 
 parameter_types! {
 	pub const AssetDeposit: u128 = 100;
@@ -156,64 +155,64 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type Balance = u128;
-    type RemoveItemsLimit = ();
-    type AssetId = u128;
-    type AssetIdParameter = parity_scale_codec::Compact<u128>;
-    type Currency = Balances;
-    type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<sp_runtime::AccountId32>>;
-    type ForceOrigin = EnsureRoot<sp_runtime::AccountId32>;
-    type AssetDeposit = AssetDeposit;
-    type AssetAccountDeposit = AssetDeposit;
-    type MetadataDepositBase = MetadataDepositBase;
-    type MetadataDepositPerByte = MetadataDepositPerByte;
-    type ApprovalDeposit = ApprovalDeposit;
-    type StringLimit = StringLimit;
-    type Freezer = ();
-    type Extra = ();
-    type CallbackHandle = ();
-    type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = u128;
+	type RemoveItemsLimit = ();
+	type AssetId = u128;
+	type AssetIdParameter = parity_scale_codec::Compact<u128>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<sp_runtime::AccountId32>>;
+	type ForceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
-    ext
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }
 
 use sp_runtime::{
-    testing::TestXt,
-    traits::{Extrinsic as ExtrinsicT, IdentifyAccount, Verify},
+	testing::TestXt,
+	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, Verify},
 };
 
 type Extrinsic = TestXt<RuntimeCall, ()>;
 type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 impl frame_system::offchain::SigningTypes for Test {
-    type Public = <Signature as Verify>::Signer;
-    type Signature = Signature;
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
 }
 
 impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
-    where
-        RuntimeCall: From<LocalCall>,
+where
+	RuntimeCall: From<LocalCall>,
 {
-    type Extrinsic = Extrinsic;
-    type OverarchingCall = RuntimeCall;
+	type Extrinsic = Extrinsic;
+	type OverarchingCall = RuntimeCall;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
-    where
-        RuntimeCall: From<LocalCall>,
+where
+	RuntimeCall: From<LocalCall>,
 {
-    fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-        call: RuntimeCall,
-        _public: <Signature as Verify>::Signer,
-        _account: AccountId,
-        nonce: u64,
-    ) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
-        Some((call, (nonce, ())))
-    }
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		_public: <Signature as Verify>::Signer,
+		_account: AccountId,
+		nonce: u64,
+	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
+		Some((call, (nonce, ())))
+	}
 }

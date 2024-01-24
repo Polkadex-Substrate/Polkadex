@@ -150,7 +150,8 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 		base_freed: Decimal,
 		quote_freed: Decimal,
 	) -> DispatchResult {
-		let mut pool_config = <Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
+		let mut pool_config =
+			<Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
 		pool_config.force_closed = true;
 		<Pools<T>>::insert(market, market_maker, pool_config);
 		let base_freed = base_freed

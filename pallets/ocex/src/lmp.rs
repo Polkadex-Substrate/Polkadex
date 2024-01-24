@@ -8,7 +8,6 @@ use orderbook_primitives::{
 	types::{OrderSide, Trade, TradingPair},
 	LiquidityMining,
 };
-use sp_std::vec::Vec;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
 use rust_decimal::{
@@ -16,7 +15,7 @@ use rust_decimal::{
 	Decimal,
 };
 use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,

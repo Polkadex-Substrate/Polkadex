@@ -32,9 +32,9 @@ use frame_support::{
 	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly,
-		Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
-		OnUnbalanced,
+		fungible::Inspect, AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin,
+		EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem,
+		LockIdentifier, OnUnbalanced,
 	},
 	weights::{
 		constants::{
@@ -51,6 +51,7 @@ use frame_system::{
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
 
+use orderbook_primitives::types::TradingPair;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -90,7 +91,6 @@ use sp_std::{prelude::*, vec};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-use orderbook_primitives::types::TradingPair;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -840,11 +840,6 @@ impl pallet_collective::Config<OrderbookCollective> for Runtime {
 type EnsureRootOrHalfCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
->;
-
-type EnsureRootOrHalfOrderbookCouncil = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
@@ -1603,9 +1598,7 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-use crate::{
-	impls::CreditToBlockAuthor,
-};
+use crate::impls::CreditToBlockAuthor;
 use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -1704,12 +1697,12 @@ impl_runtime_apis! {
 		DispatchError> {
 			OCEX::calculate_inventory_deviation()
 		}
-		fn top_lmp_accounts(epoch: u32, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
+		fn top_lmp_accounts(epoch: u16, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
 			OCEX::top_lmp_accounts(epoch, market, sorted_by_mm_score, limit as usize)
 		}
 
-		fn calculate_lmp_rewards(main: AccountId, epoch: u32, market: TradingPair) -> (Decimal, Decimal, bool) {
-			OCEX::get_lmp_rewards(main, epoch, market)
+		fn calculate_lmp_rewards(main: AccountId, epoch: u16, market: TradingPair) -> (Decimal, Decimal, bool) {
+			OCEX::get_lmp_rewards(&main, epoch, market)
 		}
 	}
 

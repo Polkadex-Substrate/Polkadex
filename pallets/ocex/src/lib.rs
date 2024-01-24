@@ -151,7 +151,10 @@ pub mod pallet {
 		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
-	use orderbook_primitives::{constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary, TradingPairMetricsMap};
+	use orderbook_primitives::{
+		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
+		TradingPairMetricsMap,
+	};
 	use polkadex_primitives::{
 		assets::AssetId,
 		ingress::EgressMessages,

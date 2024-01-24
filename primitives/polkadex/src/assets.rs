@@ -172,14 +172,14 @@ pub enum AssetId {
 	Polkadex,
 }
 
- impl AssetId {
-	 pub fn asset_id(&self) -> Option<u128> {
-		 match self {
-			 AssetId::Asset(id) => Some(*id),
-			 AssetId::Polkadex => None,
-		 }
-	 }
- }
+impl AssetId {
+	pub fn asset_id(&self) -> Option<u128> {
+		match self {
+			AssetId::Asset(id) => Some(*id),
+			AssetId::Polkadex => None,
+		}
+	}
+}
 
 use sp_runtime::traits::Zero;
 impl From<u128> for AssetId {

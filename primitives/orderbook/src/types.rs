@@ -23,9 +23,9 @@ use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
+use rust_decimal::Decimal;
 #[cfg(feature = "std")]
-use rust_decimal::{RoundingStrategy, prelude::Zero};
-use rust_decimal::{Decimal};
+use rust_decimal::{prelude::Zero, RoundingStrategy};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -52,7 +52,9 @@ pub struct AccountInfo {
 }
 
 /// Defines account to asset map DTO to be used in the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo, Serialize, Deserialize,
+)]
 pub struct AccountAsset {
 	/// Main account identifier.
 	pub main: AccountId,
@@ -73,7 +75,7 @@ impl AccountAsset {
 }
 
 /// Defines trade related structure DTO.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo , Serialize, Deserialize)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct Trade {
 	/// Market order.
 	pub maker: Order,
@@ -312,7 +314,21 @@ pub struct WithdrawPayloadCallByUser {
 }
 
 /// Defines possible order sides variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Clone,
+	Hash,
+	Ord,
+	PartialOrd,
+	Debug,
+	Eq,
+	PartialEq,
+	TypeInfo,
+	Serialize,
+	Deserialize,
+)]
 pub enum OrderSide {
 	/// Asking order side.
 	Ask,
@@ -344,7 +360,9 @@ impl TryFrom<String> for OrderSide {
 }
 
 /// Defines possible order types variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize,
+)]
 pub enum OrderType {
 	/// Order limit type.
 	LIMIT,
@@ -366,7 +384,9 @@ impl TryFrom<String> for OrderType {
 }
 
 /// Defines possible order statuses variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize,
+)]
 pub enum OrderStatus {
 	/// Order open.
 	OPEN,
@@ -416,7 +436,7 @@ impl From<OrderStatus> for String {
 	TypeInfo,
 	MaxEncodedLen,
 	Serialize,
-	Deserialize
+	Deserialize,
 )]
 pub struct TradingPair {
 	/// Base asset identifier.

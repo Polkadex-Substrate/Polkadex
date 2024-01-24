@@ -15,8 +15,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-#![cfg_attr(not(feature = "std"), no_std)]
-
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -37,6 +35,7 @@ mod tests;
 pub mod pallet {
 	use super::*;
 	use crate::types::MarketMakerConfig;
+	use core::ops::{Div, DivAssign, MulAssign};
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{traits::AccountIdConversion, SaturatedConversion},
@@ -60,15 +59,18 @@ pub mod pallet {
 		Saturating,
 	};
 	use sp_std::collections::btree_map::BTreeMap;
-	use core::ops::{Div, DivAssign, MulAssign};
 
 	type BalanceOf<T> = <<T as Config>::NativeCurrency as Currency<
 		<T as frame_system::Config>::AccountId,
 	>>::Balance;
-	type SumOfScores<T: Config> = BalanceOf<T>;
-	type MMScore<T: Config> = BalanceOf<T>;
+	type SumOfScores<T> = BalanceOf<T>;
+	type MMScore<T> = BalanceOf<T>;
 	type MMClaimFlag = bool;
-	type MMInfo<T: Config> = (BTreeMap<T::AccountId, (MMScore<T>, MMClaimFlag)>, SumOfScores<T>, MMClaimFlag);
+	type MMInfo<T> = (
+		BTreeMap<<T as frame_system::Config>::AccountId, (MMScore<T>, MMClaimFlag)>,
+		SumOfScores<T>,
+		MMClaimFlag,
+	);
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
@@ -384,7 +386,9 @@ pub mod pallet {
 				market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&market_maker,
 				&pool,
-				T::OtherAssets::minimum_balance(market.quote.asset_id().ok_or(Error::<T>::ConversionError)?),
+				T::OtherAssets::minimum_balance(
+					market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
+				),
 				Preservation::Preserve,
 			)?;
 			// Register on OCEX pallet
@@ -396,7 +400,7 @@ pub mod pallet {
 				exit_fee,
 				public_funds_allowed,
 				name,
-				share_id: share_id,
+				share_id,
 				force_closed: false,
 			};
 			<Pools<T>>::insert(market, market_maker, config);

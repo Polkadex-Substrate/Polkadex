@@ -27,7 +27,7 @@ use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use frame_support::testing_prelude::bounded_vec;
+use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
 use parity_scale_codec::Decode;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
@@ -40,7 +40,6 @@ use sp_core::{
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
-use frame_support::BoundedVec;
 
 pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
 	let (offchain, _offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
@@ -2319,7 +2318,11 @@ fn test_withdrawal() {
 	});
 }
 
-use orderbook_primitives::{recovery::ObRecoveryState, types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade}, Fees, TradingPairMetrics, TradingPairMetricsMap, TraderMetricsMap};
+use orderbook_primitives::{
+	recovery::ObRecoveryState,
+	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
+	Fees, TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap,
+};
 use sp_runtime::traits::{BlockNumberProvider, One};
 
 use orderbook_primitives::types::{UserActionBatch, UserActions};
@@ -2601,7 +2604,7 @@ fn test_set_lmp_epoch_config_happy_path() {
 		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
-		let trading_pair = TradingPair{ base: base_asset, quote: quote_asset };
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
 		// Register trading pair
 		crete_base_and_quote_asset();
 		register_trading_pair();
@@ -2636,7 +2639,7 @@ fn test_set_lmp_epoch_config_invalid_market_weightage() {
 		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
-		let trading_pair = TradingPair{ base: base_asset, quote: quote_asset };
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
 		// Register trading pair
 		crete_base_and_quote_asset();
 		register_trading_pair();
@@ -2651,16 +2654,19 @@ fn test_set_lmp_epoch_config_invalid_market_weightage() {
 		let min_maker_volume: Option<BTreeMap<TradingPair, u128>> = Some(min_maker_volume);
 		let max_accounts_rewarded: Option<u16> = Some(10);
 		let claim_safety_period: Option<u32> = Some(10);
-		assert_noop!(OCEX::set_lmp_epoch_config(
-			RuntimeOrigin::root(),
-			total_liquidity_mining_rewards,
-			total_trading_rewards,
-			market_weightage,
-			min_fees_paid,
-			min_maker_volume,
-			max_accounts_rewarded,
-			claim_safety_period
-		), crate::pallet::Error::<Test>::InvalidMarketWeightage);
+		assert_noop!(
+			OCEX::set_lmp_epoch_config(
+				RuntimeOrigin::root(),
+				total_liquidity_mining_rewards,
+				total_trading_rewards,
+				market_weightage,
+				min_fees_paid,
+				min_maker_volume,
+				max_accounts_rewarded,
+				claim_safety_period
+			),
+			crate::pallet::Error::<Test>::InvalidMarketWeightage
+		);
 	})
 }
 
@@ -2671,7 +2677,7 @@ fn test_set_lmp_epoch_config_invalid_invalid_LMPConfig() {
 		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
-		let trading_pair = TradingPair{ base: base_asset, quote: quote_asset };
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
 		// Register trading pair
 		crete_base_and_quote_asset();
 		register_trading_pair();
@@ -2680,7 +2686,7 @@ fn test_set_lmp_epoch_config_invalid_invalid_LMPConfig() {
 		let market_weightage: Option<BTreeMap<TradingPair, u128>> = Some(market_weightage);
 		let mut min_fees_paid = BTreeMap::new();
 		let diff_quote_asset = AssetId::Asset(2);
-		let trading_pair = TradingPair{ base: base_asset, quote: diff_quote_asset };
+		let trading_pair = TradingPair { base: base_asset, quote: diff_quote_asset };
 		min_fees_paid.insert(trading_pair.clone(), 10 * UNIT_BALANCE);
 		let min_fees_paid: Option<BTreeMap<TradingPair, u128>> = Some(min_fees_paid);
 		let mut min_maker_volume = BTreeMap::new();
@@ -2688,16 +2694,19 @@ fn test_set_lmp_epoch_config_invalid_invalid_LMPConfig() {
 		let min_maker_volume: Option<BTreeMap<TradingPair, u128>> = Some(min_maker_volume);
 		let max_accounts_rewarded: Option<u16> = Some(10);
 		let claim_safety_period: Option<u32> = Some(10);
-		assert_noop!(OCEX::set_lmp_epoch_config(
-			RuntimeOrigin::root(),
-			total_liquidity_mining_rewards,
-			total_trading_rewards,
-			market_weightage,
-			min_fees_paid,
-			min_maker_volume,
-			max_accounts_rewarded,
-			claim_safety_period
-		), crate::pallet::Error::<Test>::InvalidLMPConfig);
+		assert_noop!(
+			OCEX::set_lmp_epoch_config(
+				RuntimeOrigin::root(),
+				total_liquidity_mining_rewards,
+				total_trading_rewards,
+				market_weightage,
+				min_fees_paid,
+				min_maker_volume,
+				max_accounts_rewarded,
+				claim_safety_period
+			),
+			crate::pallet::Error::<Test>::InvalidLMPConfig
+		);
 	})
 }
 
@@ -2707,14 +2716,17 @@ fn test_update_lmp_scores_happy_path() {
 		add_lmp_config();
 		let total_score = Decimal::from(1000);
 		let total_fee_paid = Decimal::from(1000);
-		let trading_pair_metrics:TradingPairMetrics = (total_score, total_fee_paid);
-		let trader = AccountId32::new([1;32]);
+		let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+		let trader = AccountId32::new([1; 32]);
 		let trader_score = Decimal::from(100);
 		let trader_fee_paid = Decimal::from(100);
 		let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
 		trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
 		let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
-		trading_pair_metrics_map.insert(TradingPair{ base: AssetId::Polkadex, quote: AssetId::Asset(1) }, (trader_metrics, trading_pair_metrics));
+		trading_pair_metrics_map.insert(
+			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+			(trader_metrics, trading_pair_metrics),
+		);
 		assert_ok!(OCEX::update_lmp_scores(&trading_pair_metrics_map));
 	})
 }
@@ -2724,16 +2736,21 @@ fn test_update_lmp_scores_no_lmp_config() {
 	new_test_ext().execute_with(|| {
 		let total_score = Decimal::from(1000);
 		let total_fee_paid = Decimal::from(1000);
-		let trading_pair_metrics:TradingPairMetrics = (total_score, total_fee_paid);
-		let trader = AccountId32::new([1;32]);
+		let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+		let trader = AccountId32::new([1; 32]);
 		let trader_score = Decimal::from(100);
 		let trader_fee_paid = Decimal::from(100);
 		let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
 		trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
 		let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
-		trading_pair_metrics_map.insert(TradingPair{ base: AssetId::Polkadex, quote: AssetId::Asset(1) }, (trader_metrics, trading_pair_metrics));
-		assert_noop!(OCEX::update_lmp_scores(&trading_pair_metrics_map), crate::pallet::Error::<Test>::LMPConfigNotFound);
-
+		trading_pair_metrics_map.insert(
+			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+			(trader_metrics, trading_pair_metrics),
+		);
+		assert_noop!(
+			OCEX::update_lmp_scores(&trading_pair_metrics_map),
+			crate::pallet::Error::<Test>::LMPConfigNotFound
+		);
 	})
 }
 
@@ -2742,12 +2759,13 @@ fn test_do_claim_lmp_rewards_happy_path() {
 	new_test_ext().execute_with(|| {
 		add_lmp_config();
 		update_lmp_score();
-		let main_account = AccountId32::new([1;32]);
+		let main_account = AccountId32::new([1; 32]);
 		let epoch = 0;
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
-		let trading_pair = TradingPair{ base: base_asset, quote: quote_asset };
-		let reward_account = <mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+		let reward_account =
+			<mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
 		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE);
 		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
 		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
@@ -2757,14 +2775,17 @@ fn test_do_claim_lmp_rewards_happy_path() {
 pub fn update_lmp_score() {
 	let total_score = Decimal::from(1000);
 	let total_fee_paid = Decimal::from(1000);
-	let trading_pair_metrics:TradingPairMetrics = (total_score, total_fee_paid);
-	let trader = AccountId32::new([1;32]);
+	let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+	let trader = AccountId32::new([1; 32]);
 	let trader_score = Decimal::from(100);
 	let trader_fee_paid = Decimal::from(100);
 	let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
 	trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
 	let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
-	trading_pair_metrics_map.insert(TradingPair{ base: AssetId::Polkadex, quote: AssetId::Asset(1) }, (trader_metrics, trading_pair_metrics));
+	trading_pair_metrics_map.insert(
+		TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+		(trader_metrics, trading_pair_metrics),
+	);
 	assert_ok!(OCEX::update_lmp_scores(&trading_pair_metrics_map));
 }
 
@@ -2773,7 +2794,7 @@ pub fn add_lmp_config() {
 	let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
 	let base_asset = AssetId::Polkadex;
 	let quote_asset = AssetId::Asset(1);
-	let trading_pair = TradingPair{ base: base_asset, quote: quote_asset };
+	let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
 	// Register trading pair
 	crete_base_and_quote_asset();
 	register_trading_pair();
@@ -2789,25 +2810,29 @@ pub fn add_lmp_config() {
 	let max_accounts_rewarded: Option<u16> = Some(10);
 	let claim_safety_period: Option<u32> = Some(0);
 	assert_ok!(OCEX::set_lmp_epoch_config(
-			RuntimeOrigin::root(),
-			total_liquidity_mining_rewards,
-			total_trading_rewards,
-			market_weightage,
-			min_fees_paid,
-			min_maker_volume,
-			max_accounts_rewarded,
-			claim_safety_period
-		));
+		RuntimeOrigin::root(),
+		total_liquidity_mining_rewards,
+		total_trading_rewards,
+		market_weightage,
+		min_fees_paid,
+		min_maker_volume,
+		max_accounts_rewarded,
+		claim_safety_period
+	));
 	OCEX::start_new_epoch();
 }
 
-use frame_support::traits::fungible::Mutate;
-use frame_support::traits::fungibles::Create;
+use frame_support::traits::{fungible::Mutate, fungibles::Create};
 
 fn crete_base_and_quote_asset() {
 	let quote_asset = AssetId::Asset(1);
-	Balances::mint_into(&AccountId32::new([1;32]), UNIT_BALANCE);
-	assert_ok!(Assets::create(RuntimeOrigin::signed(AccountId32::new([1;32])), parity_scale_codec::Compact(quote_asset.asset_id().unwrap()), AccountId32::new([1;32]), One::one()));
+	Balances::mint_into(&AccountId32::new([1; 32]), UNIT_BALANCE);
+	assert_ok!(Assets::create(
+		RuntimeOrigin::signed(AccountId32::new([1; 32])),
+		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
+		AccountId32::new([1; 32]),
+		One::one()
+	));
 }
 
 fn register_trading_pair() {
@@ -2815,16 +2840,16 @@ fn register_trading_pair() {
 	let quote_asset = AssetId::Asset(1);
 	assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 	assert_ok!(OCEX::register_trading_pair(
-			RuntimeOrigin::root(),
-			base_asset,
-			quote_asset,
-			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
-			1_0000_0000_u128.into(),
-		));
+		RuntimeOrigin::root(),
+		base_asset,
+		quote_asset,
+		1_0000_0000_u128.into(),
+		1_000_000_000_000_000_u128.into(),
+		1_000_000_u128.into(),
+		1_000_000_000_000_000_u128.into(),
+		1_000_000_u128.into(),
+		1_0000_0000_u128.into(),
+	));
 }
 
 //FIXME: This test case is not building. Check if it relevant or not

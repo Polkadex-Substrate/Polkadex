@@ -1,5 +1,4 @@
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 

@@ -28,7 +28,20 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
 /// Definition of available ingress messages variants.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	TypeInfo,
+	Debug,
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Ord,
+	Serialize,
+	Deserialize,
+)]
 pub enum IngressMessages<AccountId> {
 	/// Open Trading Pair.
 	OpenTradingPair(TradingPairConfig),
