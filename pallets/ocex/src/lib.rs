@@ -346,6 +346,8 @@ pub mod pallet {
 		RewardsNotReady,
 		/// Invalid LMP config
 		InvalidLMPConfig,
+		/// Rewards are already claimed
+		RewardAlreadyClaimed
 	}
 
 	#[pallet::hooks]
@@ -1132,7 +1134,9 @@ pub mod pallet {
 			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
 			// Get the score and fees paid portion of this 'main' account
 			let (total_score, total_fees_paid) = <TotalScores<T>>::get(epoch, market);
-			let (score, fees_paid) = <TraderMetrics<T>>::get((epoch, market, main.clone()));
+			let (score, fees_paid, is_claimed) = <TraderMetrics<T>>::get((epoch, market, main.clone()));
+			// Check if the main already claimed the reward or not
+			ensure!(!is_claimed, Error::<T>::RewardAlreadyClaimed);
 			// Calculate the rewards pool for this market
 			let market_making_portion = score.checked_div(total_score).unwrap_or_default();
 			let trading_rewards_portion =
@@ -1172,7 +1176,7 @@ pub mod pallet {
 			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
 				for (main, (score, fees_paid)) in map {
-					<TraderMetrics<T>>::insert((current_epoch, pair, main), (score, fees_paid));
+					<TraderMetrics<T>>::insert((current_epoch, pair, main), (score, fees_paid, false));
 				}
 				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
 			}
@@ -1753,7 +1757,7 @@ pub mod pallet {
 	pub(super) type TraderMetrics<T: Config> = StorageNMap<
 		_,
 		(NMapKey<Identity, u16>, NMapKey<Identity, TradingPair>, NMapKey<Identity, T::AccountId>),
-		(Decimal, Decimal),
+		(Decimal, Decimal, bool),
 		ValueQuery,
 	>;
 
