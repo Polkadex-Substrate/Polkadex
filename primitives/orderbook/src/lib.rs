@@ -24,26 +24,25 @@
 #![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::dispatch::DispatchResult;
 #[cfg(feature = "std")]
 use crate::recovery::ObCheckpoint;
 use crate::types::{AccountAsset, TradingPair};
+use frame_support::dispatch::DispatchResult;
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
+use polkadex_primitives::{ingress::EgressMessages, withdrawal::Withdrawal, AssetId, BlockNumber};
 pub use primitive_types::H128;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
-use polkadex_primitives::ingress::EgressMessages;
 
 pub mod constants;
 pub mod types;
 
+pub mod lmp;
 #[cfg(feature = "std")]
 pub mod recovery;
-pub mod lmp;
 pub mod traits;
 
 /// Authority set id starts with zero at genesis.
@@ -191,7 +190,6 @@ impl ObCheckpointRaw {
 	}
 }
 
-
 pub trait LiquidityMining<AccountId, Balance> {
 	/// Registers the pool_id as main account, trading account.
 	fn register_pool(pool_id: AccountId, trading_account: AccountId) -> DispatchResult;
@@ -201,16 +199,35 @@ pub trait LiquidityMining<AccountId, Balance> {
 	/// Returns if its a registered market in OCEX pallet
 	fn is_registered_market(market: &TradingPair) -> bool;
 
-	/// Deposits the given amounts to Orderbook and Adds an ingress message requesting engine to calculate the exact shares
-	/// and return it as an egress message
-	fn add_liquidity(market: TradingPair, pool: AccountId, lp: AccountId, total_shares_issued: Decimal, base_amount: Decimal, quote_amount: Decimal) -> DispatchResult;
+	/// Deposits the given amounts to Orderbook and Adds an ingress message requesting engine to
+	/// calculate the exact shares and return it as an egress message
+	fn add_liquidity(
+		market: TradingPair,
+		pool: AccountId,
+		lp: AccountId,
+		total_shares_issued: Decimal,
+		base_amount: Decimal,
+		quote_amount: Decimal,
+	) -> DispatchResult;
 
-	/// Adds an ingress message to initiate withdrawal request and queue it for execution at the end of cycle.
-	fn remove_liquidity(market: TradingPair, pool: AccountId, lp: AccountId, given: Balance, total: Balance);
+	/// Adds an ingress message to initiate withdrawal request and queue it for execution at the end
+	/// of cycle.
+	fn remove_liquidity(
+		market: TradingPair,
+		pool: AccountId,
+		lp: AccountId,
+		given: Balance,
+		total: Balance,
+	);
 
-	/// Adds an ingress message to force close all open orders from this main account and initiate complete withdrawal
+	/// Adds an ingress message to force close all open orders from this main account and initiate
+	/// complete withdrawal
 	fn force_close_pool(market: TradingPair, main: AccountId);
 
 	/// Claim rewards for this main account. Return False if reward is already claimed, else True.
-	fn claim_rewards(main: AccountId, epoch: u16, market: TradingPair) -> Result<Balance,sp_runtime::DispatchError>;
+	fn claim_rewards(
+		main: AccountId,
+		epoch: u16,
+		market: TradingPair,
+	) -> Result<Balance, sp_runtime::DispatchError>;
 }

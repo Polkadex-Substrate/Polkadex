@@ -18,8 +18,8 @@
 
 //! This module contains constants definitions related to the "Orderbook".
 
-use polkadex_primitives::Balance;
 use frame_support::PalletId;
+use polkadex_primitives::Balance;
 
 /// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;

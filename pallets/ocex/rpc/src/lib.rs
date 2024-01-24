@@ -27,7 +27,10 @@ use jsonrpsee::{
 	tracing::log,
 	types::error::{CallError, ErrorObject},
 };
-use orderbook_primitives::recovery::{DeviationMap, ObCheckpoint, ObRecoveryState};
+use orderbook_primitives::{
+	recovery::{DeviationMap, ObCheckpoint, ObRecoveryState},
+	types::TradingPair,
+};
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
 use polkadex_primitives::AssetId;
@@ -59,6 +62,25 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 
 	#[method(name = "ob_fetchCheckpoint")]
 	async fn fetch_checkpoint(&self, at: Option<BlockHash>) -> RpcResult<ObCheckpoint>;
+
+	#[method(name = "lmp_accountsSorted")]
+	async fn account_scores_by_market(
+		&self,
+		at: Option<BlockHash>,
+		epoch: u32,
+		market: TradingPair,
+		sorted_by_mm_score: bool,
+		limit: u16,
+	) -> RpcResult<Vec<AccountId>>;
+
+	#[method(name = "lmp_eligibleRewards")]
+	fn eligible_rewards(
+		&self,
+		at: Option<BlockHash>,
+		epoch: u32,
+		market: TradingPair,
+		main: AccountId,
+	) -> RpcResult<(String, String, bool)>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -201,6 +223,47 @@ where
 			.map_err(runtime_error_into_rpc_err)?;
 		let ob_checkpoint = ob_checkpoint_raw.to_checkpoint();
 		Ok(ob_checkpoint)
+	}
+
+	async fn account_scores_by_market(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		epoch: u32,
+		market: TradingPair,
+		sorted_by_mm_score: bool,
+		limit: u16,
+	) -> RpcResult<Vec<AccountId>> {
+		let api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let accounts: Vec<AccountId> = api
+			.top_lmp_accounts(at, epoch, market, sorted_by_mm_score, limit)
+			.map_err(runtime_error_into_rpc_err)?;
+
+		Ok(accounts)
+	}
+
+	fn eligible_rewards(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		epoch: u32,
+		market: TradingPair,
+		main: AccountId,
+	) -> RpcResult<(String, String, bool)> {
+		let api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let (mm_rewards, trading_rewards, is_claimed) = api
+			.calculate_lmp_rewards(at, main, epoch, market)
+			.map_err(runtime_error_into_rpc_err)?;
+
+		Ok((mm_rewards.to_string(), trading_rewards.to_string(), is_claimed))
 	}
 }
 
