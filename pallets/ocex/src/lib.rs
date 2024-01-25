@@ -59,8 +59,7 @@ use orderbook_primitives::{
 };
 pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
+
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -174,6 +173,20 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId,
 		Vec<Withdrawal<<T as frame_system::Config>::AccountId>>,
 	>;
+
+	pub type BatchProcessResult<T> = (
+		Vec<Withdrawal<<T as frame_system::Config>::AccountId>>,
+		Vec<EgressMessages<<T as frame_system::Config>::AccountId>>,
+		Option<
+			BTreeMap<
+				TradingPair,
+				(
+					BTreeMap<<T as frame_system::Config>::AccountId, (Decimal, Decimal)>,
+					(Decimal, Decimal),
+				),
+			>,
+		>,
+	);
 
 	pub struct AllowlistedTokenLimit;
 

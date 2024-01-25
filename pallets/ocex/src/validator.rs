@@ -26,7 +26,7 @@ use crate::{
 	settlement::{add_balance, get_balance, sub_balance},
 	snapshot::StateInfo,
 	storage::{store_trie_root, OffchainState},
-	Config, Pallet, SnapshotNonce, Snapshots,
+	BatchProcessResult, Config, Pallet, SnapshotNonce, Snapshots,
 };
 use core::ops::Div;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -65,6 +65,11 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// such aggregation endpoints
 pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
+
+type TraderMetricsType<T> = BTreeMap<
+	TradingPair,
+	(BTreeMap<<T as frame_system::Config>::AccountId, (Decimal, Decimal)>, (Decimal, Decimal)),
+>;
 
 impl<T: Config> Pallet<T> {
 	/// Runs the offchain worker computes the next batch of user actions and
@@ -671,19 +676,7 @@ impl<T: Config> Pallet<T> {
 		state: &mut OffchainState,
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
-	) -> Result<
-		(
-			Vec<Withdrawal<T::AccountId>>,
-			Vec<EgressMessages<T::AccountId>>,
-			Option<
-				BTreeMap<
-					TradingPair,
-					(BTreeMap<T::AccountId, (Decimal, Decimal)>, (Decimal, Decimal)),
-				>,
-			>,
-		),
-		&'static str,
-	> {
+	) -> Result<BatchProcessResult<T>, &'static str> {
 		if state_info.stid >= batch.stid {
 			return Err("Invalid stid")
 		}
@@ -746,12 +739,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn compute_trader_metrics(
 		state: &mut OffchainState,
-	) -> Result<
-		Option<
-			BTreeMap<TradingPair, (BTreeMap<T::AccountId, (Decimal, Decimal)>, (Decimal, Decimal))>,
-		>,
-		&'static str,
-	> {
+	) -> Result<Option<TraderMetricsType<T>>, &'static str> {
 		// Check if epoch has ended and score is computed if yes, then continue
 		if let Some(epoch) = <FinalizeLMPScore<T>>::get() {
 			let config =
