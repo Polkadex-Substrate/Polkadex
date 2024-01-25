@@ -18,7 +18,6 @@
 
 //! Tests for pallet-ocex
 
-use crate::*;
 use frame_support::{
 	pallet_prelude::Weight,
 	parameter_types,

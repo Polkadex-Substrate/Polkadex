@@ -32,6 +32,7 @@ pallet-balances = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true }
 sp-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
 
 [features]
 default = [ "std" ]
@@ -52,7 +53,8 @@ std = [
     "pallet-timestamp/std",
     "sp-io/std",
     "sp-application-crypto/std",
-    "sp-io/std"
+    "sp-io/std",
+    "sp-core/std"
 ]
 runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
