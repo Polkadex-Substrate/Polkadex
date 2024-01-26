@@ -21,7 +21,7 @@
 use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok};
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive, Zero};
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use sp_std::collections::btree_map::BTreeMap;
 use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -2325,7 +2325,7 @@ use orderbook_primitives::{
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
 
-use orderbook_primitives::types::{UserActionBatch, UserActions};
+use orderbook_primitives::types::{UserActionBatch};
 use trie_db::TrieMut;
 
 #[test]
@@ -2671,7 +2671,7 @@ fn test_set_lmp_epoch_config_invalid_market_weightage() {
 }
 
 #[test]
-fn test_set_lmp_epoch_config_invalid_invalid_LMPConfig() {
+fn test_set_lmp_epoch_config_invalid_invalid_lmpconfig() {
 	new_test_ext().execute_with(|| {
 		let total_liquidity_mining_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
 		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
@@ -2766,7 +2766,7 @@ fn test_do_claim_lmp_rewards_happy_path() {
 		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
 		let reward_account =
 			<mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
-		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE);
+		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
 		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
 		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
 	})
@@ -2822,11 +2822,11 @@ pub fn add_lmp_config() {
 	OCEX::start_new_epoch();
 }
 
-use frame_support::traits::{fungible::Mutate, fungibles::Create};
+use frame_support::traits::{fungible::Mutate};
 
 fn crete_base_and_quote_asset() {
 	let quote_asset = AssetId::Asset(1);
-	Balances::mint_into(&AccountId32::new([1; 32]), UNIT_BALANCE);
+	Balances::mint_into(&AccountId32::new([1; 32]), UNIT_BALANCE).unwrap();
 	assert_ok!(Assets::create(
 		RuntimeOrigin::signed(AccountId32::new([1; 32])),
 		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),

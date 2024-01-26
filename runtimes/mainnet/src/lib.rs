@@ -1492,14 +1492,13 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3> = 36,
 		Thea: thea::pallet = 39,
 		Rewards: pallet_rewards = 40,
-		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
 		TheaMH: thea_message_handler::pallet = 45,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 		Statement: pallet_statement = 48,
 		AssetTxPayment: pallet_asset_tx_payment = 49,
-		CrowdSourceLMP: pallet_lmp = 50,
+		CrowdSourceLMP: pallet_lmp::pallet = 50,
 	}
 );
 
@@ -1891,7 +1890,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
-			list_benchmark!(list, extra, liquidity, Liquidity);
 			list_benchmark!(list, extra, thea_executor, TheaExecutor);
 			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, thea_message_handler, TheaMH);
@@ -1928,7 +1926,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
-			add_benchmark!(params, batches, liquidity, Liquidity);
 			add_benchmark!(params, batches, thea_executor, TheaExecutor); //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);

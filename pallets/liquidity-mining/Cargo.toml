@@ -21,36 +21,44 @@ frame-support = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
-polkadex-primitives = { path = "../../primitives/polkadex", default-features = false }
-rust_decimal = { workspace = true, default-features = false }
+orderbook-primitives = {path="../../primitives/orderbook", default-features = false}
+polkadex-primitives = {path="../../primitives/polkadex", default-features = false}
+rust_decimal = {workspace = true, default-features = false}
 
 [dev-dependencies]
-pallet-ocex-lmp = { path = "../ocex", default-features = false }
+pallet-ocex-lmp = {path = "../ocex", default-features = false}
 pallet-assets = { workspace = true, default-features = false }
 pallet-balances = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true }
 sp-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
 
 [features]
-default = ["std"]
+default = [ "std" ]
 std = [
-  "log/std",
-  "parity-scale-codec/std",
-  "frame-system/std",
-  "frame-support/std",
-  "scale-info/std",
-  "orderbook-primitives/std",
-  "polkadex-primitives/std",
-  "rust_decimal/std",
-  "sp-runtime/std",
-  "sp-std/std",
-  "pallet-ocex-lmp/std",
-  "pallet-assets/std",
-  "pallet-balances/std",
-  "pallet-timestamp/std",
-  "sp-io/std",
-  "sp-application-crypto/std",
-  "sp-io/std",
+    "log/std",
+    "parity-scale-codec/std",
+    "frame-system/std",
+    "frame-support/std",
+    "scale-info/std",
+    "orderbook-primitives/std",
+    "polkadex-primitives/std",
+    "rust_decimal/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "pallet-ocex-lmp/std",
+    "pallet-assets/std",
+    "pallet-balances/std",
+    "pallet-timestamp/std",
+    "sp-io/std",
+    "sp-application-crypto/std",
+    "sp-io/std",
+    "sp-core/std"
 ]
+runtime-benchmarks = [
+    "sp-runtime/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

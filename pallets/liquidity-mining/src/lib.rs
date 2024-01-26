@@ -72,6 +72,11 @@ pub mod pallet {
 		MMClaimFlag,
 	);
 
+	type LMPScoreSheet<T> = BTreeMap<
+		(TradingPair, <T as frame_system::Config>::AccountId, u16),
+		(BTreeMap<<T as frame_system::Config>::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
+	>;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		type RuntimeEvent: IsType<<Self as frame_system::Config>::RuntimeEvent> + From<Event<Self>>;
@@ -279,12 +284,9 @@ pub mod pallet {
 				if <SnapshotFlag<T>>::get().is_none() {
 					return InvalidTransaction::Call.into()
 				}
-				match source {
-					TransactionSource::External => {
-						// Don't accept externally sourced calls
-						return InvalidTransaction::Call.into()
-					},
-					_ => {},
+				if source == TransactionSource::External {
+					// Don't accept externally sourced calls
+					return InvalidTransaction::Call.into()
 				}
 
 				// TODO: @zktony Update the verification logic to make it more stringent.
@@ -315,7 +317,7 @@ pub mod pallet {
 					.propagate(true)
 					.build()
 			} else {
-				return InvalidTransaction::Call.into()
+				InvalidTransaction::Call.into()
 			}
 		}
 	}
@@ -471,10 +473,10 @@ pub mod pallet {
 			let config = <Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
 			ensure!(<SnapshotFlag<T>>::get().is_none(), Error::<T>::SnapshotInProgress); // TODO: @zktony Replace with pool level flags
 
-			let total = T::OtherAssets::total_issuance(config.share_id.into());
+			let total = T::OtherAssets::total_issuance(config.share_id);
 			ensure!(!total.is_zero(), Error::<T>::TotalShareIssuanceIsZero);
 			let burned_amt = T::OtherAssets::burn_from(
-				config.share_id.into(),
+				config.share_id,
 				&lp,
 				shares,
 				Precision::Exact,
@@ -617,10 +619,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn submit_scores_of_lps(
 			origin: OriginFor<T>,
-			results: BTreeMap<
-				(TradingPair, T::AccountId, u16),
-				(BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
-			>,
+			results: LMPScoreSheet<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
@@ -655,13 +654,13 @@ pub mod pallet {
 			let pool_config =
 				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
 			let mut requests = <WithdrawalRequests<T>>::get(epoch, &pool_config.pool_id);
-			for index in 0..num_requests {
+			for request in requests.iter().take(num_requests) {
 				T::OCEX::remove_liquidity(
 					market,
 					pool_config.pool_id.clone(),
-					requests[index].0.clone(),
-					requests[index].1,
-					requests[index].2,
+					request.0.clone(),
+					request.1,
+					request.2,
 				);
 			}
 			requests = requests[num_requests..].to_vec();
@@ -749,10 +748,7 @@ pub mod pallet {
 			};
 			// TODO: Only compute the result every five blocks
 
-			let mut results: BTreeMap<
-				(TradingPair, T::AccountId, u16),
-				(BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
-			> = BTreeMap::new();
+			let mut results: LMPScoreSheet<T> = BTreeMap::new();
 			// Loop over all pools and lps and calculate score of all LPs
 			for (market, mm, config) in <Pools<T>>::iter() {
 				let mut scores_map = BTreeMap::new();
@@ -825,7 +821,7 @@ pub mod pallet {
 				},
 				AssetId::Asset(id) => {
 					T::OtherAssets::transfer(
-						id.into(),
+						id,
 						payer,
 						payee,
 						amount.unique_saturated_into(),

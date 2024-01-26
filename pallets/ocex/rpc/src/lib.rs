@@ -67,7 +67,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	async fn account_scores_by_market(
 		&self,
 		at: Option<BlockHash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		sorted_by_mm_score: bool,
 		limit: u16,
@@ -77,7 +77,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	fn eligible_rewards(
 		&self,
 		at: Option<BlockHash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		main: AccountId,
 	) -> RpcResult<(String, String, bool)>;
@@ -228,7 +228,7 @@ where
 	async fn account_scores_by_market(
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		sorted_by_mm_score: bool,
 		limit: u16,
@@ -249,7 +249,7 @@ where
 	fn eligible_rewards(
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		main: AccountId,
 	) -> RpcResult<(String, String, bool)> {

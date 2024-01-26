@@ -19,12 +19,11 @@
 //! Tests for pallet-lmp.
 
 use crate::mock::*;
-use frame_support::{assert_noop, assert_ok, testing_prelude::bounded_vec};
-use frame_system::EventRecord;
+use frame_support::{assert_noop, assert_ok};
 use orderbook_primitives::{constants::UNIT_BALANCE, types::TradingPair};
 use polkadex_primitives::AssetId;
 use sp_core::crypto::AccountId32;
-use std::{collections::BTreeMap, ops::DivAssign, process::exit};
+use std::{collections::BTreeMap, ops::DivAssign};
 
 #[test]
 fn test_register_pool_happy_path() {
@@ -95,7 +94,7 @@ fn test_register_pool_error_unknown_pool() {
 	})
 }
 
-use crate::pallet::{Pools, SnapshotFlag};
+use crate::pallet::{Pools};
 use frame_support::traits::fungibles::Inspect;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
@@ -129,16 +128,16 @@ fn test_register_pool_error_register_pool_fails() {
 			),
 			pallet_ocex_lmp::pallet::Error::<Test>::ProxyAlreadyRegistered
 		);
-		let (pool, share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
+		let (_pool, share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
 		// Check if Asset is registered or not
 		assert!(!Assets::asset_exists(share_id)); //Verify this with @gautham
 	})
 }
 use frame_support::traits::{
 	fungible::Mutate,
-	fungibles::{Create, Mutate as MutateNonNative},
+	fungibles::{ Mutate as MutateNonNative},
 };
-use log::log;
+
 use pallet_ocex_lmp::pallet::PriceOracle;
 use sp_runtime::{traits::One, ArithmeticError::Underflow};
 #[test]
@@ -157,7 +156,6 @@ fn test_add_liquidity_happy_path() {
 		let mut price = Decimal::from_u128(UNIT_BALANCE * 5).unwrap();
 		price.div_assign(Decimal::from(UNIT_BALANCE));
 		let tick = Decimal::from_u128(UNIT_BALANCE * 1).unwrap();
-		let trading_account = AccountId32::new([1; 32]);
 		let market_maker = AccountId32::new([2; 32]);
 		let user_who_wants_to_add_liq = AccountId32::new([3; 32]);
 		let mut map = BTreeMap::new();
@@ -309,7 +307,7 @@ fn test_remove_liquidity_happy_path_and_error() {
 			market_maker.clone(),
 			UNIT_BALANCE * 6
 		));
-		let (pool, share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
+		let (_pool, share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
 		// * Check shares of user
 		assert_eq!(Assets::balance(share_id, &user_who_wants_to_add_liq), 0);
 		assert_noop!(
@@ -411,7 +409,7 @@ fn test_claim_rewards_by_lp_happy_path_and_error() {
 		let reward_account =
 			<crate::mock::Test as pallet_ocex_lmp::Config>::LMPRewardsPalletId::get()
 				.into_account_truncating();
-		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE);
+		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
 		let market_maker = AccountId32::new([2; 32]);
 		let trader = AccountId32::new([1; 32]);
 		let mut score_map: BTreeMap<AccountId32, (u128, bool)> = BTreeMap::new();
@@ -457,7 +455,7 @@ fn test_claim_rewards_by_mm_happy_path_and_error() {
 		let reward_account =
 			<crate::mock::Test as pallet_ocex_lmp::Config>::LMPRewardsPalletId::get()
 				.into_account_truncating();
-		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE);
+		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
 		let market_maker = AccountId32::new([2; 32]);
 		let trader = AccountId32::new([1; 32]);
 		let mut score_map: BTreeMap<AccountId32, (u128, bool)> = BTreeMap::new();
@@ -505,7 +503,7 @@ fn test_initiate_withdrawal() {
 		let epoch = 1;
 		let num_of_request = 1;
 		let market_maker = AccountId32::new([2; 32]);
-		let (pool, share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
+		let (pool, _share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
 		let trader = AccountId32::new([1; 32]);
 		let asset1 = 10 * UNIT_BALANCE;
 		let asset2 = 10 * UNIT_BALANCE;
@@ -583,7 +581,6 @@ fn add_liquidity() {
 	let mut price = Decimal::from_u128(UNIT_BALANCE * 5).unwrap();
 	price.div_assign(Decimal::from(UNIT_BALANCE));
 	let tick = Decimal::from_u128(UNIT_BALANCE * 1).unwrap();
-	let trading_account = AccountId32::new([1; 32]);
 	let market_maker = AccountId32::new([2; 32]);
 	let user_who_wants_to_add_liq = AccountId32::new([3; 32]);
 	let mut map = BTreeMap::new();
@@ -598,7 +595,6 @@ fn add_liquidity() {
 		UNIT_BALANCE * 6,
 		UNIT_BALANCE * 40
 	));
-	let (pool, share_id) = LiqudityMining::create_pool_account(&market_maker, trading_pair);
 	let share_issued = Decimal::from(6);
 	let price = Decimal::from(5);
 	let total_inventory_in_quote = Decimal::from(40);
@@ -614,25 +610,14 @@ fn add_liquidity() {
 
 fn mint_base_quote_asset_for_user(user: AccountId32) {
 	let quote_asset = AssetId::Asset(1);
-	Balances::mint_into(&user, UNIT_BALANCE * 100);
+	Balances::mint_into(&user, UNIT_BALANCE * 100).unwrap();
 	Assets::create(
 		RuntimeOrigin::signed(user.clone()),
 		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
 		AccountId32::new([1; 32]),
 		One::one(),
-	);
+	).unwrap();
 	assert_ok!(Assets::mint_into(quote_asset.asset_id().unwrap(), &user, UNIT_BALANCE * 100));
-}
-
-fn crete_base_and_quote_asset() {
-	let quote_asset = AssetId::Asset(1);
-	Balances::mint_into(&AccountId32::new([1; 32]), UNIT_BALANCE);
-	assert_ok!(Assets::create(
-		RuntimeOrigin::signed(AccountId32::new([1; 32])),
-		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
-		AccountId32::new([1; 32]),
-		One::one()
-	));
 }
 
 fn register_test_pool(public_fund_allowed: bool) {
