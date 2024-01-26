@@ -102,7 +102,7 @@ pdex-migration = { path = "../../pallets/pdex-migration", default-features = fal
 
 # Orderbook 
 pallet-ocex-lmp = { path = "../../pallets/ocex", default-features = false }
-pallet-lmp = {path="../../pallets/liquidity-mining", default-features = false}
+pallet-lmp = { path = "../../pallets/liquidity-mining", default-features = false }
 
 # Thea
 thea = { path = "../../pallets/thea", default-features = false }
