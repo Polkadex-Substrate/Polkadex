@@ -52,6 +52,7 @@ impl<T: Config> Pallet<T> {
 		available_keys.sort();
 
 		let (auth_index, signer) = available_keys.first().ok_or("No active keys available")?;
+		log::info!(target: "thea", "Auth Index {:?} signer {:?}", auth_index, signer.clone());
 
 		let active_networks = <ActiveNetworks<T>>::get();
 		log::debug!(target:"thea","List of active networks: {:?}",active_networks);

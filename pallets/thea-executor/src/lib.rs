@@ -273,49 +273,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Manually claim an approved deposit.
-		///
-		/// # Parameters
-		///
-		/// * `origin`: User.
-		/// * `num_deposits`: Number of deposits to claim from available deposits,
-		/// (it's used to parametrise the weight of this extrinsic).
-		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		#[transactional]
-		pub fn claim_deposit(
-			origin: OriginFor<T>,
-			num_deposits: u32,
-			user: T::AccountId,
-		) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-
-			let mut deposits = <ApprovedDeposits<T>>::get(&user);
-			let length: u32 = deposits.len().saturated_into();
-			let length: u32 = if length <= num_deposits { length } else { num_deposits };
-			for _ in 0..length {
-				if let Some(deposit) = deposits.pop() {
-					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
-						deposits.push(deposit);
-						// Save it back on failure
-						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
-						return Err(err)
-					}
-				} else {
-					break
-				}
-			}
-
-			if !deposits.is_empty() {
-				// If pending deposits are available, save it back
-				<ApprovedDeposits<T>>::insert(&user, deposits)
-			} else {
-				<ApprovedDeposits<T>>::remove(&user);
-			}
-
-			Ok(())
-		}
-
 		/// Add Token Config.
 		///
 		/// # Parameters
@@ -546,31 +503,22 @@ pub mod pallet {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
-				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
-					pending_deposits.push(deposit.clone())
-				});
-				Self::deposit_event(Event::<T>::DepositApproved(
-					network,
-					deposit.recipient,
-					deposit.asset_id,
-					deposit.amount,
-					deposit.id,
-				))
+				// Execute Deposit
+				Self::execute_deposit(deposit)?;
 			}
 			Ok(())
 		}
 
 		#[transactional]
 		pub fn execute_deposit(
-			deposit: Deposit<T::AccountId>,
-			recipient: &T::AccountId,
+			deposit: Deposit<T::AccountId>
 		) -> Result<(), DispatchError> {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 			let deposit_amount = deposit.amount_in_native_decimals(metadata); // Convert the decimals configured in metadata
 
-			if !frame_system::Pallet::<T>::account_exists(recipient) {
+			if !frame_system::Pallet::<T>::account_exists(&deposit.recipient) {
 				let path = sp_std::vec![
 					polkadex_primitives::AssetId::Asset(deposit.asset_id),
 					polkadex_primitives::AssetId::Polkadex
@@ -582,20 +530,20 @@ pub mod pallet {
 					path,
 					amount_out.into(),
 					Some(deposit_amount),
-					recipient.clone(),
+					deposit.recipient.clone(),
 					false,
 				)?;
 				Self::resolve_transfer(
 					deposit.asset_id.into(),
 					&Self::thea_account(),
-					recipient,
+					&deposit.recipient,
 					deposit_amount.saturating_sub(fee_amount),
 				)?;
 			} else {
 				Self::resolver_deposit(
 					deposit.asset_id.into(),
 					deposit_amount,
-					recipient,
+					&deposit.recipient,
 					Self::thea_account(),
 					1u128,
 					Self::thea_account(),
@@ -604,7 +552,7 @@ pub mod pallet {
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
-				recipient.clone(),
+				deposit.recipient.clone(),
 				deposit.asset_id,
 				deposit.amount_in_native_decimals(metadata),
 				deposit.id,

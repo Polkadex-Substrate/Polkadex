@@ -23,6 +23,7 @@ use super::*;
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
+use crate::Pallet as TheaMH;
 
 const KEY: [u8; 33] = [
 	2, 10, 16, 145, 52, 31, 229, 102, 75, 250, 23, 130, 213, 224, 71, 121, 104, 144, 104, 201, 22,
@@ -52,14 +53,9 @@ benchmarks! {
 	}
 
 	incoming_message {
-		let public = <T as Config>::TheaId::generate_pair(None);
-
-		<Authorities<T>>::insert(0, BoundedVec::truncate_from(vec![public.clone()]));
-		<ValidatorSetId<T>>::put(0);
 		let message = Message { block_no: 11, nonce: 1, data: generate_deposit_payload::<T>().encode(),
 			network: 1, payload_type: PayloadType::L1Deposit };
-
-		let signature = public.sign(&message.encode()).unwrap();
+		let signature: T::Signature = sp_core::ecdsa::Signature::default().into();
 		let signed_message = SignedMessage::new(message,0,0,signature.into());
 	}: _(RawOrigin::None, signed_message)
 	verify {
