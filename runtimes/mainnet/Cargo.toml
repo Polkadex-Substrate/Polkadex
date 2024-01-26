@@ -71,7 +71,7 @@ sp-transaction-pool = { default-features = false, workspace = true }
 sp-version = { default-features = false, workspace = true }
 sp-io = { workspace = true, default-features = false }
 sp-statement-store = { workspace = true, default-features = false }
-sp-storage = {workspace = true, default-features = false, optional = true}
+sp-storage = { workspace = true, default-features = false, optional = true }
 #added
 sp-authority-discovery = { default-features = false, workspace = true }
 sp-block-builder = { default-features = false, workspace = true }
@@ -198,7 +198,7 @@ std = [
   "pallet-asset-tx-payment/std",
   "pallet-statement/std",
   "sp-statement-store/std",
-  "sp-storage?/std"
+  "sp-storage?/std",
 ]
 runtime-benchmarks = [
   #theirs
