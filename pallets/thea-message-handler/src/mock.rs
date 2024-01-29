@@ -180,8 +180,6 @@ impl pallet_asset_conversion::Config for Test {
 	type PalletId = AssetConversionPalletId;
 	type AllowMultiAssetPools = AllowMultiAssetPools;
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {

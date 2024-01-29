@@ -26,6 +26,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Permill,
 };
+use crate::pallet as thea;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -37,7 +38,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Balances: pallet_balances,
 		Assets: pallet_assets,
-		Thea: crate,
+		Thea: thea,
 		TheaExecutor: thea_executor,
 		AssetConversion: pallet_asset_conversion
 	}
@@ -92,7 +93,7 @@ impl pallet_balances::Config for Test {
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type MaxHolds = ();
+	type MaxHolds = MaxLocks;
 	type MaxFreezes = ();
 }
 
@@ -141,7 +142,7 @@ impl crate::Config for Test {
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
 	type Currency = Balances;
-	type GovernanceOrigin = EnsureSigned<u64>;
+	type GovernanceOrigin = EnsureRoot<u64>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
@@ -177,8 +178,8 @@ impl pallet_asset_conversion::Config for Test {
 	type PalletId = AssetConversionPalletId;
 	type AllowMultiAssetPools = AllowMultiAssetPools;
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = AssetU128;
+	// #[cfg(feature = "runtime-benchmarks")]
+	// type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {

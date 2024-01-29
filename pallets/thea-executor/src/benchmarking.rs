@@ -18,20 +18,22 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
-
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::{boxed::Box, vec, vec::Vec};
-
+use frame_support::traits::OnInitialize;
 use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::traits::{
 	fungible::Mutate as NativeMutate,
 	fungibles::{Create, Inspect, Mutate},
 	Get,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
 use sp_runtime::SaturatedConversion;
 use thea_primitives::types::{AssetMetadata, Deposit};
+use thea_primitives::types::Withdraw;
 use xcm::VersionedMultiLocation;
+use crate::Pallet as TheaExecutor;
 
 benchmarks! {
 	set_withdrawal_fee {
@@ -51,21 +53,6 @@ benchmarks! {
 	verify {
 		let metadata = AssetMetadata::new(decimal).unwrap();
 		assert_eq!(<Metadata<T>>::get(asset_id), Some(metadata));
-	}
-
-	claim_deposit {
-		let r in 1 .. 1000;
-		let account = account::<T::AccountId>("alice", 1, r);
-		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
-		let deposits = create_deposit::<T>(account.clone());
-		let metadata = AssetMetadata::new(10).unwrap();
-		<Metadata<T>>::insert(100, metadata);
-		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
-		<ApprovedDeposits<T>>::insert(account.clone(), deposits);
-	}: _(RawOrigin::Signed(account.clone()), 10,account.clone())
-	verify {
-		let current_balance = <T as pallet::Config>::Assets::balance(asset_id.into(), &account);
-		assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into());
 	}
 
 	withdraw {
@@ -110,6 +97,48 @@ benchmarks! {
 	verify {
 		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
 		assert_eq!(ready_withdrawal.len(), 1);
+	}
+
+	ethereum_withdraw {
+		let r in 1 .. 1000;
+		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
+		let admin = account::<T::AccountId>("admin", 1, r);
+		let network_id = 2;
+		<T as pallet::Config>::Assets::create(asset_id.into(), admin, true, 1u128.saturated_into()).unwrap();
+		let pallet_acc = T::TheaPalletId::get().into_account_truncating();
+		<T as pallet::Config>::Currency::mint_into(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		let account = account::<T::AccountId>("alice", 1, r);
+		<T as pallet::Config>::Assets::mint_into(asset_id.into(), &account, 100_000_000_000_000_000_000u128.saturated_into()).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
+		let metadata = AssetMetadata::new(10).unwrap();
+		<Metadata<T>>::insert(100, metadata);
+		<WithdrawalFees<T>>::insert(network_id, 1_000);
+		let beneficiary: sp_core::H160 = sp_core::H160::default();
+	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, beneficiary, true, false)
+	verify {
+		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
+		assert_eq!(ready_withdrawal.len(), 1);
+	}
+
+	on_initialize {
+		// Insert Withdrawals in ReadyWithdrawals
+		let withdrawal = Withdraw {
+			id: vec![],
+			asset_id: 100,
+			amount: 1_000_000_000_000,
+			destination: vec![],
+			is_blocked: false,
+			extra: vec![],
+		};
+		let withdrawal_vec = vec![withdrawal; 30];
+		let block_no: u32 = 10;
+		let networks = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+		let block_no: BlockNumberFor<T> = block_no.into();
+		for network_id in networks {
+			<ReadyWithdrawals<T>>::insert(block_no, network_id, withdrawal_vec.clone());
+		}
+	}: {
+		TheaExecutor::<T>::on_initialize(block_no);
 	}
 }
 

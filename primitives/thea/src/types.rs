@@ -20,6 +20,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::__private::log;
 use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -62,12 +63,13 @@ impl<Signature> SignedMessage<Signature> {
 	) {
 		if self.message != message {
 			// silently drop if message is different
+			log::error!(target:"thea", "Thea Message is not same");
 			return;
 		}
 		if self.validator_set_id < validator_set_id {
-			self.validator_set_id = validator_set_id
+			self.validator_set_id = validator_set_id;
+			self.signatures.clear();
 		}
-		self.signatures.clear();
 		self.signatures.insert(auth_index, signature);
 	}
 
