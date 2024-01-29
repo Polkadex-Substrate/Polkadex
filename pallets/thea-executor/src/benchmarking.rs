@@ -18,19 +18,20 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
-
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::{boxed::Box, vec, vec::Vec};
-
+use frame_support::traits::OnInitialize;
 use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::traits::{
 	fungible::Mutate as NativeMutate,
 	fungibles::{Create, Inspect, Mutate},
 	Get,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::RawOrigin;
 use sp_runtime::SaturatedConversion;
 use thea_primitives::types::{AssetMetadata, Deposit};
+use thea_primitives::types::Withdraw;
 use xcm::VersionedMultiLocation;
 use crate::Pallet as TheaExecutor;
 
@@ -117,6 +118,27 @@ benchmarks! {
 	verify {
 		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
 		assert_eq!(ready_withdrawal.len(), 1);
+	}
+
+	on_initialize {
+		// Insert Withdrawals in ReadyWithdrawals
+		let withdrawal = Withdraw {
+			id: vec![],
+			asset_id: 100,
+			amount: 1_000_000_000_000,
+			destination: vec![],
+			is_blocked: false,
+			extra: vec![],
+		};
+		let withdrawal_vec = vec![withdrawal; 30];
+		let block_no: u32 = 10;
+		let networks = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+		let block_no: BlockNumberFor<T> = block_no.into();
+		for network_id in networks {
+			<ReadyWithdrawals<T>>::insert(block_no, network_id, withdrawal_vec.clone());
+		}
+	}: {
+		TheaExecutor::<T>::on_initialize(block_no);
 	}
 }
 

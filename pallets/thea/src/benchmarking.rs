@@ -134,7 +134,11 @@ benchmarks! {
 		<SignedOutgoingMessages<T>>::insert(network_id, nonce, signed_message);
 		let signatures = (network_id, nonce, signature);
 		let sig_vec = vec![signatures];
-	}: _(RawOrigin::None, 0, 0, sig_vec)
+	}: _(RawOrigin::None, 1, 0, sig_vec)
+	verify {
+        let signed_outgoing_message = <SignedOutgoingMessages<T>>::get(network_id, nonce).unwrap();
+		assert!(signed_outgoing_message.signatures.len() == 2);
+	}
 
 	report_misbehaviour {
 		// Create fisherman account with some balance
@@ -157,6 +161,10 @@ benchmarks! {
 		};
 		<IncomingMessagesQueue<T>>::insert(network_id, nonce, incoming_message);
 	}: _(RawOrigin::Signed(fisherman), network_id, nonce)
+	verify {
+		let misbehaviour_report = <MisbehaviourReports<T>>::get(network_id, nonce);
+		assert!(misbehaviour_report.is_some());
+	}
 
 	handle_misbehaviour {
 		// Add MisbehaviourReports
@@ -196,6 +204,42 @@ benchmarks! {
 		};
 		<MisbehaviourReports<T>>::insert(2, 0, report);
 	}: _(RawOrigin::Root, 2, 0, true)
+
+	on_initialize {
+		let x in 1 .. 1_000;
+		let blocks = x as u64;
+		// Update active network
+		let networks: BTreeSet<u8> = BTreeSet::from([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+		<ActiveNetworks<T>>::put(networks.clone());
+		// Update IncomingMessagesQueue
+		let nonce = 1;
+		for network in networks.iter() {
+			let message = Message {
+			block_no: 1,
+			nonce: 1,
+			data: generate_deposit_payload::<T>().encode(),
+			network: *network,
+			payload_type: PayloadType::L1Deposit
+		};
+		let incoming_message = IncomingMessage {
+			message: message,
+			relayer: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
+			stake: (1000*UNIT_BALANCE).saturated_into(),
+			execute_at: 0
+		};
+			<IncomingNonce<T>>::insert(*network, nonce);
+			<IncomingMessagesQueue<T>>::insert(*network, nonce, incoming_message.clone());
+		}
+	}: {
+		for b in 0..blocks {
+			<Thea<T>>::on_initialize((b as u32).into());
+		}
+	} verify {
+		for network in networks.iter() {
+			let message = <IncomingMessages<T>>::get(*network, nonce);
+            assert!(message.is_some());
+		}
+	}
 }
 
 #[cfg(test)]
