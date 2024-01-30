@@ -22,15 +22,15 @@ use crate::Pallet as TheaExecutor;
 use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::traits::{
 	fungible::{Inspect as NativeInspect, Mutate as NativeMutate},
-	fungibles::{Create, Inspect, Mutate},
-	Currency, Get, OnInitialize,
+	fungibles::{Create, Mutate},
+	Get, OnInitialize,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_runtime::{traits::AccountIdConversion, SaturatedConversion};
-use sp_std::{boxed::Box, vec, vec::Vec};
-use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
+use sp_std::{boxed::Box, vec};
+use thea_primitives::types::{AssetMetadata, Withdraw};
 use xcm::VersionedMultiLocation;
 
 benchmarks! {
@@ -146,22 +146,6 @@ benchmarks! {
 	verify {
 		assert_eq!(<T as pallet::Config>::Currency::balance(&account), (99999 * UNIT_BALANCE).saturated_into());
 	}
-}
-
-fn create_deposit<T: Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId>> {
-	let mut pending_deposits = vec![];
-	let asset_id = 100;
-	for _i in 1..20 {
-		let deposit: Deposit<T::AccountId> = Deposit {
-			id: vec![],
-			recipient: recipient.clone(),
-			asset_id,
-			amount: 1_000_000_000_000,
-			extra: vec![],
-		};
-		pending_deposits.push(deposit);
-	}
-	pending_deposits
 }
 
 #[cfg(test)]

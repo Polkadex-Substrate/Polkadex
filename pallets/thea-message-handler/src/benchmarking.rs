@@ -20,6 +20,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+#[cfg(test)]
 use crate::Pallet as TheaMH;
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;

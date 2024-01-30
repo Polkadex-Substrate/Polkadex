@@ -22,10 +22,7 @@
 use super::*;
 use crate::Pallet as Thea;
 use frame_benchmarking::v1::benchmarks;
-use frame_support::{
-	traits::fungible::{hold::Mutate as HoldMutate, Mutate},
-	BoundedVec,
-};
+use frame_support::traits::fungible::{hold::Mutate as HoldMutate, Mutate};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
