@@ -43,6 +43,19 @@ pub struct SignedMessage<Signature> {
 }
 
 impl<Signature> SignedMessage<Signature> {
+
+	/// Create a new signed message
+	///
+	/// # Arguments
+	///
+	/// * `message` - The message to be signed
+	/// * `validator_set_id` - The validator set id
+	/// * `auth_index` - The index of the authority signing the message
+	/// * `signature` - The signature of the authority
+	///
+	/// # Returns
+	///
+	/// * `Self` - The signed message
 	pub fn new(
 		message: Message,
 		validator_set_id: ValidatorSetId,
@@ -54,6 +67,14 @@ impl<Signature> SignedMessage<Signature> {
 		Self { validator_set_id, message, signatures }
 	}
 
+	/// Add a signature to the signed message
+	///
+	/// # Arguments
+	///
+	/// * `message` - The message to be signed
+	/// * `validator_set_id` - The validator set id
+	/// * `auth_index` - The index of the authority signing the message
+	/// * `signature` - The signature of the authority
 	pub fn add_signature(
 		&mut self,
 		message: Message,
@@ -73,11 +94,29 @@ impl<Signature> SignedMessage<Signature> {
 		self.signatures.insert(auth_index, signature);
 	}
 
+	/// Check if the signed message has reached the threshold
+	///
+	/// # Arguments
+	///
+	/// * `max_len` - The maximum length of the validator set
+	///
+	/// # Returns
+	///
+	/// * `bool` - True if the threshold is reached
 	pub fn threshold_reached(&self, max_len: usize) -> bool {
 		let threshold = (2 * max_len) / 3;
 		self.signatures.len() >= threshold
 	}
 
+	/// Check if the signed message contains the signature of the authority
+	///
+	/// # Arguments
+	///
+	/// * `auth_index` - The index of the authority
+	///
+	/// # Returns
+	///
+	/// * `bool` - True if the signature is present
 	pub fn contains_signature(&self, auth_index: &u32) -> bool {
 		self.signatures.contains_key(auth_index)
 	}
