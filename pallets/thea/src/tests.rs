@@ -303,9 +303,9 @@ fn test_report_misbehaviour_happy_path() {
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
 		// Mint Balance
-		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
 		let fisherman = 2u64;
-		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
 		let stake = 1000000000000000000000;
 		let incoming_message =
 			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
@@ -337,9 +337,9 @@ fn test_report_misbehaviour_not_enough_stake() {
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
 		// Mint Balance
-		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
 		let fisherman = 2u64;
-		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
 		let stake = 1000000000000000000000;
 		let incoming_message =
 			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
@@ -371,9 +371,9 @@ fn test_handle_misbehaviour_happy_path_valid_proposal() {
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
 		// Mint Balance
-		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
 		let fisherman = 2u64;
-		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
 		let stake = 1000000000000000000000;
 		let incoming_message =
 			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
@@ -406,9 +406,9 @@ fn test_handle_misbehaviour_happy_path_invalid_proposal() {
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
 		// Mint Balance
-		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
 		let fisherman = 2u64;
-		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
 		let stake = 1000000000000000000000;
 		let incoming_message =
 			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
@@ -469,7 +469,7 @@ fn test_submit_signed_outgoing_messages_message_not_found() {
 		let nonce = 1;
 		let validator_set_id = 1;
 		let auth_index = 0;
-		let message = Message {
+		let _message = Message {
 			block_no: 0,
 			nonce,
 			network,

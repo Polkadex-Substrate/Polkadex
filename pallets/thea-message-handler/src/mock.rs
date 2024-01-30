@@ -201,7 +201,7 @@ impl thea_executor::Config for Test {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type Swap = AssetConversion;
-	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
+	type TheaExecWeightInfo = thea_executor::weights::WeightInfo<Test>;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
 	type GovernanceOrigin = EnsureRoot<u64>;

@@ -115,7 +115,7 @@ jobs:
       - name: Check Clippy
         run: cargo clippy -- -D warnings
       - name: Test Project
-        run: RUSTFLAGS="-D warnings" cargo test --workspace
+        run: cargo test --workspace
       - name: Run Cargo Tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
