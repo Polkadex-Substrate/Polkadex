@@ -1367,7 +1367,7 @@ impl thea_executor::Config for Runtime {
 	type TheaPalletId = TheaPalletAccount;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
-	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
+	type TheaExecWeightInfo = thea_executor::weights::WeightInfo<Runtime>;
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;

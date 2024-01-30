@@ -20,7 +20,7 @@
 // --extrinsic
 // *
 // --output
-// ./pallets/thea-executor/src/weights.rs
+// ./temp/thea_weights.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -32,7 +32,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `thea_executor`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> thea_executor::WeightInfo for WeightInfo<T> {
 	/// Storage: `TheaExecutor::WithdrawalFees` (r:0 w:1)
 	/// Proof: `TheaExecutor::WithdrawalFees` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// The range of component `r` is `[1, 1000]`.
@@ -40,8 +40,8 @@ impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 8_000_000 picoseconds.
-		Weight::from_parts(8_500_500, 0)
+		// Minimum execution time: 7_000_000 picoseconds.
+		Weight::from_parts(8_000_500, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -53,7 +53,7 @@ impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 7_000_000 picoseconds.
-		Weight::from_parts(7_500_000, 0)
+		Weight::from_parts(7_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -74,15 +74,13 @@ impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
 	/// Storage: `TheaExecutor::ReadyWithdrawals` (r:0 w:1)
 	/// Proof: `TheaExecutor::ReadyWithdrawals` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// The range of component `r` is `[1, 1000]`.
-	fn withdraw(r: u32, ) -> Weight {
+	fn withdraw(_r: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `755`
 		//  Estimated: `6196`
-		// Minimum execution time: 101_000_000 picoseconds.
-		Weight::from_parts(101_496_496, 0)
+		// Minimum execution time: 96_000_000 picoseconds.
+		Weight::from_parts(97_500_500, 0)
 			.saturating_add(Weight::from_parts(0, 6196))
-			// Standard Error: 1_119
-			.saturating_add(Weight::from_parts(3_503, 0).saturating_mul(r.into()))
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(7))
 	}
@@ -107,8 +105,8 @@ impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `756`
 		//  Estimated: `6196`
-		// Minimum execution time: 101_000_000 picoseconds.
-		Weight::from_parts(102_501_001, 0)
+		// Minimum execution time: 93_000_000 picoseconds.
+		Weight::from_parts(94_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 6196))
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(7))
@@ -134,8 +132,8 @@ impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `756`
 		//  Estimated: `6196`
-		// Minimum execution time: 100_000_000 picoseconds.
-		Weight::from_parts(101_500_500, 0)
+		// Minimum execution time: 93_000_000 picoseconds.
+		Weight::from_parts(93_500_500, 0)
 			.saturating_add(Weight::from_parts(0, 6196))
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(7))
@@ -147,20 +145,8 @@ impl<T: frame_system::Config> crate::TheaExecutorWeightInfo for WeightInfo<T> {
 		//  Measured:  `562`
 		//  Estimated: `4027`
 		// Minimum execution time: 5_000_000 picoseconds.
-		Weight::from_parts(5_000_000, 0)
+		Weight::from_parts(6_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 4027))
 			.saturating_add(T::DbWeight::get().reads(1))
-	}
-	/// Storage: `System::Account` (r:1 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	fn burn_native_tokens() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `140`
-		//  Estimated: `3593`
-		// Minimum execution time: 33_000_000 picoseconds.
-		Weight::from_parts(34_000_000, 0)
-			.saturating_add(Weight::from_parts(0, 3593))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(1))
 	}
 }

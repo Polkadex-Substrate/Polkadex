@@ -406,28 +406,28 @@ fn test_ethereum_withdraw() {
 			&admin,
 			100_000_000_000_000_000_000u128.saturated_into(),
 		)
-			.unwrap();
+		.unwrap();
 		<Test as Config>::Assets::create(
 			RuntimeOrigin::signed(admin),
 			asset_id.into(),
 			admin,
 			1u128.saturated_into(),
 		)
-			.unwrap();
+		.unwrap();
 		let pallet_acc = <Test as crate::Config>::TheaPalletId::get().into_account_truncating();
 		Balances::set_balance(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into());
 		<Test as Config>::Currency::mint_into(
 			&pallet_acc,
 			100_000_000_000_000_000_000u128.saturated_into(),
 		)
-			.unwrap();
+		.unwrap();
 		let account = 2u64;
 		Balances::set_balance(&account, 100_000_000_000_000_000_000u128.saturated_into());
 		<Test as Config>::Currency::mint_into(
 			&account,
 			100_000_000_000_000_000_000u128.saturated_into(),
 		)
-			.unwrap();
+		.unwrap();
 		Assets::mint_into(asset_id, &account, 100_000_000_000_000_000_000u128.saturated_into())
 			.unwrap();
 		<Test as Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into())

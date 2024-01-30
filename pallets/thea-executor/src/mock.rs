@@ -203,7 +203,7 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
-	type WeightInfo = crate::weights::WeightInfo<Test>;
+	type TheaExecWeightInfo = crate::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::*;
+use crate::{pallet as thea, *};
 use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
@@ -26,7 +26,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Permill,
 };
-use crate::pallet as thea;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -200,7 +199,7 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
-	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
+	type TheaExecWeightInfo = thea_executor::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;

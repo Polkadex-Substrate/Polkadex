@@ -35,12 +35,14 @@ mod mock;
 mod tests;
 pub mod weights;
 
-pub trait WeightInfo {
+pub trait TheaExecutorWeightInfo {
 	fn set_withdrawal_fee(_r: u32) -> Weight;
 	fn update_asset_metadata(_r: u32) -> Weight;
-	fn claim_deposit(r: u32) -> Weight;
 	fn withdraw(r: u32) -> Weight;
 	fn parachain_withdraw(_r: u32) -> Weight;
+	fn ethereum_withdraw(_r: u32) -> Weight;
+	fn on_initialize() -> Weight;
+	fn burn_native_tokens() -> Weight;
 }
 
 #[frame_support::pallet]
@@ -127,7 +129,7 @@ pub mod pallet {
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Type representing the weight of this pallet
-		type WeightInfo: WeightInfo;
+		type TheaExecWeightInfo: TheaExecutorWeightInfo;
 	}
 
 	/// Nonce used to generate randomness
@@ -240,15 +242,14 @@ pub mod pallet {
 					log::error!("Error while executing withdrawals...");
 				}
 			}
-			//TODO: Clean Storage
-			Weight::default()
+			T::TheaExecWeightInfo::on_initialize()
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
+		#[pallet::weight(<T as Config>::TheaExecWeightInfo::withdraw(1))]
 		#[transactional]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -280,7 +281,7 @@ pub mod pallet {
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_withdrawal_fee(1))]
+		#[pallet::weight(<T as Config>::TheaExecWeightInfo::set_withdrawal_fee(1))]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -294,7 +295,7 @@ pub mod pallet {
 
 		/// Withdraws to parachain networks in Polkadot
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
+		#[pallet::weight(<T as Config>::TheaExecWeightInfo::parachain_withdraw(1))]
 		pub fn parachain_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -324,7 +325,7 @@ pub mod pallet {
 		/// * `asset_id`: Asset Id.
 		/// * `metadata`: AssetMetadata.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_asset_metadata(1))]
+		#[pallet::weight(<T as Config>::TheaExecWeightInfo::update_asset_metadata(1))]
 		pub fn update_asset_metadata(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -344,7 +345,7 @@ pub mod pallet {
 		/// * `who`: AccountId
 		/// * `amount`: Amount of native tokens to burn.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: @zktony Benchmarking
+		#[pallet::weight(<T as Config>::TheaExecWeightInfo::burn_native_tokens())]
 		pub fn burn_native_tokens(
 			origin: OriginFor<T>,
 			who: T::AccountId,
@@ -371,7 +372,7 @@ pub mod pallet {
 		/// * `pay_for_remaining`: Pay for remaining pending withdrawals.
 		/// * `pay_with_tokens`: Pay with withdrawing tokens.
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: @zktony Benchmarking
+		#[pallet::weight(<T as Config>::TheaExecWeightInfo::ethereum_withdraw(1))]
 		pub fn ethereum_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -513,15 +514,20 @@ pub mod pallet {
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
 				// Execute Deposit
-				Self::execute_deposit(deposit)?;
+				Self::execute_deposit(deposit.clone())?;
+				Self::deposit_event(Event::<T>::DepositApproved(
+					network,
+					deposit.recipient,
+					deposit.asset_id,
+					deposit.amount,
+					deposit.id,
+				))
 			}
 			Ok(())
 		}
 
 		#[transactional]
-		pub fn execute_deposit(
-			deposit: Deposit<T::AccountId>
-		) -> Result<(), DispatchError> {
+		pub fn execute_deposit(deposit: Deposit<T::AccountId>) -> Result<(), DispatchError> {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;

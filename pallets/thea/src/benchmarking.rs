@@ -20,19 +20,19 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::Pallet as Thea;
 use frame_benchmarking::v1::benchmarks;
-use frame_support::{traits::fungible::Mutate, BoundedVec};
+use frame_support::{
+	traits::fungible::{hold::Mutate as HoldMutate, Mutate},
+	BoundedVec,
+};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
-use sp_std::collections::btree_set::BTreeSet;
-use thea_primitives::types::SignedMessage;
-use sp_std::collections::btree_map::BTreeMap;
-use thea_primitives::types::IncomingMessage;
-use thea_primitives::types::MisbehaviourReport;
-use thea_primitives::types::THEA_HOLD_REASON;
-use frame_support::traits::fungible::hold::Mutate as HoldMutate;
-use crate::Pallet as Thea;
+use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
+use thea_primitives::types::{
+	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
+};
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
@@ -136,13 +136,13 @@ benchmarks! {
 		let sig_vec = vec![signatures];
 	}: _(RawOrigin::None, 1, 0, sig_vec)
 	verify {
-        let signed_outgoing_message = <SignedOutgoingMessages<T>>::get(network_id, nonce).unwrap();
+		let signed_outgoing_message = <SignedOutgoingMessages<T>>::get(network_id, nonce).unwrap();
 		assert!(signed_outgoing_message.signatures.len() == 2);
 	}
 
 	report_misbehaviour {
 		// Create fisherman account with some balance
-        let fisherman: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		let fisherman: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
 		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let network_id: u8 = 2;
 		let nonce: u64 = 0;
@@ -237,7 +237,7 @@ benchmarks! {
 	} verify {
 		for network in networks.iter() {
 			let message = <IncomingMessages<T>>::get(*network, nonce);
-            assert!(message.is_some());
+			assert!(message.is_some());
 		}
 	}
 }

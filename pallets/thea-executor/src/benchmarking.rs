@@ -18,22 +18,20 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 use super::*;
-use sp_runtime::traits::AccountIdConversion;
-use sp_std::{boxed::Box, vec, vec::Vec};
-use frame_support::traits::OnInitialize;
+use crate::Pallet as TheaExecutor;
 use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::traits::{
-	fungible::Mutate as NativeMutate,
+	fungible::{Inspect as NativeInspect, Mutate as NativeMutate},
 	fungibles::{Create, Inspect, Mutate},
-	Get,
+	Currency, Get, OnInitialize,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
-use frame_system::RawOrigin;
-use sp_runtime::SaturatedConversion;
-use thea_primitives::types::{AssetMetadata, Deposit};
-use thea_primitives::types::Withdraw;
+use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
+use parity_scale_codec::Decode;
+use polkadex_primitives::UNIT_BALANCE;
+use sp_runtime::{traits::AccountIdConversion, SaturatedConversion};
+use sp_std::{boxed::Box, vec, vec::Vec};
+use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
 use xcm::VersionedMultiLocation;
-use crate::Pallet as TheaExecutor;
 
 benchmarks! {
 	set_withdrawal_fee {
@@ -139,6 +137,14 @@ benchmarks! {
 		}
 	}: {
 		TheaExecutor::<T>::on_initialize(block_no);
+	}
+
+	burn_native_tokens{
+		let account: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&account, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+	}: _(RawOrigin::Root, account.clone(), UNIT_BALANCE)
+	verify {
+		assert_eq!(<T as pallet::Config>::Currency::balance(&account), (99999 * UNIT_BALANCE).saturated_into());
 	}
 }
 

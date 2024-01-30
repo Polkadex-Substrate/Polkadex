@@ -43,7 +43,6 @@ pub struct SignedMessage<Signature> {
 }
 
 impl<Signature> SignedMessage<Signature> {
-
 	/// Create a new signed message
 	///
 	/// # Arguments

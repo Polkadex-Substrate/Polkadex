@@ -20,10 +20,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::Pallet as TheaMH;
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
-use crate::Pallet as TheaMH;
 
 const KEY: [u8; 33] = [
 	2, 10, 16, 145, 52, 31, 229, 102, 75, 250, 23, 130, 213, 224, 71, 121, 104, 144, 104, 201, 22,

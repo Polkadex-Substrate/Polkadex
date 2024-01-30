@@ -71,8 +71,11 @@ pub mod pallet {
 		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter + From<sp_core::ecdsa::Signature>
-		+ Into<sp_core::ecdsa::Signature>;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
+			+ Member
+			+ Parameter
+			+ From<sp_core::ecdsa::Signature>
+			+ Into<sp_core::ecdsa::Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;

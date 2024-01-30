@@ -50,7 +50,6 @@ mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
-
 pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
@@ -79,12 +78,16 @@ pub mod ecdsa {
 }
 
 pub trait TheaWeightInfo {
-	fn incoming_message(b: u32) -> Weight;
+	fn submit_incoming_message(b: u32) -> Weight;
 	fn send_thea_message(_b: u32) -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 	fn update_outgoing_nonce(_b: u32) -> Weight;
 	fn add_thea_network() -> Weight;
 	fn remove_thea_network() -> Weight;
+	fn submit_signed_outgoing_messages() -> Weight;
+	fn report_misbehaviour() -> Weight;
+	fn handle_misbehaviour() -> Weight;
+	fn on_initialize(x: u32) -> Weight;
 }
 
 #[frame_support::pallet]
@@ -320,7 +323,7 @@ pub mod pallet {
 					},
 				}
 			}
-			Weight::zero()
+			T::WeightInfo::on_initialize(1)
 		}
 		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");
@@ -347,7 +350,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Submit incoming message
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_incoming_message(1))]
 		#[transactional]
 		pub fn submit_incoming_message(
 			origin: OriginFor<T>,
@@ -484,7 +487,7 @@ pub mod pallet {
 
 		/// Signed outgoing messages
 		#[pallet::call_index(6)]
-		#[pallet::weight(10_000)] // TODO: @zktony Benchmarking.
+		#[pallet::weight(< T as Config >::WeightInfo::submit_signed_outgoing_messages())]
 		pub fn submit_signed_outgoing_messages(
 			origin: OriginFor<T>,
 			auth_index: u32,
@@ -519,7 +522,7 @@ pub mod pallet {
 
 		/// Report misbehaviour as fisherman
 		#[pallet::call_index(7)]
-		#[pallet::weight(10_000)] // TODO: @zktony Benchmarking
+		#[pallet::weight(< T as Config >::WeightInfo::report_misbehaviour())]
 		#[transactional]
 		pub fn report_misbehaviour(
 			origin: OriginFor<T>,
@@ -561,7 +564,7 @@ pub mod pallet {
 
 		/// Handle misbehaviour via governance
 		#[pallet::call_index(8)]
-		#[pallet::weight(10_000)] // TODO: @zktony Benchmarking
+		#[pallet::weight(< T as Config >::WeightInfo::handle_misbehaviour())]
 		#[transactional]
 		pub fn handle_misbehaviour(
 			origin: OriginFor<T>,
