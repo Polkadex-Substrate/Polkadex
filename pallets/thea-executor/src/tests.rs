@@ -26,6 +26,7 @@ use frame_support::{
 };
 use frame_system::EventRecord;
 use parity_scale_codec::Encode;
+use sp_core::H160;
 use sp_runtime::{
 	traits::{AccountIdConversion, BadOrigin},
 	SaturatedConversion,
@@ -391,6 +392,59 @@ fn test_do_withdrawal_with_total_amount_consumed_returns_error() {
 			),
 			sp_runtime::TokenError::FundsUnavailable
 		);
+	})
+}
+
+#[test]
+fn test_ethereum_withdraw() {
+	new_test_ext().execute_with(|| {
+		let asset_id: <Test as Config>::AssetId = 100u128;
+		let admin = 1u64;
+		let network_id = 2;
+		Balances::set_balance(&admin, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&admin,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+			.unwrap();
+		<Test as Config>::Assets::create(
+			RuntimeOrigin::signed(admin),
+			asset_id.into(),
+			admin,
+			1u128.saturated_into(),
+		)
+			.unwrap();
+		let pallet_acc = <Test as crate::Config>::TheaPalletId::get().into_account_truncating();
+		Balances::set_balance(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&pallet_acc,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+			.unwrap();
+		let account = 2u64;
+		Balances::set_balance(&account, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&account,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+			.unwrap();
+		Assets::mint_into(asset_id, &account, 100_000_000_000_000_000_000u128.saturated_into())
+			.unwrap();
+		<Test as Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into())
+			.unwrap();
+		Balances::set_balance(&account, 100_000_000_000_000u128.saturated_into());
+		let metadata = AssetMetadata::new(10).unwrap();
+		<Metadata<Test>>::insert(100, metadata);
+		<WithdrawalFees<Test>>::insert(network_id, 1_000);
+		let beneficiary = H160::from_slice(&[1; 20]);
+		assert_ok!(TheaExecutor::ethereum_withdraw(
+			RuntimeOrigin::signed(account),
+			asset_id,
+			1_000_000_000,
+			beneficiary.clone(),
+			false,
+			false
+		));
 	})
 }
 

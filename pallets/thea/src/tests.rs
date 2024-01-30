@@ -44,6 +44,7 @@ fn set_200_validators() -> [Pair; 200] {
 
 use crate::ecdsa::AuthorityPair as Pair;
 use frame_support::traits::OneSessionHandler;
+use sp_core::crypto::AccountId32;
 use polkadex_primitives::UNIT_BALANCE;
 
 #[test]
@@ -277,5 +278,240 @@ fn test_remove_thea_network_full() {
 			assert_eq!(an.len(), net as usize);
 			assert!(an.get(&net).is_none());
 		}
+	})
+}
+
+use frame_support::traits::Currency;
+
+#[test]
+fn test_report_misbehaviour_happy_path() {
+	new_test_ext().execute_with(|| {
+		// Add messgae to IncomingMessagesQueue storage
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000,
+			fisherman_stake: 1_000_000,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message = thea_primitives::types::IncomingMessage {
+			message,
+			relayer: relayer,
+			stake: stake,
+			execute_at: 0,
+		};
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_ok!(Thea::report_misbehaviour(
+			RuntimeOrigin::signed(fisherman),
+			network,
+			1
+		));
+	})
+}
+
+use frame_support::assert_noop;
+
+#[test]
+fn test_report_misbehaviour_not_enough_stake() {
+	new_test_ext().execute_with(|| {
+		// Add messgae to IncomingMessagesQueue storage
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000_000_000_000_000_000_000_000,
+			fisherman_stake: 1_000_000_000_000_000_000_000_000,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message = thea_primitives::types::IncomingMessage {
+			message,
+			relayer: relayer,
+			stake: stake,
+			execute_at: 0,
+		};
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_noop!(Thea::report_misbehaviour(
+			RuntimeOrigin::signed(fisherman),
+			network,
+			1
+		), Error::<Test>::NotEnoughStake);
+	})
+}
+
+#[test]
+fn test_handle_misbehaviour_happy_path_valid_proposal() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000,
+			fisherman_stake: 1_000_000,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message = thea_primitives::types::IncomingMessage {
+			message,
+			relayer: relayer,
+			stake: stake,
+			execute_at: 0,
+		};
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_ok!(Thea::report_misbehaviour(
+			RuntimeOrigin::signed(fisherman),
+			network,
+			1
+		));
+		assert_ok!(Thea::handle_misbehaviour(RuntimeOrigin::root(), network, 1, true));
+		// Check Balance
+		assert_eq!(Balances::free_balance(&relayer), 9000000000000000000000);
+		assert_eq!(Balances::free_balance(&fisherman), 11000000000000000000000);
+	})
+}
+
+#[test]
+fn test_handle_misbehaviour_happy_path_invalid_proposal() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000,
+			fisherman_stake: 1_000_000,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message = thea_primitives::types::IncomingMessage {
+			message,
+			relayer: relayer,
+			stake: stake,
+			execute_at: 0,
+		};
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_ok!(Thea::report_misbehaviour(
+			RuntimeOrigin::signed(fisherman),
+			network,
+			1
+		));
+		assert_ok!(Thea::handle_misbehaviour(RuntimeOrigin::root(), network, 1, false));
+		// Check Balance
+		assert_eq!(Balances::free_balance(&relayer), 10000000000000000000000);
+		assert_eq!(Balances::free_balance(&fisherman), 9999999999999998000000);
+	})
+}
+
+#[test]
+fn test_submit_signed_outgoing_messages_happy_path() {
+	new_test_ext().execute_with(|| {
+		// Insert OutgoingMessages Storage
+		let network = 2;
+		let nonce = 1;
+		let validator_set_id = 1;
+		let auth_index = 0;
+        let message = Message {
+			block_no: 0,
+			nonce: nonce,
+			network: network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		let signature = sp_core::ecdsa::Signature::default().into();
+		let signatures = vec![(network, nonce, signature)];
+		assert_ok!(Thea::submit_signed_outgoing_messages(
+			RuntimeOrigin::none(),
+			auth_index,
+			validator_set_id,
+			signatures.clone()
+		));
+		assert!(<SignedOutgoingMessages<Test>>::get(network, nonce).is_some());
+		let mut auth = <Authorities<Test>>::get(validator_set_id);
+		auth.try_push(sp_core::ecdsa::Public::from_raw([1;33]).into()).unwrap();
+		auth.try_push(sp_core::ecdsa::Public::from_raw([2;33]).into()).unwrap();
+		let auth_index = 2;
+		assert!(<SignedOutgoingNonce<Test>>::get(network) == 0);
+		assert_ok!(Thea::submit_signed_outgoing_messages(
+			RuntimeOrigin::none(),
+			auth_index,
+			validator_set_id,
+			signatures
+		));
+		assert!(<SignedOutgoingNonce<Test>>::get(network) == 1);
+	})
+}
+
+#[test]
+fn test_submit_signed_outgoing_messages_message_not_found() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let nonce = 1;
+		let validator_set_id = 1;
+		let auth_index = 0;
+		let message = Message {
+			block_no: 0,
+			nonce: nonce,
+			network: network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let signature = sp_core::ecdsa::Signature::default().into();
+		let signatures = vec![(network, nonce, signature)];
+		assert_noop!(Thea::submit_signed_outgoing_messages(
+			RuntimeOrigin::none(),
+			auth_index,
+			validator_set_id,
+			signatures.clone()
+		), Error::<Test>::MessageNotFound);
 	})
 }

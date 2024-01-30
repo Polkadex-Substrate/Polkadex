@@ -361,6 +361,15 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Withdraws to Ethereum network
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `amount`: Amount of tokens to withdraw.
+		/// * `beneficiary`: Beneficiary address.
+		/// * `pay_for_remaining`: Pay for remaining pending withdrawals.
+		/// * `pay_with_tokens`: Pay with withdrawing tokens.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))] // TODO: @zktony Benchmarking
 		pub fn ethereum_withdraw(
