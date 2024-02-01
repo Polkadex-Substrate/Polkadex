@@ -25,7 +25,7 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
-
+use sp_runtime::Percent;
 use polkadex_primitives::UNIT_BALANCE;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
@@ -105,8 +105,8 @@ impl<Signature> SignedMessage<Signature> {
 	pub fn threshold_reached(&self, max_len: usize) -> bool {
 		const MAJORITY: u8 = 67;
 		let p = Percent::from_percent(MAJORITY);
-		let threshold = max_len*p;
-		self.signatures.len() >= threshold
+		let threshold = (max_len as u16 )*p;
+		self.signatures.len() >= threshold as usize
 	}
 
 	/// Check if the signed message contains the signature of the authority
