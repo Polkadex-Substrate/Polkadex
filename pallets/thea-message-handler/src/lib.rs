@@ -68,7 +68,12 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
+		type TheaId: Member
+			+ Parameter
+			+ RuntimeAppPublic
+			+ MaybeSerializeDeserialize
+			+ From<sp_core::ecdsa::Public>
+			+ Into<sp_core::ecdsa::Public>;
 
 		/// Authority Signature
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
@@ -187,7 +192,7 @@ pub mod pallet {
 
 		/// Handles the verified incoming message
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::incoming_message())] // TODO: @zktony Benchmark again for updated logic
+		#[pallet::weight(<T as Config>::WeightInfo::incoming_message())]
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
@@ -271,7 +276,6 @@ impl<T: Config> Pallet<T> {
 		const MAJORITY: u8 = 67;
 		let p = Percent::from_percent(MAJORITY);
 		let threshold = p * authorities.len();
-
 		if payload.signatures.len() < threshold {
 			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, payload.signatures.len());
 			return InvalidTransaction::Custom(2).into()

@@ -283,7 +283,7 @@ pub mod pallet {
 		fn on_initialize(blk: BlockNumberFor<T>) -> Weight {
 			// Every block check the next incoming nonce and if fork period is over, execute them
 			let active_networks = <ActiveNetworks<T>>::get();
-			for network in active_networks {
+			for network in active_networks.clone() {
 				let next_nonce = <IncomingNonce<T>>::get(network);
 				match <IncomingMessagesQueue<T>>::get(network, next_nonce) {
 					None => continue,
@@ -323,7 +323,7 @@ pub mod pallet {
 					},
 				}
 			}
-			T::WeightInfo::on_initialize(1)
+			T::WeightInfo::on_initialize(active_networks.len() as u32)
 		}
 		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");

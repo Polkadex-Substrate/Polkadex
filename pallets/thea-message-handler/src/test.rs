@@ -24,6 +24,8 @@ use frame_support::{assert_noop, assert_ok};
 use parity_scale_codec::Encode;
 use sp_core::Pair;
 use sp_runtime::traits::BadOrigin;
+use std::collections::BTreeMap;
+use thea::ecdsa::AuthoritySignature;
 
 #[test]
 fn test_insert_authorities_full() {
@@ -104,10 +106,16 @@ fn test_incoming_message_full() {
 		vs.message.nonce = 2;
 		vs.validator_set_id = 1;
 		assert_eq!(<ValidatorSetId<Test>>::get(), 0);
+		<Authorities<Test>>::insert(1, BoundedVec::truncate_from(vec![pair.public().into(); 200]));
+		assert_noop!(
+			TheaHandler::validate_incoming_message(&vs.clone(),),
+			InvalidTransaction::Custom(2)
+		);
+		<Authorities<Test>>::insert(1, BoundedVec::truncate_from(vec![pair.public().into()]));
 		// invalid validator set id
 		assert_noop!(
 			TheaHandler::validate_incoming_message(&vs.clone(),),
-			InvalidTransaction::Custom(3)
+			InvalidTransaction::Custom(4)
 		);
 	})
 }
@@ -170,5 +178,52 @@ fn test_unsigned_call_validation() {
 		println!("Running the validation..");
 		let call = Call::<Test>::incoming_message { payload: signed_message };
 		TheaHandler::validate_unsigned(TransactionSource::Local, &call).unwrap();
+	})
+}
+
+#[test]
+fn test_incoming_message_validator_change_payload() {
+	new_test_ext().execute_with(|| {
+		//Create SignedPayload
+		let validator_set =
+			ValidatorSet { set_id: 1, validators: vec![sp_core::ecdsa::Public::from_raw([1; 33])] };
+		let network_id = 2;
+		let message = Message {
+			block_no: 10,
+			nonce: 1,
+			data: validator_set.encode(),
+			network: network_id,
+			payload_type: PayloadType::ScheduledRotateValidators,
+		};
+		let sign = sp_core::ecdsa::Signature::default().into();
+		let mut signature_map = BTreeMap::new();
+		signature_map.insert(0, sign);
+		let signed_message_sv =
+			SignedMessage { validator_set_id: 0, message, signatures: signature_map };
+		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message_sv.clone()));
+		let authorities = <Authorities<Test>>::get(1);
+		assert_eq!(authorities.len(), 1);
+		assert_eq!(authorities[0], sp_core::ecdsa::Public::from_raw([1; 33]).into());
+		let validator_rotated_message = Message {
+			block_no: 0,
+			nonce: 1,
+			data: vec![1, 2, 3, 4, 5],
+			network: network_id,
+			payload_type: PayloadType::ValidatorsRotated,
+		};
+		let sign = sp_core::ecdsa::Signature::default().into();
+		let mut signature_map = BTreeMap::new();
+		signature_map.insert(0, sign);
+		let signed_message = SignedMessage {
+			validator_set_id: 0,
+			message: validator_rotated_message,
+			signatures: signature_map,
+		};
+		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message.clone()));
+		assert_eq!(<ValidatorSetId<Test>>::get(), 1);
+		assert_noop!(
+			TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message_sv.clone()),
+			Error::<Test>::InvalidValidatorSetId
+		);
 	})
 }

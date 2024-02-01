@@ -129,8 +129,6 @@ impl pallet_assets::Config for Test {
 	type Extra = ();
 	type CallbackHandle = ();
 	type WeightInfo = ();
-	// #[cfg(feature = "runtime-benchmarks")]
-	// type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {

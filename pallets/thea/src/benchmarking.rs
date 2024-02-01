@@ -204,9 +204,13 @@ benchmarks! {
 
 	on_initialize {
 		let x in 1 .. 1_000;
-		let blocks = x as u64;
+		let network_len: usize = x as usize;
+		let network_len: u8 = network_len as u8;
 		// Update active network
-		let networks: BTreeSet<u8> = BTreeSet::from([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+		let mut networks: BTreeSet<u8> = BTreeSet::new();
+		for i in 0..network_len {
+			networks.insert(i);
+		}
 		<ActiveNetworks<T>>::put(networks.clone());
 		// Update IncomingMessagesQueue
 		let nonce = 1;
@@ -228,9 +232,8 @@ benchmarks! {
 			<IncomingMessagesQueue<T>>::insert(*network, nonce, incoming_message.clone());
 		}
 	}: {
-		for b in 0..blocks {
-			<Thea<T>>::on_initialize((b as u32).into());
-		}
+
+			<Thea<T>>::on_initialize((x as u32).into());
 	} verify {
 		for network in networks.iter() {
 			let message = <IncomingMessages<T>>::get(*network, nonce);

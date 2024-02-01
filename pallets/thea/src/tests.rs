@@ -315,7 +315,8 @@ fn test_report_misbehaviour_happy_path() {
 	})
 }
 
-use frame_support::assert_noop;
+use frame_support::{assert_noop, traits::fungible::MutateHold};
+use thea_primitives::types::{AssetMetadata, IncomingMessage, SignedMessage, THEA_HOLD_REASON};
 
 #[test]
 fn test_report_misbehaviour_not_enough_stake() {
@@ -488,4 +489,247 @@ fn test_submit_signed_outgoing_messages_message_not_found() {
 			Error::<Test>::MessageNotFound
 		);
 	})
+}
+
+use frame_support::traits::ReservableCurrency;
+
+#[test]
+fn test_on_initialize_happy_path() {
+	new_test_ext().execute_with(|| {
+		// Insert in Active Networks
+		let mut networks: BTreeSet<Network> = BTreeSet::new();
+		let network = 1;
+		networks.insert(network);
+		<ActiveNetworks<Test>>::put(networks);
+		// Update next Nonce
+		let nonce = 1;
+		<IncomingNonce<Test>>::insert(network, nonce);
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 100 * UNIT_BALANCE);
+		let stake = 1 * UNIT_BALANCE;
+		// Reserve balance
+		Balances::hold(&THEA_HOLD_REASON, &relayer, stake).unwrap();
+		// Add message to IncomingMessagesQueue
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let incoming_message = IncomingMessage { message, relayer, stake, execute_at: 0 };
+		<IncomingMessagesQueue<Test>>::insert(network, nonce, incoming_message);
+		Thea::on_initialize(1);
+		assert_eq!(<IncomingNonce<Test>>::get(network), 2);
+		assert_eq!(Balances::free_balance(&relayer), 100 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_happy_path() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = validator.sign_prehashed(&msg_hash);
+		let signatures = vec![(network, nonce, signature.into())];
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		assert_ok!(Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures));
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_custom_error_1() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = validator.sign_prehashed(&msg_hash);
+		let signatures = vec![(network, nonce, signature.into())];
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&10, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(1)
+		);
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_returns_custom_error() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = validator.sign_prehashed(&msg_hash);
+		let signatures = vec![(network, nonce, signature.into())];
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(2)
+		);
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(3)
+		);
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_wrong_sig() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let _ = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = sp_core::ecdsa::Signature::default();
+		let signatures = vec![(network, nonce, signature.into())];
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(6)
+		);
+	})
+}
+
+#[test]
+fn test_submit_incoming_message_happy_path_first_message() {
+	new_test_ext().execute_with(|| {
+		let relayer = 1u64;
+		let network_id = 2;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 100 * UNIT_BALANCE);
+		let stake = 1 * UNIT_BALANCE;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: network_id,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let network_config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1 * UNIT_BALANCE,
+			fisherman_stake: 1 * UNIT_BALANCE,
+		};
+		<NetworkConfig<Test>>::insert(network_id, network_config);
+		assert_ok!(Thea::submit_incoming_message(
+			RuntimeOrigin::signed(relayer),
+			message.clone(),
+			stake
+		));
+		assert_eq!(Balances::reserved_balance(&relayer), 1 * UNIT_BALANCE);
+		let relayer_2 = 2u64;
+		let _ = Balances::deposit_creating(&relayer_2, 100 * UNIT_BALANCE);
+		let message_two = Message {
+			block_no: 0,
+			nonce: 1,
+			network: network_id,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![1u8; 10],
+		};
+		let new_stake = 2 * UNIT_BALANCE;
+		assert_ok!(Thea::submit_incoming_message(
+			RuntimeOrigin::signed(relayer_2),
+			message_two.clone(),
+			new_stake
+		));
+		assert_eq!(Balances::reserved_balance(&relayer_2), 2 * UNIT_BALANCE);
+		assert_eq!(Balances::reserved_balance(&relayer), 0);
+	})
+}
+
+#[test]
+fn test_add_signature() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let nonce = 1;
+		let validator_set_id = 1;
+		let auth_index = 0;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let signature = sp_core::ecdsa::Signature::default();
+		let mut signed_message =
+			SignedMessage::new(message.clone(), validator_set_id, auth_index, signature.clone());
+		assert_eq!(signed_message.signatures.len(), 1);
+		assert_eq!(signed_message.signatures.get(&0).unwrap().clone(), signature);
+		let new_validator_set_id = 2;
+		let new_signature = sp_core::ecdsa::Signature::from_raw([1; 65]);
+		signed_message.add_signature(
+			message,
+			new_validator_set_id,
+			auth_index,
+			new_signature.clone(),
+		);
+		assert_eq!(signed_message.signatures.len(), 1);
+		assert_eq!(signed_message.signatures.get(&0).unwrap().clone(), new_signature);
+	})
+}
+
+#[test]
+fn test_asset_metadata_convert_from_native_decimals() {
+	let metadata = AssetMetadata::new(6).unwrap();
+	assert_eq!(
+		metadata.convert_from_native_decimals(1000000000000000000000000),
+		1000000000000000000
+	);
 }

@@ -22,16 +22,32 @@ use crate::Pallet as TheaExecutor;
 use frame_benchmarking::v1::{account, benchmarks};
 use frame_support::traits::{
 	fungible::{Inspect as NativeInspect, Mutate as NativeMutate},
-	fungibles::{Create, Mutate},
+	fungibles::{Create, Inspect, Mutate},
 	Get, OnInitialize,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_runtime::{traits::AccountIdConversion, SaturatedConversion};
-use sp_std::{boxed::Box, vec};
-use thea_primitives::types::{AssetMetadata, Withdraw};
+use sp_std::{boxed::Box, collections::btree_set::BTreeSet, vec, vec::Vec};
+use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
 use xcm::VersionedMultiLocation;
+
+fn create_deposit<T: Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId>> {
+	let mut pending_deposits = vec![];
+	let asset_id = 100;
+	for _i in 1..20 {
+		let deposit: Deposit<T::AccountId> = Deposit {
+			id: vec![],
+			recipient: recipient.clone(),
+			asset_id,
+			amount: 1_000_000_000_000,
+			extra: vec![],
+		};
+		pending_deposits.push(deposit);
+	}
+	pending_deposits
+}
 
 benchmarks! {
 	set_withdrawal_fee {
@@ -119,7 +135,10 @@ benchmarks! {
 	}
 
 	on_initialize {
-		// Insert Withdrawals in ReadyWithdrawals
+		let x in 1 .. 1_000;
+		let y in 1 .. 1_000;
+		let network_len: usize = x as usize;
+		let network_len: u8 = network_len as u8;
 		let withdrawal = Withdraw {
 			id: vec![],
 			asset_id: 100,
@@ -128,9 +147,15 @@ benchmarks! {
 			is_blocked: false,
 			extra: vec![],
 		};
-		let withdrawal_vec = vec![withdrawal; 30];
+		let mut withdrawal_vec = Vec::new();
+		for _ in 0..y {
+			withdrawal_vec.push(withdrawal.clone());
+		}
 		let block_no: u32 = 10;
-		let networks = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+		let mut networks: BTreeSet<u8> = BTreeSet::new();
+		for i in 0..network_len {
+			networks.insert(i);
+		}
 		let block_no: BlockNumberFor<T> = block_no.into();
 		for network_id in networks {
 			<ReadyWithdrawals<T>>::insert(block_no, network_id, withdrawal_vec.clone());
@@ -145,6 +170,21 @@ benchmarks! {
 	}: _(RawOrigin::Root, account.clone(), UNIT_BALANCE)
 	verify {
 		assert_eq!(<T as pallet::Config>::Currency::balance(&account), (99999 * UNIT_BALANCE).saturated_into());
+	}
+
+	claim_deposit {
+		let r in 1 .. 1000;
+		let account = account::<T::AccountId>("alice", 1, r);
+		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
+		let deposits = create_deposit::<T>(account.clone());
+		let metadata = AssetMetadata::new(10).unwrap();
+		<Metadata<T>>::insert(100, metadata);
+		<T as pallet::Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into()).unwrap();
+		<ApprovedDeposits<T>>::insert(account.clone(), deposits);
+	}: _(RawOrigin::Signed(account.clone()), 10,account.clone())
+	verify {
+		let current_balance = <T as pallet::Config>::Assets::balance(asset_id.into(), &account);
+		assert_eq!(current_balance, 1_000_000_000_000_000u128.saturated_into());
 	}
 }
 

@@ -41,8 +41,9 @@ pub trait TheaExecutorWeightInfo {
 	fn withdraw(r: u32) -> Weight;
 	fn parachain_withdraw(_r: u32) -> Weight;
 	fn ethereum_withdraw(_r: u32) -> Weight;
-	fn on_initialize() -> Weight;
+	fn on_initialize(x: u32, y: u32) -> Weight;
 	fn burn_native_tokens() -> Weight;
+	fn claim_deposit(_r: u32) -> Weight;
 }
 
 #[frame_support::pallet]
@@ -236,20 +237,26 @@ pub mod pallet {
 		fn on_initialize(block_no: BlockNumberFor<T>) -> Weight {
 			let pending_withdrawals =
 				<ReadyWithdrawals<T>>::iter_prefix(block_no.saturating_sub(1u8.into()));
+			let mut withdrawal_len = 0;
+			let mut network_len = 0;
 			for (network_id, withdrawal) in pending_withdrawals {
 				// This is fine as this trait is not supposed to fail
-				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
+				if T::Executor::execute_withdrawals(network_id, withdrawal.clone().encode())
+					.is_err()
+				{
 					log::error!("Error while executing withdrawals...");
 				}
+				withdrawal_len += withdrawal.len();
+				network_len += 1;
 			}
-			T::TheaExecWeightInfo::on_initialize()
+			T::TheaExecWeightInfo::on_initialize(network_len as u32, withdrawal_len as u32)
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::TheaExecWeightInfo::withdraw(1))]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::withdraw(1))]
 		#[transactional]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -280,8 +287,8 @@ pub mod pallet {
 		///
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::TheaExecWeightInfo::set_withdrawal_fee(1))]
+		#[pallet::call_index(1)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::set_withdrawal_fee(1))]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -294,8 +301,8 @@ pub mod pallet {
 		}
 
 		/// Withdraws to parachain networks in Polkadot
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::TheaExecWeightInfo::parachain_withdraw(1))]
+		#[pallet::call_index(2)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::parachain_withdraw(1))]
 		pub fn parachain_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -324,8 +331,8 @@ pub mod pallet {
 		///
 		/// * `asset_id`: Asset Id.
 		/// * `metadata`: AssetMetadata.
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::TheaExecWeightInfo::update_asset_metadata(1))]
+		#[pallet::call_index(3)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::update_asset_metadata(1))]
 		pub fn update_asset_metadata(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -344,8 +351,8 @@ pub mod pallet {
 		///
 		/// * `who`: AccountId
 		/// * `amount`: Amount of native tokens to burn.
-		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::TheaExecWeightInfo::burn_native_tokens())]
+		#[pallet::call_index(4)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::burn_native_tokens())]
 		pub fn burn_native_tokens(
 			origin: OriginFor<T>,
 			who: T::AccountId,
@@ -371,8 +378,8 @@ pub mod pallet {
 		/// * `beneficiary`: Beneficiary address.
 		/// * `pay_for_remaining`: Pay for remaining pending withdrawals.
 		/// * `pay_with_tokens`: Pay with withdrawing tokens.
-		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::TheaExecWeightInfo::ethereum_withdraw(1))]
+		#[pallet::call_index(5)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::ethereum_withdraw(1))]
 		pub fn ethereum_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -392,6 +399,48 @@ pub mod pallet {
 				network,
 				pay_with_tokens,
 			)?;
+			Ok(())
+		}
+
+		/// Manually claim an approved deposit.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: User.
+		/// * `num_deposits`: Number of deposits to claim from available deposits,
+		/// (it's used to parametrise the weight of this extrinsic).
+		#[pallet::call_index(6)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::claim_deposit(1))]
+		#[transactional]
+		pub fn claim_deposit(
+			origin: OriginFor<T>,
+			num_deposits: u32,
+			user: T::AccountId,
+		) -> DispatchResult {
+			let _ = ensure_signed(origin)?;
+			let mut deposits = <ApprovedDeposits<T>>::get(&user);
+			let length: u32 = deposits.len().saturated_into();
+			let length: u32 = if length <= num_deposits { length } else { num_deposits };
+			for _ in 0..length {
+				if let Some(deposit) = deposits.pop() {
+					if let Err(err) = Self::execute_deposit(deposit.clone()) {
+						deposits.push(deposit);
+						// Save it back on failure
+						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
+						return Err(err)
+					}
+				} else {
+					break
+				}
+			}
+
+			if !deposits.is_empty() {
+				// If pending deposits are available, save it back
+				<ApprovedDeposits<T>>::insert(&user, deposits)
+			} else {
+				<ApprovedDeposits<T>>::remove(&user);
+			}
+
 			Ok(())
 		}
 	}

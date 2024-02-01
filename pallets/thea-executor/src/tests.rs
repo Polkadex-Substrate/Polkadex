@@ -448,6 +448,61 @@ fn test_ethereum_withdraw() {
 	})
 }
 
+#[test]
+fn test_claim_deposit_returns_ok() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 2000u128;
+		let admin = 1u64;
+		let recipient = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
+		let deposit = Deposit {
+			id: Vec::new(),
+			recipient,
+			asset_id,
+			amount: 1_000_000_000_000_000_000u128,
+			extra: vec![],
+		};
+		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
+		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, recipient));
+	})
+}
+
+#[test]
+fn test_claim_deposit_returns_asset_not_registered() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 2000u128;
+		let admin = 1u64;
+		let recipient = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
+		let deposit = Deposit {
+			id: Vec::new(),
+			recipient,
+			asset_id,
+			amount: 1_000_000_000_000_000_000u128,
+			extra: vec![],
+		};
+		assert_noop!(
+			TheaExecutor::do_deposit(1, vec![deposit].encode()),
+			crate::Error::<Test>::AssetNotRegistered
+		);
+	})
+}
+
 fn setup_pool() {
 	let asset_id = 1u128;
 	let admin = 1u64;

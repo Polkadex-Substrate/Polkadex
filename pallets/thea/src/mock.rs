@@ -21,7 +21,8 @@ use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::AssetId;
-use sp_core::H256;
+use sp_core::{Pair, H256};
+use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Permill,
@@ -218,5 +219,11 @@ where
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-	t.into()
+	let mut ext = sp_io::TestExternalities::new(t);
+	let seed = "12345678901234567890123456789012";
+	let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+	let mut keystore = MemoryKeystore::new();
+	keystore.insert(THEA, seed, validator.public().as_ref()).unwrap();
+	ext.register_extension(KeystoreExt::new(MemoryKeystore::new()));
+	ext.into()
 }
