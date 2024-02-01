@@ -35,7 +35,10 @@ use sp_runtime::{
 	Percent, RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, ValidatorSet};
+use thea_primitives::{
+	types::{Message, PayloadType, SignedMessage},
+	Network, ValidatorSet,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -65,10 +68,19 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize;
+		type TheaId: Member
+			+ Parameter
+			+ RuntimeAppPublic
+			+ MaybeSerializeDeserialize
+			+ From<sp_core::ecdsa::Public>
+			+ Into<sp_core::ecdsa::Public>;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
+			+ Member
+			+ Parameter
+			+ From<sp_core::ecdsa::Signature>
+			+ Into<sp_core::ecdsa::Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
@@ -155,8 +167,7 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { payload, signatures } =>
-					Self::validate_incoming_message(payload, signatures),
+				Call::incoming_message { payload } => Self::validate_incoming_message(payload),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -185,40 +196,46 @@ pub mod pallet {
 		#[transactional]
 		pub fn incoming_message(
 			origin: OriginFor<T>,
-			payload: Message,
-			_signatures: Vec<(u16, T::Signature)>,
+			payload: SignedMessage<T::Signature>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 			// Signature is already verified in validate_unsigned, no need to do it again
 
 			let current_set_id = <ValidatorSetId<T>>::get();
 
-			if !payload.is_key_change {
-				// Normal Thea message
-				T::Executor::execute_deposits(payload.network, payload.data.clone());
-			} else {
-				// Thea message related to key change
-				match ValidatorSet::decode(&mut payload.data.as_ref()) {
-					Err(_err) => return Err(Error::<T>::ErrorDecodingValidatorSet.into()),
-					Ok(validator_set) => {
-						ensure!(
-							current_set_id.saturating_add(1) == validator_set.set_id,
-							Error::<T>::InvalidValidatorSetId
-						);
-						<Authorities<T>>::insert(
-							validator_set.set_id,
-							BoundedVec::truncate_from(validator_set.validators),
-						);
-					},
-				}
+			match payload.message.payload_type {
+				PayloadType::ScheduledRotateValidators => {
+					// Thea message related to key change
+					match ValidatorSet::decode(&mut payload.message.data.as_ref()) {
+						Err(_err) => return Err(Error::<T>::ErrorDecodingValidatorSet.into()),
+						Ok(validator_set) => {
+							ensure!(
+								current_set_id.saturating_add(1) == validator_set.set_id,
+								Error::<T>::InvalidValidatorSetId
+							);
+							<Authorities<T>>::insert(
+								validator_set.set_id,
+								BoundedVec::truncate_from(validator_set.validators),
+							);
+						},
+					}
+				},
+				PayloadType::ValidatorsRotated => {
+					// We are checking if the validator set is changed, then we update it here too
+					<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
+				},
+				PayloadType::L1Deposit => {
+					// Normal Thea message
+					T::Executor::execute_deposits(
+						payload.message.network,
+						payload.message.data.clone(),
+					);
+				},
 			}
-			Self::deposit_event(Event::TheaMessageExecuted { message: payload.clone() });
-			// We are checking if the validator set is changed, then we update it here too
-			if current_set_id.saturating_add(1) == payload.validator_set_id {
-				<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
-			}
-			<IncomingNonce<T>>::put(payload.nonce);
-			<IncomingMessages<T>>::insert(payload.nonce, payload);
+
+			Self::deposit_event(Event::TheaMessageExecuted { message: payload.message.clone() });
+			<IncomingNonce<T>>::put(payload.message.nonce);
+			<IncomingMessages<T>>::insert(payload.message.nonce, payload.message);
 			Ok(())
 		}
 
@@ -245,15 +262,12 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn validate_incoming_message(
-		payload: &Message,
-		signatures: &Vec<(u16, T::Signature)>,
-	) -> TransactionValidity {
+	fn validate_incoming_message(payload: &SignedMessage<T::Signature>) -> TransactionValidity {
 		// Check if this message can be processed next by checking its nonce
 		let next_nonce = <IncomingNonce<T>>::get().saturating_add(1);
 
-		if payload.nonce != next_nonce {
-			log::error!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.nonce);
+		if payload.message.nonce != next_nonce {
+			log::error!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.message.nonce);
 			return InvalidTransaction::Custom(1).into()
 		}
 
@@ -262,14 +276,13 @@ impl<T: Config> Pallet<T> {
 		const MAJORITY: u8 = 67;
 		let p = Percent::from_percent(MAJORITY);
 		let threshold = p * authorities.len();
-
-		if signatures.len() < threshold {
-			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, signatures.len());
+		if payload.signatures.len() < threshold {
+			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, payload.signatures.len());
 			return InvalidTransaction::Custom(2).into()
 		}
 
-		let encoded_payload = sp_io::hashing::sha2_256(&payload.encode());
-		for (index, signature) in signatures {
+		let encoded_payload = sp_io::hashing::sha2_256(&payload.message.encode());
+		for (index, signature) in &payload.signatures {
 			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(3).into(),
@@ -307,8 +320,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
-			is_key_change: false,
-			validator_set_id: Self::validator_set_id(),
+			payload_type: PayloadType::L1Deposit,
 		};
 		// Update nonce
 		<OutgoingNonce<T>>::put(payload.nonce);

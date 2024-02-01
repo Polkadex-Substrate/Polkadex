@@ -17,13 +17,15 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! In this module defined "Orderbook" specific operations and types.
-
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
-use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
+use rust_decimal::{
+	prelude::{FromPrimitive, Zero},
+	Decimal, RoundingStrategy,
+};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -130,7 +132,6 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
-use rust_decimal::prelude::FromPrimitive;
 
 impl Trade {
 	/// Constructor.

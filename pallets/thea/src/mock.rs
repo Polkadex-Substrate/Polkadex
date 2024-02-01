@@ -16,12 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::*;
+use crate::{pallet as thea, *};
 use frame_support::{parameter_types, traits::AsEnsureOriginWithArg, PalletId};
 use frame_system as system;
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::AssetId;
-use sp_core::H256;
+use sp_core::{Pair, H256};
+use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage, Permill,
@@ -37,7 +38,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Balances: pallet_balances,
 		Assets: pallet_assets,
-		Thea: crate,
+		Thea: thea,
 		TheaExecutor: thea_executor,
 		AssetConversion: pallet_asset_conversion
 	}
@@ -88,12 +89,12 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = [u8; 8];
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type MaxHolds = ();
+	type MaxHolds = MaxLocks;
 	type MaxFreezes = ();
-	type RuntimeHoldReason = ();
 }
 
 parameter_types! {
@@ -140,6 +141,8 @@ impl crate::Config for Test {
 	type Signature = crate::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRoot<u64>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 
@@ -175,8 +178,8 @@ impl pallet_asset_conversion::Config for Test {
 	type PalletId = AssetConversionPalletId;
 	type AllowMultiAssetPools = AllowMultiAssetPools;
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = AssetU128;
+	// #[cfg(feature = "runtime-benchmarks")]
+	// type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {
@@ -197,7 +200,7 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
-	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
+	type TheaExecWeightInfo = thea_executor::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
@@ -216,5 +219,11 @@ where
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-	t.into()
+	let mut ext = sp_io::TestExternalities::new(t);
+	let seed = "12345678901234567890123456789012";
+	let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+	let keystore = MemoryKeystore::new();
+	keystore.insert(THEA, seed, validator.public().as_ref()).unwrap();
+	ext.register_extension(KeystoreExt::new(MemoryKeystore::new()));
+	ext.into()
 }

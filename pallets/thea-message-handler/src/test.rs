@@ -21,9 +21,10 @@ use crate::{
 	TransactionSource, *,
 };
 use frame_support::{assert_noop, assert_ok};
-use parity_scale_codec::{Decode, Encode};
-use sp_core::{ByteArray, Pair};
+use parity_scale_codec::Encode;
+use sp_core::Pair;
 use sp_runtime::traits::BadOrigin;
+use std::collections::BTreeMap;
 
 #[test]
 fn test_insert_authorities_full() {
@@ -58,8 +59,7 @@ fn test_incoming_message_full() {
 			nonce: 1,
 			data: vec![1, 2, 3, 4, 5],
 			network: 1,
-			is_key_change: false,
-			validator_set_id: 0,
+			payload_type: PayloadType::L1Deposit,
 		};
 		let pair = sp_core::ecdsa::Pair::generate().0;
 
@@ -67,71 +67,54 @@ fn test_incoming_message_full() {
 		<Authorities<Test>>::insert(0, BoundedVec::truncate_from(vec![pair.public().into()]));
 		let msg_prehashed = sp_io::hashing::sha2_256(&message.encode());
 		let signature = pair.sign(&msg_prehashed);
+
+		let signed_message = SignedMessage::new(message, 0, 0, signature.into());
 		// bad origins
 		assert_noop!(
-			TheaHandler::incoming_message(
-				RuntimeOrigin::root(),
-				message.clone(),
-				vec![(0, signature.clone().into())]
-			),
+			TheaHandler::incoming_message(RuntimeOrigin::root(), signed_message.clone()),
 			BadOrigin
 		);
 		assert_noop!(
-			TheaHandler::incoming_message(
-				RuntimeOrigin::signed(1),
-				message.clone(),
-				vec![(0, signature.clone().into())]
-			),
+			TheaHandler::incoming_message(RuntimeOrigin::signed(1), signed_message.clone()),
 			BadOrigin
 		);
 		// root
-		assert_ok!(TheaHandler::incoming_message(
-			RuntimeOrigin::none(),
-			message.clone(),
-			vec![(0, signature.clone().into())]
-		));
+		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message.clone()));
 		assert_eq!(<ValidatorSetId<Test>>::get(), 0);
 		// bad signature in unsigned verification
-		let mut direct = message.clone();
+		let mut direct = signed_message.clone();
 		direct.validator_set_id = 100;
-		let bad_signature_call = Call::<Test>::incoming_message {
-			payload: direct.clone(),
-			signatures: vec![(0, signature.clone().into())],
-		};
+		let bad_signature_call = Call::<Test>::incoming_message { payload: direct.clone() };
 		assert!(
 			TheaHandler::validate_unsigned(TransactionSource::Local, &bad_signature_call).is_err()
 		);
 		// bad message in unsigned verification
 		let bad_message_call = Call::<Test>::incoming_message {
 			payload: direct.clone(), // proper message
-			signatures: vec![(
-				0,
-				<Test as Config>::Signature::decode(&mut [0u8; 65].as_ref()).unwrap(),
-			)],
 		};
 		assert!(
 			TheaHandler::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err()
 		);
 		// bad nonce
-		let mut vs = message.clone();
-		vs.nonce = 3;
+		let mut vs = signed_message.clone();
+		vs.message.nonce = 3;
 		assert_noop!(
-			TheaHandler::validate_incoming_message(
-				&vs.clone(),
-				&vec![(0, signature.clone().into())]
-			),
+			TheaHandler::validate_incoming_message(&vs.clone(),),
 			InvalidTransaction::Custom(1)
 		);
-		vs.nonce = 2;
+		vs.message.nonce = 2;
 		vs.validator_set_id = 1;
 		assert_eq!(<ValidatorSetId<Test>>::get(), 0);
+		<Authorities<Test>>::insert(1, BoundedVec::truncate_from(vec![pair.public().into(); 200]));
+		assert_noop!(
+			TheaHandler::validate_incoming_message(&vs.clone(),),
+			InvalidTransaction::Custom(2)
+		);
+		<Authorities<Test>>::insert(1, BoundedVec::truncate_from(vec![pair.public().into()]));
 		// invalid validator set id
 		assert_noop!(
-			TheaHandler::validate_incoming_message(
-				&vs.clone(),
-				&vec![(0, signature.clone().into())]
-			),
-			InvalidTransaction::Custom(3)
+			TheaHandler::validate_incoming_message(&vs.clone(),),
+			InvalidTransaction::Custom(4)
 		);
 	})
 }
@@ -169,40 +152,77 @@ fn update_outgoing_nonce_full() {
 }
 
 #[test]
-fn real_test_vector() {
+fn test_unsigned_call_validation() {
 	new_test_ext().execute_with(|| {
-		let public_bytes = hex::decode("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").unwrap();
-		let public = <Test as Config>::TheaId::from_slice(&public_bytes).unwrap();
+		let pair = sp_core::ecdsa::Pair::generate().0;
+		let public = <Test as Config>::TheaId::from(pair.public());
 
-		let signature_bytes = hex::decode("f665f69c959c4a3cbc54ec4de8a566f1897c648fe6c33ab1056ef11fcdd7ad937f4bae4540c18c1a4c61acc4a8bb8c11cafaafe8a06cfb7298e3f9ffba71d33500").unwrap();
-		let signature = sp_core::ecdsa::Signature::from_slice(&signature_bytes).unwrap();
-
-		<Authorities<Test>>::insert(0, BoundedVec::truncate_from(vec![public]));
+		assert_ok!(TheaHandler::insert_authorities(
+			RuntimeOrigin::root(),
+			BoundedVec::truncate_from(vec![public]),
+			0
+		));
 		<ValidatorSetId<Test>>::put(0);
 
-		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
+		let message = Message {
+			block_no: 11,
+			nonce: 1,
+			data: vec![18, 52, 80],
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+		};
+		let encoded_payload = sp_io::hashing::sha2_256(&message.encode());
+		let signature = pair.sign(&encoded_payload);
+		let signed_message = SignedMessage::new(message, 0, 0, signature.into());
 		println!("Running the validation..");
-		TheaHandler::validate_incoming_message(&message, &vec![(0, signature.into())]).unwrap();
+		let call = Call::<Test>::incoming_message { payload: signed_message };
+		TheaHandler::validate_unsigned(TransactionSource::Local, &call).unwrap();
 	})
 }
 
 #[test]
-fn test_unsigned_call_validation() {
+fn test_incoming_message_validator_change_payload() {
 	new_test_ext().execute_with(|| {
-		let public_bytes = hex::decode("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").unwrap();
-		println!("{public_bytes:?}");
-		let public = <Test as Config>::TheaId::from_slice(&public_bytes).unwrap();
-
-		let signature_bytes = hex::decode("f665f69c959c4a3cbc54ec4de8a566f1897c648fe6c33ab1056ef11fcdd7ad937f4bae4540c18c1a4c61acc4a8bb8c11cafaafe8a06cfb7298e3f9ffba71d33500").unwrap();
-		let signature = sp_core::ecdsa::Signature::from_slice(&signature_bytes).unwrap();
-		println!("{signature_bytes:?}");
-
-		assert_ok!(TheaHandler::insert_authorities(RuntimeOrigin::root(), BoundedVec::truncate_from(vec![public]), 0));
-		<ValidatorSetId<Test>>::put(0);
-
-		let message = Message { block_no: 11, nonce: 1, data: vec![18, 52, 80], network: 1, is_key_change: false, validator_set_id: 0 };
-		println!("Running the validation..");
-		let call = Call::<Test>::incoming_message { payload: message, signatures: vec!((0, signature.into())) };
-		assert!(TheaHandler::validate_unsigned(TransactionSource::Local, &call).is_ok());
+		//Create SignedPayload
+		let validator_set =
+			ValidatorSet { set_id: 1, validators: vec![sp_core::ecdsa::Public::from_raw([1; 33])] };
+		let network_id = 2;
+		let message = Message {
+			block_no: 10,
+			nonce: 1,
+			data: validator_set.encode(),
+			network: network_id,
+			payload_type: PayloadType::ScheduledRotateValidators,
+		};
+		let sign = sp_core::ecdsa::Signature::default().into();
+		let mut signature_map = BTreeMap::new();
+		signature_map.insert(0, sign);
+		let signed_message_sv =
+			SignedMessage { validator_set_id: 0, message, signatures: signature_map };
+		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message_sv.clone()));
+		let authorities = <Authorities<Test>>::get(1);
+		assert_eq!(authorities.len(), 1);
+		assert_eq!(authorities[0], sp_core::ecdsa::Public::from_raw([1; 33]).into());
+		let validator_rotated_message = Message {
+			block_no: 0,
+			nonce: 1,
+			data: vec![1, 2, 3, 4, 5],
+			network: network_id,
+			payload_type: PayloadType::ValidatorsRotated,
+		};
+		let sign = sp_core::ecdsa::Signature::default().into();
+		let mut signature_map = BTreeMap::new();
+		signature_map.insert(0, sign);
+		let signed_message = SignedMessage {
+			validator_set_id: 0,
+			message: validator_rotated_message,
+			signatures: signature_map,
+		};
+		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message.clone()));
+		assert_eq!(<ValidatorSetId<Test>>::get(), 1);
+		assert_noop!(
+			TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message_sv.clone()),
+			Error::<Test>::InvalidValidatorSetId
+		);
 	})
 }

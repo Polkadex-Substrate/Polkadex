@@ -17,15 +17,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	aggregator::AggregatorClient,
-	pallet::{ActiveNetworks, IncomingNonce},
-	resolver::Resolver,
-	Config, Pallet,
+	pallet::{ActiveNetworks, Authorities, OutgoingMessages, SignedOutgoingNonce, ValidatorSetId},
+	Call, Config, Pallet, THEA,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
-use serde::{Deserialize, Serialize};
+use frame_system::{offchain::SubmitTransaction, pallet_prelude::BlockNumberFor};
+use parity_scale_codec::Encode;
+use sp_application_crypto::RuntimeAppPublic;
 use sp_std::vec::Vec;
-use thea_primitives::types::Destination;
+use thea_primitives::Network;
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
@@ -35,61 +34,59 @@ impl<T: Config> Pallet<T> {
 			return Ok(())
 		}
 
+		let id = <ValidatorSetId<T>>::get();
+		let authorities = <Authorities<T>>::get(id).to_vec();
+
+		let local_keys = T::TheaId::all();
+
+		let mut available_keys = authorities
+			.iter()
+			.enumerate()
+			.filter_map(move |(auth_index, authority)| {
+				local_keys
+					.binary_search(authority)
+					.ok()
+					.map(|location| (auth_index, local_keys[location].clone()))
+			})
+			.collect::<Vec<(usize, T::TheaId)>>();
+		available_keys.sort();
+
+		let (auth_index, signer) = available_keys.first().ok_or("No active keys available")?;
+		log::info!(target: "thea", "Auth Index {:?} signer {:?}", auth_index, signer.clone());
+
 		let active_networks = <ActiveNetworks<T>>::get();
 		log::debug!(target:"thea","List of active networks: {:?}",active_networks);
+
+		let mut signed_messages: Vec<(Network, u64, T::Signature)> = Vec::new();
 		// 2. Check for new nonce to process for all networks
 		for network in active_networks {
-			//		a. Read the next nonce (N) to process at source and destination on its finalized
-			// state
-			let next_incoming_nonce = <IncomingNonce<T>>::get(network).saturating_add(1);
-			let next_outgoing_nonce =
-				AggregatorClient::<u64, T>::get_latest_incoming_nonce_parachain().saturating_add(1);
-			log::debug!(target:"thea","Next Incoming nonce: {:?}, Outgoing nonce: {:?} for network: {:?}",
-				next_incoming_nonce,next_outgoing_nonce,network);
-			//		b. Check if payload for N is available at source and destination on its finalized
-			// state
-			let next_incoming_message = AggregatorClient::<u64, T>::get_payload_for_nonce(
-				next_incoming_nonce,
-				network,
-				Destination::Parachain,
-			);
-			let next_outgoing_message = AggregatorClient::<u64, T>::get_payload_for_nonce(
-				next_outgoing_nonce,
-				network,
-				Destination::Solochain,
-			);
-			//		c. Compute who should sign this and if its us then sign the payload
-			if let Some(message) = next_incoming_message {
-				//  d. store the signed payload on-chain for relayers to relay it to destination
-				Resolver::<T>::compute_signer_and_submit(message, Destination::Solochain)?;
-			// Resolver Struct
-			// object
-			} else {
-				log::debug!(target:"thea","No incoming message with nonce: {:?} from network: {:?}",next_incoming_nonce,network);
-			}
-			if let Some(message) = next_outgoing_message {
-				Resolver::<T>::compute_signer_and_submit(message, Destination::Parachain)?;
-			// Resolver Struct
-			// object
-			} else {
-				log::debug!(target:"thea","No outgoing message with nonce: {:?} to network: {:?}",next_outgoing_nonce,network);
-			}
+			// Sign message for each network
+			let next_outgoing_nonce = <SignedOutgoingNonce<T>>::get(network).saturating_add(1);
+			let message = match <OutgoingMessages<T>>::get(network, next_outgoing_nonce) {
+				None => continue,
+				Some(msg) => msg,
+			};
+			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+			// Note: this is a double hash signing
+			let signature =
+				sp_io::crypto::ecdsa_sign_prehashed(THEA, &signer.clone().into(), &msg_hash)
+					.ok_or("Expected signature to be returned")?;
+			signed_messages.push((network, next_outgoing_nonce, signature.into()));
 		}
+
+		//	we batch these signatures into a single extrinsic and submit on-chain
+		if let Err(()) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(
+			Call::<T>::submit_signed_outgoing_messages {
+				auth_index: *auth_index as u32,
+				id,
+				signatures: signed_messages,
+			}
+			.into(),
+		) {
+			log::error!(target:"thea","Error submitting thea unsigned txn");
+		}
+
 		log::debug!(target:"thea","Thea offchain worker exiting..");
 		Ok(())
-	}
-}
-
-/// Http Resposne body
-#[derive(Serialize, Deserialize)]
-pub struct JSONRPCResponse {
-	jsonrpc: serde_json::Value,
-	pub(crate) result: serde_json::Value,
-	id: u64,
-}
-
-impl JSONRPCResponse {
-	pub fn new(content: Vec<u8>) -> Self {
-		Self { jsonrpc: "2.0".into(), result: content.into(), id: 2 }
 	}
 }

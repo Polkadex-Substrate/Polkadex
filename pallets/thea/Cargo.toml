@@ -15,6 +15,7 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false, features = ["serde"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
@@ -49,10 +50,12 @@ std = [
   "sp-io/std",
   "polkadex-primitives/std",
   "pallet-timestamp/std",
+  "pallet-balances/std",
   "sp-core/std",
   "frame-benchmarking?/std",
 ]
 runtime-benchmarks = [
+  "pallet-balances/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
