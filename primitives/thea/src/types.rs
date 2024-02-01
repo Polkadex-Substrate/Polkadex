@@ -103,7 +103,9 @@ impl<Signature> SignedMessage<Signature> {
 	///
 	/// * `bool` - True if the threshold is reached
 	pub fn threshold_reached(&self, max_len: usize) -> bool {
-		let threshold = (2 * max_len) / 3;
+		const MAJORITY: u8 = 67;
+		let p = Percent::from_percent(MAJORITY);
+		let threshold = max_len*p;
 		self.signatures.len() >= threshold
 	}
 
