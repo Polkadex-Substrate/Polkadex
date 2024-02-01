@@ -105,8 +105,8 @@ impl<Signature> SignedMessage<Signature> {
 	pub fn threshold_reached(&self, max_len: usize) -> bool {
 		const MAJORITY: u8 = 67;
 		let p = Percent::from_percent(MAJORITY);
-		let threshold = (max_len as u16 )*p;
-		self.signatures.len() >= threshold as usize
+		let threshold = p*max_len;
+		self.signatures.len() >= threshold
 	}
 
 	/// Check if the signed message contains the signature of the authority
