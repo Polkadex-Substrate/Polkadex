@@ -258,6 +258,16 @@ pub mod pallet {
 			<OutgoingNonce<T>>::put(nonce);
 			Ok(())
 		}
+
+		/// A governance endpoint to send thea messages
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))] // TODO: @zktony benchmark this
+		#[transactional]
+		pub fn send_thea_message(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
+			ensure_root(origin)?;
+			Self::execute_withdrawals(0,data)?;
+			Ok(())
+		}
 	}
 }
 
@@ -287,9 +297,17 @@ impl<T: Config> Pallet<T> {
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(auth) =>
-					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
-						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
-						return InvalidTransaction::Custom(4).into()
+					{
+						let signature: sp_core::ecdsa::Signature = signature.clone().into();
+						if let Some(expected_public) = signature.recover_prehashed(&encoded_payload) {
+							if expected_public!= auth.clone().into() {
+								log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
+								return InvalidTransaction::Custom(4).into();
+							}
+						} else{
+							log::debug!(target:"thea", "signature of index: {:?} -> {:?}, public key recovery failed",index,auth);
+							return InvalidTransaction::Custom(5).into();
+						}
 					},
 			}
 		}
