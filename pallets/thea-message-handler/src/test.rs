@@ -25,7 +25,6 @@ use parity_scale_codec::Encode;
 use sp_core::Pair;
 use sp_runtime::traits::BadOrigin;
 use std::collections::BTreeMap;
-use thea::ecdsa::AuthoritySignature;
 
 #[test]
 fn test_insert_authorities_full() {

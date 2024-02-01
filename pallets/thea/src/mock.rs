@@ -222,7 +222,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::new(t);
 	let seed = "12345678901234567890123456789012";
 	let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
-	let mut keystore = MemoryKeystore::new();
+	let keystore = MemoryKeystore::new();
 	keystore.insert(THEA, seed, validator.public().as_ref()).unwrap();
 	ext.register_extension(KeystoreExt::new(MemoryKeystore::new()));
 	ext.into()

@@ -45,7 +45,6 @@ fn set_200_validators() -> [Pair; 200] {
 use crate::ecdsa::AuthorityPair as Pair;
 use frame_support::traits::OneSessionHandler;
 use polkadex_primitives::UNIT_BALANCE;
-use sp_core::crypto::AccountId32;
 
 #[test]
 fn test_session_change() {
@@ -491,8 +490,6 @@ fn test_submit_signed_outgoing_messages_message_not_found() {
 	})
 }
 
-use frame_support::traits::ReservableCurrency;
-
 #[test]
 fn test_on_initialize_happy_path() {
 	new_test_ext().execute_with(|| {
@@ -606,12 +603,12 @@ fn test_validate_signed_outgoing_message_returns_custom_error() {
 		let signatures = vec![(network, nonce, signature.into())];
 		assert_noop!(
 			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
-			InvalidTransaction::Custom(2)
+			InvalidTransaction::Custom(3)
 		);
-		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<SignedOutgoingNonce<Test>>::insert(network, 50);
 		assert_noop!(
 			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
-			InvalidTransaction::Custom(3)
+			InvalidTransaction::Custom(2)
 		);
 	})
 }
