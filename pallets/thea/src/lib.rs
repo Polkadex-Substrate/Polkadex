@@ -680,7 +680,8 @@ impl<T: Config> Pallet<T> {
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides(signatures)
+			.priority(TransactionPriority::MAX/3)
+			.and_provides((id, auth_index))
 			.longevity(10)
 			.propagate(true)
 			.build()
