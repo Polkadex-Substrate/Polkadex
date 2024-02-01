@@ -6148,7 +6148,7 @@ checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.4.1"
+version = "5.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -7805,7 +7805,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-polkadex-node"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "clap 4.4.7",
  "color-print",
@@ -7873,7 +7873,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-polkadex-runtime"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8292,7 +8292,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.4.2"
+version = "5.5.0"
 dependencies = [
  "clap 4.4.7",
  "frame-benchmarking-cli",

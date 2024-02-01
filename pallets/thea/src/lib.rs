@@ -262,6 +262,10 @@ pub mod pallet {
 		ErrorWhileReleasingLock(T::AccountId, DispatchError),
 		/// Misbehaviour Reported (fisherman, network, nonce)
 		MisbehaviourReported(T::AccountId, Network, u64),
+		/// New signature of Thea withdrawal
+		TheaSignatureUpdated(Network, u64, u16),
+		/// Signing completed
+		TheaSignatureFinalized(Network, u64),
 	}
 
 	#[pallet::error]
@@ -511,8 +515,17 @@ pub mod pallet {
 						let auth_len = <Authorities<T>>::get(signed_msg.validator_set_id).len();
 						if signed_msg.threshold_reached(auth_len) {
 							<SignedOutgoingNonce<T>>::insert(network, nonce);
+							// Emit an event
+							Self::deposit_event(Event::<T>::TheaSignatureFinalized(network, nonce));
 						}
+						let total_signatures = signed_msg.signatures.len();
 						<SignedOutgoingMessages<T>>::insert(network, nonce, signed_msg);
+						// Emit an event
+						Self::deposit_event(Event::<T>::TheaSignatureUpdated(
+							network,
+							nonce,
+							total_signatures as u16,
+						));
 					},
 				}
 			}
@@ -668,7 +681,7 @@ impl<T: Config> Pallet<T> {
 
 		ValidTransaction::with_tag_prefix("thea")
 			.and_provides(signatures)
-			.longevity(1)
+			.longevity(10)
 			.propagate(true)
 			.build()
 	}

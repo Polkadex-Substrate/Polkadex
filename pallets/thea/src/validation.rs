@@ -17,7 +17,10 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	pallet::{ActiveNetworks, Authorities, OutgoingMessages, SignedOutgoingNonce, ValidatorSetId},
+	pallet::{
+		ActiveNetworks, Authorities, OutgoingMessages, SignedOutgoingMessages, SignedOutgoingNonce,
+		ValidatorSetId,
+	},
 	Call, Config, Pallet, THEA,
 };
 use frame_system::{offchain::SubmitTransaction, pallet_prelude::BlockNumberFor};
@@ -55,13 +58,25 @@ impl<T: Config> Pallet<T> {
 		log::info!(target: "thea", "Auth Index {:?} signer {:?}", auth_index, signer.clone());
 
 		let active_networks = <ActiveNetworks<T>>::get();
-		log::debug!(target:"thea","List of active networks: {:?}",active_networks);
+		log::info!(target:"thea","List of active networks: {:?}",active_networks);
 
 		let mut signed_messages: Vec<(Network, u64, T::Signature)> = Vec::new();
 		// 2. Check for new nonce to process for all networks
 		for network in active_networks {
 			// Sign message for each network
 			let next_outgoing_nonce = <SignedOutgoingNonce<T>>::get(network).saturating_add(1);
+			log::info!(target:"thea","Next outgoing nonce for network {:?} is: {:?} ",network, next_outgoing_nonce);
+			// Check if we already signed it, then continue
+			match <SignedOutgoingMessages<T>>::get(network, next_outgoing_nonce) {
+				None => {},
+				Some(signed_msg) => {
+					// Don't sign again if we already signed it
+					if signed_msg.contains_signature(&(*auth_index as u32)) {
+						log::warn!(target:"thea","Next outgoing nonce for network {:?} is: {:?} is already signed ",network, next_outgoing_nonce);
+						continue
+					}
+				},
+			}
 			let message = match <OutgoingMessages<T>>::get(network, next_outgoing_nonce) {
 				None => continue,
 				Some(msg) => msg,
@@ -74,16 +89,18 @@ impl<T: Config> Pallet<T> {
 			signed_messages.push((network, next_outgoing_nonce, signature.into()));
 		}
 
-		//	we batch these signatures into a single extrinsic and submit on-chain
-		if let Err(()) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(
-			Call::<T>::submit_signed_outgoing_messages {
-				auth_index: *auth_index as u32,
-				id,
-				signatures: signed_messages,
+		if !signed_messages.is_empty() {
+			//	we batch these signatures into a single extrinsic and submit on-chain
+			if let Err(()) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(
+				Call::<T>::submit_signed_outgoing_messages {
+					auth_index: *auth_index as u32,
+					id,
+					signatures: signed_messages,
+				}
+				.into(),
+			) {
+				log::error!(target:"thea","Error submitting thea unsigned txn");
 			}
-			.into(),
-		) {
-			log::error!(target:"thea","Error submitting thea unsigned txn");
 		}
 
 		log::debug!(target:"thea","Thea offchain worker exiting..");
