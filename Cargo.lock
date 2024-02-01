@@ -8281,7 +8281,7 @@ checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 
 [[package]]
 name = "polkadex-client"
-version = "5.3.0"
+version = "5.4.2"
 dependencies = [
  "bls-primitives",
  "frame-benchmarking",
@@ -8292,7 +8292,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.4.1"
+version = "5.4.2"
 dependencies = [
  "clap 4.4.7",
  "frame-benchmarking-cli",

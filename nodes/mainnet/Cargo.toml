@@ -1,6 +1,6 @@
 [package]
 name = "polkadex-node"
-version = "5.4.2"
+version = "5.5.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex main blockchain"
 edition = "2021"
