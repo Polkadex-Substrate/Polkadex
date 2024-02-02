@@ -289,6 +289,8 @@ pub mod pallet {
 		NoRelayersFound,
 		/// Not expected relayer origin
 		NotAnAllowlistedRelayer,
+		/// Nonce Error
+		NonceError
 	}
 
 	#[pallet::hooks]
@@ -298,7 +300,8 @@ pub mod pallet {
 			let active_networks = <ActiveNetworks<T>>::get();
 			for network in active_networks.clone() {
 				let last_processed_nonce = <IncomingNonce<T>>::get(network);
-				match <IncomingMessagesQueue<T>>::take(network, last_processed_nonce.saturating_add(1)) {
+				let next_nonce = last_processed_nonce.saturating_add(1);
+				match <IncomingMessagesQueue<T>>::take(network, next_nonce) {
 					None => continue,
 					Some(msg) => {
 						if msg.execute_at <= blk.saturated_into::<u32>() {
@@ -308,7 +311,7 @@ pub mod pallet {
 							);
 							<IncomingNonce<T>>::insert(
 								msg.message.network,
-								next_nonce.saturating_add(1),
+								next_nonce,
 							);
 							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
 								msg.message.network,
@@ -380,6 +383,9 @@ pub mod pallet {
 			if stake < config.min_stake {
 				return Err(Error::<T>::NotEnoughStake.into())
 			}
+
+			let next_nonce = <IncomingNonce<T>>::get(payload.network);
+			ensure!(payload.nonce > next_nonce, Error::<T>::NonceError);
 
 			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
 				None => {
