@@ -172,7 +172,7 @@ fn test_unsigned_call_validation() {
 			payload_type: PayloadType::L1Deposit,
 		};
 		let encoded_payload = sp_io::hashing::sha2_256(&message.encode());
-		let signature = pair.sign(&encoded_payload);
+		let signature = pair.sign_prehashed(&encoded_payload);
 		let signed_message = SignedMessage::new(message, 0, 0, signature.into());
 		println!("Running the validation..");
 		let call = Call::<Test>::incoming_message { payload: signed_message };
