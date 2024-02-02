@@ -290,7 +290,7 @@ pub mod pallet {
 		/// Not expected relayer origin
 		NotAnAllowlistedRelayer,
 		/// Nonce Error
-		NonceError
+		NonceError,
 	}
 
 	#[pallet::hooks]
@@ -309,10 +309,7 @@ pub mod pallet {
 								msg.message.network,
 								msg.message.data.clone(),
 							);
-							<IncomingNonce<T>>::insert(
-								msg.message.network,
-								next_nonce,
-							);
+							<IncomingNonce<T>>::insert(msg.message.network, next_nonce);
 							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
 								msg.message.network,
 								msg.message.nonce,
