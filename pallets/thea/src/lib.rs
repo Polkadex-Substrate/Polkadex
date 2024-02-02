@@ -255,6 +255,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Temporary allowlist for relayer
+	#[pallet::storage]
+	pub(super) type AllowListTestingRelayers<T: Config> =
+		StorageMap<_, Identity, Network, T::AccountId, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -280,6 +285,10 @@ pub mod pallet {
 		NotEnoughStake,
 		/// MessageNotFound
 		MessageNotFound,
+		/// No Relayer found
+		NoRelayersFound,
+		/// Not expected relayer origin
+		NotAnAllowlistedRelayer,
 	}
 
 	#[pallet::hooks]
@@ -362,6 +371,10 @@ pub mod pallet {
 			stake: Balance,
 		) -> DispatchResult {
 			let signer = ensure_signed(origin)?;
+			let expected_signer = <AllowListTestingRelayers<T>>::get(payload.network)
+				.ok_or(Error::<T>::NoRelayersFound)?;
+			ensure!(signer == expected_signer, Error::<T>::NotAnAllowlistedRelayer);
+
 			let config = <NetworkConfig<T>>::get(payload.network);
 
 			if stake < config.min_stake {
@@ -628,6 +641,19 @@ pub mod pallet {
 					}
 				},
 			}
+			Ok(())
+		}
+
+		/// Adds a relayer origin for deposits - will be removed after mainnet testing
+		#[pallet::call_index(9)]
+		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
+		pub fn add_relayer_origin_for_network(
+			origin: OriginFor<T>,
+			network: Network,
+			relayer: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<AllowListTestingRelayers<T>>::insert(network, relayer);
 			Ok(())
 		}
 	}

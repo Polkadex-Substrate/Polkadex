@@ -314,8 +314,10 @@ fn test_report_misbehaviour_happy_path() {
 	})
 }
 
-use frame_support::{assert_noop, traits::fungible::MutateHold};
-use frame_support::traits::tokens::Precision;
+use frame_support::{
+	assert_noop,
+	traits::{fungible::MutateHold, tokens::Precision},
+};
 use thea_primitives::types::{AssetMetadata, IncomingMessage, SignedMessage, THEA_HOLD_REASON};
 
 #[test]
