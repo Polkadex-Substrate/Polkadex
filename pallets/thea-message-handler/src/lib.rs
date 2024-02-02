@@ -265,7 +265,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn send_thea_message(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
-			Self::execute_withdrawals(0,data)?;
+			Self::execute_withdrawals(0, data)?;
 			Ok(())
 		}
 	}
@@ -296,19 +296,18 @@ impl<T: Config> Pallet<T> {
 			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(3).into(),
-				Some(auth) =>
-					{
-						let signature: sp_core::ecdsa::Signature = signature.clone().into();
-						if let Some(expected_public) = signature.recover_prehashed(&encoded_payload) {
-							if expected_public!= auth.clone().into() {
-								log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
-								return InvalidTransaction::Custom(4).into();
-							}
-						} else{
-							log::debug!(target:"thea", "signature of index: {:?} -> {:?}, public key recovery failed",index,auth);
-							return InvalidTransaction::Custom(5).into();
+				Some(auth) => {
+					let signature: sp_core::ecdsa::Signature = signature.clone().into();
+					if let Some(expected_public) = signature.recover_prehashed(&encoded_payload) {
+						if expected_public != auth.clone().into() {
+							log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
+							return InvalidTransaction::Custom(4).into();
 						}
-					},
+					} else {
+						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, public key recovery failed",index,auth);
+						return InvalidTransaction::Custom(5).into();
+					}
+				},
 			}
 		}
 
