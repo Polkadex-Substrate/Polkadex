@@ -297,8 +297,8 @@ pub mod pallet {
 			// Every block check the next incoming nonce and if fork period is over, execute them
 			let active_networks = <ActiveNetworks<T>>::get();
 			for network in active_networks.clone() {
-				let next_nonce = <IncomingNonce<T>>::get(network);
-				match <IncomingMessagesQueue<T>>::get(network, next_nonce) {
+				let last_processed_nonce = <IncomingNonce<T>>::get(network);
+				match <IncomingMessagesQueue<T>>::take(network, last_processed_nonce.saturating_add(1)) {
 					None => continue,
 					Some(msg) => {
 						if msg.execute_at <= blk.saturated_into::<u32>() {

@@ -266,7 +266,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn send_thea_message(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
-			Self::execute_withdrawals(0, data)?;
+			Self::execute_withdrawals(1, data)?;
 			Ok(())
 		}
 	}
