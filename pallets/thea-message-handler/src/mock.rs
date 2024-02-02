@@ -134,7 +134,7 @@ impl pallet_assets::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxAuthorities: u32 = 10;
+	pub const MaxAuthorities: u32 = 200;
 }
 
 impl thea::Config for Test {

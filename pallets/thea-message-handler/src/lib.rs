@@ -61,7 +61,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::transactional;
 	use sp_std::vec;
-	use thea_primitives::{types::Message, TheaIncomingExecutor};
+	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
