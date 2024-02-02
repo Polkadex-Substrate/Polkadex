@@ -298,14 +298,10 @@ impl<T: Config> Pallet<T> {
 				None => return InvalidTransaction::Custom(3).into(),
 				Some(auth) => {
 					let signature: sp_core::ecdsa::Signature = signature.clone().into();
-					if let Some(expected_public) = signature.recover_prehashed(&encoded_payload) {
-						if expected_public != auth.clone().into() {
-							log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
-							return InvalidTransaction::Custom(4).into();
-						}
-					} else {
-						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, public key recovery failed",index,auth);
-						return InvalidTransaction::Custom(5).into();
+					let auth: sp_core::ecdsa::Public = auth.clone().into();
+					if !sp_io::crypto::ecdsa_verify_prehashed(&signature, &encoded_payload, &auth) {
+						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
+						return InvalidTransaction::Custom(4).into();
 					}
 				},
 			}
