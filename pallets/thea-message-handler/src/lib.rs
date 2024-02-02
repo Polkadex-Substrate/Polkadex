@@ -29,6 +29,7 @@ use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use parity_scale_codec::Encode;
+use thea_primitives::TheaOutgoingExecutor;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
