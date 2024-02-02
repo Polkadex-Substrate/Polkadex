@@ -315,6 +315,7 @@ fn test_report_misbehaviour_happy_path() {
 }
 
 use frame_support::{assert_noop, traits::fungible::MutateHold};
+use frame_support::traits::tokens::Precision;
 use thea_primitives::types::{AssetMetadata, IncomingMessage, SignedMessage, THEA_HOLD_REASON};
 
 #[test]
@@ -729,4 +730,22 @@ fn test_asset_metadata_convert_from_native_decimals() {
 		metadata.convert_from_native_decimals(1000000000000000000000000),
 		1000000000000000000
 	);
+}
+
+#[test]
+fn test_locks() {
+	new_test_ext().execute_with(|| {
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 100 * UNIT_BALANCE);
+		let stake = 1 * UNIT_BALANCE;
+		// Reserve balance
+		Balances::hold(&THEA_HOLD_REASON, &relayer, stake).unwrap();
+		Balances::hold(&THEA_HOLD_REASON, &relayer, stake).unwrap();
+		assert_eq!(Balances::reserved_balance(&relayer), 2 * UNIT_BALANCE);
+		Balances::release(&THEA_HOLD_REASON, &relayer, stake, Precision::BestEffort).unwrap();
+		assert_eq!(Balances::reserved_balance(&relayer), 1 * UNIT_BALANCE);
+		Balances::release(&THEA_HOLD_REASON, &relayer, stake, Precision::BestEffort).unwrap();
+		assert_eq!(Balances::reserved_balance(&relayer), 0);
+	})
 }
