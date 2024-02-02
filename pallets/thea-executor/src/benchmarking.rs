@@ -113,7 +113,7 @@ benchmarks! {
 		assert_eq!(ready_withdrawal.len(), 1);
 	}
 
-	ethereum_withdraw {
+	evm_withdraw {
 		let r in 1 .. 1000;
 		let asset_id: <T as pallet::Config>::AssetId = 100u128.into();
 		let admin = account::<T::AccountId>("admin", 1, r);
@@ -128,7 +128,7 @@ benchmarks! {
 		<Metadata<T>>::insert(100, metadata);
 		<WithdrawalFees<T>>::insert(network_id, 1_000);
 		let beneficiary: sp_core::H160 = sp_core::H160::default();
-	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, beneficiary, true, false)
+	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, beneficiary, network_id, true, false)
 	verify {
 		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
 		assert_eq!(ready_withdrawal.len(), 1);

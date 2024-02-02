@@ -52,6 +52,7 @@ pub trait WeightInfo {
 	fn incoming_message() -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 	fn update_outgoing_nonce(_b: u32) -> Weight;
+	fn send_thea_message() -> Weight;
 }
 
 pub mod weights;
@@ -61,7 +62,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::transactional;
 	use sp_std::vec;
-	use thea_primitives::{types::Message, TheaIncomingExecutor};
+	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -258,6 +259,16 @@ pub mod pallet {
 			<OutgoingNonce<T>>::put(nonce);
 			Ok(())
 		}
+
+		/// A governance endpoint to send thea messages
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::send_thea_message())]
+		#[transactional]
+		pub fn send_thea_message(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
+			ensure_root(origin)?;
+			Self::execute_withdrawals(1, data)?;
+			Ok(())
+		}
 	}
 }
 
@@ -286,11 +297,14 @@ impl<T: Config> Pallet<T> {
 			log::debug!(target:"thea", "Get auth of index: {:?}",index);
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(3).into(),
-				Some(auth) =>
-					if !auth.verify(&encoded_payload, &((*signature).clone().into())) {
+				Some(auth) => {
+					let signature: sp_core::ecdsa::Signature = signature.clone().into();
+					let auth: sp_core::ecdsa::Public = auth.clone().into();
+					if !sp_io::crypto::ecdsa_verify_prehashed(&signature, &encoded_payload, &auth) {
 						log::debug!(target:"thea", "signature of index: {:?} -> {:?}, Failed",index,auth);
-						return InvalidTransaction::Custom(4).into()
-					},
+						return InvalidTransaction::Custom(4).into();
+					}
+				},
 			}
 		}
 

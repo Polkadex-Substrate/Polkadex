@@ -67,7 +67,7 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use thea_primitives::{
 		types::{AssetMetadata, Deposit, Withdraw},
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor, ETHEREUM_NETWORK, NATIVE_NETWORK,
+		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
 
@@ -380,16 +380,16 @@ pub mod pallet {
 		/// * `pay_with_tokens`: Pay with withdrawing tokens.
 		#[pallet::call_index(5)]
 		#[pallet::weight(< T as Config >::TheaExecWeightInfo::ethereum_withdraw(1))]
-		pub fn ethereum_withdraw(
+		pub fn evm_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
 			amount: u128,
 			beneficiary: H160,
+			network: Network,
 			pay_for_remaining: bool,
 			pay_with_tokens: bool,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
-			let network = ETHEREUM_NETWORK;
 			Self::do_withdraw(
 				user,
 				asset_id,

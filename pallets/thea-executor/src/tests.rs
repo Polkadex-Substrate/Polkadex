@@ -396,7 +396,7 @@ fn test_do_withdrawal_with_total_amount_consumed_returns_error() {
 }
 
 #[test]
-fn test_ethereum_withdraw() {
+fn test_evm_withdraw() {
 	new_test_ext().execute_with(|| {
 		let asset_id: <Test as Config>::AssetId = 100u128;
 		let admin = 1u64;
@@ -437,11 +437,12 @@ fn test_ethereum_withdraw() {
 		<Metadata<Test>>::insert(100, metadata);
 		<WithdrawalFees<Test>>::insert(network_id, 1_000);
 		let beneficiary = H160::from_slice(&[1; 20]);
-		assert_ok!(TheaExecutor::ethereum_withdraw(
+		assert_ok!(TheaExecutor::evm_withdraw(
 			RuntimeOrigin::signed(account),
 			asset_id,
 			1_000_000_000,
 			beneficiary.clone(),
+			network_id,
 			false,
 			false
 		));

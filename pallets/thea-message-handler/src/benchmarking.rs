@@ -78,6 +78,15 @@ benchmarks! {
 	verify {
 		assert_eq!(b, <OutgoingNonce<T>>::get());
 	}
+
+	send_thea_message {
+		let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
+		let authorities = BoundedVec::truncate_from(vec![public]);
+		let validator_set_id = 1;
+		<ValidatorSetId<T>>::put(validator_set_id);
+		<Authorities<T>>::insert(validator_set_id, authorities);
+		let message = vec![1u8;10];
+	}: _(RawOrigin::Root, message)
 }
 
 #[cfg(test)]

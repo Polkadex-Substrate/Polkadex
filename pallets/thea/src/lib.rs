@@ -255,6 +255,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Temporary allowlist for relayer
+	#[pallet::storage]
+	pub(super) type AllowListTestingRelayers<T: Config> =
+		StorageMap<_, Identity, Network, T::AccountId, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -280,6 +285,12 @@ pub mod pallet {
 		NotEnoughStake,
 		/// MessageNotFound
 		MessageNotFound,
+		/// No Relayer found
+		NoRelayersFound,
+		/// Not expected relayer origin
+		NotAnAllowlistedRelayer,
+		/// Nonce Error
+		NonceError,
 	}
 
 	#[pallet::hooks]
@@ -288,8 +299,9 @@ pub mod pallet {
 			// Every block check the next incoming nonce and if fork period is over, execute them
 			let active_networks = <ActiveNetworks<T>>::get();
 			for network in active_networks.clone() {
-				let next_nonce = <IncomingNonce<T>>::get(network);
-				match <IncomingMessagesQueue<T>>::get(network, next_nonce) {
+				let last_processed_nonce = <IncomingNonce<T>>::get(network);
+				let next_nonce = last_processed_nonce.saturating_add(1);
+				match <IncomingMessagesQueue<T>>::take(network, next_nonce) {
 					None => continue,
 					Some(msg) => {
 						if msg.execute_at <= blk.saturated_into::<u32>() {
@@ -297,10 +309,7 @@ pub mod pallet {
 								msg.message.network,
 								msg.message.data.clone(),
 							);
-							<IncomingNonce<T>>::insert(
-								msg.message.network,
-								next_nonce.saturating_add(1),
-							);
+							<IncomingNonce<T>>::insert(msg.message.network, next_nonce);
 							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
 								msg.message.network,
 								msg.message.nonce,
@@ -362,11 +371,18 @@ pub mod pallet {
 			stake: Balance,
 		) -> DispatchResult {
 			let signer = ensure_signed(origin)?;
+			let expected_signer = <AllowListTestingRelayers<T>>::get(payload.network)
+				.ok_or(Error::<T>::NoRelayersFound)?;
+			ensure!(signer == expected_signer, Error::<T>::NotAnAllowlistedRelayer);
+
 			let config = <NetworkConfig<T>>::get(payload.network);
 
 			if stake < config.min_stake {
 				return Err(Error::<T>::NotEnoughStake.into())
 			}
+
+			let next_nonce = <IncomingNonce<T>>::get(payload.network);
+			ensure!(payload.nonce > next_nonce, Error::<T>::NonceError);
 
 			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
 				None => {
@@ -630,6 +646,19 @@ pub mod pallet {
 			}
 			Ok(())
 		}
+
+		/// Adds a relayer origin for deposits - will be removed after mainnet testing
+		#[pallet::call_index(9)]
+		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
+		pub fn add_relayer_origin_for_network(
+			origin: OriginFor<T>,
+			network: Network,
+			relayer: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<AllowListTestingRelayers<T>>::insert(network, relayer);
+			Ok(())
+		}
 	}
 }
 
@@ -680,7 +709,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.priority(TransactionPriority::MAX/3)
+			.priority(TransactionPriority::MAX / 3)
 			.and_provides((id, auth_index))
 			.longevity(10)
 			.propagate(true)

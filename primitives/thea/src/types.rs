@@ -22,13 +22,13 @@
 
 use frame_support::__private::log;
 use parity_scale_codec::{Decode, Encode};
+use polkadex_primitives::UNIT_BALANCE;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
-use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 use sp_runtime::Percent;
-use polkadex_primitives::UNIT_BALANCE;
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
+use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap};
 
 use crate::{Network, ValidatorSetId};
 
@@ -105,7 +105,7 @@ impl<Signature> SignedMessage<Signature> {
 	pub fn threshold_reached(&self, max_len: usize) -> bool {
 		const MAJORITY: u8 = 67;
 		let p = Percent::from_percent(MAJORITY);
-		let threshold = p*max_len;
+		let threshold = p * max_len;
 		self.signatures.len() >= threshold
 	}
 
