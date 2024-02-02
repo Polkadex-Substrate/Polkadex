@@ -29,7 +29,6 @@ use frame_support::{pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use parity_scale_codec::Encode;
-use thea_primitives::TheaOutgoingExecutor;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
@@ -53,6 +52,7 @@ pub trait WeightInfo {
 	fn incoming_message() -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 	fn update_outgoing_nonce(_b: u32) -> Weight;
+	fn send_thea_message() -> Weight;
 }
 
 pub mod weights;
@@ -262,7 +262,7 @@ pub mod pallet {
 
 		/// A governance endpoint to send thea messages
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_outgoing_nonce(1))] // TODO: @zktony benchmark this
+		#[pallet::weight(<T as Config>::WeightInfo::send_thea_message())]
 		#[transactional]
 		pub fn send_thea_message(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
