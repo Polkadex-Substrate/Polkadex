@@ -751,8 +751,12 @@ impl<T: Config> Pallet<T> {
 			let mut uncompressed_keys = vec![];
 			for public_key in queued.clone().into_iter() {
 				let public_key: sp_core::ecdsa::Public = public_key.into();
-				let compressed_key = libsecp256k1::PublicKey::parse_compressed(&public_key.0).unwrap(); //FIXME: Remove unwrap
-				uncompressed_keys.push(compressed_key.serialize());
+				if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0) {
+					uncompressed_keys.push(compressed_key.serialize());
+				} else {
+					log::error!(target: "thea", "Unable to parse compressed key");
+				    return;
+				}
 			}
             for network in &active_networks {
 				let network_config = <NetworkConfig<T>>::get(*network);
