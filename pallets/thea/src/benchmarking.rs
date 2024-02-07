@@ -51,8 +51,8 @@ benchmarks! {
 			network: 0u8,
 			payload_type: PayloadType::L1Deposit
 		};
-
 		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		<AllowListTestingRelayers<T>>::insert(0u8, relayer.clone());
 		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 	}: _(RawOrigin::Signed(relayer), message, 10000*UNIT_BALANCE)
 	verify {
@@ -229,10 +229,9 @@ benchmarks! {
 			execute_at: 0
 		};
 			<IncomingNonce<T>>::insert(*network, nonce);
-			<IncomingMessagesQueue<T>>::insert(*network, nonce, incoming_message.clone());
+			<IncomingMessagesQueue<T>>::insert(*network, nonce + 1, incoming_message.clone());
 		}
 	}: {
-
 			<Thea<T>>::on_initialize((x as u32).into());
 	} verify {
 		for network in networks.iter() {

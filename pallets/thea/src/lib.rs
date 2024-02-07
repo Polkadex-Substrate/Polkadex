@@ -39,10 +39,9 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use thea_primitives::{
-	types::{Message, PayloadType},
+	types::{Message, NetworkType, PayloadType},
 	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-use thea_primitives::types::KeyType;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -120,7 +119,7 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ Ord
 			+ Into<sp_core::ecdsa::Public>
-		    + From<sp_core::ecdsa::Public>;
+			+ From<sp_core::ecdsa::Public>;
 
 		/// Authority Signature
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
@@ -274,7 +273,7 @@ pub mod pallet {
 		/// Signing completed
 		TheaSignatureFinalized(Network, u64),
 		/// Unable to parse public key
-		UnableToParsePublicKey(T::TheaId)
+		UnableToParsePublicKey(T::TheaId),
 	}
 
 	#[pallet::error]
@@ -483,7 +482,7 @@ pub mod pallet {
 		pub fn add_thea_network(
 			origin: OriginFor<T>,
 			network: Network,
-			requires_uncompressed_key: bool,
+			is_evm: bool,
 			fork_period: u32,
 			min_stake: u128,
 			fisherman_stake: u128,
@@ -491,7 +490,12 @@ pub mod pallet {
 			ensure_root(origin)?;
 			<NetworkConfig<T>>::insert(
 				network,
-				thea_primitives::types::NetworkConfig::new(fork_period, min_stake, fisherman_stake, requires_uncompressed_key),
+				thea_primitives::types::NetworkConfig::new(
+					fork_period,
+					min_stake,
+					fisherman_stake,
+					is_evm,
+				),
 			);
 			<ActiveNetworks<T>>::mutate(|list| {
 				list.insert(network);
@@ -751,47 +755,50 @@ impl<T: Config> Pallet<T> {
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
-			let mut uncompressed_keys = vec![];
+			let mut uncompressed_keys: Vec<[u8; 20]> = vec![];
 			for public_key in queued.clone().into_iter() {
 				let public_key: sp_core::ecdsa::Public = public_key.into();
-				if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0) {
-					uncompressed_keys.push(compressed_key.serialize());
+				if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0)
+				{
+					let uncompressed_key = compressed_key.serialize();
+					let hash: [u8; 32] = sp_io::hashing::keccak_256(&uncompressed_key);
+					if let Ok(address) = hash[12..32].try_into() {
+						uncompressed_keys.push(address);
+					} else {
+						return;
+					}
 				} else {
 					log::error!(target: "thea", "Unable to parse compressed key");
-					Self::deposit_event(Event::<T>::UnableToParsePublicKey(
-						public_key.into()
-					));
-				    return;
+					Self::deposit_event(Event::<T>::UnableToParsePublicKey(public_key.into()));
+					return;
 				}
 			}
-            for network in &active_networks {
+			for network in &active_networks {
 				let network_config = <NetworkConfig<T>>::get(*network);
 				let message = match network_config.key_type {
-					KeyType::Uncompressed => {
-						if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id) {
-							let message = Self::generate_payload(
+					NetworkType::Evm => {
+						if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id)
+						{
+							Self::generate_payload(
 								PayloadType::ScheduledRotateValidators,
 								*network,
 								payload.encode(),
-							);
-							message
+							)
 						} else {
 							continue;
 						}
-
-				}
-					KeyType::Compressed => {
+					},
+					NetworkType::Parachain => {
 						if let Some(payload) = ValidatorSet::new(queued.clone(), new_id) {
-							let message = Self::generate_payload(
+							Self::generate_payload(
 								PayloadType::ScheduledRotateValidators,
 								*network,
 								payload.encode(),
-							);
-							message
+							)
 						} else {
 							continue;
 						}
-					}
+					},
 				};
 				<OutgoingNonce<T>>::insert(message.network, message.nonce);
 				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);

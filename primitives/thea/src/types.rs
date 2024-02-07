@@ -126,9 +126,9 @@ impl<Signature> SignedMessage<Signature> {
 pub const THEA_HOLD_REASON: [u8; 8] = *b"theaRela";
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum KeyType {
-	Compressed,
-	Uncompressed,
+pub enum NetworkType {
+	Parachain,
+	Evm,
 }
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -136,7 +136,7 @@ pub struct NetworkConfig {
 	pub fork_period: u32,
 	pub min_stake: u128,
 	pub fisherman_stake: u128,
-	pub key_type: KeyType,
+	pub key_type: NetworkType,
 }
 
 impl Default for NetworkConfig {
@@ -145,18 +145,14 @@ impl Default for NetworkConfig {
 			fork_period: 20,
 			min_stake: 1000 * UNIT_BALANCE,
 			fisherman_stake: 100 * UNIT_BALANCE,
-			key_type: KeyType::Compressed,
+			key_type: NetworkType::Parachain,
 		}
 	}
 }
 
 impl NetworkConfig {
-	pub fn new(fork_period: u32, min_stake: u128, fisherman_stake: u128, is_uncompressed_key_req: bool) -> Self {
-		let key_type = if is_uncompressed_key_req {
-			KeyType::Uncompressed
-		} else {
-			KeyType::Compressed
-		};
+	pub fn new(fork_period: u32, min_stake: u128, fisherman_stake: u128, is_evm: bool) -> Self {
+		let key_type = if is_evm { NetworkType::Evm } else { NetworkType::Parachain };
 		Self { fork_period, min_stake, fisherman_stake, key_type }
 	}
 }

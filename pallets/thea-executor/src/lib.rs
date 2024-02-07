@@ -563,7 +563,7 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		pub fn do_deposit(network: Network, payload: &Vec<u8>) -> Result<(), DispatchError> {
+		pub fn do_deposit(network: Network, payload: &[u8]) -> Result<(), DispatchError> {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
