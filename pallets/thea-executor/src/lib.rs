@@ -636,7 +636,7 @@ pub mod pallet {
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
 			if let Err(error) = Self::do_deposit(network, &deposits) {
-				Self::deposit_event(Event::<T>::DepositFailed(network,deposits));
+				Self::deposit_event(Event::<T>::DepositFailed(network, deposits));
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
