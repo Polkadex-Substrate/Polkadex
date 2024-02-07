@@ -42,6 +42,7 @@ use thea_primitives::{
 	types::{Message, PayloadType},
 	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
+use thea_primitives::types::KeyType;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -479,6 +480,7 @@ pub mod pallet {
 		pub fn add_thea_network(
 			origin: OriginFor<T>,
 			network: Network,
+			requires_uncompressed_key: bool,
 			fork_period: u32,
 			min_stake: u128,
 			fisherman_stake: u128,
@@ -486,7 +488,7 @@ pub mod pallet {
 			ensure_root(origin)?;
 			<NetworkConfig<T>>::insert(
 				network,
-				thea_primitives::types::NetworkConfig { fork_period, min_stake, fisherman_stake },
+				thea_primitives::types::NetworkConfig::new(fork_period, min_stake, fisherman_stake, requires_uncompressed_key),
 			);
 			<ActiveNetworks<T>>::mutate(|list| {
 				list.insert(network);
@@ -746,19 +748,43 @@ impl<T: Config> Pallet<T> {
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
-			// This should happen at the beginning of the last epoch
-			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
-				let payload = validator_set.encode();
-				for network in &active_networks {
-					let message = Self::generate_payload(
-						PayloadType::ScheduledRotateValidators,
-						*network,
-						payload.clone(),
-					);
-					// Update nonce
-					<OutgoingNonce<T>>::insert(message.network, message.nonce);
-					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+			let mut uncompressed_keys = vec![];
+			for public_key in queued.clone().into_iter() {
+				let public_key: sp_core::ecdsa::Public = public_key.into();
+				let compressed_key = libsecp256k1::PublicKey::parse_compressed(&public_key.0).unwrap(); //FIXME: Remove unwrap
+				uncompressed_keys.push(compressed_key.serialize());
+			}
+            for network in &active_networks {
+				let network_config = <NetworkConfig<T>>::get(*network);
+				let message = match network_config.key_type {
+					KeyType::Uncompressed => {
+						if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id) {
+							let message = Self::generate_payload(
+								PayloadType::ScheduledRotateValidators,
+								*network,
+								payload.encode(),
+							);
+							message
+						} else {
+							continue;
+						}
+
 				}
+					KeyType::Compressed => {
+						if let Some(payload) = ValidatorSet::new(queued.clone(), new_id) {
+							let message = Self::generate_payload(
+								PayloadType::ScheduledRotateValidators,
+								*network,
+								payload.encode(),
+							);
+							message
+						} else {
+							continue;
+						}
+					}
+				};
+				<OutgoingNonce<T>>::insert(message.network, message.nonce);
+				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
 			}
 			<NextAuthorities<T>>::put(queued);
 		}

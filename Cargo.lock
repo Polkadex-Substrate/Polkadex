@@ -14057,6 +14057,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hex",
+ "libsecp256k1",
  "log",
  "pallet-asset-conversion",
  "pallet-assets",

@@ -91,7 +91,7 @@ benchmarks! {
 
 	add_thea_network {
 		let network: u8 = 2;
-	}: _(RawOrigin::Root, network, 20, 100*UNIT_BALANCE, 1000*UNIT_BALANCE)
+	}: _(RawOrigin::Root, network, false, 20, 100*UNIT_BALANCE, 1000*UNIT_BALANCE)
 	verify {
 		let active_list = <ActiveNetworks<T>>::get();
 		assert!(active_list.contains(&network));

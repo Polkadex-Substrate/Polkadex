@@ -194,6 +194,7 @@ fn test_add_thea_network_full() {
 			Thea::add_thea_network(
 				RuntimeOrigin::none(),
 				1,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -204,6 +205,7 @@ fn test_add_thea_network_full() {
 			Thea::add_thea_network(
 				RuntimeOrigin::signed(1),
 				1,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -215,6 +217,7 @@ fn test_add_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -228,6 +231,7 @@ fn test_add_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -251,6 +255,7 @@ fn test_remove_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -264,6 +269,7 @@ fn test_remove_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -298,6 +304,7 @@ fn test_report_misbehaviour_happy_path() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
+			key_type: KeyType::Compressed,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -336,6 +343,7 @@ fn test_report_misbehaviour_not_enough_stake() {
 			fork_period: 0,
 			min_stake: 1_000_000_000_000_000_000_000_000_000,
 			fisherman_stake: 1_000_000_000_000_000_000_000_000,
+			key_type: KeyType::Compressed,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -370,6 +378,7 @@ fn test_handle_misbehaviour_happy_path_valid_proposal() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
+			key_type: KeyType::Compressed,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -405,6 +414,7 @@ fn test_handle_misbehaviour_happy_path_invalid_proposal() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
+			key_type: KeyType::Compressed,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -665,6 +675,7 @@ fn test_submit_incoming_message_happy_path_first_message() {
 			fork_period: 0,
 			min_stake: 1 * UNIT_BALANCE,
 			fisherman_stake: 1 * UNIT_BALANCE,
+			key_type: KeyType::Compressed,
 		};
 		<NetworkConfig<Test>>::insert(network_id, network_config);
 		assert_ok!(Thea::submit_incoming_message(
