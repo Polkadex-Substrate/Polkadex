@@ -119,7 +119,8 @@ pub mod pallet {
 			+ RuntimeAppPublic
 			+ MaybeSerializeDeserialize
 			+ Ord
-			+ Into<sp_core::ecdsa::Public>;
+			+ Into<sp_core::ecdsa::Public>
+		    + From<sp_core::ecdsa::Public>;
 
 		/// Authority Signature
 		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
@@ -272,6 +273,8 @@ pub mod pallet {
 		TheaSignatureUpdated(Network, u64, u16),
 		/// Signing completed
 		TheaSignatureFinalized(Network, u64),
+		/// Unable to parse public key
+		UnableToParsePublicKey(T::TheaId)
 	}
 
 	#[pallet::error]
@@ -755,6 +758,9 @@ impl<T: Config> Pallet<T> {
 					uncompressed_keys.push(compressed_key.serialize());
 				} else {
 					log::error!(target: "thea", "Unable to parse compressed key");
+					Self::deposit_event(Event::<T>::UnableToParsePublicKey(
+						public_key.into()
+					));
 				    return;
 				}
 			}
