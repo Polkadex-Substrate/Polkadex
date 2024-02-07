@@ -189,6 +189,8 @@ pub mod pallet {
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, Vec<u8>),
 		/// Withdrawal Ready (Network id )
 		WithdrawalReady(Network),
+		/// Withdrawal Failed ( Network ,Vec<Withdrawal>)
+		WithdrawalFailed(Network, Vec<Withdraw>),
 		/// Thea Public Key Updated ( network, new session id )
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
@@ -242,13 +244,13 @@ pub mod pallet {
 			let mut withdrawal_len = 0;
 			let mut network_len = 0;
 			for (network_id, withdrawal) in pending_withdrawals {
+				withdrawal_len += withdrawal.len();
 				// This is fine as this trait is not supposed to fail
 				if T::Executor::execute_withdrawals(network_id, withdrawal.clone().encode())
 					.is_err()
 				{
-					log::error!("Error while executing withdrawals...");
+					Self::deposit_event(Event::<T>::WithdrawalFailed(network_id, withdrawal))
 				}
-				withdrawal_len += withdrawal.len();
 				network_len += 1;
 			}
 			T::TheaExecWeightInfo::on_initialize(network_len as u32, withdrawal_len as u32)
