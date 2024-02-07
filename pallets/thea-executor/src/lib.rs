@@ -558,6 +558,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[transactional]
 		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
@@ -589,20 +590,23 @@ pub mod pallet {
 				];
 				let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
 				Self::resolve_mint(&Self::thea_account(), deposit.asset_id.into(), deposit_amount)?;
-				let fee_amount = T::Swap::swap_tokens_for_exact_tokens(
+
+				// If swap doesn't work then it will in the system account - thea_account()
+				if let Ok(fee_amount) = T::Swap::swap_tokens_for_exact_tokens(
 					Self::thea_account(),
 					path,
 					amount_out.into(),
 					Some(deposit_amount),
 					deposit.recipient.clone(),
 					false,
-				)?;
-				Self::resolve_transfer(
-					deposit.asset_id.into(),
-					&Self::thea_account(),
-					&deposit.recipient,
-					deposit_amount.saturating_sub(fee_amount),
-				)?;
+				) {
+					Self::resolve_transfer(
+						deposit.asset_id.into(),
+						&Self::thea_account(),
+						&deposit.recipient,
+						deposit_amount.saturating_sub(fee_amount),
+					)?;
+				}
 			} else {
 				Self::resolver_deposit(
 					deposit.asset_id.into(),
