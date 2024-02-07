@@ -598,7 +598,7 @@ pub mod pallet {
 					amount_out.into(),
 					Some(deposit_amount),
 					deposit.recipient.clone(),
-					false,
+					true,
 				) {
 					Self::resolve_transfer(
 						deposit.asset_id.into(),
