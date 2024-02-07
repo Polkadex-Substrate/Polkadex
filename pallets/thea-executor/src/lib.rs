@@ -183,6 +183,8 @@ pub mod pallet {
 		DepositApproved(Network, T::AccountId, u128, u128, Vec<u8>),
 		/// Deposit claimed event ( recipient, asset id, amount, id )
 		DepositClaimed(T::AccountId, u128, u128, Vec<u8>),
+		/// Deposit failed event ( network, encoded deposit)
+		DepositFailed(Network, Vec<u8>),
 		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount, id )
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, Vec<u8>),
 		/// Withdrawal Ready (Network id )
@@ -559,7 +561,7 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
+		pub fn do_deposit(network: Network, payload: &Vec<u8>) -> Result<(), DispatchError> {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
@@ -631,7 +633,8 @@ pub mod pallet {
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
-			if let Err(error) = Self::do_deposit(network, deposits) {
+			if let Err(error) = Self::do_deposit(network, &deposits) {
+				Self::deposit_event(Event::<T>::DepositFailed(network,deposits));
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
