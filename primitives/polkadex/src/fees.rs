@@ -19,7 +19,7 @@
 //! In this module defined operations fee related types.
 
 use codec::{Decode, Encode};
-use rust_decimal::{prelude::Zero, Decimal};
+use rust_decimal::{prelude::{FromPrimitive}, Decimal};
 use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
