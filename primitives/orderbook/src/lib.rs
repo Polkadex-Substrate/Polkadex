@@ -21,7 +21,6 @@
 //! This crate contains common types and operations definition required for the `Orderbook` related
 //! components.
 
-#![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]

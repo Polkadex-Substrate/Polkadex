@@ -20,7 +20,6 @@
 //!
 //! Low-level types used throughout the Substrate code.
 
-#![feature(int_roundings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod assets;
