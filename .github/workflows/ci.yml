@@ -54,6 +54,7 @@ jobs:
       - name: Install dependencies
         run: |
           cat /etc/issue 
+          sudo pkill --signal SIGKILL unattended-upgrades
           apt update
           apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev
       - name: Install latest nightly with wasm target
