@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [labeled]
   push:
-    branches: [Develop, mainnet-release]
+    branches: [Develop, mainnet-release, devops-cicd]
 
 env:
   RUNNER_INSTANCE_TYPE: c5d.4xlarge
