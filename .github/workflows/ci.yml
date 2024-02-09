@@ -33,7 +33,7 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN_REPO }}
-          ec2-image-id: ami-0ced994bdc615e5db # Ubuntu 22 with 500 GB volume
+          ec2-image-id: ami-04fffb9b173db7fb2 # Ubuntu 22 with 500 GB volume
           ec2-instance-type: ${{ env.RUNNER_INSTANCE_TYPE }}
           subnet-id: subnet-a4d326e8
           security-group-id: sg-078363c0f7b5f0b41
@@ -54,8 +54,8 @@ jobs:
       - name: Install dependencies
         run: |
           cat /etc/issue 
-          apt update
-          apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev
+         # apt update  #Steps included in Base AMI
+         # apt install -y clang lldb lld gcc zip protobuf-compiler build-essential curl libssl-dev #Steps included in Base AMI
       - name: Install latest nightly with wasm target
         uses: actions-rs/toolchain@v1
         with:
