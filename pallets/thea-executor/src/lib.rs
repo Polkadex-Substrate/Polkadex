@@ -431,10 +431,10 @@ pub mod pallet {
 						deposits.push(deposit);
 						// Save it back on failure
 						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
-						return Err(err)
+						return Err(err);
 					}
 				} else {
-					break
+					break;
 				}
 			}
 

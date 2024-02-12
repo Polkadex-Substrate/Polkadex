@@ -149,7 +149,7 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 	fn get(&self, key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> Option<DBValue> {
 		log::trace!(target:"ocex","HashDb get, key: {:?}, prefix: {:?}", key,prefix);
 		if key == &self.hashed_null_node() {
-			return Some(self.null_node_data())
+			return Some(self.null_node_data());
 		}
 
 		let key = prefixed_key(key, prefix);
@@ -162,7 +162,7 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 	fn contains(&self, key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) -> bool {
 		log::trace!(target:"ocex","HashDb contains, key: {:?}, prefix: {:?}", key,prefix);
 		if key == &self.hashed_null_node() {
-			return true
+			return true;
 		}
 
 		let key = prefixed_key(key, prefix);
@@ -172,7 +172,7 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> <BlakeTwo256 as Hasher>::Out {
 		log::trace!(target:"ocex","HashDb insert, prefix: {:?}",prefix);
 		if *value == self.null_node_data() {
-			return self.hashed_null_node()
+			return self.hashed_null_node();
 		}
 		let key = BlakeTwo256::hash(value);
 		HashDB::emplace(self, key, prefix, value.into());
@@ -182,7 +182,7 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 	fn emplace(&mut self, key: <BlakeTwo256 as Hasher>::Out, prefix: Prefix, value: DBValue) {
 		log::trace!(target:"ocex","HashDb emplace, key: {:?}, prefix: {:?}", key,prefix);
 		if value == self.null_node_data() {
-			return
+			return;
 		}
 
 		let key = prefixed_key(&key, prefix);
@@ -203,7 +203,7 @@ impl HashDB<BlakeTwo256, DBValue> for State {
 	fn remove(&mut self, key: &<BlakeTwo256 as Hasher>::Out, prefix: Prefix) {
 		log::trace!(target:"ocex","HashDb remove, key: {:?}, prefix: {:?}", key,prefix);
 		if key == &self.hashed_null_node() {
-			return
+			return;
 		}
 
 		let key = prefixed_key(key, prefix);

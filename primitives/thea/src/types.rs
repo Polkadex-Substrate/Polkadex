@@ -265,7 +265,7 @@ pub struct AssetMetadata {
 impl AssetMetadata {
 	pub fn new(decimal: u8) -> Option<AssetMetadata> {
 		if decimal < 1 {
-			return None
+			return None;
 		}
 		Some(AssetMetadata { decimal })
 	}
