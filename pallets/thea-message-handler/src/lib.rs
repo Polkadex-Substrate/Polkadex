@@ -279,7 +279,7 @@ impl<T: Config> Pallet<T> {
 
 		if payload.message.nonce != next_nonce {
 			log::error!(target:"thea","Next nonce: {:?}, incoming nonce: {:?}",next_nonce, payload.message.nonce);
-			return InvalidTransaction::Custom(1).into()
+			return InvalidTransaction::Custom(1).into();
 		}
 
 		let authorities = <Authorities<T>>::get(payload.validator_set_id).to_vec();
@@ -289,7 +289,7 @@ impl<T: Config> Pallet<T> {
 		let threshold = p * authorities.len();
 		if payload.signatures.len() < threshold {
 			log::error!(target:"thea","Threshold: {:?}, Signs len: {:?}",threshold, payload.signatures.len());
-			return InvalidTransaction::Custom(2).into()
+			return InvalidTransaction::Custom(2).into();
 		}
 
 		let encoded_payload = sp_io::hashing::sha2_256(&payload.message.encode());
@@ -326,7 +326,7 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
 		let authorities_len = <Authorities<T>>::get(Self::validator_set_id()).len();
 		if authorities_len == 0 {
-			return Err(Error::<T>::ValidatorSetEmpty.into())
+			return Err(Error::<T>::ValidatorSetEmpty.into());
 		}
 		let nonce = <OutgoingNonce<T>>::get();
 		let payload = Message {

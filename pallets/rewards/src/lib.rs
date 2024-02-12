@@ -189,13 +189,13 @@ pub mod pallet {
 			// check if rewards can be unlocked at current block
 			if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 				ensure!(
-					reward_info.start_block.saturated_into::<u128>() <=
-						<frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
+					reward_info.start_block.saturated_into::<u128>()
+						<= <frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
 					Error::<T>::RewardsCannotBeUnlockYet
 				);
 			} else {
 				//reward id not register yet
-				return Err(Error::<T>::RewardIdNotRegister.into())
+				return Err(Error::<T>::RewardIdNotRegister.into());
 			}
 
 			//check if user has already initialize the reward
@@ -252,14 +252,14 @@ pub mod pallet {
 						//insert reward info into storage
 						<Distributor<T>>::insert(reward_id, user.clone(), reward_info);
 					} else {
-						return Err(Error::<T>::AmountToLowtoInitializeRewards.into())
+						return Err(Error::<T>::AmountToLowtoInitializeRewards.into());
 					}
 				} else {
 					//sanity check
-					return Err(Error::<T>::RewardIdNotRegister.into())
+					return Err(Error::<T>::RewardIdNotRegister.into());
 				}
 			} else {
-				return Err(Error::<T>::UserNotEligible.into())
+				return Err(Error::<T>::UserNotEligible.into());
 			}
 
 			Self::deposit_event(Event::UserUnlockedReward { user, reward_id });
@@ -539,7 +539,7 @@ impl<T: Config> Pallet<T> {
 						.saturated_into::<u128>(),
 					claimable: rewards_claimable,
 				};
-				return Ok(reward_info)
+				return Ok(reward_info);
 			}
 		}
 		Err(Error::<T>::UserNotEligible.into())

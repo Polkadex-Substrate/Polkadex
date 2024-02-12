@@ -29,7 +29,7 @@ fn bit_expression_value(bit_index: usize) -> u128 {
 pub fn set_bit_field(input: &mut [u128], bit_index: usize) -> bool {
 	let element_pos = bit_index.div_floor(128);
 	if element_pos >= input.len() {
-		return false
+		return false;
 	}
 	input[element_pos] |= bit_expression_value(bit_index);
 	true
@@ -59,7 +59,7 @@ pub fn prepare_bitmap(indexes: &Vec<usize>, max_indexes: usize) -> Option<Vec<u1
 	// Sanity check
 	for index in indexes {
 		if *index > max_indexes {
-			return None
+			return None;
 		}
 	}
 
@@ -67,7 +67,7 @@ pub fn prepare_bitmap(indexes: &Vec<usize>, max_indexes: usize) -> Option<Vec<u1
 	let mut bitmap = vec![0u128; total];
 	for index in indexes {
 		if !set_bit_field(&mut bitmap, *index) {
-			return None
+			return None;
 		}
 	}
 	Some(bitmap)

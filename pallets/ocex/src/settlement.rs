@@ -86,7 +86,7 @@ pub fn sub_balance(
 
 	if *account_balance < balance {
 		log::error!(target:"ocex","Asset found but balance low for asset: {:?}, of account: {:?}",asset, account);
-		return Err("NotEnoughBalance")
+		return Err("NotEnoughBalance");
 	}
 	*account_balance = account_balance.saturating_sub(balance);
 
@@ -115,7 +115,7 @@ pub fn process_trade(
 	info!(target: "orderbook", "📒 Processing trade: {:?}", trade);
 	if !trade.verify(config) {
 		error!(target: "orderbook", "📒 Trade verification failed");
-		return Err("InvalidTrade")
+		return Err("InvalidTrade");
 	}
 
 	// Update balances

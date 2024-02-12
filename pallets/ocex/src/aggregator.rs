@@ -97,7 +97,7 @@ impl<T: Config> AggregatorClient<T> {
 			Ok(encoded_batch) => encoded_batch,
 			Err(err) => {
 				log::error!(target:"ocex","Error fetching user actions batch for {:?}: {:?}",id,err);
-				return None
+				return None;
 			},
 		};
 
@@ -123,7 +123,7 @@ impl<T: Config> AggregatorClient<T> {
 			Ok(encoded_checkpoint) => encoded_checkpoint,
 			Err(err) => {
 				log::error!(target:"ocex","Error fetching checkpoint: {:?}",err);
-				return None
+				return None;
 			},
 		};
 
@@ -165,7 +165,7 @@ impl<T: Config> AggregatorClient<T> {
 
 		if response.code != 200u16 {
 			log::warn!(target:"ocex","Unexpected status code for {}: {:?}",log_target,response.code);
-			return Err("request failed")
+			return Err("request failed");
 		}
 
 		let body = response.body().collect::<Vec<u8>>();
