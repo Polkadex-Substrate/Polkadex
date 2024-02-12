@@ -55,7 +55,11 @@ pub trait PolkadexSwapRpcApi<BlockHash> {
 	) -> RpcResult<Option<u128>>;
 
 	#[method(name = "tx_getReserves")]
-	async fn get_reserves(&self, asset_id1: String, asset_id2: String) -> RpcResult<Option<(u128, u128)>>;
+	async fn get_reserves(
+		&self,
+		asset_id1: String,
+		asset_id2: String,
+	) -> RpcResult<Option<(u128, u128)>>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -138,7 +142,8 @@ where
 			AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
 		let asset_id2: AssetId =
 			AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
-		let runtime_api_result = api.get_reserves(at, asset_id1, asset_id2).map_err(runtime_error_into_rpc_err)?;
+		let runtime_api_result =
+			api.get_reserves(at, asset_id1, asset_id2).map_err(runtime_error_into_rpc_err)?;
 		Ok(runtime_api_result)
 	}
 }
