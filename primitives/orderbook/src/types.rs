@@ -165,7 +165,7 @@ impl Trade {
 	pub fn trade_id(&self) -> H256 {
 		let mut data = self.maker.id.as_bytes().to_vec();
 		data.append(&mut self.taker.id.as_bytes().to_vec());
-		H256::from_slice(&data)
+		sp_core::blake2_256(&data).into()
 	}
 }
 
