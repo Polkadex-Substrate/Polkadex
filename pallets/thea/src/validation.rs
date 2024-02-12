@@ -34,7 +34,7 @@ impl<T: Config> Pallet<T> {
 	/// for both solochain and parachain, signs it and submits to aggregator
 	pub fn run_thea_validation(_blk: BlockNumberFor<T>) -> Result<(), &'static str> {
 		if !sp_io::offchain::is_validator() {
-			return Ok(())
+			return Ok(());
 		}
 
 		let id = <ValidatorSetId<T>>::get();
@@ -73,7 +73,7 @@ impl<T: Config> Pallet<T> {
 					// Don't sign again if we already signed it
 					if signed_msg.contains_signature(&(*auth_index as u32)) {
 						log::warn!(target:"thea","Next outgoing nonce for network {:?} is: {:?} is already signed ",network, next_outgoing_nonce);
-						continue
+						continue;
 					}
 				},
 			}

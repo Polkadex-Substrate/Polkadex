@@ -161,7 +161,7 @@ where
 		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let mut offchain_storage = offchain::OffchainStorageAdapter::new(self.offchain_db.clone());
 		if !offchain_storage.acquire_offchain_lock(3).await {
-			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
+			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"));
 		}
 		log::info!(target:"ocex","calculating the inventory deviation..");
 		let deviation =
@@ -170,7 +170,7 @@ where
 					log::error!(target:"ocex","Error calling calculate_inventory_deviation: {:?}",err);
 					return Err(runtime_error_into_rpc_err(
 						"Error calling calculate_inventory_deviation ",
-					))
+					));
 				},
 				Ok(deviation_map) => DeviationMap::new(deviation_map),
 			};
@@ -193,7 +193,7 @@ where
 		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let mut offchain_storage = offchain::OffchainStorageAdapter::new(self.offchain_db.clone());
 		if !offchain_storage.acquire_offchain_lock(RETRIES).await {
-			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"))
+			return Err(runtime_error_into_rpc_err("Failed to acquire offchain lock"));
 		}
 		let ob_checkpoint_raw = api
 			.fetch_checkpoint(at)

@@ -55,7 +55,7 @@ impl<T: OffchainStorage> OffchainStorageAdapter<T> {
 				Some(&old_value),
 				&new_value,
 			) {
-				return true
+				return true;
 			}
 			// Wait for 1 sec
 			tokio::time::sleep(std::time::Duration::from_secs(1)).await;

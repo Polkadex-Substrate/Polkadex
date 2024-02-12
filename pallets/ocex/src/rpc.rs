@@ -57,7 +57,7 @@ impl<T: Config> Pallet<T> {
 				})
 				.is_ok()
 			{
-				return Ok(())
+				return Ok(());
 			}
 		}
 		Err(DispatchError::Other("Offchain storage mutex error"))
