@@ -18,12 +18,10 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 /// A structure that represents the rewards information associated with an account.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct RewardsInfoByAccount<Balance: Default> {
 	/// The total amount of rewards that have been claimed by the account.
 	pub claimed: Balance,
@@ -36,4 +34,17 @@ pub struct RewardsInfoByAccount<Balance: Default> {
 	/// The total amount of rewards that are claimable by the account, meaning
 	/// the rewards are currently available for the account to claim.
 	pub claimable: Balance,
+}
+
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ExchangePayloadAction{
+	Initialize,
+	Claim
+}
+
+#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExchangePayload<AccountId> {
+	pub reward_id: u32,
+	pub action: ExchangePayloadAction,
+	pub user: AccountId
 }

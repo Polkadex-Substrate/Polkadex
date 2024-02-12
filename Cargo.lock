@@ -7393,6 +7393,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadex-primitives",
  "scale-info",
+ "serde_json",
  "sp-core",
  "sp-io",
  "sp-runtime",
