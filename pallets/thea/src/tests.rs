@@ -194,6 +194,7 @@ fn test_add_thea_network_full() {
 			Thea::add_thea_network(
 				RuntimeOrigin::none(),
 				1,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -204,6 +205,7 @@ fn test_add_thea_network_full() {
 			Thea::add_thea_network(
 				RuntimeOrigin::signed(1),
 				1,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -215,6 +217,7 @@ fn test_add_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -228,6 +231,7 @@ fn test_add_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -251,6 +255,7 @@ fn test_remove_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -264,6 +269,7 @@ fn test_remove_thea_network_full() {
 			assert_ok!(Thea::add_thea_network(
 				RuntimeOrigin::root(),
 				net,
+				false,
 				20,
 				100 * UNIT_BALANCE,
 				1000 * UNIT_BALANCE
@@ -298,6 +304,7 @@ fn test_report_misbehaviour_happy_path() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -336,6 +343,7 @@ fn test_report_misbehaviour_not_enough_stake() {
 			fork_period: 0,
 			min_stake: 1_000_000_000_000_000_000_000_000_000,
 			fisherman_stake: 1_000_000_000_000_000_000_000_000,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -370,6 +378,7 @@ fn test_handle_misbehaviour_happy_path_valid_proposal() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -405,6 +414,7 @@ fn test_handle_misbehaviour_happy_path_invalid_proposal() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -502,7 +512,7 @@ fn test_on_initialize_happy_path() {
 		networks.insert(network);
 		<ActiveNetworks<Test>>::put(networks);
 		// Update next Nonce
-		let nonce = 1;
+		let nonce = 0;
 		<IncomingNonce<Test>>::insert(network, nonce);
 		let relayer = 1u64;
 		// Mint Balance
@@ -519,9 +529,9 @@ fn test_on_initialize_happy_path() {
 			data: vec![],
 		};
 		let incoming_message = IncomingMessage { message, relayer, stake, execute_at: 0 };
-		<IncomingMessagesQueue<Test>>::insert(network, nonce, incoming_message);
+		<IncomingMessagesQueue<Test>>::insert(network, nonce.saturating_add(1), incoming_message);
 		Thea::on_initialize(1);
-		assert_eq!(<IncomingNonce<Test>>::get(network), 2);
+		assert_eq!(<IncomingNonce<Test>>::get(network), 1);
 		assert_eq!(Balances::free_balance(&relayer), 100 * UNIT_BALANCE);
 	})
 }
@@ -665,8 +675,10 @@ fn test_submit_incoming_message_happy_path_first_message() {
 			fork_period: 0,
 			min_stake: 1 * UNIT_BALANCE,
 			fisherman_stake: 1 * UNIT_BALANCE,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network_id, network_config);
+		<AllowListTestingRelayers<Test>>::insert(network_id, relayer);
 		assert_ok!(Thea::submit_incoming_message(
 			RuntimeOrigin::signed(relayer),
 			message.clone(),
@@ -683,6 +695,7 @@ fn test_submit_incoming_message_happy_path_first_message() {
 			data: vec![1u8; 10],
 		};
 		let new_stake = 2 * UNIT_BALANCE;
+		<AllowListTestingRelayers<Test>>::insert(network_id, relayer_2);
 		assert_ok!(Thea::submit_incoming_message(
 			RuntimeOrigin::signed(relayer_2),
 			message_two.clone(),

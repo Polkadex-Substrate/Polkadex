@@ -287,7 +287,7 @@ pub mod pallet {
 			for lock in locks {
 				if lock.id == MIGRATION_LOCK {
 					amount_to_burn = lock.amount;
-					break
+					break;
 				}
 			}
 
@@ -375,8 +375,8 @@ pub mod pallet {
 		/// * `beneficiary`: Account to remove lock from.
 		pub fn process_unlock(beneficiary: T::AccountId) -> Result<(), Error<T>> {
 			if let Some(locked_block) = LockedTokenHolders::<T>::take(&beneficiary) {
-				if locked_block + T::LockPeriod::get() <=
-					frame_system::Pallet::<T>::current_block_number()
+				if locked_block + T::LockPeriod::get()
+					<= frame_system::Pallet::<T>::current_block_number()
 				{
 					pallet_balances::Pallet::<T>::remove_lock(MIGRATION_LOCK, &beneficiary);
 					Ok(())

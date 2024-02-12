@@ -128,7 +128,7 @@ fn test_deposit_with_valid_args_returns_ok() {
 			amount: 1_000_000_000_000_000_000u128,
 			extra: vec![],
 		};
-		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
+		assert_ok!(TheaExecutor::do_deposit(1, &vec![deposit].encode()));
 	})
 }
 
@@ -471,7 +471,7 @@ fn test_claim_deposit_returns_ok() {
 			amount: 1_000_000_000_000_000_000u128,
 			extra: vec![],
 		};
-		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
+		assert_ok!(TheaExecutor::do_deposit(1, &vec![deposit].encode()));
 		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, recipient));
 	})
 }
@@ -498,7 +498,7 @@ fn test_claim_deposit_returns_asset_not_registered() {
 			extra: vec![],
 		};
 		assert_noop!(
-			TheaExecutor::do_deposit(1, vec![deposit].encode()),
+			TheaExecutor::do_deposit(1, &vec![deposit].encode()),
 			crate::Error::<Test>::AssetNotRegistered
 		);
 	})
