@@ -304,7 +304,7 @@ fn test_report_misbehaviour_happy_path() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
-			key_type: NetworkType::Parachain,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -343,7 +343,7 @@ fn test_report_misbehaviour_not_enough_stake() {
 			fork_period: 0,
 			min_stake: 1_000_000_000_000_000_000_000_000_000,
 			fisherman_stake: 1_000_000_000_000_000_000_000_000,
-			key_type: NetworkType::Parachain,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -378,7 +378,7 @@ fn test_handle_misbehaviour_happy_path_valid_proposal() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
-			key_type: NetworkType::Parachain,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -414,7 +414,7 @@ fn test_handle_misbehaviour_happy_path_invalid_proposal() {
 			fork_period: 0,
 			min_stake: 1_000_000,
 			fisherman_stake: 1_000_000,
-			key_type: NetworkType::Parachain,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network, config);
 		let relayer = 1u64;
@@ -675,7 +675,7 @@ fn test_submit_incoming_message_happy_path_first_message() {
 			fork_period: 0,
 			min_stake: 1 * UNIT_BALANCE,
 			fisherman_stake: 1 * UNIT_BALANCE,
-			key_type: NetworkType::Parachain,
+			network_type: NetworkType::Parachain,
 		};
 		<NetworkConfig<Test>>::insert(network_id, network_config);
 		<AllowListTestingRelayers<Test>>::insert(network_id, relayer);

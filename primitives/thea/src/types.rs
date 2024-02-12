@@ -136,7 +136,7 @@ pub struct NetworkConfig {
 	pub fork_period: u32,
 	pub min_stake: u128,
 	pub fisherman_stake: u128,
-	pub key_type: NetworkType,
+	pub network_type: NetworkType,
 }
 
 impl Default for NetworkConfig {
@@ -145,7 +145,7 @@ impl Default for NetworkConfig {
 			fork_period: 20,
 			min_stake: 1000 * UNIT_BALANCE,
 			fisherman_stake: 100 * UNIT_BALANCE,
-			key_type: NetworkType::Parachain,
+			network_type: NetworkType::Parachain,
 		}
 	}
 }
@@ -153,7 +153,7 @@ impl Default for NetworkConfig {
 impl NetworkConfig {
 	pub fn new(fork_period: u32, min_stake: u128, fisherman_stake: u128, is_evm: bool) -> Self {
 		let key_type = if is_evm { NetworkType::Evm } else { NetworkType::Parachain };
-		Self { fork_period, min_stake, fisherman_stake, key_type }
+		Self { fork_period, min_stake, fisherman_stake, network_type: key_type }
 	}
 }
 

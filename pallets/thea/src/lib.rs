@@ -777,7 +777,7 @@ impl<T: Config> Pallet<T> {
 			}
 			for network in &active_networks {
 				let network_config = <NetworkConfig<T>>::get(*network);
-				let message = match network_config.key_type {
+				let message = match network_config.network_type {
 					NetworkType::Evm => {
 						if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id)
 						{
