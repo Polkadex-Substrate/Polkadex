@@ -21,7 +21,6 @@
 //! This crate contains common types and operations definition required for the `Thea` related
 //! components.
 
-#![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
