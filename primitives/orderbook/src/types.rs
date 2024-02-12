@@ -160,6 +160,13 @@ impl Trade {
             self.maker.verify_config(&config) &
             self.taker.verify_config(&config)
 	}
+
+	/// Returns the unique trade id for given trade.
+	pub fn trade_id(&self) -> H256 {
+		let mut data = self.maker.id.as_bytes().to_vec();
+		data.append(&mut self.taker.id.as_bytes().to_vec());
+		H256::from_slice(&data)
+	}
 }
 
 /// Defines "Orderbook" message structure DTO.
