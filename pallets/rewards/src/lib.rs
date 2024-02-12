@@ -274,7 +274,8 @@ pub mod pallet {
 		/// * `id`: The reward id.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::claim())]
-		pub fn claim(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
+		pub fn claim
+		(origin: OriginFor<T>, reward_id: u32) -> DispatchResult {
 			let user: T::AccountId = ensure_signed(origin)?;
 			<Distributor<T>>::mutate(reward_id, user.clone(), |user_reward_info| {
 				if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
