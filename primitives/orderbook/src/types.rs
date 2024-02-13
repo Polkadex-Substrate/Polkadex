@@ -709,6 +709,52 @@ impl Ord for OrderKey {
 	}
 }
 
+impl PartialOrd for Order {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for Order {
+	fn cmp(&self, other: &Self) -> Ordering {
+		assert_eq!(self.side, other.side, "Comparison cannot work for opposite order sides");
+		if self.side == OrderSide::Bid {
+			// Buy side
+			match self.price.cmp(&other.price) {
+				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
+				Ordering::Less => Ordering::Less,
+				// A.price == B.price => Order based on timestamp
+				Ordering::Equal => {
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					}
+				},
+				// A.price > B.price => [A, B]
+				Ordering::Greater => Ordering::Greater,
+			}
+		} else {
+			// Sell side
+			match self.price.cmp(&other.price) {
+				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
+				Ordering::Less => Ordering::Greater,
+				// A.price == B.price => Order based on timestamp
+				Ordering::Equal => {
+					// If price is equal, we follow the FIFO priority
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					}
+				},
+				// A.price > B.price => [B, A]
+				Ordering::Greater => Ordering::Less,
+			}
+		}
+	}
+}
+
 #[cfg(feature = "std")]
 impl Order {
 	/// Computes the new avg_price and adds qty to filled_qty. If returned is false - then underflow
