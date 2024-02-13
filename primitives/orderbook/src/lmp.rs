@@ -74,7 +74,7 @@ impl LMPEpochConfig {
 			total_percent = total_percent.saturating_add(*percent);
 		}
 		if total_percent != Decimal::one() {
-			return false
+			return false;
 		}
 
 		// Make sure all three maps' keys are identical
@@ -83,7 +83,7 @@ impl LMPEpochConfig {
 		let keys3: Vec<_> = self.min_maker_volume.keys().collect();
 
 		if keys1 != keys2 || keys2 != keys3 {
-			return false
+			return false;
 		}
 		true
 	}

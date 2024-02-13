@@ -23,9 +23,9 @@ use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
+use rust_decimal::Decimal;
 #[cfg(feature = "std")]
-use rust_decimal::{RoundingStrategy, prelude::Zero};
-use rust_decimal::{Decimal};
+use rust_decimal::{prelude::Zero, RoundingStrategy};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -52,7 +52,9 @@ pub struct AccountInfo {
 }
 
 /// Defines account to asset map DTO to be used in the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo, Serialize, Deserialize,
+)]
 pub struct AccountAsset {
 	/// Main account identifier.
 	pub main: AccountId,
@@ -73,7 +75,7 @@ impl AccountAsset {
 }
 
 /// Defines trade related structure DTO.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo , Serialize, Deserialize)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct Trade {
 	/// Market order.
 	pub maker: Order,
@@ -102,8 +104,9 @@ impl Trade {
 				AccountAsset { main: user.main_account.clone(), asset: quote },
 				self.price.mul(&self.amount),
 			),
-			OrderSide::Bid =>
-				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount),
+			OrderSide::Bid => {
+				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount)
+			},
 		}
 	}
 
@@ -117,8 +120,9 @@ impl Trade {
 		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
-			OrderSide::Ask =>
-				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount),
+			OrderSide::Ask => {
+				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount)
+			},
 			OrderSide::Bid => (
 				AccountAsset { main: user.main_account.clone(), asset: quote },
 				self.price.mul(&self.amount),
@@ -319,7 +323,21 @@ pub struct WithdrawPayloadCallByUser {
 }
 
 /// Defines possible order sides variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Clone,
+	Hash,
+	Ord,
+	PartialOrd,
+	Debug,
+	Eq,
+	PartialEq,
+	TypeInfo,
+	Serialize,
+	Deserialize,
+)]
 pub enum OrderSide {
 	/// Asking order side.
 	Ask,
@@ -351,7 +369,9 @@ impl TryFrom<String> for OrderSide {
 }
 
 /// Defines possible order types variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize,
+)]
 pub enum OrderType {
 	/// Order limit type.
 	LIMIT,
@@ -373,7 +393,9 @@ impl TryFrom<String> for OrderType {
 }
 
 /// Defines possible order statuses variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize,
+)]
 pub enum OrderStatus {
 	/// Order open.
 	OPEN,
@@ -423,7 +445,7 @@ impl From<OrderStatus> for String {
 	TypeInfo,
 	MaxEncodedLen,
 	Serialize,
-	Deserialize
+	Deserialize,
 )]
 pub struct TradingPair {
 	/// Base asset identifier.
@@ -437,7 +459,7 @@ impl TryFrom<String> for TradingPair {
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		let assets: Vec<&str> = value.split('-').collect();
 		if assets.len() != 2 {
-			return Err("Invalid String")
+			return Err("Invalid String");
 		}
 
 		let base_asset = if assets[0] == String::from("PDEX").as_str() {
@@ -587,28 +609,30 @@ impl Order {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
 		let result = match self.order_type {
-			OrderType::LIMIT =>
-				is_market_same &&
-					self.price >= config.min_price &&
-					self.price <= config.max_price &&
-					self.qty >= config.min_qty &&
-					self.qty <= config.max_qty &&
-					self.price.rem(config.price_tick_size).is_zero() &&
-					self.qty.rem(config.qty_step_size).is_zero(),
-			OrderType::MARKET =>
+			OrderType::LIMIT => {
+				is_market_same
+					&& self.price >= config.min_price
+					&& self.price <= config.max_price
+					&& self.qty >= config.min_qty
+					&& self.qty <= config.max_qty
+					&& self.price.rem(config.price_tick_size).is_zero()
+					&& self.qty.rem(config.qty_step_size).is_zero()
+			},
+			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
-					is_market_same &&
-						self.qty >= config.min_qty &&
-						self.qty <= config.max_qty &&
-						self.qty.rem(config.qty_step_size).is_zero()
+					is_market_same
+						&& self.qty >= config.min_qty
+						&& self.qty <= config.max_qty
+						&& self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
-					is_market_same &&
-						self.quote_order_qty >= (config.min_qty * config.min_price) &&
-						self.quote_order_qty <= (config.max_qty * config.max_price) &&
-						self.quote_order_qty.rem(config.price_tick_size).is_zero()
-				},
+					is_market_same
+						&& self.quote_order_qty >= (config.min_qty * config.min_price)
+						&& self.quote_order_qty <= (config.max_qty * config.max_price)
+						&& self.quote_order_qty.rem(config.price_tick_size).is_zero()
+				}
+			},
 		};
 		if !result {
 			log::error!(target:"orderbook","pair config verification failed: config: {:?}, price: {:?}, qty: {:?}, quote_order_qty: {:?}", config, self.price, self.qty, self.quote_order_qty);
@@ -625,15 +649,27 @@ impl Order {
 		}
 		result
 	}
+
+	/// Returns the key used for storing in orderbook
+	pub fn key(&self) -> OrderKey {
+		OrderKey { price: self.price, timestamp: self.timestamp, side: self.side }
+	}
 }
 
-impl PartialOrd for Order {
+#[derive(PartialEq, Eq)]
+pub struct OrderKey {
+	price: Decimal,
+	timestamp: i64,
+	side: OrderSide,
+}
+
+impl PartialOrd for OrderKey {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(self.cmp(other))
 	}
 }
 
-impl Ord for Order {
+impl Ord for OrderKey {
 	fn cmp(&self, other: &Self) -> Ordering {
 		assert_eq!(self.side, other.side, "Comparison cannot work for opposite order sides");
 		if self.side == OrderSide::Bid {
@@ -642,12 +678,13 @@ impl Ord for Order {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
 				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal =>
+				Ordering::Equal => {
 					if self.timestamp < other.timestamp {
 						Ordering::Greater
 					} else {
 						Ordering::Less
-					},
+					}
+				},
 				// A.price > B.price => [A, B]
 				Ordering::Greater => Ordering::Greater,
 			}
@@ -711,7 +748,7 @@ impl Order {
 			return Self::rounding_off(
 				self.quote_order_qty
 					.saturating_sub(self.avg_filled_price.saturating_mul(self.filled_quantity)),
-			)
+			);
 		}
 		//this is for market ask order
 		if self.order_type == OrderType::MARKET {
@@ -866,9 +903,9 @@ impl TryFrom<OrderDetails> for Order {
 					}
 				} else {
 					Err("Qty couldn't be converted to decimal")
-				}
+				};
 			}
-			return Err("Price couldn't be parsed")
+			return Err("Price couldn't be parsed");
 		}
 		Err("Qty could not be parsed")
 	}
