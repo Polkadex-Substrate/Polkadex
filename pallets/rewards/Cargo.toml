@@ -20,6 +20,7 @@ sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
+serde_json = {workspace = true, default-features = false}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -39,6 +40,7 @@ std = [
   "sp-std/std",
   "polkadex-primitives/std",
   "pallet-timestamp/std",
+  "serde_json/std"
 ]
 
 runtime-benchmarks = [
