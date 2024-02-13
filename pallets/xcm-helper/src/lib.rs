@@ -597,8 +597,8 @@ pub mod pallet {
 		/// Retrieves the existing assetid for given assetid or generates and stores a new assetid
 		pub fn generate_asset_id_for_parachain(asset: AssetId) -> u128 {
 			// Check if its native or not.
-			if asset
-				== AssetId::Concrete(MultiLocation {
+			if asset ==
+				AssetId::Concrete(MultiLocation {
 					parents: 1,
 					interior: Junctions::X1(Parachain(T::ParachainId::get())),
 				}) {

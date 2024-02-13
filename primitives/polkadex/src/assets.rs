@@ -208,12 +208,10 @@ impl Serialize for AssetId {
 		S: Serializer,
 	{
 		match *self {
-			AssetId::Asset(ref id) => {
-				serializer.serialize_newtype_variant("asset_id", 0, "asset", &id.to_string())
-			},
-			AssetId::Polkadex => {
-				serializer.serialize_newtype_variant("asset_id", 1, "asset", "PDEX")
-			},
+			AssetId::Asset(ref id) =>
+				serializer.serialize_newtype_variant("asset_id", 0, "asset", &id.to_string()),
+			AssetId::Polkadex =>
+				serializer.serialize_newtype_variant("asset_id", 1, "asset", "PDEX"),
 		}
 	}
 }
@@ -277,9 +275,8 @@ impl TryFrom<String> for AssetId {
 
 		match value.parse::<u128>() {
 			Ok(id) => Ok(AssetId::Asset(id)),
-			Err(_) => {
-				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}")))
-			},
+			Err(_) =>
+				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}"))),
 		}
 	}
 }

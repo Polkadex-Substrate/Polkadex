@@ -31,28 +31,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
-use frame_support::traits::LockableCurrency;
-use frame_support::traits::WithdrawReasons;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	pallet_prelude::{Get, Weight},
-	traits::{Currency, ExistenceRequirement, LockIdentifier},
+	traits::{Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons},
 };
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use sp_runtime::traits::Verify;
-use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction};
 use sp_runtime::{
-	traits::{AccountIdConversion, UniqueSaturatedInto},
+	traits::{AccountIdConversion, UniqueSaturatedInto, Verify},
+	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
 	SaturatedConversion, Saturating,
 };
 use sp_std::{cmp::min, prelude::*};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-use polkadex_primitives::rewards::ExchangePayload;
-use polkadex_primitives::AccountId;
+use polkadex_primitives::{rewards::ExchangePayload, AccountId};
 
 /// A type alias for the balance type from this pallet's point of view.
 type BalanceOf<T> =
@@ -143,12 +139,10 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::unsigned_initialize_claim_rewards { payload, signature } => {
-					Self::validate_unsigned_initialize_claim_rewards(payload, signature)
-				},
-				Call::unsigned_claim { payload, signature } => {
-					Self::validate_unsigned_claim(payload, signature)
-				},
+				Call::unsigned_initialize_claim_rewards { payload, signature } =>
+					Self::validate_unsigned_initialize_claim_rewards(payload, signature),
+				Call::unsigned_claim { payload, signature } =>
+					Self::validate_unsigned_claim(payload, signature),
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -371,8 +365,8 @@ impl<T: Config> Pallet<T> {
 				.ok_or(InvalidTransaction::Custom(1))?;
 
 		// Allowed only if there is min of 1 PDEX to claim
-		if reward_info.total_reward_amount.saturating_sub(reward_info.claim_amount)
-			< 1000_000_000_000u128.saturated_into::<BalanceOf<T>>()
+		if reward_info.total_reward_amount.saturating_sub(reward_info.claim_amount) <
+			1_000_000_000_000_u128.saturated_into::<BalanceOf<T>>()
 		{
 			return InvalidTransaction::Custom(2).into();
 		}
@@ -398,10 +392,9 @@ impl<T: Config> Pallet<T> {
 		let account_in_vec: [u8; 32] =
 			payload.user.encode().try_into().map_err(|_| InvalidTransaction::Custom(3))?;
 
-		if crowdloan_rewardees::HASHMAP
+		if !crowdloan_rewardees::HASHMAP
 			.iter()
-			.find(|a| a.0 == AccountId::new(account_in_vec))
-			.is_none()
+			.any(|a| a.0 == AccountId::new(account_in_vec))
 		{
 			return InvalidTransaction::Custom(4).into();
 		}
@@ -453,8 +446,8 @@ impl<T: Config> Pallet<T> {
 						user_reward_info
 							.total_reward_amount
 							.saturated_into::<u128>()
-							.saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>())
-							>= rewards_claimable,
+							.saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>()) >=
+							rewards_claimable,
 						Error::<T>::AllRewardsAlreadyClaimed
 					);
 
@@ -512,8 +505,8 @@ impl<T: Config> Pallet<T> {
 		// check if rewards can be unlocked at current block
 		if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 			ensure!(
-				reward_info.start_block.saturated_into::<u128>()
-					<= <frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
+				reward_info.start_block.saturated_into::<u128>() <=
+					<frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
 				Error::<T>::RewardsCannotBeUnlockYet
 			);
 		} else {

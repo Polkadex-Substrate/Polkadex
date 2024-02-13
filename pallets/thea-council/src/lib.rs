@@ -330,9 +330,8 @@ pub mod pallet {
 		fn execute_proposal(proposal: Proposal<T::AccountId>) -> DispatchResult {
 			match proposal {
 				Proposal::AddNewMember(new_member) => Self::execute_add_member(new_member),
-				Proposal::RemoveExistingMember(member_to_be_removed) => {
-					Self::execute_remove_member(member_to_be_removed)
-				},
+				Proposal::RemoveExistingMember(member_to_be_removed) =>
+					Self::execute_remove_member(member_to_be_removed),
 			}
 		}
 
