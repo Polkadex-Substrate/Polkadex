@@ -658,9 +658,9 @@ impl Order {
 
 #[derive(PartialEq, Eq)]
 pub struct OrderKey {
-	price: Decimal,
-	timestamp: i64,
-	side: OrderSide,
+	pub price: Decimal,
+	pub timestamp: i64,
+	pub side: OrderSide,
 }
 
 impl PartialOrd for OrderKey {
