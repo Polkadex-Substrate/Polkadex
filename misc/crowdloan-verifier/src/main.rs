@@ -112,9 +112,9 @@ fn main() {
 				let total_rewards_list = Decimal::from(details.0).div(unit);
 				let cliff_amt_list = Decimal::from(details.1).div(unit);
 				let claim_per_blk_list = Decimal::from(details.2).div(unit);
-				if (total_rewards != total_rewards_list) ||
-					(cliff_amt != cliff_amt_list) ||
-					(claim_per_blk != claim_per_blk_list)
+				if (total_rewards != total_rewards_list)
+					|| (cliff_amt != cliff_amt_list)
+					|| (claim_per_blk != claim_per_blk_list)
 				{
 					println!("ERROR IN REWARDS INFO");
 					println!(

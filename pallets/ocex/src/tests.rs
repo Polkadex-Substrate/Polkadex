@@ -1951,8 +1951,8 @@ fn collect_fees() {
 
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance +
-				UNIT_BALANCE + snapshot.withdrawals[0]
+			initial_balance
+				+ UNIT_BALANCE + snapshot.withdrawals[0]
 				.fees
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()
@@ -1960,8 +1960,8 @@ fn collect_fees() {
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance -
-				UNIT_BALANCE - snapshot.withdrawals[0]
+			initial_balance
+				- UNIT_BALANCE - snapshot.withdrawals[0]
 				.fees
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()

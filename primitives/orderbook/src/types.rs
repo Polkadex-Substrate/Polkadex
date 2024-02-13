@@ -105,8 +105,9 @@ impl Trade {
 				AccountAsset { main: user.main_account.clone(), asset: quote },
 				self.price.mul(&self.amount),
 			),
-			OrderSide::Bid =>
-				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount),
+			OrderSide::Bid => {
+				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount)
+			},
 		}
 	}
 
@@ -120,8 +121,9 @@ impl Trade {
 		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
-			OrderSide::Ask =>
-				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount),
+			OrderSide::Ask => {
+				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount)
+			},
 			OrderSide::Bid => (
 				AccountAsset { main: user.main_account.clone(), asset: quote },
 				self.price.mul(&self.amount),
@@ -567,27 +569,28 @@ impl Order {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
 		let result = match self.order_type {
-			OrderType::LIMIT =>
-				is_market_same &&
-					self.price >= config.min_price &&
-					self.price <= config.max_price &&
-					self.qty >= config.min_qty &&
-					self.qty <= config.max_qty &&
-					self.price.rem(config.price_tick_size).is_zero() &&
-					self.qty.rem(config.qty_step_size).is_zero(),
+			OrderType::LIMIT => {
+				is_market_same
+					&& self.price >= config.min_price
+					&& self.price <= config.max_price
+					&& self.qty >= config.min_qty
+					&& self.qty <= config.max_qty
+					&& self.price.rem(config.price_tick_size).is_zero()
+					&& self.qty.rem(config.qty_step_size).is_zero()
+			},
 			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
-					is_market_same &&
-						self.qty >= config.min_qty &&
-						self.qty <= config.max_qty &&
-						self.qty.rem(config.qty_step_size).is_zero()
+					is_market_same
+						&& self.qty >= config.min_qty
+						&& self.qty <= config.max_qty
+						&& self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
-					is_market_same &&
-						self.quote_order_qty >= (config.min_qty * config.min_price) &&
-						self.quote_order_qty <= (config.max_qty * config.max_price) &&
-						self.quote_order_qty.rem(config.price_tick_size).is_zero()
+					is_market_same
+						&& self.quote_order_qty >= (config.min_qty * config.min_price)
+						&& self.quote_order_qty <= (config.max_qty * config.max_price)
+						&& self.quote_order_qty.rem(config.price_tick_size).is_zero()
 				}
 			},
 		};
@@ -623,12 +626,13 @@ impl Ord for Order {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
 				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal =>
+				Ordering::Equal => {
 					if self.timestamp < other.timestamp {
 						Ordering::Greater
 					} else {
 						Ordering::Less
-					},
+					}
+				},
 				// A.price > B.price => [A, B]
 				Ordering::Greater => Ordering::Greater,
 			}

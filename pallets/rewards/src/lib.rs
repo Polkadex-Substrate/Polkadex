@@ -139,10 +139,12 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::unsigned_initialize_claim_rewards { payload, signature } =>
-					Self::validate_unsigned_initialize_claim_rewards(payload, signature),
-				Call::unsigned_claim { payload, signature } =>
-					Self::validate_unsigned_claim(payload, signature),
+				Call::unsigned_initialize_claim_rewards { payload, signature } => {
+					Self::validate_unsigned_initialize_claim_rewards(payload, signature)
+				},
+				Call::unsigned_claim { payload, signature } => {
+					Self::validate_unsigned_claim(payload, signature)
+				},
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -365,8 +367,8 @@ impl<T: Config> Pallet<T> {
 				.ok_or(InvalidTransaction::Custom(1))?;
 
 		// Allowed only if there is min of 1 PDEX to claim
-		if reward_info.total_reward_amount.saturating_sub(reward_info.claim_amount) <
-			1_000_000_000_000_u128.saturated_into::<BalanceOf<T>>()
+		if reward_info.total_reward_amount.saturating_sub(reward_info.claim_amount)
+			< 1_000_000_000_000_u128.saturated_into::<BalanceOf<T>>()
 		{
 			return InvalidTransaction::Custom(2).into();
 		}
@@ -446,8 +448,8 @@ impl<T: Config> Pallet<T> {
 						user_reward_info
 							.total_reward_amount
 							.saturated_into::<u128>()
-							.saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>()) >=
-							rewards_claimable,
+							.saturating_sub(user_reward_info.claim_amount.saturated_into::<u128>())
+							>= rewards_claimable,
 						Error::<T>::AllRewardsAlreadyClaimed
 					);
 
@@ -505,8 +507,8 @@ impl<T: Config> Pallet<T> {
 		// check if rewards can be unlocked at current block
 		if let Some(reward_info) = <InitializeRewards<T>>::get(reward_id) {
 			ensure!(
-				reward_info.start_block.saturated_into::<u128>() <=
-					<frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
+				reward_info.start_block.saturated_into::<u128>()
+					<= <frame_system::Pallet<T>>::block_number().saturated_into::<u128>(),
 				Error::<T>::RewardsCannotBeUnlockYet
 			);
 		} else {

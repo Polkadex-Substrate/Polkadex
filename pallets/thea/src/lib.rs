@@ -355,8 +355,9 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::submit_signed_outgoing_messages { auth_index, signatures, id } =>
-					Self::validate_signed_outgoing_message(auth_index, id, signatures),
+				Call::submit_signed_outgoing_messages { auth_index, signatures, id } => {
+					Self::validate_signed_outgoing_message(auth_index, id, signatures)
+				},
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -570,8 +571,8 @@ pub mod pallet {
 			let fisherman = ensure_signed(origin)?;
 			let config = <NetworkConfig<T>>::get(network);
 			//  Check if min stake is given
-			if T::Currency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite) <
-				config.fisherman_stake.saturated_into()
+			if T::Currency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite)
+				< config.fisherman_stake.saturated_into()
 			{
 				return Err(Error::<T>::NotEnoughStake.into());
 			}
@@ -696,10 +697,11 @@ impl<T: Config> Pallet<T> {
 			// Reject if it contains already submitted message signatures
 			match <SignedOutgoingMessages<T>>::get(network, nonce) {
 				None => {},
-				Some(signed_msg) =>
+				Some(signed_msg) => {
 					if signed_msg.contains_signature(auth_index) {
 						return InvalidTransaction::Custom(4).into();
-					},
+					}
+				},
 			}
 
 			let message = match <OutgoingMessages<T>>::get(network, nonce) {

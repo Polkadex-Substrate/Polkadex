@@ -359,8 +359,9 @@ impl<T: Config> Pallet<T> {
 					let withdrawal = Self::withdraw(request, state, 0)?;
 					withdrawals.push(withdrawal);
 				},
-				UserActions::BlockImport(blk) =>
-					Self::import_blk((*blk).saturated_into(), state, state_info)?,
+				UserActions::BlockImport(blk) => {
+					Self::import_blk((*blk).saturated_into(), state, state_info)?
+				},
 				UserActions::Reset => {}, // Not for offchain worker
 				UserActions::WithdrawV1(request, stid) => {
 					let withdrawal = Self::withdraw(request, state, *stid)?;
