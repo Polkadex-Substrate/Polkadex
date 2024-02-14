@@ -776,7 +776,9 @@ impl<T: Config> Pallet<T> {
 						uncompressed_keys.push(address);
 					} else {
 						log::error!(target: "thea", "Unable to slice last 20 bytes of hash for Evm");
-						Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(public_key.into()));
+						Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
+							public_key.into(),
+						));
 						return;
 					}
 				} else {
