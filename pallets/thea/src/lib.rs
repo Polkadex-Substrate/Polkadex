@@ -760,6 +760,10 @@ impl<T: Config> Pallet<T> {
 			let mut uncompressed_keys: Vec<[u8; 20]> = vec![];
 			for public_key in queued.clone().into_iter() {
 				let public_key: sp_core::ecdsa::Public = public_key.into();
+				if public_key.0 == [0u8;33] {
+					uncompressed_keys.push([0u8; 20]);
+					continue;
+				}
 				if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0)
 				{
 					let uncompressed_key = compressed_key.serialize();
