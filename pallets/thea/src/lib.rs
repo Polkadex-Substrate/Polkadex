@@ -274,6 +274,10 @@ pub mod pallet {
 		TheaSignatureFinalized(Network, u64),
 		/// Unable to parse public key
 		UnableToParsePublicKey(T::TheaId),
+		/// Unable to slice public key hash for evm chains
+		UnableToSlicePublicKeyHash(T::TheaId),
+		/// Unable to generate rotate validators payload for this network
+		UnableToGenerateValidatorSet(Network),
 	}
 
 	#[pallet::error]
@@ -771,6 +775,8 @@ impl<T: Config> Pallet<T> {
 					if let Ok(address) = hash[12..32].try_into() {
 						uncompressed_keys.push(address);
 					} else {
+						log::error!(target: "thea", "Unable to slice last 20 bytes of hash for Evm");
+						Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(public_key.into()));
 						return;
 					}
 				} else {
@@ -791,6 +797,8 @@ impl<T: Config> Pallet<T> {
 								payload.encode(),
 							)
 						} else {
+							log::error!(target: "thea", "Unable to generate rotate validators payload");
+							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(network));
 							continue;
 						}
 					},
@@ -802,6 +810,8 @@ impl<T: Config> Pallet<T> {
 								payload.encode(),
 							)
 						} else {
+							log::error!(target: "thea", "Unable to generate rotate validators payload");
+							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(network));
 							continue;
 						}
 					},
