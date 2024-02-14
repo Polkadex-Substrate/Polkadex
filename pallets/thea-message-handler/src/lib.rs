@@ -324,10 +324,6 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
-		let authorities_len = <Authorities<T>>::get(Self::validator_set_id()).len();
-		if authorities_len == 0 {
-			return Err(Error::<T>::ValidatorSetEmpty.into());
-		}
 		let nonce = <OutgoingNonce<T>>::get();
 		let payload = Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
