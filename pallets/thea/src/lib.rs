@@ -800,7 +800,7 @@ impl<T: Config> Pallet<T> {
 							)
 						} else {
 							log::error!(target: "thea", "Unable to generate rotate validators payload");
-							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(network));
+							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
 							continue;
 						}
 					},
@@ -813,7 +813,7 @@ impl<T: Config> Pallet<T> {
 							)
 						} else {
 							log::error!(target: "thea", "Unable to generate rotate validators payload");
-							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(network));
+							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
 							continue;
 						}
 					},
