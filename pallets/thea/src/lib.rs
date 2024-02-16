@@ -771,6 +771,16 @@ impl<T: Config> Pallet<T> {
 				if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0)
 				{
 					let uncompressed_key = compressed_key.serialize();
+					let uncompressed_key: [u8; 64] =
+						if let Ok(uncompressed_key) = uncompressed_key[1..65].try_into() {
+							uncompressed_key
+						} else {
+							log::error!(target: "thea", "Unable to slice last 64 bytes of uncompressed_key for Evm");
+							Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
+								public_key.into(),
+							));
+							return;
+						};
 					let hash: [u8; 32] = sp_io::hashing::keccak_256(&uncompressed_key);
 					if let Ok(address) = hash[12..32].try_into() {
 						uncompressed_keys.push(address);
