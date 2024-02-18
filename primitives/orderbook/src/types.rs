@@ -134,8 +134,6 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
-#[cfg(feature = "std")]
-use rust_decimal::prelude::FromPrimitive;
 
 impl Trade {
 	/// Constructor.
