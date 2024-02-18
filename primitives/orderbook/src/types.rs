@@ -25,7 +25,8 @@ use polkadex_primitives::{
 };
 use rust_decimal::Decimal;
 #[cfg(feature = "std")]
-use rust_decimal::{prelude::Zero, RoundingStrategy};
+use rust_decimal::{prelude::{FromPrimitive, Zero}, RoundingStrategy,
+};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;

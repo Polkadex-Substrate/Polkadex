@@ -27,10 +27,6 @@ use sp_std::collections::btree_set::BTreeSet;
 
 static PAYLOAD: [u8; 10_485_760] = [u8::MAX; 10_485_760];
 
-fn any_signature() -> <Test as Config>::Signature {
-	<Test as Config>::Signature::decode(&mut [1u8; 65].as_ref()).unwrap()
-}
-
 fn set_200_validators() -> [Pair; 200] {
 	let mut validators = Vec::with_capacity(200);
 	for i in 0..200 {
@@ -46,19 +42,10 @@ fn set_200_validators() -> [Pair; 200] {
 		.unwrap_or_else(|_| panic!("Could not convert validators to array"))
 }
 
-fn message_for_nonce(nonce: u64) -> Message {
-	Message {
-		block_no: u64::MAX,
-		nonce,
-		data: [255u8; 576].into(), //10 MB
-		network: 0u8,
-		is_key_change: false,
-		validator_set_id: 0,
-	}
-}
-
 use crate::ecdsa::AuthorityPair as Pair;
 use frame_support::traits::OneSessionHandler;
+use polkadex_primitives::UNIT_BALANCE;
+
 #[test]
 fn test_session_change() {
 	new_test_ext().execute_with(|| {
@@ -114,70 +101,6 @@ fn test_session_change() {
 		let message = Thea::get_outgoing_messages(1, 2).unwrap();
 		assert_eq!(message.nonce, 2);
 		assert!(message.data.is_empty());
-	})
-}
-
-#[test]
-fn test_incoming_messages_bad_inputs() {
-	new_test_ext().execute_with(|| {
-		// set authorities
-		let auth = set_200_validators();
-		// bad origin (root)
-		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::root(),
-				message_for_nonce(1),
-				vec![(0, any_signature())]
-			),
-			BadOrigin
-		);
-		// bad origin (some one signed)
-		let message = message_for_nonce(1);
-		let proper_sig = auth[0].sign(&message.encode());
-		assert_err!(
-			Thea::incoming_message(
-				RuntimeOrigin::signed(1),
-				message.clone(),
-				vec![(0, proper_sig.clone())]
-			),
-			BadOrigin
-		);
-		// bad threshold
-		assert_err!(
-			Thea::validate_incoming_message(&message.clone(), &vec![(0, proper_sig.clone())]),
-			InvalidTransaction::Custom(4)
-		);
-
-		// bad nonce (too big)
-		assert_err!(
-			Thea::validate_incoming_message(
-				&message_for_nonce(u64::MAX),
-				&vec![(0, proper_sig.clone())]
-			),
-			InvalidTransaction::Custom(1)
-		);
-		// bad nonce (too small)
-		assert_err!(
-			Thea::validate_incoming_message(
-				&message_for_nonce(u64::MIN),
-				&vec![(0, proper_sig.clone())]
-			),
-			InvalidTransaction::Custom(1)
-		);
-		// bad payload
-		let mut bad_message = message.clone();
-		bad_message.block_no = 1; // changing bit
-		let bad_message_call = Call::<Test>::incoming_message {
-			payload: bad_message,
-			signatures: vec![(0, proper_sig.clone())],
-		};
-		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_message_call).is_err());
-		// bad signature
-		let bad_sig_call = Call::<Test>::incoming_message {
-			payload: message.clone(),
-			signatures: vec![(0, any_signature())],
-		};
-		assert!(Thea::validate_unsigned(TransactionSource::Local, &bad_sig_call).is_err());
 	})
 }
 
@@ -267,18 +190,52 @@ fn test_update_outgoing_nonce_all() {
 fn test_add_thea_network_full() {
 	new_test_ext().execute_with(|| {
 		// bad origins
-		assert_err!(Thea::add_thea_network(RuntimeOrigin::none(), 1), BadOrigin);
-		assert_err!(Thea::add_thea_network(RuntimeOrigin::signed(1), 1), BadOrigin);
+		assert_err!(
+			Thea::add_thea_network(
+				RuntimeOrigin::none(),
+				1,
+				false,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			),
+			BadOrigin
+		);
+		assert_err!(
+			Thea::add_thea_network(
+				RuntimeOrigin::signed(1),
+				1,
+				false,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			),
+			BadOrigin
+		);
 		// add max number of networks
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				false,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 			let an = <ActiveNetworks<Test>>::get();
 			assert_eq!(an.len(), net as usize + 1);
 			assert!(an.get(&net).is_some());
 		}
 		// no failures on adding same network again
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				false,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 		}
 	})
 }
@@ -295,14 +252,28 @@ fn test_remove_thea_network_full() {
 		}
 		// add one and remove one
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				false,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 			assert_ok!(Thea::remove_thea_network(RuntimeOrigin::root(), net));
 			let an = <ActiveNetworks<Test>>::get();
 			assert_eq!(an.len(), 0);
 		}
 		// populating everything
 		for net in 0u8..=u8::MAX {
-			assert_ok!(Thea::add_thea_network(RuntimeOrigin::root(), net));
+			assert_ok!(Thea::add_thea_network(
+				RuntimeOrigin::root(),
+				net,
+				false,
+				20,
+				100 * UNIT_BALANCE,
+				1000 * UNIT_BALANCE
+			));
 		}
 		// remove reverse order
 		for net in (0u8..=u8::MAX).rev() {
@@ -312,5 +283,484 @@ fn test_remove_thea_network_full() {
 			assert_eq!(an.len(), net as usize);
 			assert!(an.get(&net).is_none());
 		}
+	})
+}
+
+use frame_support::traits::Currency;
+
+#[test]
+fn test_report_misbehaviour_happy_path() {
+	new_test_ext().execute_with(|| {
+		// Add messgae to IncomingMessagesQueue storage
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000,
+			fisherman_stake: 1_000_000,
+			network_type: NetworkType::Parachain,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message =
+			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_ok!(Thea::report_misbehaviour(RuntimeOrigin::signed(fisherman), network, 1));
+	})
+}
+
+use frame_support::{
+	assert_noop,
+	traits::{fungible::MutateHold, tokens::Precision},
+};
+use thea_primitives::types::{AssetMetadata, IncomingMessage, SignedMessage, THEA_HOLD_REASON};
+
+#[test]
+fn test_report_misbehaviour_not_enough_stake() {
+	new_test_ext().execute_with(|| {
+		// Add messgae to IncomingMessagesQueue storage
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000_000_000_000_000_000_000_000,
+			fisherman_stake: 1_000_000_000_000_000_000_000_000,
+			network_type: NetworkType::Parachain,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message =
+			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_noop!(
+			Thea::report_misbehaviour(RuntimeOrigin::signed(fisherman), network, 1),
+			Error::<Test>::NotEnoughStake
+		);
+	})
+}
+
+#[test]
+fn test_handle_misbehaviour_happy_path_valid_proposal() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000,
+			fisherman_stake: 1_000_000,
+			network_type: NetworkType::Parachain,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message =
+			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_ok!(Thea::report_misbehaviour(RuntimeOrigin::signed(fisherman), network, 1));
+		assert_ok!(Thea::handle_misbehaviour(RuntimeOrigin::root(), network, 1, true));
+		// Check Balance
+		assert_eq!(Balances::free_balance(&relayer), 9000000000000000000000);
+		assert_eq!(Balances::free_balance(&fisherman), 11000000000000000000000);
+	})
+}
+
+#[test]
+fn test_handle_misbehaviour_happy_path_invalid_proposal() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: 1,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1_000_000,
+			fisherman_stake: 1_000_000,
+			network_type: NetworkType::Parachain,
+		};
+		<NetworkConfig<Test>>::insert(network, config);
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 10000000000000000000000);
+		let fisherman = 2u64;
+		let _ = Balances::deposit_creating(&fisherman, 10000000000000000000000);
+		let stake = 1000000000000000000000;
+		let incoming_message =
+			thea_primitives::types::IncomingMessage { message, relayer, stake, execute_at: 0 };
+		<IncomingMessagesQueue<Test>>::insert(network, 1, incoming_message);
+		// Report Misbehaviour
+		assert_ok!(Thea::report_misbehaviour(RuntimeOrigin::signed(fisherman), network, 1));
+		assert_ok!(Thea::handle_misbehaviour(RuntimeOrigin::root(), network, 1, false));
+		// Check Balance
+		assert_eq!(Balances::free_balance(&relayer), 10000000000000000000000);
+		assert_eq!(Balances::free_balance(&fisherman), 9999999999999998000000);
+	})
+}
+
+#[test]
+fn test_submit_signed_outgoing_messages_happy_path() {
+	new_test_ext().execute_with(|| {
+		// Insert OutgoingMessages Storage
+		let network = 2;
+		let nonce = 1;
+		let validator_set_id = 1;
+		let auth_index = 0;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		let signature = sp_core::ecdsa::Signature::default().into();
+		let signatures = vec![(network, nonce, signature)];
+		assert_ok!(Thea::submit_signed_outgoing_messages(
+			RuntimeOrigin::none(),
+			auth_index,
+			validator_set_id,
+			signatures.clone()
+		));
+		assert!(<SignedOutgoingMessages<Test>>::get(network, nonce).is_some());
+		let mut auth = <Authorities<Test>>::get(validator_set_id);
+		auth.try_push(sp_core::ecdsa::Public::from_raw([1; 33]).into()).unwrap();
+		auth.try_push(sp_core::ecdsa::Public::from_raw([2; 33]).into()).unwrap();
+		let auth_index = 2;
+		assert!(<SignedOutgoingNonce<Test>>::get(network) == 0);
+		assert_ok!(Thea::submit_signed_outgoing_messages(
+			RuntimeOrigin::none(),
+			auth_index,
+			validator_set_id,
+			signatures
+		));
+		assert!(<SignedOutgoingNonce<Test>>::get(network) == 1);
+	})
+}
+
+#[test]
+fn test_submit_signed_outgoing_messages_message_not_found() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let nonce = 1;
+		let validator_set_id = 1;
+		let auth_index = 0;
+		let _message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let signature = sp_core::ecdsa::Signature::default().into();
+		let signatures = vec![(network, nonce, signature)];
+		assert_noop!(
+			Thea::submit_signed_outgoing_messages(
+				RuntimeOrigin::none(),
+				auth_index,
+				validator_set_id,
+				signatures.clone()
+			),
+			Error::<Test>::MessageNotFound
+		);
+	})
+}
+
+#[test]
+fn test_on_initialize_happy_path() {
+	new_test_ext().execute_with(|| {
+		// Insert in Active Networks
+		let mut networks: BTreeSet<Network> = BTreeSet::new();
+		let network = 1;
+		networks.insert(network);
+		<ActiveNetworks<Test>>::put(networks);
+		// Update next Nonce
+		let nonce = 0;
+		<IncomingNonce<Test>>::insert(network, nonce);
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 100 * UNIT_BALANCE);
+		let stake = 1 * UNIT_BALANCE;
+		// Reserve balance
+		Balances::hold(&THEA_HOLD_REASON, &relayer, stake).unwrap();
+		// Add message to IncomingMessagesQueue
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let incoming_message = IncomingMessage { message, relayer, stake, execute_at: 0 };
+		<IncomingMessagesQueue<Test>>::insert(network, nonce.saturating_add(1), incoming_message);
+		Thea::on_initialize(1);
+		assert_eq!(<IncomingNonce<Test>>::get(network), 1);
+		assert_eq!(Balances::free_balance(&relayer), 100 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_happy_path() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = validator.sign_prehashed(&msg_hash);
+		let signatures = vec![(network, nonce, signature.into())];
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		assert_ok!(Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures));
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_custom_error_1() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = validator.sign_prehashed(&msg_hash);
+		let signatures = vec![(network, nonce, signature.into())];
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&10, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(1)
+		);
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_returns_custom_error() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = validator.sign_prehashed(&msg_hash);
+		let signatures = vec![(network, nonce, signature.into())];
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(3)
+		);
+		<SignedOutgoingNonce<Test>>::insert(network, 50);
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(2)
+		);
+	})
+}
+
+#[test]
+fn test_validate_signed_outgoing_message_wrong_sig() {
+	new_test_ext().execute_with(|| {
+		let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+		let validator_set_id = 1;
+		let mut auths = <Authorities<Test>>::get(validator_set_id);
+		auths.try_push(validator.public().into()).unwrap();
+		<Authorities<Test>>::insert(validator_set_id, auths);
+		// Insert SignedOutgoingNonce
+		let nonce = 1;
+		let network = 2;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let _ = sp_io::hashing::sha2_256(message.encode().as_slice());
+		let signature = sp_core::ecdsa::Signature::default();
+		let signatures = vec![(network, nonce, signature.into())];
+		<SignedOutgoingNonce<Test>>::insert(network, nonce.saturating_sub(1));
+		<OutgoingMessages<Test>>::insert(network, nonce, message);
+		assert_noop!(
+			Thea::validate_signed_outgoing_message(&0, &validator_set_id, &signatures),
+			InvalidTransaction::Custom(6)
+		);
+	})
+}
+
+#[test]
+fn test_submit_incoming_message_happy_path_first_message() {
+	new_test_ext().execute_with(|| {
+		let relayer = 1u64;
+		let network_id = 2;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 100 * UNIT_BALANCE);
+		let stake = 1 * UNIT_BALANCE;
+		let message = Message {
+			block_no: 0,
+			nonce: 1,
+			network: network_id,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let network_config = thea_primitives::types::NetworkConfig {
+			fork_period: 0,
+			min_stake: 1 * UNIT_BALANCE,
+			fisherman_stake: 1 * UNIT_BALANCE,
+			network_type: NetworkType::Parachain,
+		};
+		<NetworkConfig<Test>>::insert(network_id, network_config);
+		<AllowListTestingRelayers<Test>>::insert(network_id, relayer);
+		assert_ok!(Thea::submit_incoming_message(
+			RuntimeOrigin::signed(relayer),
+			message.clone(),
+			stake
+		));
+		assert_eq!(Balances::reserved_balance(&relayer), 1 * UNIT_BALANCE);
+		let relayer_2 = 2u64;
+		let _ = Balances::deposit_creating(&relayer_2, 100 * UNIT_BALANCE);
+		let message_two = Message {
+			block_no: 0,
+			nonce: 1,
+			network: network_id,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![1u8; 10],
+		};
+		let new_stake = 2 * UNIT_BALANCE;
+		<AllowListTestingRelayers<Test>>::insert(network_id, relayer_2);
+		assert_ok!(Thea::submit_incoming_message(
+			RuntimeOrigin::signed(relayer_2),
+			message_two.clone(),
+			new_stake
+		));
+		assert_eq!(Balances::reserved_balance(&relayer_2), 2 * UNIT_BALANCE);
+		assert_eq!(Balances::reserved_balance(&relayer), 0);
+	})
+}
+
+#[test]
+fn test_add_signature() {
+	new_test_ext().execute_with(|| {
+		let network = 2;
+		let nonce = 1;
+		let validator_set_id = 1;
+		let auth_index = 0;
+		let message = Message {
+			block_no: 0,
+			nonce,
+			network,
+			payload_type: PayloadType::L1Deposit,
+			data: vec![],
+		};
+		let signature = sp_core::ecdsa::Signature::default();
+		let mut signed_message =
+			SignedMessage::new(message.clone(), validator_set_id, auth_index, signature.clone());
+		assert_eq!(signed_message.signatures.len(), 1);
+		assert_eq!(signed_message.signatures.get(&0).unwrap().clone(), signature);
+		let new_validator_set_id = 2;
+		let new_signature = sp_core::ecdsa::Signature::from_raw([1; 65]);
+		signed_message.add_signature(
+			message,
+			new_validator_set_id,
+			auth_index,
+			new_signature.clone(),
+		);
+		assert_eq!(signed_message.signatures.len(), 1);
+		assert_eq!(signed_message.signatures.get(&0).unwrap().clone(), new_signature);
+	})
+}
+
+#[test]
+fn test_asset_metadata_convert_from_native_decimals() {
+	let metadata = AssetMetadata::new(6).unwrap();
+	assert_eq!(
+		metadata.convert_from_native_decimals(1000000000000000000000000),
+		1000000000000000000
+	);
+}
+
+#[test]
+fn test_locks() {
+	new_test_ext().execute_with(|| {
+		let relayer = 1u64;
+		// Mint Balance
+		let _ = Balances::deposit_creating(&relayer, 100 * UNIT_BALANCE);
+		let stake = 1 * UNIT_BALANCE;
+		// Reserve balance
+		Balances::hold(&THEA_HOLD_REASON, &relayer, stake).unwrap();
+		Balances::hold(&THEA_HOLD_REASON, &relayer, stake).unwrap();
+		assert_eq!(Balances::reserved_balance(&relayer), 2 * UNIT_BALANCE);
+		Balances::release(&THEA_HOLD_REASON, &relayer, stake, Precision::BestEffort).unwrap();
+		assert_eq!(Balances::reserved_balance(&relayer), 1 * UNIT_BALANCE);
+		Balances::release(&THEA_HOLD_REASON, &relayer, stake, Precision::BestEffort).unwrap();
+		assert_eq!(Balances::reserved_balance(&relayer), 0);
 	})
 }

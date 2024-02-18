@@ -1,6 +1,6 @@
 [package]
 name = "parachain-polkadex-node"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Polkadex OÜ <https://polkadex.trade>"]
 description = "Polkadex parachain node"
 license = "GNU GPL v3"

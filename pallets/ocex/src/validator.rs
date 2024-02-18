@@ -86,12 +86,12 @@ impl<T: Config> Pallet<T> {
 		available_keys.sort();
 
 		if available_keys.is_empty() && sp_io::offchain::is_validator() {
-			return Err("No active keys available")
+			return Err("No active keys available");
 		}
 
 		// Check if another worker is already running or not
 		if Self::acquire_offchain_lock().is_err() {
-			return Ok(false)
+			return Ok(false);
 		}
 		// Check the next batch to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
@@ -105,7 +105,7 @@ impl<T: Config> Pallet<T> {
 			Err(err) => {
 				log::error!(target:"ocex","Err loading state info from storage: {:?}",err);
 				store_trie_root(H256::zero());
-				return Err(err)
+				return Err(err);
 			},
 		};
 
@@ -116,7 +116,7 @@ impl<T: Config> Pallet<T> {
 			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
 			// resubmit the summary to aggregator
 			AggregatorClient::<T>::load_signed_summary_and_send(next_nonce);
-			return Ok(true)
+			return Ok(true);
 		}
 
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
@@ -132,7 +132,7 @@ impl<T: Config> Pallet<T> {
 			let (computed_root, checkpoint) = match checkpoint {
 				None => {
 					log::error!(target:"ocex","No checkpoint found");
-					return Err("No checkpoint found")
+					return Err("No checkpoint found");
 				},
 				Some(checkpoint) => match Self::process_checkpoint(&mut state, &checkpoint) {
 					Ok(_) => {
@@ -144,7 +144,7 @@ impl<T: Config> Pallet<T> {
 					},
 					Err(err) => {
 						log::error!(target:"ocex","Error processing checkpoint: {:?}",err);
-						return Err("Sync failed")
+						return Err("Sync failed");
 					},
 				},
 			};
@@ -153,7 +153,7 @@ impl<T: Config> Pallet<T> {
 				<Snapshots<T>>::get(checkpoint.snapshot_id).ok_or("Snapshot not found")?;
 			if snapshot_summary.state_hash != computed_root {
 				log::error!(target:"ocex","State root mismatch: {:?} != {:?}",snapshot_summary.state_hash, computed_root);
-				return Err("State root mismatch")
+				return Err("State root mismatch");
 			}
 			log::debug!(target:"ocex","State root matched: {:?}",snapshot_summary.state_hash);
 			store_trie_root(computed_root);
@@ -170,7 +170,7 @@ impl<T: Config> Pallet<T> {
 				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) {
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
-						return Ok(true)
+						return Ok(true);
 					},
 					Some(batch) => batch,
 				};
@@ -186,7 +186,7 @@ impl<T: Config> Pallet<T> {
 					},
 					Err(err) => {
 						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
-						return Err("Sync failed")
+						return Err("Sync failed");
 					},
 				}
 			}
@@ -204,7 +204,7 @@ impl<T: Config> Pallet<T> {
 				let root = state.commit()?;
 				store_trie_root(root);
 				log::debug!(target:"ocex","Stored state root: {:?}",root);
-				return Ok(true)
+				return Ok(true);
 			},
 			Some(batch) => batch,
 		};
@@ -276,7 +276,7 @@ impl<T: Config> Pallet<T> {
 			Some(true) => {
 				// Another worker is online, so exit
 				log::info!(target:"ocex", "Another worker is online, so exit");
-				return Ok(false)
+				return Ok(false);
 			},
 			None => {},
 			Some(false) => {},
@@ -296,7 +296,7 @@ impl<T: Config> Pallet<T> {
 
 		if blk != state_info.last_block.saturating_add(1).into() {
 			log::error!(target:"ocex","Last processed blk: {:?},  given: {:?}",state_info.last_block, blk);
-			return Err("BlockOutofSequence")
+			return Err("BlockOutofSequence");
 		}
 
 		let messages = Self::ingress_messages(blk);
@@ -652,7 +652,7 @@ impl<T: Config> Pallet<T> {
 		// }
 
 		if !request.verify() {
-			return Err("SignatureVerificationFailed")
+			return Err("SignatureVerificationFailed");
 		}
 		sub_balance(
 			state,
@@ -685,7 +685,7 @@ impl<T: Config> Pallet<T> {
 		&'static str,
 	> {
 		if state_info.stid >= batch.stid {
-			return Err("Invalid stid")
+			return Err("Invalid stid");
 		}
 
 		let mut withdrawals = Vec::new();
@@ -847,7 +847,7 @@ impl<T: Config> Pallet<T> {
 		for (index, auth) in authorities.iter().enumerate() {
 			if *expected_signer == *auth {
 				auth_index = Some(index);
-				break
+				break;
 			}
 		}
 		auth_index

@@ -15,12 +15,14 @@ sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false, features = ["serde"] }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
 sp-application-crypto = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 hex = { workspace = true, default-features = false, features = ["alloc"] }
+libsecp256k1 = { version = "0.7.1", default-features = false}
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -49,10 +51,13 @@ std = [
   "sp-io/std",
   "polkadex-primitives/std",
   "pallet-timestamp/std",
+  "pallet-balances/std",
   "sp-core/std",
   "frame-benchmarking?/std",
+  "libsecp256k1/std"
 ]
 runtime-benchmarks = [
+  "pallet-balances/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",

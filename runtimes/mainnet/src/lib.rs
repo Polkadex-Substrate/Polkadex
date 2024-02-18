@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 316,
+	spec_version: 330,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -295,16 +295,16 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => false,
 			ProxyType::NonTransfer => !matches!(
 				c,
-				RuntimeCall::Balances(..) |
-					RuntimeCall::Indices(pallet_indices::Call::transfer { .. })
+				RuntimeCall::Balances(..)
+					| RuntimeCall::Indices(pallet_indices::Call::transfer { .. })
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Council(..) |
-					RuntimeCall::TechnicalCommittee(..) |
-					RuntimeCall::Elections(..) |
-					RuntimeCall::Treasury(..) |
-					RuntimeCall::OrderbookCommittee(..)
+				RuntimeCall::Council(..)
+					| RuntimeCall::TechnicalCommittee(..)
+					| RuntimeCall::Elections(..)
+					| RuntimeCall::Treasury(..)
+					| RuntimeCall::OrderbookCommittee(..)
 			),
 			ProxyType::Staking => matches!(c, RuntimeCall::Staking(..)),
 		}
@@ -411,6 +411,8 @@ impl pallet_indices::Config for Runtime {
 parameter_types! {
 	pub const ExistentialDeposit: Balance = PDEX;
 	pub const MaxLocks: u32 = 50;
+	pub const MaxHolds: u32 = 50;
+	pub const MaxFreezes: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
 
@@ -422,12 +424,12 @@ impl pallet_balances::Config for Runtime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Runtime>;
 	type ReserveIdentifier = [u8; 8];
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = [u8; 8];
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
-	type MaxHolds = ();
-	type MaxFreezes = ();
+	type MaxHolds = MaxHolds;
+	type MaxFreezes = MaxFreezes;
 }
 use sp_runtime::traits::{Bounded, ConvertInto};
 parameter_types! {
@@ -666,8 +668,8 @@ impl Get<Option<(usize, ExtendedBalance)>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -1344,6 +1346,8 @@ impl thea::Config for Runtime {
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 
@@ -1358,17 +1362,18 @@ impl thea_executor::Config for Runtime {
 	type Currency = Balances;
 	type Assets = Assets;
 	type AssetId = u128;
-	type MultiAssetIdAdapter = AssetId;
-	type AssetBalanceAdapter = u128;
 	type AssetCreateUpdateOrigin = EnsureRootOrHalfCouncil;
 	type Executor = Thea;
 	type NativeAssetId = PolkadexAssetId;
 	type TheaPalletId = TheaPalletAccount;
-	type Swap = AssetConversion;
 	type WithdrawalSize = WithdrawalSize;
-	type ExistentialDeposit = ExistentialDeposit;
 	type ParaId = ParaId;
-	type WeightInfo = thea_executor::weights::WeightInfo<Runtime>;
+	type TheaExecWeightInfo = thea_executor::weights::WeightInfo<Runtime>;
+	type Swap = AssetConversion;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
+	type GovernanceOrigin = EnsureRootOrHalfCouncil;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

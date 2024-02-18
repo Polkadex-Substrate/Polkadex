@@ -26,6 +26,7 @@ use frame_support::{
 };
 use frame_system::EventRecord;
 use parity_scale_codec::Encode;
+use sp_core::H160;
 use sp_runtime::{
 	traits::{AccountIdConversion, BadOrigin},
 	SaturatedConversion,
@@ -93,10 +94,7 @@ fn test_transfer_native_asset() {
 		// Verify
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
 		let approved_withdraw = Withdraw {
-			id: Vec::from([
-				179, 96, 16, 235, 40, 92, 21, 74, 140, 214, 48, 132, 172, 190, 126, 172, 12, 77,
-				98, 90, 180, 225, 167, 110, 98, 74, 135, 152, 203, 99, 73, 123,
-			]),
+			id: Vec::from([179, 96, 16, 235, 40, 92, 21, 74, 140, 214]),
 			asset_id,
 			amount: 10_000_000_000_000u128,
 			destination: vec![1; 32],
@@ -114,30 +112,7 @@ fn test_deposit_with_valid_args_returns_ok() {
 		let admin = 1u64;
 		let recipient = 2u64;
 		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
-		assert_ok!(Assets::create(
-			RuntimeOrigin::signed(admin),
-			parity_scale_codec::Compact(asset_id),
-			admin,
-			1u128
-		));
-		let deposit = Deposit {
-			id: Vec::new(),
-			recipient,
-			asset_id,
-			amount: 1_000_000_000_000_000_000u128,
-			extra: vec![],
-		};
-		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-	})
-}
-
-#[test]
-fn test_claim_deposit_returns_ok() {
-	new_test_ext().execute_with(|| {
-		let asset_id = 2000u128;
-		let admin = 1u64;
-		let recipient = 2u64;
-		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
 		assert_ok!(Assets::create(
 			RuntimeOrigin::signed(admin),
 			parity_scale_codec::Compact(asset_id),
@@ -145,7 +120,7 @@ fn test_claim_deposit_returns_ok() {
 			1u128
 		));
 		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
-		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
+		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
 		let deposit = Deposit {
 			id: Vec::new(),
 			recipient,
@@ -153,37 +128,7 @@ fn test_claim_deposit_returns_ok() {
 			amount: 1_000_000_000_000_000_000u128,
 			extra: vec![],
 		};
-		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, recipient));
-	})
-}
-
-#[test]
-fn test_claim_deposit_returns_asset_not_registered() {
-	new_test_ext().execute_with(|| {
-		let asset_id = 2000u128;
-		let admin = 1u64;
-		let recipient = 2u64;
-		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
-		assert_ok!(Assets::create(
-			RuntimeOrigin::signed(admin),
-			parity_scale_codec::Compact(asset_id),
-			admin,
-			1u128
-		));
-		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
-		let deposit = Deposit {
-			id: Vec::new(),
-			recipient,
-			asset_id,
-			amount: 1_000_000_000_000_000_000u128,
-			extra: vec![],
-		};
-		assert_ok!(TheaExecutor::do_deposit(1, vec![deposit].encode()));
-		assert_noop!(
-			TheaExecutor::claim_deposit(RuntimeOrigin::signed(3), 1, recipient),
-			crate::Error::<Test>::AssetNotRegistered
-		);
+		assert_ok!(TheaExecutor::do_deposit(1, &vec![deposit].encode()));
 	})
 }
 
@@ -364,7 +309,7 @@ fn test_resolve_deposit() {
 			amount: 1_000_000_000_000_000_000u128,
 			extra: vec![],
 		};
-		assert_ok!(TheaExecutor::execute_deposit(deposit, &recipient));
+		assert_ok!(TheaExecutor::execute_deposit(deposit));
 	})
 }
 
@@ -385,7 +330,7 @@ fn test_deposit_without_account() {
 			amount: 1_000_000_000_000_000u128,
 			extra: vec![],
 		};
-		assert_ok!(TheaExecutor::execute_deposit(deposit, &recipient));
+		assert_ok!(TheaExecutor::execute_deposit(deposit));
 		assert_eq!(Balances::free_balance(&recipient), 50);
 		assert_eq!(Assets::balance(asset_id, &recipient), 999_999_994_984_954u128);
 		assert_eq!(Assets::balance(asset_id, &TheaExecutor::thea_account()), 0u128);
@@ -446,6 +391,115 @@ fn test_do_withdrawal_with_total_amount_consumed_returns_error() {
 				true
 			),
 			sp_runtime::TokenError::FundsUnavailable
+		);
+	})
+}
+
+#[test]
+fn test_evm_withdraw() {
+	new_test_ext().execute_with(|| {
+		let asset_id: <Test as Config>::AssetId = 100u128;
+		let admin = 1u64;
+		let network_id = 2;
+		Balances::set_balance(&admin, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&admin,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		<Test as Config>::Assets::create(
+			RuntimeOrigin::signed(admin),
+			asset_id.into(),
+			admin,
+			1u128.saturated_into(),
+		)
+		.unwrap();
+		let pallet_acc = <Test as crate::Config>::TheaPalletId::get().into_account_truncating();
+		Balances::set_balance(&pallet_acc, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&pallet_acc,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		let account = 2u64;
+		Balances::set_balance(&account, 100_000_000_000_000_000_000u128.saturated_into());
+		<Test as Config>::Currency::mint_into(
+			&account,
+			100_000_000_000_000_000_000u128.saturated_into(),
+		)
+		.unwrap();
+		Assets::mint_into(asset_id, &account, 100_000_000_000_000_000_000u128.saturated_into())
+			.unwrap();
+		<Test as Config>::Currency::mint_into(&account, 100_000_000_000_000u128.saturated_into())
+			.unwrap();
+		Balances::set_balance(&account, 100_000_000_000_000u128.saturated_into());
+		let metadata = AssetMetadata::new(10).unwrap();
+		<Metadata<Test>>::insert(100, metadata);
+		<WithdrawalFees<Test>>::insert(network_id, 1_000);
+		let beneficiary = H160::from_slice(&[1; 20]);
+		assert_ok!(TheaExecutor::evm_withdraw(
+			RuntimeOrigin::signed(account),
+			asset_id,
+			1_000_000_000,
+			beneficiary.clone(),
+			network_id,
+			false,
+			false
+		));
+	})
+}
+
+#[test]
+fn test_claim_deposit_returns_ok() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 2000u128;
+		let admin = 1u64;
+		let recipient = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
+		let deposit = Deposit {
+			id: Vec::new(),
+			recipient,
+			asset_id,
+			amount: 1_000_000_000_000_000_000u128,
+			extra: vec![],
+		};
+		assert_ok!(TheaExecutor::do_deposit(1, &vec![deposit].encode()));
+		assert_ok!(TheaExecutor::claim_deposit(RuntimeOrigin::signed(recipient), 1, recipient));
+	})
+}
+
+#[test]
+fn test_claim_deposit_returns_asset_not_registered() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 2000u128;
+		let admin = 1u64;
+		let recipient = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		Balances::set_balance(&recipient, 1_000_000_000_000_000_000);
+		let deposit = Deposit {
+			id: Vec::new(),
+			recipient,
+			asset_id,
+			amount: 1_000_000_000_000_000_000u128,
+			extra: vec![],
+		};
+		assert_noop!(
+			TheaExecutor::do_deposit(1, &vec![deposit].encode()),
+			crate::Error::<Test>::AssetNotRegistered
 		);
 	})
 }

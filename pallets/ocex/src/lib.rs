@@ -189,8 +189,9 @@ pub mod pallet {
 		fn validate_unsigned(_: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			sp_runtime::print("Validating unsigned transactions...");
 			match call {
-				Call::submit_snapshot { summary, signatures } =>
-					Self::validate_snapshot(summary, signatures),
+				Call::submit_snapshot { summary, signatures } => {
+					Self::validate_snapshot(summary, signatures)
+				},
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -380,7 +381,7 @@ pub mod pallet {
 				Ok(exit_flag) => {
 					// If exit flag is false, then another worker is online
 					if !exit_flag {
-						return
+						return;
 					}
 				},
 				Err(err) => {
@@ -525,12 +526,12 @@ pub mod pallet {
 
 			// We need to also check if provided values are not zero
 			ensure!(
-				min_order_price.saturated_into::<u128>() > 0 &&
-					max_order_price.saturated_into::<u128>() > 0 &&
-					min_order_qty.saturated_into::<u128>() > 0 &&
-					max_order_qty.saturated_into::<u128>() > 0 &&
-					price_tick_size.saturated_into::<u128>() > 0 &&
-					qty_step_size.saturated_into::<u128>() > 0,
+				min_order_price.saturated_into::<u128>() > 0
+					&& max_order_price.saturated_into::<u128>() > 0
+					&& min_order_qty.saturated_into::<u128>() > 0
+					&& max_order_qty.saturated_into::<u128>() > 0
+					&& price_tick_size.saturated_into::<u128>() > 0
+					&& qty_step_size.saturated_into::<u128>() > 0,
 				Error::<T>::TradingPairConfigCannotBeZero
 			);
 
@@ -564,12 +565,12 @@ pub mod pallet {
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
-				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
-					min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
-					min_order_price
+				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
+					&& min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
+					&& min_order_price
 						.saturated_into::<u128>()
-						.saturating_mul(min_order_qty.saturated_into::<u128>()) >
-						TRADE_OPERATION_MIN_VALUE,
+						.saturating_mul(min_order_qty.saturated_into::<u128>())
+						> TRADE_OPERATION_MIN_VALUE,
 				Error::<T>::TradingPairConfigUnderflow
 			);
 
@@ -657,12 +658,12 @@ pub mod pallet {
 			ensure!(!is_pair_in_operation, Error::<T>::TradingPairIsNotClosed);
 			// We need to also check if provided values are not zero
 			ensure!(
-				min_order_price.saturated_into::<u128>() > 0 &&
-					max_order_price.saturated_into::<u128>() > 0 &&
-					min_order_qty.saturated_into::<u128>() > 0 &&
-					max_order_qty.saturated_into::<u128>() > 0 &&
-					price_tick_size.saturated_into::<u128>() > 0 &&
-					qty_step_size.saturated_into::<u128>() > 0,
+				min_order_price.saturated_into::<u128>() > 0
+					&& max_order_price.saturated_into::<u128>() > 0
+					&& min_order_qty.saturated_into::<u128>() > 0
+					&& max_order_qty.saturated_into::<u128>() > 0
+					&& price_tick_size.saturated_into::<u128>() > 0
+					&& qty_step_size.saturated_into::<u128>() > 0,
 				Error::<T>::TradingPairConfigCannotBeZero
 			);
 
@@ -696,12 +697,12 @@ pub mod pallet {
 			//enclave will only support min volume of 10^-8
 			//if trading pairs volume falls below it will pass a UnderFlow Error
 			ensure!(
-				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
-					min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE &&
-					min_order_price
+				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
+					&& min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
+					&& min_order_price
 						.saturated_into::<u128>()
-						.saturating_mul(min_order_qty.saturated_into::<u128>()) >
-						TRADE_OPERATION_MIN_VALUE,
+						.saturating_mul(min_order_qty.saturated_into::<u128>())
+						> TRADE_OPERATION_MIN_VALUE,
 				Error::<T>::TradingPairConfigUnderflow
 			);
 
@@ -852,12 +853,12 @@ pub mod pallet {
 									// The above function call will only fail if the beneficiary has
 									// balance below existential deposit requirements
 									internal_vector.push(fees);
-									return Err(Error::<T>::UnableToTransferFee)
+									return Err(Error::<T>::UnableToTransferFee);
 								}
 							} else {
 								// Push it back inside the internal vector
 								internal_vector.push(fees);
-								return Err(Error::<T>::FailedToConvertDecimaltoBalance)
+								return Err(Error::<T>::FailedToConvertDecimaltoBalance);
 							}
 						}
 					}
@@ -930,7 +931,7 @@ pub mod pallet {
 								Self::deposit_event(Event::WithdrawalFailed(withdrawal.to_owned()));
 							}
 						} else {
-							return Err(Error::<T>::InvalidWithdrawalAmount)
+							return Err(Error::<T>::InvalidWithdrawalAmount);
 						}
 					}
 					// Not removing key from BtreeMap so that failed withdrawals can still be
@@ -1353,7 +1354,7 @@ pub mod pallet {
 			{
 				<TotalAssets<T>>::insert(asset, expected_total_amount);
 			} else {
-				return Err(Error::<T>::AmountOverflow.into())
+				return Err(Error::<T>::AmountOverflow.into());
 			}
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
@@ -1848,7 +1849,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		// Verify if snapshot is already processed
 		if <SnapshotNonce<T>>::get().saturating_add(1) != snapshot_summary.snapshot_id {
-			return InvalidTransaction::Custom(10).into()
+			return InvalidTransaction::Custom(10).into();
 		}
 
 		// Check if this validator was part of that authority set
@@ -1861,17 +1862,18 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		let threshold = p * authorities.len();
 
 		if threshold > signatures.len() {
-			return InvalidTransaction::Custom(11).into()
+			return InvalidTransaction::Custom(11).into();
 		}
 
 		// Check signatures
 		for (index, signature) in signatures {
 			match authorities.get(*index as usize) {
 				None => return InvalidTransaction::Custom(12).into(),
-				Some(auth) =>
+				Some(auth) => {
 					if !auth.verify(&snapshot_summary.encode(), signature) {
-						return InvalidTransaction::Custom(12).into()
-					},
+						return InvalidTransaction::Custom(12).into();
+					}
+				},
 			}
 		}
 

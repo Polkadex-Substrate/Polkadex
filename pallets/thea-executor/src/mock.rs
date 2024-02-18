@@ -89,7 +89,7 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type ReserveIdentifier = [u8; 8];
-	type RuntimeHoldReason = ();
+	type RuntimeHoldReason = [u8; 8];
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
@@ -140,6 +140,8 @@ impl thea::Config for Test {
 	type TheaId = AuthorityId;
 	type Signature = AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type Executor = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
@@ -176,8 +178,6 @@ impl pallet_asset_conversion::Config for Test {
 	type PalletId = AssetConversionPalletId;
 	type AllowMultiAssetPools = AllowMultiAssetPools;
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {
@@ -201,11 +201,12 @@ impl thea_executor::Config for Test {
 	type TheaPalletId = TheaPalletId;
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
-	type WeightInfo = crate::weights::WeightInfo<Test>;
+	type TheaExecWeightInfo = crate::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
 	type ExistentialDeposit = ExistentialDeposit;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test

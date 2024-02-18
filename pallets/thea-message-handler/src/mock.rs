@@ -91,12 +91,12 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = [u8; 8];
 	type FreezeIdentifier = ();
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type MaxHolds = ();
 	type MaxFreezes = ();
-	type RuntimeHoldReason = ();
 }
 
 parameter_types! {
@@ -134,7 +134,7 @@ impl pallet_assets::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxAuthorities: u32 = 10;
+	pub const MaxAuthorities: u32 = 200;
 }
 
 impl thea::Config for Test {
@@ -143,6 +143,8 @@ impl thea::Config for Test {
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
+	type Currency = Balances;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
 
@@ -178,8 +180,6 @@ impl pallet_asset_conversion::Config for Test {
 	type PalletId = AssetConversionPalletId;
 	type AllowMultiAssetPools = AllowMultiAssetPools;
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Test>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = AssetU128;
 }
 
 parameter_types! {
@@ -201,9 +201,10 @@ impl thea_executor::Config for Test {
 	type WithdrawalSize = WithdrawalSize;
 	type ParaId = ParaId;
 	type Swap = AssetConversion;
-	type WeightInfo = thea_executor::weights::WeightInfo<Test>;
+	type TheaExecWeightInfo = thea_executor::weights::WeightInfo<Test>;
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
+	type GovernanceOrigin = EnsureRoot<u64>;
 	type ExistentialDeposit = ExistentialDeposit;
 }
 

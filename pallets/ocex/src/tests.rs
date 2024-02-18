@@ -1960,8 +1960,8 @@ fn collect_fees() {
 
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance +
-				UNIT_BALANCE + snapshot.withdrawals[0]
+			initial_balance
+				+ UNIT_BALANCE + snapshot.withdrawals[0]
 				.fees
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()
@@ -1969,8 +1969,8 @@ fn collect_fees() {
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance -
-				UNIT_BALANCE - snapshot.withdrawals[0]
+			initial_balance
+				- UNIT_BALANCE - snapshot.withdrawals[0]
 				.fees
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()
@@ -2627,7 +2627,7 @@ fn create_account_id() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 fn create_proxy_account(path: &str) -> AccountId32 {
@@ -2643,13 +2643,13 @@ fn create_proxy_account(path: &str) -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 fn create_trade_between_alice_and_bob(price: Decimal, qty: Decimal) -> Trade {
 	let order1 = create_order_by_alice(price, qty, 3.into(), OrderStatus::OPEN);
 	let order2 = create_order_by_bob(price, qty, 3.into(), OrderStatus::OPEN);
-	return Trade { maker: order1, taker: order2, price, amount: qty, time: 2 }
+	return Trade { maker: order1, taker: order2, price, amount: qty, time: 2 };
 }
 
 fn create_order_by_alice(
@@ -2681,7 +2681,7 @@ fn create_order_by_alice(
 	};
 	let payload: OrderPayload = order.clone().into();
 	order.signature = get_alice_key_pair().sign(&payload.encode()).into();
-	return order
+	return order;
 }
 
 fn create_order_by_bob(
@@ -2713,15 +2713,15 @@ fn create_order_by_bob(
 	};
 	let payload: OrderPayload = order.clone().into();
 	order.signature = get_bob_key_pair().sign(&payload.encode()).into();
-	return order
+	return order;
 }
 
 pub fn get_alice_key_pair() -> sp_core::sr25519::Pair {
-	return sp_core::sr25519::Pair::from_string("//Alice", None).unwrap()
+	return sp_core::sr25519::Pair::from_string("//Alice", None).unwrap();
 }
 
 pub fn get_bob_key_pair() -> sp_core::sr25519::Pair {
-	return sp_core::sr25519::Pair::from_string("//Bob", None).unwrap()
+	return sp_core::sr25519::Pair::from_string("//Bob", None).unwrap();
 }
 
 pub fn get_trading_pair_config() -> TradingPairConfig {
@@ -2750,7 +2750,7 @@ pub fn get_random_signature() -> Signature {
 
 fn create_max_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
-	return fees
+	return fees;
 }
 
 pub mod fixture_old_user_action {

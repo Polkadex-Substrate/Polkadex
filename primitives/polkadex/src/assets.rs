@@ -143,7 +143,7 @@ pub trait Resolver<
 		amount: Balance,
 	) -> Result<(), DispatchError> {
 		if asset == NativeAssetId::get() {
-			return Err(DispatchError::Other("Cannot mint Native Asset"))
+			return Err(DispatchError::Other("Cannot mint Native Asset"));
 		} else {
 			Others::mint_into(asset.into(), recipeint, amount.saturated_into())?;
 		}
@@ -208,10 +208,12 @@ impl Serialize for AssetId {
 		S: Serializer,
 	{
 		match *self {
-			AssetId::Asset(ref id) =>
-				serializer.serialize_newtype_variant("asset_id", 0, "asset", &id.to_string()),
-			AssetId::Polkadex =>
-				serializer.serialize_newtype_variant("asset_id", 1, "asset", "PDEX"),
+			AssetId::Asset(ref id) => {
+				serializer.serialize_newtype_variant("asset_id", 0, "asset", &id.to_string())
+			},
+			AssetId::Polkadex => {
+				serializer.serialize_newtype_variant("asset_id", 1, "asset", "PDEX")
+			},
 		}
 	}
 }
@@ -257,7 +259,7 @@ impl<'de> Visitor<'de> for AssetId {
 						)),
 						Ok(id) => Ok(AssetId::Asset(id)),
 					}
-				}
+				};
 			}
 		}
 		Err(A::Error::invalid_type(Unexpected::Enum, &"Expected an asset id enum"))
@@ -270,13 +272,14 @@ impl TryFrom<String> for AssetId {
 
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		if value.as_str() == "PDEX" {
-			return Ok(AssetId::Polkadex)
+			return Ok(AssetId::Polkadex);
 		}
 
 		match value.parse::<u128>() {
 			Ok(id) => Ok(AssetId::Asset(id)),
-			Err(_) =>
-				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}"))),
+			Err(_) => {
+				Err(anyhow::Error::msg::<String>(format!("Could not parse 'AssetId' from {value}")))
+			},
 		}
 	}
 }
