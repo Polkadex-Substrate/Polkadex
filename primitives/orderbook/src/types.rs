@@ -769,7 +769,8 @@ impl Order {
 		self.filled_quantity = self.filled_quantity.saturating_add(amount);
 		println!("self.filled_quantity: {:?}\ntemp: {:?}", self.filled_quantity, temp);
 		match temp.checked_div(self.filled_quantity) {
-			Some(quotient) => {
+			Some(mut quotient) => {
+				quotient = Self::rounding_off(quotient);
 				println!("Quotient: {quotient:?}");
 				self.avg_filled_price = quotient;
 				true
