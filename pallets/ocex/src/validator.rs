@@ -28,6 +28,7 @@ use crate::{
 	storage::{store_trie_root, OffchainState},
 	Config, Pallet, SnapshotNonce, Snapshots,
 };
+use core::ops::Div;
 use frame_system::pallet_prelude::BlockNumberFor;
 use num_traits::pow::Pow;
 use orderbook_primitives::{
@@ -52,7 +53,6 @@ use sp_runtime::{
 	offchain::storage::StorageValueRef, traits::AccountIdConversion, SaturatedConversion,
 };
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
-use core::ops::Div;
 use trie_db::{TrieError, TrieMut};
 
 /// Key of the storage that stores the status of an offchain worker
@@ -366,18 +366,18 @@ impl<T: Config> Pallet<T> {
 							) = &engine_result
 							{
 								if pool != pool_e {
-									return Err("Invalid Pool id in egress")
+									return Err("Invalid Pool id in egress");
 								}
 
 								if lp != lp_e {
-									return Err("Invalid LP address in egress")
+									return Err("Invalid LP address in egress");
 								}
 
 								let total_inventory_in_quote = quote_balance
 									.saturating_add(price.saturating_mul(base_balance));
 								if *total_inventory != total_inventory_in_quote {
 									log::error!(target:"ocex","Inventory mismatch: offchain: {:?}, engine: {:?}", total_inventory_in_quote,total_inventory);
-									return Err("Inventory Mismatch")
+									return Err("Inventory Mismatch");
 								}
 
 								let given_inventory = base_deposited
@@ -395,13 +395,13 @@ impl<T: Config> Pallet<T> {
 
 								if *issued_shares != shares_minted {
 									log::error!(target:"ocex","Shares minted: Offchain: {:?}, On-chain: {:?}",shares_minted,issued_shares);
-									return Err("Invalid number of LP shares minted")
+									return Err("Invalid number of LP shares minted");
 								}
 
 								// Egress message is verified
 								verified_egress_messages.push(engine_result);
 							} else {
-								return Err("Invalid Engine Egress message")
+								return Err("Invalid Engine Egress message");
 							}
 						},
 					}
@@ -444,21 +444,21 @@ impl<T: Config> Pallet<T> {
 							quote_freed,
 						) => {
 							if pool != pool_e {
-								return Err("Invalid Pool id in egress")
+								return Err("Invalid Pool id in egress");
 							}
 
 							if lp != lp_e {
-								return Err("Invalid LP address in egress")
+								return Err("Invalid LP address in egress");
 							}
 
 							if withdrawing_quote != *quote_freed {
 								log::error!(target:"ocex","Quote Amount: expected: {:?}, freed: {:?}", withdrawing_quote,quote_freed);
-								return Err("Invalid quote amount freed!")
+								return Err("Invalid quote amount freed!");
 							}
 
 							if withdrawing_base != *base_freed {
 								log::error!(target:"ocex","Base Amount: expected: {:?}, freed: {:?}", withdrawing_base,base_freed);
-								return Err("Invalid base amount freed!")
+								return Err("Invalid base amount freed!");
 							}
 
 							// Sub Quote
@@ -494,37 +494,37 @@ impl<T: Config> Pallet<T> {
 							quote_required,
 						) => {
 							if pool != pool_e {
-								return Err("Invalid Pool id in egress")
+								return Err("Invalid Pool id in egress");
 							}
 
 							if lp != lp_e {
-								return Err("Invalid LP address in egress")
+								return Err("Invalid LP address in egress");
 							}
 
 							if burn_frac != *burn_frac_e {
-								return Err("Invalid Burn fraction in egress")
+								return Err("Invalid Burn fraction in egress");
 							}
 
 							if withdrawing_quote != *quote_required {
 								log::error!(target:"ocex","Quote Amount: expected: {:?}, required: {:?}", withdrawing_quote,quote_required);
-								return Err("Invalid quote amount required by engine!")
+								return Err("Invalid quote amount required by engine!");
 							}
 
 							if withdrawing_base != *base_required {
 								log::error!(target:"ocex","Base Amount: expected: {:?}, required: {:?}", withdrawing_base,base_required);
-								return Err("Invalid base amount required by engine!")
+								return Err("Invalid base amount required by engine!");
 							}
 
 							if withdrawing_quote <= *quote_free {
 								log::error!(target:"ocex","Quote Amount: Free Balance: {:?}, required: {:?}", quote_free,withdrawing_quote);
-								return Err("Enough quote available but still denied by engine!")
+								return Err("Enough quote available but still denied by engine!");
 							}
 
 							if withdrawing_base <= *base_free {
 								log::error!(target:"ocex","Base Amount: Free Balance: {:?}, required: {:?}", base_free,withdrawing_base);
 								return Err(
 									"Enough base balance available but still denied by engine!",
-								)
+								);
 							}
 
 							// Egress message is verified
@@ -595,7 +595,7 @@ impl<T: Config> Pallet<T> {
 							if balance != *expected_balance {
 								log::error!(target:"ocex","Fees withdrawn from engine {:?} doesn't match with offchain worker balance: {:?}",
 									expected_balance,balance);
-								return Err("Incorrect Trading fees accounting")
+								return Err("Incorrect Trading fees accounting");
 							}
 
 							sub_balance(
@@ -608,7 +608,7 @@ impl<T: Config> Pallet<T> {
 						}
 						verified_egress_messages.push(egress_msg.clone());
 					} else {
-						return Err("Invalid egress message for withdraw trading fees")
+						return Err("Invalid egress message for withdraw trading fees");
 					}
 				},
 				_ => {},
@@ -793,7 +793,7 @@ impl<T: Config> Pallet<T> {
 				scores_map.insert(pair, (map, (total_score, total_fees_paid)));
 			}
 			// Store the results so it's not computed again.
-			return Ok(Some(scores_map))
+			return Ok(Some(scores_map));
 		}
 		Ok(None)
 	}

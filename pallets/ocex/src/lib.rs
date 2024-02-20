@@ -141,6 +141,7 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use crate::storage::OffchainState;
 	use crate::validator::WORKER_STATUS;
 	use frame_support::{
 		pallet_prelude::*,
@@ -1606,6 +1607,42 @@ pub mod pallet {
 			let trading_rewards =
 				config.total_trading_rewards.saturating_mul(trading_rewards_portion);
 			(mm_rewards, trading_rewards, is_claimed)
+		}
+
+		fn get_fees_paid_by_user_per_epoch(
+			epoch: u32,
+			market: TradingPair,
+			main: AccountId,
+		) -> Decimal {
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+
+			crate::lmp::get_fees_paid_by_main_account_in_quote(
+				&mut state,
+				epoch.saturated_into(),
+				&market,
+				&main,
+			)
+			.unwrap_or_default()
+		}
+
+		fn get_volume_by_user_per_epoch(
+			epoch: u32,
+			market: TradingPair,
+			main: AccountId,
+		) -> Decimal {
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+
+			crate::lmp::get_trade_volume_by_main_account(
+				&mut state,
+				epoch.saturated_into(),
+				&market,
+				&main,
+			)
+			.unwrap_or_default()
 		}
 	}
 

@@ -8,7 +8,6 @@ use orderbook_primitives::{
 	types::{OrderSide, Trade, TradingPair},
 	LiquidityMining,
 };
-use sp_std::vec::Vec;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
 use rust_decimal::{
@@ -17,6 +16,7 @@ use rust_decimal::{
 };
 use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -42,6 +42,23 @@ pub fn update_trade_volume_by_main_account(
 	})
 }
 
+pub fn get_trade_volume_by_main_account(
+	state: &mut OffchainState,
+	epoch: u16,
+	trading_pair: &TradingPair,
+	main: &AccountId,
+) -> Result<Decimal, &'static str> {
+	let key = (epoch, trading_pair, "trading_volume", main).encode();
+	Ok(match state.get(&key)? {
+		None => Decimal::zero(),
+		Some(encoded_volume) => {
+			let recorded_volume = Decimal::decode(&mut &encoded_volume[..])
+				.map_err(|_| "Unable to decode decimal")?;
+			recorded_volume
+		},
+	})
+}
+
 pub fn get_maker_volume_by_main_account(
 	state: &mut OffchainState,
 	epoch: u16,
@@ -51,8 +68,9 @@ pub fn get_maker_volume_by_main_account(
 	let key = (epoch, trading_pair, "maker_volume", main).encode();
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
-		Some(encoded_volume) =>
-			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?,
+		Some(encoded_volume) => {
+			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?
+		},
 	})
 }
 
@@ -113,8 +131,9 @@ pub fn get_fees_paid_by_main_account_in_quote(
 	let key = (epoch, trading_pair, "fees_paid", main).encode();
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
-		Some(encoded_fees_paid) =>
-			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?,
+		Some(encoded_fees_paid) => {
+			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?
+		},
 	})
 }
 

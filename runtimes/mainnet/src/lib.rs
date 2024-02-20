@@ -1716,6 +1716,14 @@ impl_runtime_apis! {
 		fn calculate_lmp_rewards(main: AccountId, epoch: u32, market: TradingPair) -> (Decimal, Decimal, bool) {
 			OCEX::get_lmp_rewards(main, epoch, market)
 		}
+
+		fn get_fees_paid_by_user_per_epoch(epoch: u32,market: TradingPair, main: AccountId) -> Decimal {
+			OCEX::get_fees_paid_by_user_per_epoch(epoch,market,main)
+		}
+
+		fn get_volume_by_user_per_epoch(epoch: u32, market: TradingPair, main: AccountId) -> Decimal{
+			OCEX::get_volume_by_user_per_epoch(epoch,market, main)
+		}
 	}
 
 	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
