@@ -4712,7 +4712,6 @@ dependencies = [
  "sp-staking",
  "sp-statement-store",
  "sp-std",
- "sp-storage",
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",

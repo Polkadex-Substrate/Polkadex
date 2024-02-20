@@ -26,6 +26,7 @@ use constants::{currency::*, time::*};
 use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, onchain, ElectionDataProvider, SequentialPhragmen,
 };
+use frame_support::traits::fungible::Inspect;
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
@@ -1708,15 +1709,15 @@ impl_runtime_apis! {
 			OCEX::calculate_inventory_deviation()
 		}
 		fn top_lmp_accounts(epoch: u32, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
-			OCEX::top_lmp_accounts(epoch, market, sorted_by_mm_score, limit as usize)
+			OCEX::top_lmp_accounts(epoch.saturated_into(), market, sorted_by_mm_score, limit as usize)
 		}
 
 		fn calculate_lmp_rewards(main: AccountId, epoch: u32, market: TradingPair) -> (Decimal, Decimal, bool) {
-			OCEX::get_lmp_rewards(main, epoch, market)
+			OCEX::get_lmp_rewards(&main, epoch.saturated_into(), market)
 		}
 
 		fn get_fees_paid_by_user_per_epoch(epoch: u32,market: TradingPair, main: AccountId) -> Decimal {
-			OCEX::get_fees_paid_by_user_per_epoch(epoch,market,main)
+			OCEX::get_fees_paid_by_user_per_epoch(epoch.saturated_into(),market,main)
 		}
 
 		fn get_volume_by_user_per_epoch(epoch: u32, market: TradingPair, main: AccountId) -> Decimal{
