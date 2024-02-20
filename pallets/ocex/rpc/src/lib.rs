@@ -34,6 +34,7 @@ use orderbook_primitives::{
 pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
 use polkadex_primitives::AssetId;
+use rust_decimal::Decimal;
 use sc_rpc_api::DenyUnsafe;
 use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
@@ -81,6 +82,33 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 		market: TradingPair,
 		main: AccountId,
 	) -> RpcResult<(String, String, bool)>;
+
+	#[method(name = "lmp_feesPaidByUserPerEpoch")]
+	fn get_fees_paid_by_user_per_epoch(
+		&self,
+		at: Option<BlockHash>,
+		epoch: u32,
+		market: TradingPair,
+		main: AccountId,
+	) -> RpcResult<String>;
+
+	#[method(name = "lmp_volumeGeneratedByUserPerEpoch")]
+	fn get_volume_by_user_per_epoch(
+		&self,
+		at: Option<BlockHash>,
+		epoch: u32,
+		market: TradingPair,
+		main: AccountId,
+	) -> RpcResult<String>;
+
+	#[method(name = "lmp_listClaimableEpochs")]
+	fn list_claimable_epochs(
+		&self,
+		at: Option<BlockHash>,
+		market: TradingPair,
+		main: AccountId,
+		until_epoch: u32,
+	) -> RpcResult<Vec<u32>>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -122,7 +150,7 @@ where
 	Block: BlockT,
 	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	Client::Api: PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
-	AccountId: Codec,
+	AccountId: Codec + Clone,
 	Hash: Codec,
 	T: OffchainStorage + 'static,
 {
@@ -264,6 +292,75 @@ where
 			.map_err(runtime_error_into_rpc_err)?;
 
 		Ok((mm_rewards.to_string(), trading_rewards.to_string(), is_claimed))
+	}
+
+	fn get_fees_paid_by_user_per_epoch(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		epoch: u32,
+		market: TradingPair,
+		main: AccountId,
+	) -> RpcResult<String> {
+		let api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let fees_paid: Decimal = api
+			.get_fees_paid_by_user_per_epoch(at, epoch, market, main)
+			.map_err(runtime_error_into_rpc_err)?;
+
+		Ok(fees_paid.to_string())
+	}
+
+	fn get_volume_by_user_per_epoch(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		epoch: u32,
+		market: TradingPair,
+		main: AccountId,
+	) -> RpcResult<String> {
+		let api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let volume_generated: Decimal = api
+			.get_volume_by_user_per_epoch(at, epoch, market, main)
+			.map_err(runtime_error_into_rpc_err)?;
+
+		Ok(volume_generated.to_string())
+	}
+
+	fn list_claimable_epochs(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+		market: TradingPair,
+		main: AccountId,
+		until_epoch: u32,
+	) -> RpcResult<Vec<u32>> {
+		let api = self.client.runtime_api();
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let mut claimable_epochs = Vec::new();
+
+		for epoch in 0..=until_epoch {
+			let (mm_rewards, trading_rewards, is_claimed) = api
+				.calculate_lmp_rewards(at, main.clone(), epoch, market)
+				.map_err(runtime_error_into_rpc_err)?;
+			// If any one of the rewards are present and is_claimed is false,
+			// then its claimable
+			if (!mm_rewards.is_zero() || !trading_rewards.is_zero()) && !is_claimed {
+				claimable_epochs.push(epoch)
+			}
+		}
+
+		Ok(claimable_epochs)
 	}
 }
 
