@@ -28,6 +28,7 @@ if [ -z $CI_PROJECT_NAME ] ; then
    rustup update stable
 fi
 rustup toolchain add nightly-2021-06-28
+rustup target add wasm32-unknown-unknown --toolchain stable
 rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-28
 rustup target add x86_64-unknown-linux-gnu --toolchain nightly-2021-06-28
