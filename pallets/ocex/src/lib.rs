@@ -1609,6 +1609,7 @@ pub mod pallet {
 			(mm_rewards, trading_rewards, is_claimed)
 		}
 
+		#[allow(dead_code)]
 		fn get_fees_paid_by_user_per_epoch(
 			epoch: u32,
 			market: TradingPair,
@@ -1627,6 +1628,7 @@ pub mod pallet {
 			.unwrap_or_default()
 		}
 
+		#[allow(dead_code)]
 		fn get_volume_by_user_per_epoch(
 			epoch: u32,
 			market: TradingPair,

@@ -42,6 +42,7 @@ pub fn update_trade_volume_by_main_account(
 	})
 }
 
+#[allow(dead_code)]
 pub fn get_trade_volume_by_main_account(
 	state: &mut OffchainState,
 	epoch: u16,
