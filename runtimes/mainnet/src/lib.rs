@@ -51,6 +51,7 @@ use frame_system::{
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
 
+use orderbook_primitives::types::TradingPair;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -90,7 +91,6 @@ use sp_std::{prelude::*, vec};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-use orderbook_primitives::types::TradingPair;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1608,9 +1608,7 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-use crate::{
-	impls::CreditToBlockAuthor,
-};
+use crate::impls::CreditToBlockAuthor;
 use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {

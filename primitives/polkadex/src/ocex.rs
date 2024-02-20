@@ -88,8 +88,19 @@ impl<Account: PartialEq, ProxyLimit: Get<u32>> AccountInfo<Account, ProxyLimit> 
 
 /// Trading pair configuration structure definition.
 #[derive(
-	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Eq, PartialEq, Copy, Ord, PartialOrd,
-Serialize, Deserialize
+	Clone,
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	TypeInfo,
+	Debug,
+	Eq,
+	PartialEq,
+	Copy,
+	Ord,
+	PartialOrd,
+	Serialize,
+	Deserialize,
 )]
 pub struct TradingPairConfig {
 	/// Base asset identifier.
