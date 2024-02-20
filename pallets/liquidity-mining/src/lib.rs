@@ -282,11 +282,14 @@ pub mod pallet {
 			if let Call::submit_scores_of_lps { results: _ } = call {
 				// This txn is only available during snapshotting
 				if <SnapshotFlag<T>>::get().is_none() {
-					return InvalidTransaction::Call.into()
+					return InvalidTransaction::Call.into();
 				}
-				if source == TransactionSource::External {
-					// Don't accept externally sourced calls
-					return InvalidTransaction::Call.into()
+				match source {
+					TransactionSource::External => {
+						// Don't accept externally sourced calls
+						return InvalidTransaction::Call.into();
+					},
+					_ => {},
 				}
 
 				// TODO: @zktony Update the verification logic to make it more stringent.
@@ -317,7 +320,7 @@ pub mod pallet {
 					.propagate(true)
 					.build()
 			} else {
-				InvalidTransaction::Call.into()
+				return InvalidTransaction::Call.into();
 			}
 		}
 	}

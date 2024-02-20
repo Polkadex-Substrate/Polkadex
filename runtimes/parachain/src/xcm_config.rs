@@ -96,11 +96,11 @@ impl SafeCallFilter {
 	pub fn allow_base_call(call: &RuntimeCall) -> bool {
 		matches!(
 			call,
-			RuntimeCall::System(..) |
-				RuntimeCall::Balances(..) |
-				RuntimeCall::Assets(..) |
-				RuntimeCall::PolkadotXcm(..) |
-				RuntimeCall::Session(..)
+			RuntimeCall::System(..)
+				| RuntimeCall::Balances(..)
+				| RuntimeCall::Assets(..)
+				| RuntimeCall::PolkadotXcm(..)
+				| RuntimeCall::Session(..)
 		)
 	}
 	/// Checks whether composite call is allowed to be executed via `Transact` XCM instruction.
@@ -337,7 +337,7 @@ where
 				if WH::check_whitelisted_token(foreign_currency_asset_id) {
 					(payment, 0u128)
 				} else {
-					return Err(XcmError::Trap(1004))
+					return Err(XcmError::Trap(1004));
 				};
 			self.weight = self.weight.saturating_add(weight);
 			if let Some((old_asset_location, _)) = self.asset_location_and_units_per_second {

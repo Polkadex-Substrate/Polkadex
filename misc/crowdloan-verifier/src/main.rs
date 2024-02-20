@@ -60,14 +60,14 @@ fn main() {
 				println!(
 					"---------------------------------------------------------------------------"
 				);
-				return
+				return;
 			} else {
 				println!("User not found in contributor list.");
-				return
+				return;
 			}
 		} else {
 			println!("Not a valid user address");
-			return
+			return;
 		}
 	}
 	// Open CSV file
@@ -112,9 +112,9 @@ fn main() {
 				let total_rewards_list = Decimal::from(details.0).div(unit);
 				let cliff_amt_list = Decimal::from(details.1).div(unit);
 				let claim_per_blk_list = Decimal::from(details.2).div(unit);
-				if (total_rewards != total_rewards_list) ||
-					(cliff_amt != cliff_amt_list) ||
-					(claim_per_blk != claim_per_blk_list)
+				if (total_rewards != total_rewards_list)
+					|| (cliff_amt != cliff_amt_list)
+					|| (claim_per_blk != claim_per_blk_list)
 				{
 					println!("ERROR IN REWARDS INFO");
 					println!(
@@ -145,7 +145,7 @@ fn main() {
 					println!("25% Cliff: {cliff_amt:?} PDEX");
 					println!("Amount claimable per block: {claim_per_blk:?} PDEX");
 					println!("DOT contributed: {dot_contributed:?} DOT");
-					return
+					return;
 				}
 			} else {
 				println!("User Account Info ");
@@ -164,7 +164,7 @@ fn main() {
 				println!(
 					"---------------------------------------------------------------------------"
 				);
-				return
+				return;
 			}
 		}
 		println!("Excel and Source code account lists match, All good!")

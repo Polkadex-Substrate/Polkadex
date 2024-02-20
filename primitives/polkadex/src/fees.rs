@@ -19,7 +19,7 @@
 //! In this module defined operations fee related types.
 
 use codec::{Decode, Encode};
-use rust_decimal::{prelude::Zero, Decimal};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
 
 #[cfg(feature = "std")]
@@ -37,6 +37,9 @@ pub struct FeeConfig {
 
 impl Default for FeeConfig {
 	fn default() -> Self {
-		Self { maker_fraction: Decimal::zero(), taker_fraction: Decimal::zero() }
+		Self {
+			maker_fraction: Decimal::from_f64(0.001).unwrap(),
+			taker_fraction: Decimal::from_f64(0.001).unwrap(),
+		}
 	}
 }

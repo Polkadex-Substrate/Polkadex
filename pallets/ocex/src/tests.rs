@@ -27,9 +27,12 @@ use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
+use frame_support::traits::fungibles::Inspect as InspectAsset;
+use frame_support::traits::fungibles::Mutate as MutateAsset;
 use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
 use parity_scale_codec::Decode;
+use polkadex_primitives::ocex::AccountInfo;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
 use sp_core::{
@@ -446,7 +449,6 @@ fn test_sub_more_than_available_balance_from_existing_account_with_balance() {
 	});
 }
 
-#[ignore]
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_without_balance() {
@@ -471,7 +473,6 @@ fn test_trade_between_two_accounts_without_balance() {
 	});
 }
 
-#[ignore]
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_with_balance() {
@@ -551,7 +552,6 @@ fn test_trade_between_two_accounts_with_balance() {
 	});
 }
 
-#[ignore]
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_insuffient_bidder_balance() {
@@ -588,7 +588,6 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 	});
 }
 
-#[ignore]
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_insuffient_asker_balance() {
@@ -625,7 +624,6 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 	});
 }
 
-#[ignore]
 #[test]
 // check if balance is added to new account
 fn test_trade_between_two_accounts_invalid_signature() {
@@ -1967,8 +1965,8 @@ fn collect_fees() {
 
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance +
-				UNIT_BALANCE + snapshot.withdrawals[0]
+			initial_balance
+				+ UNIT_BALANCE + snapshot.withdrawals[0]
 				.fees
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()
@@ -1976,8 +1974,8 @@ fn collect_fees() {
 		);
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance -
-				UNIT_BALANCE - snapshot.withdrawals[0]
+			initial_balance
+				- UNIT_BALANCE - snapshot.withdrawals[0]
 				.fees
 				.saturating_mul(Decimal::from(UNIT_BALANCE))
 				.to_u128()
@@ -2137,11 +2135,7 @@ fn collect_fees_ddos() {
 	new_test_ext().execute_with(|| {
 		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
 		for x in 0..10000000 {
-			assert_ok!(OCEX::collect_fees(
-				RuntimeOrigin::signed(account_id.clone().into()),
-				x,
-				account_id.clone().into()
-			));
+			assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), x, account_id.clone().into()));
 		}
 	});
 }
@@ -2325,7 +2319,7 @@ use orderbook_primitives::{
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
 
-use orderbook_primitives::types::{UserActionBatch};
+use orderbook_primitives::types::UserActionBatch;
 use trie_db::TrieMut;
 
 #[test]
@@ -2376,65 +2370,7 @@ use crate::{
 	sr25519::AuthorityId,
 	storage::OffchainState,
 };
-use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
-
-//FIXME: This test case is failing. Check if it relevant ot not
-// #[test]
-// fn test_set_balances_with_bad_origin() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
-// 		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-// 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-// 			BoundedVec::try_from(vec_of_balances).unwrap();
-//
-// 		assert_noop!(OCEX::set_balances(RuntimeOrigin::none(), bounded_vec_for_alice), BadOrigin);
-// 	});
-// }
-
-//FIXME: This test case is failing. Check if it relevant ot not
-// #[test]
-// pub fn test_set_balances_when_exchange_is_not_pause() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
-// 		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-// 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-// 			BoundedVec::try_from(vec_of_balances).unwrap();
-//
-// 		assert_noop!(
-// 			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice),
-// 			Error::<Test>::ExchangeOperational
-// 		);
-// 	});
-// }
-
-//FIXME: This test case is failing. Check if it relevant ot not
-// #[test]
-// pub fn test_set_balances_when_exchange_is_pause() {
-// 	let account_id = create_account_id();
-// 	new_test_ext().execute_with(|| {
-// 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
-// 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-// 		vec_of_balances.push(HandleBalance {
-// 			main_account: account_id,
-// 			asset_id: AssetId::Polkadex,
-// 			free: 100,
-// 			reserve: 50,
-// 		});
-// 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-// 			BoundedVec::try_from(vec_of_balances).unwrap();
-//
-// 		assert_eq!(
-// 			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
-// 			Ok(())
-// 		);
-// 		let blk = frame_system::Pallet::<Test>::current_block_number();
-//
-// 		// assert_eq!(
-// 		// 	OCEX::ingress_messages(blk)[1],
-// 		// 	IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice)
-// 		// );
-// 	});
-// }
+use polkadex_primitives::ingress::{EgressMessages, HandleBalance, HandleBalanceLimit};
 
 #[test]
 pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
@@ -2457,30 +2393,6 @@ pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
 		assert!(bounded_vec_for_alice.is_err());
 	});
 }
-
-//FIXME: This test case is failing. Check if it relevant ot not
-// #[test]
-// pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
-// 	let account_id = create_account_id();
-// 	new_test_ext().execute_with(|| {
-// 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
-// 		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-// 		for _i in 0..1000 {
-// 			vec_of_balances.push(HandleBalance {
-// 				main_account: account_id.clone(),
-// 				asset_id: AssetId::Polkadex,
-// 				free: 100,
-// 				reserve: 50,
-// 			});
-// 		}
-// 		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-// 			BoundedVec::try_from(vec_of_balances).unwrap();
-// 		assert_eq!(
-// 			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
-// 			Ok(())
-// 		);
-// 	});
-// }
 
 #[test]
 fn test_remove_proxy_account_faulty_cases() {
@@ -2772,6 +2684,86 @@ fn test_do_claim_lmp_rewards_happy_path() {
 	})
 }
 
+#[test]
+fn test_process_egress_msg_trading_fee() {
+	new_test_ext().execute_with(|| {
+		crete_base_and_quote_asset();
+		let asset_id = 1;
+		let asset = AssetId::Asset(asset_id);
+		let pallet_account = OCEX::get_pallet_account();
+		let pot_account = OCEX::get_pot_account();
+		Balances::mint_into(&pallet_account, 100 * UNIT_BALANCE).unwrap();
+		Balances::mint_into(&pot_account, 100 * UNIT_BALANCE).unwrap();
+		Assets::mint_into(asset_id, &pallet_account, 200 * UNIT_BALANCE).unwrap();
+		let trader_fee_paid = Decimal::from(100);
+		let mut fee_map = BTreeMap::new();
+		fee_map.insert(asset, trader_fee_paid);
+		let message = EgressMessages::TradingFees(fee_map);
+		assert_ok!(OCEX::process_egress_msg(&vec![message]));
+		assert_eq!(Assets::balance(asset_id, &pot_account), 100 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_process_remove_liquidity_result() {
+	new_test_ext().execute_with(|| {
+		crete_base_and_quote_asset();
+		let asset_id = 1;
+		let asset = AssetId::Asset(asset_id);
+		let market = TradingPairConfig {
+			base_asset: AssetId::Polkadex,
+			quote_asset: asset,
+			min_price: Default::default(),
+			max_price: Default::default(),
+			price_tick_size: Default::default(),
+			min_qty: Default::default(),
+			max_qty: Default::default(),
+			qty_step_size: Default::default(),
+			operational_status: true,
+			base_asset_precision: 12,
+			quote_asset_precision: 12,
+		};
+		let pool = AccountId32::new([3; 32]);
+		let lp = AccountId32::new([4; 32]);
+		let pallet_account = OCEX::get_pallet_account();
+		let base_free = Decimal::from(1);
+		let quote_free = Decimal::from(1);
+		Balances::mint_into(&pallet_account, 200 * UNIT_BALANCE).unwrap();
+		Balances::mint_into(&pool, 1 * UNIT_BALANCE).unwrap();
+		Assets::mint_into(asset_id, &pool, 1 * UNIT_BALANCE).unwrap();
+		Assets::mint_into(asset_id, &pallet_account, 200 * UNIT_BALANCE).unwrap();
+		let message = EgressMessages::RemoveLiquidityResult(
+			market,
+			pool.clone(),
+			lp.clone(),
+			base_free,
+			quote_free,
+		);
+		assert_ok!(OCEX::process_egress_msg(&vec![message]));
+		// Check balance
+		assert_eq!(Balances::free_balance(&lp), 1 * UNIT_BALANCE);
+		assert_eq!(Assets::balance(asset_id, &lp), 1 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_price_oracle() {
+	new_test_ext().execute_with(|| {
+		let mut old_price_map = <PriceOracle<Test>>::get();
+		let base_asset = AssetId::Polkadex;
+		let quote_asset = AssetId::Asset(1);
+		let avg_price = Decimal::from(100);
+		let tick = Decimal::from(1);
+		old_price_map.insert((base_asset, quote_asset), (avg_price, tick));
+		<PriceOracle<Test>>::put(old_price_map);
+		let mut new_price_map: BTreeMap<(AssetId, AssetId), Decimal> = BTreeMap::new();
+		let new_price = Decimal::from(200);
+		new_price_map.insert((base_asset, quote_asset), new_price);
+		let message = EgressMessages::PriceOracle(new_price_map);
+		assert_ok!(OCEX::process_egress_msg(&vec![message]));
+	})
+}
+
 pub fn update_lmp_score() {
 	let total_score = Decimal::from(1000);
 	let total_fee_paid = Decimal::from(1000);
@@ -2822,7 +2814,8 @@ pub fn add_lmp_config() {
 	OCEX::start_new_epoch();
 }
 
-use frame_support::traits::{fungible::Mutate};
+use frame_support::traits::fungible::Mutate;
+use polkadex_primitives::fees::FeeConfig;
 
 fn crete_base_and_quote_asset() {
 	let quote_asset = AssetId::Asset(1);
@@ -2851,14 +2844,6 @@ fn register_trading_pair() {
 		1_0000_0000_u128.into(),
 	));
 }
-
-//FIXME: This test case is not building. Check if it relevant or not
-// #[test]
-// fn test_scale_encode_with_old_user_action_enum_with_new_returns_ok() {
-// 	let actual_payload = fixture_old_user_action::get_old_user_action_fixture();
-// 	let expected_payload: UserActions<AccountId> = UserActions::BlockImport(24);
-// 	assert_eq!(actual_payload, expected_payload.encode());
-// }
 
 fn allowlist_token(token: AssetId) {
 	let mut allowlisted_token = <AllowlistedToken<Test>>::get();
@@ -2898,7 +2883,7 @@ fn create_account_id() -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 fn create_proxy_account(path: &str) -> AccountId32 {
@@ -2914,13 +2899,13 @@ fn create_proxy_account(path: &str) -> AccountId32 {
 	.try_into()
 	.expect("Unable to convert to AccountId32");
 
-	return account_id
+	return account_id;
 }
 
 fn create_trade_between_alice_and_bob(price: Decimal, qty: Decimal) -> Trade {
 	let order1 = create_order_by_alice(price, qty, 3.into(), OrderStatus::OPEN);
 	let order2 = create_order_by_bob(price, qty, 3.into(), OrderStatus::OPEN);
-	return Trade { maker: order1, taker: order2, price, amount: qty, time: 2 }
+	return Trade { maker: order1, taker: order2, price, amount: qty, time: 2 };
 }
 
 fn create_order_by_alice(
@@ -2930,6 +2915,16 @@ fn create_order_by_alice(
 	status: OrderStatus,
 ) -> Order {
 	let account = get_alice_key_pair().public();
+	let account_id = AccountId32::new(account.0);
+	let fee_config =
+		FeeConfig { maker_fraction: Default::default(), taker_fraction: Default::default() };
+	let account_info = AccountInfo {
+		main_account: account_id.clone(),
+		proxies: BoundedVec::new(),
+		balances: Default::default(),
+		fee_config,
+	};
+	<Accounts<Test>>::insert(account_id, account_info);
 	let mut order = Order {
 		stid: 0,
 		client_order_id: H256([1u8; 32]),
@@ -2952,7 +2947,7 @@ fn create_order_by_alice(
 	};
 	let payload: OrderPayload = order.clone().into();
 	order.signature = get_alice_key_pair().sign(&payload.encode()).into();
-	return order
+	return order;
 }
 
 fn create_order_by_bob(
@@ -2962,6 +2957,16 @@ fn create_order_by_bob(
 	status: OrderStatus,
 ) -> Order {
 	let account = get_bob_key_pair().public();
+	let account_id = AccountId32::new(account.0);
+	let fee_config =
+		FeeConfig { maker_fraction: Default::default(), taker_fraction: Default::default() };
+	let account_info = AccountInfo {
+		main_account: account_id.clone(),
+		proxies: BoundedVec::new(),
+		balances: Default::default(),
+		fee_config,
+	};
+	<Accounts<Test>>::insert(account_id, account_info);
 	let mut order = Order {
 		stid: 0,
 		client_order_id: H256([1u8; 32]),
@@ -2984,15 +2989,15 @@ fn create_order_by_bob(
 	};
 	let payload: OrderPayload = order.clone().into();
 	order.signature = get_bob_key_pair().sign(&payload.encode()).into();
-	return order
+	return order;
 }
 
 pub fn get_alice_key_pair() -> sp_core::sr25519::Pair {
-	return sp_core::sr25519::Pair::from_string("//Alice", None).unwrap()
+	return sp_core::sr25519::Pair::from_string("//Alice", None).unwrap();
 }
 
 pub fn get_bob_key_pair() -> sp_core::sr25519::Pair {
-	return sp_core::sr25519::Pair::from_string("//Bob", None).unwrap()
+	return sp_core::sr25519::Pair::from_string("//Bob", None).unwrap();
 }
 
 pub fn get_trading_pair_config() -> TradingPairConfig {
@@ -3021,7 +3026,7 @@ pub fn get_random_signature() -> Signature {
 
 fn create_max_fees<T: Config>() -> Fees {
 	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
-	return fees
+	return fees;
 }
 
 pub mod fixture_old_user_action {

@@ -41,6 +41,24 @@ pub fn update_trade_volume_by_main_account(
 	})
 }
 
+#[allow(dead_code)]
+pub fn get_trade_volume_by_main_account(
+	state: &mut OffchainState,
+	epoch: u16,
+	trading_pair: &TradingPair,
+	main: &AccountId,
+) -> Result<Decimal, &'static str> {
+	let key = (epoch, trading_pair, "trading_volume", main).encode();
+	Ok(match state.get(&key)? {
+		None => Decimal::zero(),
+		Some(encoded_volume) => {
+			let recorded_volume = Decimal::decode(&mut &encoded_volume[..])
+				.map_err(|_| "Unable to decode decimal")?;
+			recorded_volume
+		},
+	})
+}
+
 pub fn get_maker_volume_by_main_account(
 	state: &mut OffchainState,
 	epoch: u16,
@@ -50,8 +68,9 @@ pub fn get_maker_volume_by_main_account(
 	let key = (epoch, trading_pair, "maker_volume", main).encode();
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
-		Some(encoded_volume) =>
-			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?,
+		Some(encoded_volume) => {
+			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?
+		},
 	})
 }
 
@@ -112,8 +131,9 @@ pub fn get_fees_paid_by_main_account_in_quote(
 	let key = (epoch, trading_pair, "fees_paid", main).encode();
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
-		Some(encoded_fees_paid) =>
-			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?,
+		Some(encoded_fees_paid) => {
+			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?
+		},
 	})
 }
 

@@ -35,10 +35,13 @@ use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Member},
 	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
-	Percent, RuntimeAppPublic, SaturatedConversion,
+	RuntimeAppPublic, SaturatedConversion,
 };
 use sp_std::prelude::*;
-use thea_primitives::{types::Message, Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID};
+use thea_primitives::{
+	types::{Message, NetworkType, PayloadType},
+	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -47,9 +50,6 @@ mod mock;
 mod session;
 #[cfg(test)]
 mod tests;
-
-pub mod aggregator;
-pub mod resolver;
 pub mod validation;
 /// Export of auto-generated weights
 pub mod weights;
@@ -78,38 +78,69 @@ pub mod ecdsa {
 }
 
 pub trait TheaWeightInfo {
-	fn incoming_message(b: u32) -> Weight;
+	fn submit_incoming_message(b: u32) -> Weight;
 	fn send_thea_message(_b: u32) -> Weight;
 	fn update_incoming_nonce(_b: u32) -> Weight;
 	fn update_outgoing_nonce(_b: u32) -> Weight;
 	fn add_thea_network() -> Weight;
 	fn remove_thea_network() -> Weight;
+	fn submit_signed_outgoing_messages() -> Weight;
+	fn report_misbehaviour() -> Weight;
+	fn handle_misbehaviour() -> Weight;
+	fn on_initialize(x: u32) -> Weight;
 }
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-
-	use frame_support::transactional;
+	use frame_support::{
+		traits::{
+			fungible::{Inspect, Mutate as OtherMutate},
+			tokens::{fungible::hold::Mutate, Fortitude, Precision, Preservation},
+		},
+		transactional,
+	};
 	use frame_system::offchain::SendTransactionTypes;
+	use polkadex_primitives::Balance;
 	use sp_std::collections::btree_set::BTreeSet;
-	use thea_primitives::{types::Message, TheaIncomingExecutor, TheaOutgoingExecutor};
+	use thea_primitives::{
+		types::{IncomingMessage, Message, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON},
+		TheaIncomingExecutor, TheaOutgoingExecutor,
+	};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
-		type TheaId: Member + Parameter + RuntimeAppPublic + MaybeSerializeDeserialize + Ord;
+		type TheaId: Member
+			+ Parameter
+			+ RuntimeAppPublic
+			+ MaybeSerializeDeserialize
+			+ Ord
+			+ Into<sp_core::ecdsa::Public>
+			+ From<sp_core::ecdsa::Public>;
 
 		/// Authority Signature
-		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature> + Member + Parameter;
+		type Signature: IsType<<Self::TheaId as RuntimeAppPublic>::Signature>
+			+ Member
+			+ Parameter
+			+ From<sp_core::ecdsa::Signature>
+			+ Into<sp_core::ecdsa::Signature>;
 
 		/// The maximum number of authorities that can be added.
 		type MaxAuthorities: Get<u32>;
 
 		/// Something that executes the payload
 		type Executor: thea_primitives::TheaIncomingExecutor;
+
+		/// Balances Pallet
+		type Currency: frame_support::traits::fungible::Mutate<Self::AccountId>
+			+ frame_support::traits::fungible::Inspect<Self::AccountId>
+			+ frame_support::traits::fungible::hold::Mutate<Self::AccountId, Reason = [u8; 8]>;
+
+		/// Governance Origin
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: TheaWeightInfo;
@@ -150,6 +181,34 @@ pub mod pallet {
 	pub(super) type OutgoingMessages<T: Config> =
 		StorageDoubleMap<_, Identity, Network, Identity, u64, Message, OptionQuery>;
 
+	/// Signed Outgoing messages
+	/// first key: Network
+	/// second key: Message nonce
+	#[pallet::storage]
+	pub(super) type SignedOutgoingMessages<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		u64,
+		SignedMessage<T::Signature>,
+		OptionQuery,
+	>;
+
+	/// Incoming messages queue
+	/// first key: origin network
+	/// second key: blocknumber at which it will execute
+	#[pallet::storage]
+	pub(super) type IncomingMessagesQueue<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		u64,
+		thea_primitives::types::IncomingMessage<T::AccountId, Balance>,
+		OptionQuery,
+	>;
+
 	/// Incoming messages
 	/// first key: origin network
 	/// second key: origin network blocknumber
@@ -168,15 +227,57 @@ pub mod pallet {
 	#[pallet::getter(fn outgoing_nonce)]
 	pub(super) type OutgoingNonce<T: Config> = StorageMap<_, Identity, Network, u64, ValueQuery>;
 
+	/// Outgoing signed nonce's grouped by network
+	#[pallet::storage]
+	pub(super) type SignedOutgoingNonce<T: Config> =
+		StorageMap<_, Identity, Network, u64, ValueQuery>;
+
 	/// List of Active networks
 	#[pallet::storage]
 	#[pallet::getter(fn active_networks)]
 	pub(super) type ActiveNetworks<T: Config> = StorageValue<_, BTreeSet<Network>, ValueQuery>;
 
+	/// Network Config
+	#[pallet::storage]
+	pub(super) type NetworkConfig<T: Config> =
+		StorageMap<_, Identity, Network, thea_primitives::types::NetworkConfig, ValueQuery>;
+
+	/// Misbehavour Reports
+	/// first key: origin network
+	/// second key: nonce
+	#[pallet::storage]
+	pub(super) type MisbehaviourReports<T: Config> = StorageDoubleMap<
+		_,
+		Identity,
+		Network,
+		Identity,
+		u64,
+		thea_primitives::types::MisbehaviourReport<T::AccountId, Balance>,
+		OptionQuery,
+	>;
+
+	/// Temporary allowlist for relayer
+	#[pallet::storage]
+	pub(super) type AllowListTestingRelayers<T: Config> =
+		StorageMap<_, Identity, Network, T::AccountId, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		TheaPayloadProcessed(Network, u64),
+		ErrorWhileReleasingLock(T::AccountId, DispatchError),
+		/// Misbehaviour Reported (fisherman, network, nonce)
+		MisbehaviourReported(T::AccountId, Network, u64),
+		/// New signature of Thea withdrawal
+		TheaSignatureUpdated(Network, u64, u16),
+		/// Signing completed
+		TheaSignatureFinalized(Network, u64),
+		/// Unable to parse public key
+		UnableToParsePublicKey(T::TheaId),
+		/// Unable to slice public key hash for evm chains
+		UnableToSlicePublicKeyHash(T::TheaId),
+		/// Unable to generate rotate validators payload for this network
+		UnableToGenerateValidatorSet(Network),
 	}
 
 	#[pallet::error]
@@ -187,10 +288,63 @@ pub mod pallet {
 		ErrorExecutingMessage,
 		/// Wrong nonce provided
 		MessageNonce,
+		/// Not enough stake
+		NotEnoughStake,
+		/// MessageNotFound
+		MessageNotFound,
+		/// No Relayer found
+		NoRelayersFound,
+		/// Not expected relayer origin
+		NotAnAllowlistedRelayer,
+		/// Nonce Error
+		NonceError,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(blk: BlockNumberFor<T>) -> Weight {
+			// Every block check the next incoming nonce and if fork period is over, execute them
+			let active_networks = <ActiveNetworks<T>>::get();
+			for network in active_networks.clone() {
+				let last_processed_nonce = <IncomingNonce<T>>::get(network);
+				let next_nonce = last_processed_nonce.saturating_add(1);
+				match <IncomingMessagesQueue<T>>::take(network, next_nonce) {
+					None => continue,
+					Some(msg) => {
+						if msg.execute_at <= blk.saturated_into::<u32>() {
+							T::Executor::execute_deposits(
+								msg.message.network,
+								msg.message.data.clone(),
+							);
+							<IncomingNonce<T>>::insert(msg.message.network, next_nonce);
+							Self::deposit_event(Event::<T>::TheaPayloadProcessed(
+								msg.message.network,
+								msg.message.nonce,
+							));
+							// Save the incoming message for some time
+							<IncomingMessages<T>>::insert(
+								msg.message.network,
+								msg.message.nonce,
+								msg.message,
+							);
+							if let Err(err) = T::Currency::release(
+								&THEA_HOLD_REASON,
+								&msg.relayer,
+								msg.stake.saturated_into(),
+								Precision::BestEffort,
+							) {
+								// Emit an error event
+								Self::deposit_event(Event::<T>::ErrorWhileReleasingLock(
+									msg.relayer,
+									err,
+								));
+							}
+						}
+					},
+				}
+			}
+			T::WeightInfo::on_initialize(active_networks.len() as u32)
+		}
 		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");
 			if let Err(err) = Self::run_thea_validation(blk) {
@@ -205,8 +359,9 @@ pub mod pallet {
 
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			match call {
-				Call::incoming_message { payload, signatures } =>
-					Self::validate_incoming_message(payload, signatures),
+				Call::submit_signed_outgoing_messages { auth_index, signatures, id } => {
+					Self::validate_signed_outgoing_message(auth_index, id, signatures)
+				},
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -214,22 +369,73 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Handles the verified incoming message
+		/// Submit incoming message
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::incoming_message(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_incoming_message(1))]
 		#[transactional]
-		pub fn incoming_message(
+		pub fn submit_incoming_message(
 			origin: OriginFor<T>,
 			payload: Message,
-			_signatures: Vec<(u16, T::Signature)>,
+			stake: Balance,
 		) -> DispatchResult {
-			ensure_none(origin)?;
-			// Signature and nonce are already verified in validate_unsigned, no need to do it again
-			T::Executor::execute_deposits(payload.network, payload.data.clone());
-			<IncomingNonce<T>>::insert(payload.network, payload.nonce);
-			Self::deposit_event(Event::<T>::TheaPayloadProcessed(payload.network, payload.nonce));
-			// Save the incoming message for some time
-			<IncomingMessages<T>>::insert(payload.network, payload.nonce, payload);
+			let signer = ensure_signed(origin)?;
+			let expected_signer = <AllowListTestingRelayers<T>>::get(payload.network)
+				.ok_or(Error::<T>::NoRelayersFound)?;
+			ensure!(signer == expected_signer, Error::<T>::NotAnAllowlistedRelayer);
+
+			let config = <NetworkConfig<T>>::get(payload.network);
+
+			if stake < config.min_stake {
+				return Err(Error::<T>::NotEnoughStake.into());
+			}
+
+			let next_nonce = <IncomingNonce<T>>::get(payload.network);
+			ensure!(payload.nonce > next_nonce, Error::<T>::NonceError);
+
+			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
+				None => {
+					// Lock balance
+					T::Currency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+					// Put it in a queue
+					<IncomingMessagesQueue<T>>::insert(
+						payload.network,
+						payload.nonce,
+						IncomingMessage {
+							message: payload,
+							relayer: signer,
+							stake,
+							execute_at: frame_system::Pallet::<T>::current_block_number()
+								.saturated_into::<u32>()
+								.saturating_add(config.fork_period),
+						},
+					);
+				},
+				Some(mut existing_payload) => {
+					// Update the message only if stake is higher.
+					if existing_payload.stake < stake {
+						T::Currency::release(
+							&THEA_HOLD_REASON,
+							&existing_payload.relayer,
+							existing_payload.stake.saturated_into(),
+							Precision::BestEffort,
+						)?;
+						T::Currency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+						existing_payload.message = payload;
+						existing_payload.relayer = signer;
+						existing_payload.stake = stake;
+						existing_payload.execute_at =
+							frame_system::Pallet::<T>::current_block_number()
+								.saturated_into::<u32>()
+								.saturating_add(config.fork_period);
+						<IncomingMessagesQueue<T>>::insert(
+							existing_payload.message.network,
+							existing_payload.message.nonce,
+							existing_payload,
+						);
+					}
+				},
+			}
+
 			Ok(())
 		}
 
@@ -278,8 +484,24 @@ pub mod pallet {
 		/// Add a network to active networks
 		#[pallet::call_index(4)]
 		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
-		pub fn add_thea_network(origin: OriginFor<T>, network: Network) -> DispatchResult {
+		pub fn add_thea_network(
+			origin: OriginFor<T>,
+			network: Network,
+			is_evm: bool,
+			fork_period: u32,
+			min_stake: u128,
+			fisherman_stake: u128,
+		) -> DispatchResult {
 			ensure_root(origin)?;
+			<NetworkConfig<T>>::insert(
+				network,
+				thea_primitives::types::NetworkConfig::new(
+					fork_period,
+					min_stake,
+					fisherman_stake,
+					is_evm,
+				),
+			);
 			<ActiveNetworks<T>>::mutate(|list| {
 				list.insert(network);
 			});
@@ -296,6 +518,161 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		/// Signed outgoing messages
+		#[pallet::call_index(6)]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_signed_outgoing_messages())]
+		pub fn submit_signed_outgoing_messages(
+			origin: OriginFor<T>,
+			auth_index: u32,
+			id: thea_primitives::ValidatorSetId,
+			signatures: Vec<(Network, u64, T::Signature)>,
+		) -> DispatchResult {
+			ensure_none(origin)?;
+
+			for (network, nonce, signature) in signatures {
+				let message = match <OutgoingMessages<T>>::get(network, nonce) {
+					None => return Err(Error::<T>::MessageNotFound.into()),
+					Some(msg) => msg,
+				};
+				match <SignedOutgoingMessages<T>>::get(network, nonce) {
+					None => {
+						let signed_msg = SignedMessage::new(message, id, auth_index, signature);
+						<SignedOutgoingMessages<T>>::insert(network, nonce, signed_msg);
+					},
+					Some(mut signed_msg) => {
+						signed_msg.add_signature(message, id, auth_index, signature);
+						let auth_len = <Authorities<T>>::get(signed_msg.validator_set_id).len();
+						if signed_msg.threshold_reached(auth_len) {
+							<SignedOutgoingNonce<T>>::insert(network, nonce);
+							// Emit an event
+							Self::deposit_event(Event::<T>::TheaSignatureFinalized(network, nonce));
+						}
+						let total_signatures = signed_msg.signatures.len();
+						<SignedOutgoingMessages<T>>::insert(network, nonce, signed_msg);
+						// Emit an event
+						Self::deposit_event(Event::<T>::TheaSignatureUpdated(
+							network,
+							nonce,
+							total_signatures as u16,
+						));
+					},
+				}
+			}
+
+			Ok(())
+		}
+
+		/// Report misbehaviour as fisherman
+		#[pallet::call_index(7)]
+		#[pallet::weight(< T as Config >::WeightInfo::report_misbehaviour())]
+		#[transactional]
+		pub fn report_misbehaviour(
+			origin: OriginFor<T>,
+			network: Network,
+			nonce: u64,
+		) -> DispatchResult {
+			let fisherman = ensure_signed(origin)?;
+			let config = <NetworkConfig<T>>::get(network);
+			//  Check if min stake is given
+			if T::Currency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite)
+				< config.fisherman_stake.saturated_into()
+			{
+				return Err(Error::<T>::NotEnoughStake.into());
+			}
+			T::Currency::hold(
+				&THEA_HOLD_REASON,
+				&fisherman,
+				config.fisherman_stake.saturated_into(),
+			)?;
+			// Message from incoming message queue
+			match <IncomingMessagesQueue<T>>::take(network, nonce) {
+				None => return Err(Error::<T>::MessageNotFound.into()),
+				Some(reported_msg) => {
+					// Place it in misbehaviour reports
+					let report = MisbehaviourReport {
+						reported_msg,
+						fisherman: fisherman.clone(),
+						stake: config.fisherman_stake,
+					};
+					<MisbehaviourReports<T>>::insert(network, nonce, report);
+					// Emit an event
+					Self::deposit_event(Event::<T>::MisbehaviourReported(
+						fisherman, network, nonce,
+					));
+				},
+			}
+			Ok(())
+		}
+
+		/// Handle misbehaviour via governance
+		#[pallet::call_index(8)]
+		#[pallet::weight(< T as Config >::WeightInfo::handle_misbehaviour())]
+		#[transactional]
+		pub fn handle_misbehaviour(
+			origin: OriginFor<T>,
+			network: Network,
+			nonce: u64,
+			acceptance: bool,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			match <MisbehaviourReports<T>>::take(network, nonce) {
+				None => {},
+				Some(report) => {
+					if acceptance {
+						// Release lock on relayer
+						T::Currency::release(
+							&THEA_HOLD_REASON,
+							&report.reported_msg.relayer,
+							report.reported_msg.stake.saturated_into(),
+							Precision::BestEffort,
+						)?;
+						// Transfer to fisherman
+						T::Currency::transfer(
+							&report.reported_msg.relayer,
+							&report.fisherman,
+							report.reported_msg.stake.saturated_into(),
+							Preservation::Expendable,
+						)?;
+						// Release fisherman lock
+						T::Currency::release(
+							&THEA_HOLD_REASON,
+							&report.fisherman,
+							report.stake.saturated_into(),
+							Precision::BestEffort,
+						)?;
+					} else {
+						// Insert back the message to queue
+						<IncomingMessagesQueue<T>>::insert(
+							report.reported_msg.message.network,
+							report.reported_msg.message.nonce,
+							report.reported_msg,
+						);
+						// burn fisherman stake
+						T::Currency::burn_from(
+							&report.fisherman,
+							report.stake.saturated_into(),
+							Precision::BestEffort,
+							Fortitude::Force,
+						)?;
+					}
+				},
+			}
+			Ok(())
+		}
+
+		/// Adds a relayer origin for deposits - will be removed after mainnet testing
+		#[pallet::call_index(9)]
+		#[pallet::weight(< T as Config >::WeightInfo::add_thea_network())]
+		pub fn add_relayer_origin_for_network(
+			origin: OriginFor<T>,
+			network: Network,
+			relayer: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<AllowListTestingRelayers<T>>::insert(network, relayer);
+			Ok(())
+		}
 	}
 }
 
@@ -305,60 +682,67 @@ impl<T: Config> Pallet<T> {
 		<Authorities<T>>::get(id).to_vec()
 	}
 
-	fn validate_incoming_message(
-		payload: &Message,
-		signatures: &Vec<(u16, T::Signature)>,
+	fn validate_signed_outgoing_message(
+		auth_index: &u32,
+		id: &thea_primitives::ValidatorSetId,
+		signatures: &Vec<(Network, u64, T::Signature)>,
 	) -> TransactionValidity {
-		// Check if this message can be processed next by checking its nonce
-		let next_nonce = <IncomingNonce<T>>::get(payload.network).saturating_add(1);
+		let authorities = <Authorities<T>>::get(id).to_vec();
+		let signer: &T::TheaId = match authorities.get(*auth_index as usize) {
+			None => return InvalidTransaction::Custom(1).into(),
+			Some(signer) => signer,
+		};
+		for (network, nonce, signature) in signatures {
+			let next_outgoing_nonce = <SignedOutgoingNonce<T>>::get(network).saturating_add(1);
+			if *nonce != next_outgoing_nonce {
+				return InvalidTransaction::Custom(2).into();
+			}
 
-		if payload.nonce != next_nonce {
-			return InvalidTransaction::Custom(1).into()
-		}
+			// Reject if it contains already submitted message signatures
+			match <SignedOutgoingMessages<T>>::get(network, nonce) {
+				None => {},
+				Some(signed_msg) => {
+					if signed_msg.contains_signature(auth_index) {
+						return InvalidTransaction::Custom(4).into();
+					}
+				},
+			}
 
-		// Incoming messages are always signed by the current validators.
-		let current_set_id = <ValidatorSetId<T>>::get();
-		let authorities = <Authorities<T>>::get(current_set_id).to_vec();
+			let message = match <OutgoingMessages<T>>::get(network, nonce) {
+				None => return InvalidTransaction::Custom(3).into(),
+				Some(msg) => msg,
+			};
+			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
 
-		// Check for super majority
-		const MAJORITY: u8 = 67;
-		let p = Percent::from_percent(MAJORITY);
-		let threshold = p * authorities.len();
-
-		if signatures.len() < threshold {
-			return InvalidTransaction::Custom(4).into()
-		}
-
-		let encoded_payload = payload.encode();
-		let msg_hash = sp_io::hashing::sha2_256(&encoded_payload);
-		for (index, signature) in signatures {
-			match authorities.get(*index as usize) {
-				None => return InvalidTransaction::Custom(2).into(),
-				Some(auth) =>
-					if !auth.verify(&msg_hash, &((*signature).clone().into())) {
-						return InvalidTransaction::Custom(3).into()
-					},
+			if !sp_io::crypto::ecdsa_verify_prehashed(
+				&signature.clone().into(),
+				&msg_hash,
+				&signer.clone().into(),
+			) {
+				return InvalidTransaction::Custom(6).into();
 			}
 		}
 
 		ValidTransaction::with_tag_prefix("thea")
-			.and_provides(payload)
-			.longevity(3)
+			.priority(TransactionPriority::MAX / 3)
+			.and_provides((id, auth_index))
+			.longevity(10)
 			.propagate(true)
 			.build()
 	}
 
-	pub fn generate_payload(is_key_change: bool, network: Network, data: Vec<u8>) -> Message {
+	/// Generates the next payload based on saved nonce,
+	///
+	/// NOTE: It will not change the nonce on storage.
+	pub fn generate_payload(payload_type: PayloadType, network: Network, data: Vec<u8>) -> Message {
 		// Generate the Thea payload to communicate with foreign chains
 		let nonce = <OutgoingNonce<T>>::get(network);
-		let id = Self::validator_set_id();
 		Message {
 			block_no: frame_system::Pallet::<T>::current_block_number().saturated_into(),
 			nonce: nonce.saturating_add(1),
 			data,
 			network,
-			is_key_change,
-			validator_set_id: id,
+			payload_type,
 		}
 	}
 
@@ -377,15 +761,75 @@ impl<T: Config> Pallet<T> {
 		// This last message should be signed by the outgoing set
 		// Similar to how Grandpa's session change works.
 		if incoming != queued {
-			// This should happen at the beginning of the last epoch
-			if let Some(validator_set) = ValidatorSet::new(queued.clone(), new_id) {
-				let payload = validator_set.encode();
-				for network in &active_networks {
-					let message = Self::generate_payload(true, *network, payload.clone());
-					// Update nonce
-					<OutgoingNonce<T>>::insert(message.network, message.nonce);
-					<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+			let mut uncompressed_keys: Vec<[u8; 20]> = vec![];
+			for public_key in queued.clone().into_iter() {
+				let public_key: sp_core::ecdsa::Public = public_key.into();
+				if public_key.0 == [0u8; 33] {
+					uncompressed_keys.push([0u8; 20]);
+					continue;
 				}
+				if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0)
+				{
+					let uncompressed_key = compressed_key.serialize();
+					let uncompressed_key: [u8; 64] =
+						if let Ok(uncompressed_key) = uncompressed_key[1..65].try_into() {
+							uncompressed_key
+						} else {
+							log::error!(target: "thea", "Unable to slice last 64 bytes of uncompressed_key for Evm");
+							Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
+								public_key.into(),
+							));
+							return;
+						};
+					let hash: [u8; 32] = sp_io::hashing::keccak_256(&uncompressed_key);
+					if let Ok(address) = hash[12..32].try_into() {
+						uncompressed_keys.push(address);
+					} else {
+						log::error!(target: "thea", "Unable to slice last 20 bytes of hash for Evm");
+						Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
+							public_key.into(),
+						));
+						return;
+					}
+				} else {
+					log::error!(target: "thea", "Unable to parse compressed key");
+					Self::deposit_event(Event::<T>::UnableToParsePublicKey(public_key.into()));
+					return;
+				}
+			}
+			for network in &active_networks {
+				let network_config = <NetworkConfig<T>>::get(*network);
+				let message = match network_config.network_type {
+					NetworkType::Evm => {
+						if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id)
+						{
+							Self::generate_payload(
+								PayloadType::ScheduledRotateValidators,
+								*network,
+								payload.encode(),
+							)
+						} else {
+							log::error!(target: "thea", "Unable to generate rotate validators payload");
+							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
+							continue;
+						}
+					},
+					NetworkType::Parachain => {
+						if let Some(payload) = ValidatorSet::new(queued.clone(), new_id) {
+							Self::generate_payload(
+								PayloadType::ScheduledRotateValidators,
+								*network,
+								payload.encode(),
+							)
+						} else {
+							log::error!(target: "thea", "Unable to generate rotate validators payload");
+							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
+							continue;
+						}
+					},
+				};
+				<OutgoingNonce<T>>::insert(message.network, message.nonce);
+				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
 			}
 			<NextAuthorities<T>>::put(queued);
 		}
@@ -394,7 +838,8 @@ impl<T: Config> Pallet<T> {
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
 			for network in active_networks {
-				let message = Self::generate_payload(false, network, Vec::new());
+				let message =
+					Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new()); //Empty data means acitvate the next set_id
 				<OutgoingNonce<T>>::insert(network, message.nonce);
 				<OutgoingMessages<T>>::insert(network, message.nonce, message);
 			}
@@ -419,7 +864,7 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 	fn execute_withdrawals(network: Network, data: Vec<u8>) -> DispatchResult {
-		let payload = Self::generate_payload(false, network, data);
+		let payload = Self::generate_payload(PayloadType::L1Deposit, network, data);
 		// Update nonce
 		<OutgoingNonce<T>>::insert(network, payload.nonce);
 		<OutgoingMessages<T>>::insert(network, payload.nonce, payload);

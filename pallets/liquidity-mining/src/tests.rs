@@ -19,11 +19,22 @@
 //! Tests for pallet-lmp.
 
 use crate::mock::*;
+use crate::pallet::WithdrawalRequests;
+use frame_support::traits::{fungible::Mutate, fungibles::Mutate as MutateNonNative};
 use frame_support::{assert_noop, assert_ok};
 use orderbook_primitives::{constants::UNIT_BALANCE, types::TradingPair};
+use orderbook_primitives::{TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap};
 use polkadex_primitives::AssetId;
 use sp_core::crypto::AccountId32;
+use sp_runtime::traits::AccountIdConversion;
 use std::{collections::BTreeMap, ops::DivAssign};
+
+use crate::pallet::Pools;
+use frame_support::traits::fungibles::Inspect;
+use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
+use pallet_ocex_lmp::pallet::PriceOracle;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
+use sp_runtime::{traits::One, ArithmeticError::Underflow};
 
 #[test]
 fn test_register_pool_happy_path() {
@@ -94,10 +105,6 @@ fn test_register_pool_error_unknown_pool() {
 	})
 }
 
-use crate::pallet::{Pools};
-use frame_support::traits::fungibles::Inspect;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-
 #[test]
 fn test_register_pool_error_register_pool_fails() {
 	new_test_ext().execute_with(|| {
@@ -133,13 +140,6 @@ fn test_register_pool_error_register_pool_fails() {
 		assert!(!Assets::asset_exists(share_id)); //Verify this with @gautham
 	})
 }
-use frame_support::traits::{
-	fungible::Mutate,
-	fungibles::{ Mutate as MutateNonNative},
-};
-
-use pallet_ocex_lmp::pallet::PriceOracle;
-use sp_runtime::{traits::One, ArithmeticError::Underflow};
 #[test]
 fn test_add_liquidity_happy_path() {
 	new_test_ext().execute_with(|| {
@@ -397,9 +397,6 @@ fn test_submit_scores_of_lps_happy_path() {
 	})
 }
 
-use orderbook_primitives::{TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap};
-use sp_runtime::traits::AccountIdConversion;
-
 #[test]
 fn test_claim_rewards_by_lp_happy_path_and_error() {
 	new_test_ext().execute_with(|| {
@@ -490,8 +487,6 @@ fn test_claim_rewards_by_mm_happy_path_and_error() {
 	})
 }
 
-use crate::pallet::WithdrawalRequests;
-
 #[test]
 fn test_initiate_withdrawal() {
 	new_test_ext().execute_with(|| {
@@ -569,8 +564,6 @@ pub fn add_lmp_config() {
 	OCEX::start_new_epoch();
 }
 
-use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
-
 fn add_liquidity() {
 	register_test_pool(true);
 	let base_asset = AssetId::Polkadex;
@@ -616,7 +609,8 @@ fn mint_base_quote_asset_for_user(user: AccountId32) {
 		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
 		AccountId32::new([1; 32]),
 		One::one(),
-	).unwrap();
+	)
+	.unwrap();
 	assert_ok!(Assets::mint_into(quote_asset.asset_id().unwrap(), &user, UNIT_BALANCE * 100));
 }
 

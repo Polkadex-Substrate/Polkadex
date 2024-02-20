@@ -35,12 +35,15 @@ mod mock;
 mod tests;
 pub mod weights;
 
-pub trait WeightInfo {
+pub trait TheaExecutorWeightInfo {
 	fn set_withdrawal_fee(_r: u32) -> Weight;
 	fn update_asset_metadata(_r: u32) -> Weight;
-	fn claim_deposit(r: u32) -> Weight;
 	fn withdraw(r: u32) -> Weight;
 	fn parachain_withdraw(_r: u32) -> Weight;
+	fn ethereum_withdraw(_r: u32) -> Weight;
+	fn on_initialize(x: u32, y: u32) -> Weight;
+	fn burn_native_tokens() -> Weight;
+	fn claim_deposit(_r: u32) -> Weight;
 }
 
 #[frame_support::pallet]
@@ -49,12 +52,17 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::SaturatedConversion,
-		traits::{fungible::Mutate, fungibles::Inspect, tokens::Preservation},
+		traits::{
+			fungible::Mutate,
+			fungibles::Inspect,
+			tokens::{Fortitude, Precision, Preservation},
+		},
 		transactional,
 	};
 	use frame_system::pallet_prelude::*;
 	use pallet_asset_conversion::Swap;
 	use polkadex_primitives::{AssetId, Resolver};
+	use sp_core::{H160, H256};
 	use sp_runtime::{traits::AccountIdConversion, Saturating};
 	use sp_std::vec::Vec;
 	use thea_primitives::{
@@ -119,8 +127,10 @@ pub mod pallet {
 		type ExistentialDeposit: Get<u128>;
 		/// Para Id
 		type ParaId: Get<u32>;
+		/// Governance Origin
+		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Type representing the weight of this pallet
-		type WeightInfo: WeightInfo;
+		type TheaExecWeightInfo: TheaExecutorWeightInfo;
 	}
 
 	/// Nonce used to generate randomness
@@ -173,14 +183,20 @@ pub mod pallet {
 		DepositApproved(Network, T::AccountId, u128, u128, Vec<u8>),
 		/// Deposit claimed event ( recipient, asset id, amount, id )
 		DepositClaimed(T::AccountId, u128, u128, Vec<u8>),
+		/// Deposit failed event ( network, encoded deposit)
+		DepositFailed(Network, Vec<u8>),
 		/// Withdrawal Queued ( network, from, beneficiary, assetId, amount, id )
 		WithdrawalQueued(Network, T::AccountId, Vec<u8>, u128, u128, Vec<u8>),
 		/// Withdrawal Ready (Network id )
 		WithdrawalReady(Network),
+		/// Withdrawal Failed ( Network ,Vec<Withdrawal>)
+		WithdrawalFailed(Network, Vec<Withdraw>),
 		/// Thea Public Key Updated ( network, new session id )
 		TheaKeyUpdated(Network, u32),
 		/// Withdrawal Fee Set (NetworkId, Amount)
 		WithdrawalFeeSet(u8, u128),
+		/// Native Token Burn event
+		NativeTokenBurned(T::AccountId, u128),
 	}
 
 	// Errors inform users that something went wrong.
@@ -225,21 +241,26 @@ pub mod pallet {
 		fn on_initialize(block_no: BlockNumberFor<T>) -> Weight {
 			let pending_withdrawals =
 				<ReadyWithdrawals<T>>::iter_prefix(block_no.saturating_sub(1u8.into()));
+			let mut withdrawal_len = 0;
+			let mut network_len = 0;
 			for (network_id, withdrawal) in pending_withdrawals {
+				withdrawal_len += withdrawal.len();
 				// This is fine as this trait is not supposed to fail
-				if T::Executor::execute_withdrawals(network_id, withdrawal.encode()).is_err() {
-					log::error!("Error while executing withdrawals...");
+				if T::Executor::execute_withdrawals(network_id, withdrawal.clone().encode())
+					.is_err()
+				{
+					Self::deposit_event(Event::<T>::WithdrawalFailed(network_id, withdrawal))
 				}
+				network_len += 1;
 			}
-			//TODO: Clean Storage
-			Weight::default()
+			T::TheaExecWeightInfo::on_initialize(network_len as u32, withdrawal_len as u32)
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw(1))]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::withdraw(1))]
 		#[transactional]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -264,57 +285,14 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Manually claim an approved deposit.
-		///
-		/// # Parameters
-		///
-		/// * `origin`: User.
-		/// * `num_deposits`: Number of deposits to claim from available deposits,
-		/// (it's used to parametrise the weight of this extrinsic).
-		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim_deposit(1))]
-		#[transactional]
-		pub fn claim_deposit(
-			origin: OriginFor<T>,
-			num_deposits: u32,
-			user: T::AccountId,
-		) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-
-			let mut deposits = <ApprovedDeposits<T>>::get(&user);
-			let length: u32 = deposits.len().saturated_into();
-			let length: u32 = if length <= num_deposits { length } else { num_deposits };
-			for _ in 0..length {
-				if let Some(deposit) = deposits.pop() {
-					if let Err(err) = Self::execute_deposit(deposit.clone(), &user) {
-						deposits.push(deposit);
-						// Save it back on failure
-						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
-						return Err(err)
-					}
-				} else {
-					break
-				}
-			}
-
-			if !deposits.is_empty() {
-				// If pending deposits are available, save it back
-				<ApprovedDeposits<T>>::insert(&user, deposits)
-			} else {
-				<ApprovedDeposits<T>>::remove(&user);
-			}
-
-			Ok(())
-		}
-
 		/// Add Token Config.
 		///
 		/// # Parameters
 		///
 		/// * `network_id`: Network Id.
 		/// * `fee`: Withdrawal Fee.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_withdrawal_fee(1))]
+		#[pallet::call_index(1)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::set_withdrawal_fee(1))]
 		pub fn set_withdrawal_fee(
 			origin: OriginFor<T>,
 			network_id: u8,
@@ -327,8 +305,8 @@ pub mod pallet {
 		}
 
 		/// Withdraws to parachain networks in Polkadot
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::parachain_withdraw(1))]
+		#[pallet::call_index(2)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::parachain_withdraw(1))]
 		pub fn parachain_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -357,8 +335,8 @@ pub mod pallet {
 		///
 		/// * `asset_id`: Asset Id.
 		/// * `metadata`: AssetMetadata.
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_asset_metadata(1))]
+		#[pallet::call_index(3)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::update_asset_metadata(1))]
 		pub fn update_asset_metadata(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -370,6 +348,105 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));
 			Ok(())
 		}
+
+		/// Burn Native tokens of an account
+		///
+		/// # Parameters
+		///
+		/// * `who`: AccountId
+		/// * `amount`: Amount of native tokens to burn.
+		#[pallet::call_index(4)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::burn_native_tokens())]
+		pub fn burn_native_tokens(
+			origin: OriginFor<T>,
+			who: T::AccountId,
+			amount: u128,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			let burned_amt = <T as Config>::Currency::burn_from(
+				&who,
+				amount.saturated_into(),
+				Precision::BestEffort,
+				Fortitude::Force,
+			)?;
+			Self::deposit_event(Event::<T>::NativeTokenBurned(who, burned_amt.saturated_into()));
+			Ok(())
+		}
+
+		/// Withdraws to Ethereum network
+		///
+		/// # Parameters
+		///
+		/// * `asset_id`: Asset Id.
+		/// * `amount`: Amount of tokens to withdraw.
+		/// * `beneficiary`: Beneficiary address.
+		/// * `pay_for_remaining`: Pay for remaining pending withdrawals.
+		/// * `pay_with_tokens`: Pay with withdrawing tokens.
+		#[pallet::call_index(5)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::ethereum_withdraw(1))]
+		pub fn evm_withdraw(
+			origin: OriginFor<T>,
+			asset_id: u128,
+			amount: u128,
+			beneficiary: H160,
+			network: Network,
+			pay_for_remaining: bool,
+			pay_with_tokens: bool,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			Self::do_withdraw(
+				user,
+				asset_id,
+				amount,
+				beneficiary.encode(),
+				pay_for_remaining,
+				network,
+				pay_with_tokens,
+			)?;
+			Ok(())
+		}
+
+		/// Manually claim an approved deposit.
+		///
+		/// # Parameters
+		///
+		/// * `origin`: User.
+		/// * `num_deposits`: Number of deposits to claim from available deposits,
+		/// (it's used to parametrise the weight of this extrinsic).
+		#[pallet::call_index(6)]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::claim_deposit(1))]
+		#[transactional]
+		pub fn claim_deposit(
+			origin: OriginFor<T>,
+			num_deposits: u32,
+			user: T::AccountId,
+		) -> DispatchResult {
+			let _ = ensure_signed(origin)?;
+			let mut deposits = <ApprovedDeposits<T>>::get(&user);
+			let length: u32 = deposits.len().saturated_into();
+			let length: u32 = if length <= num_deposits { length } else { num_deposits };
+			for _ in 0..length {
+				if let Some(deposit) = deposits.pop() {
+					if let Err(err) = Self::execute_deposit(deposit.clone()) {
+						deposits.push(deposit);
+						// Save it back on failure
+						<ApprovedDeposits<T>>::insert(&user, deposits.clone());
+						return Err(err);
+					}
+				} else {
+					break;
+				}
+			}
+
+			if !deposits.is_empty() {
+				// If pending deposits are available, save it back
+				<ApprovedDeposits<T>>::insert(&user, deposits)
+			} else {
+				<ApprovedDeposits<T>>::remove(&user);
+			}
+
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -379,6 +456,7 @@ pub mod pallet {
 			nonce = nonce.wrapping_add(1);
 			<RandomnessNonce<T>>::put(nonce);
 			let entropy = sp_io::hashing::blake2_256(&(NATIVE_NETWORK, nonce).encode());
+			let entropy = H256::from_slice(&entropy).0[..10].to_vec();
 			entropy.to_vec()
 		}
 		pub fn thea_account() -> T::AccountId {
@@ -484,13 +562,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn do_deposit(network: Network, payload: Vec<u8>) -> Result<(), DispatchError> {
+		#[transactional]
+		pub fn do_deposit(network: Network, payload: &[u8]) -> Result<(), DispatchError> {
 			let deposits: Vec<Deposit<T::AccountId>> =
 				Decode::decode(&mut &payload[..]).map_err(|_| Error::<T>::FailedToDecode)?;
 			for deposit in deposits {
-				<ApprovedDeposits<T>>::mutate(&deposit.recipient, |pending_deposits| {
-					pending_deposits.push(deposit.clone())
-				});
+				// Execute Deposit
+				Self::execute_deposit(deposit.clone())?;
 				Self::deposit_event(Event::<T>::DepositApproved(
 					network,
 					deposit.recipient,
@@ -503,41 +581,41 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		pub fn execute_deposit(
-			deposit: Deposit<T::AccountId>,
-			recipient: &T::AccountId,
-		) -> Result<(), DispatchError> {
+		pub fn execute_deposit(deposit: Deposit<T::AccountId>) -> Result<(), DispatchError> {
 			// Get the metadata
 			let metadata =
 				<Metadata<T>>::get(deposit.asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 			let deposit_amount = deposit.amount_in_native_decimals(metadata); // Convert the decimals configured in metadata
 
-			if !frame_system::Pallet::<T>::account_exists(recipient) {
+			if !frame_system::Pallet::<T>::account_exists(&deposit.recipient) {
 				let path = sp_std::vec![
 					polkadex_primitives::AssetId::Asset(deposit.asset_id),
 					polkadex_primitives::AssetId::Polkadex
 				];
 				let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
 				Self::resolve_mint(&Self::thea_account(), deposit.asset_id.into(), deposit_amount)?;
-				let fee_amount = T::Swap::swap_tokens_for_exact_tokens(
+
+				// If swap doesn't work then it will in the system account - thea_account()
+				if let Ok(fee_amount) = T::Swap::swap_tokens_for_exact_tokens(
 					Self::thea_account(),
 					path,
 					amount_out.into(),
 					Some(deposit_amount),
-					recipient.clone(),
-					false,
-				)?;
-				Self::resolve_transfer(
-					deposit.asset_id.into(),
-					&Self::thea_account(),
-					recipient,
-					deposit_amount.saturating_sub(fee_amount),
-				)?;
+					deposit.recipient.clone(),
+					true,
+				) {
+					Self::resolve_transfer(
+						deposit.asset_id.into(),
+						&Self::thea_account(),
+						&deposit.recipient,
+						deposit_amount.saturating_sub(fee_amount),
+					)?;
+				}
 			} else {
 				Self::resolver_deposit(
 					deposit.asset_id.into(),
 					deposit_amount,
-					recipient,
+					&deposit.recipient,
 					Self::thea_account(),
 					1u128,
 					Self::thea_account(),
@@ -546,7 +624,7 @@ pub mod pallet {
 
 			// Emit event
 			Self::deposit_event(Event::<T>::DepositClaimed(
-				recipient.clone(),
+				deposit.recipient.clone(),
 				deposit.asset_id,
 				deposit.amount_in_native_decimals(metadata),
 				deposit.id,
@@ -557,7 +635,8 @@ pub mod pallet {
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
-			if let Err(error) = Self::do_deposit(network, deposits) {
+			if let Err(error) = Self::do_deposit(network, &deposits) {
+				Self::deposit_event(Event::<T>::DepositFailed(network, deposits));
 				log::error!(target:"thea","Deposit Failed : {:?}", error);
 			}
 		}
