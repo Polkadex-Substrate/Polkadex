@@ -18,8 +18,6 @@
 
 //! Definition of types used for `Thea` related operations.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
 use frame_support::__private::log;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::UNIT_BALANCE;
