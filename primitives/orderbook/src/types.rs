@@ -17,13 +17,15 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! In this module defined "Orderbook" specific operations and types.
-
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
 	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
 };
-use rust_decimal::{prelude::Zero, Decimal, RoundingStrategy};
+use rust_decimal::{
+	prelude::{FromPrimitive, Zero},
+	Decimal, RoundingStrategy,
+};
 use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
@@ -103,8 +105,9 @@ impl Trade {
 				AccountAsset { main: user.main_account.clone(), asset: quote },
 				self.price.mul(&self.amount),
 			),
-			OrderSide::Bid =>
-				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount),
+			OrderSide::Bid => {
+				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount)
+			},
 		}
 	}
 
@@ -118,8 +121,9 @@ impl Trade {
 		let user = if maker { &self.maker } else { &self.taker };
 		let (base, quote) = (user.pair.base, user.pair.quote);
 		match user.side {
-			OrderSide::Ask =>
-				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount),
+			OrderSide::Ask => {
+				(AccountAsset { main: user.main_account.clone(), asset: base }, self.amount)
+			},
 			OrderSide::Bid => (
 				AccountAsset { main: user.main_account.clone(), asset: quote },
 				self.price.mul(&self.amount),
@@ -130,7 +134,6 @@ impl Trade {
 
 #[cfg(feature = "std")]
 use chrono::Utc;
-use rust_decimal::prelude::FromPrimitive;
 
 impl Trade {
 	/// Constructor.
@@ -415,7 +418,7 @@ impl TryFrom<String> for TradingPair {
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		let assets: Vec<&str> = value.split('-').collect();
 		if assets.len() != 2 {
-			return Err("Invalid String")
+			return Err("Invalid String");
 		}
 
 		let base_asset = if assets[0] == String::from("PDEX").as_str() {
@@ -566,28 +569,30 @@ impl Order {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
 		let result = match self.order_type {
-			OrderType::LIMIT =>
-				is_market_same &&
-					self.price >= config.min_price &&
-					self.price <= config.max_price &&
-					self.qty >= config.min_qty &&
-					self.qty <= config.max_qty &&
-					self.price.rem(config.price_tick_size).is_zero() &&
-					self.qty.rem(config.qty_step_size).is_zero(),
-			OrderType::MARKET =>
+			OrderType::LIMIT => {
+				is_market_same
+					&& self.price >= config.min_price
+					&& self.price <= config.max_price
+					&& self.qty >= config.min_qty
+					&& self.qty <= config.max_qty
+					&& self.price.rem(config.price_tick_size).is_zero()
+					&& self.qty.rem(config.qty_step_size).is_zero()
+			},
+			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
-					is_market_same &&
-						self.qty >= config.min_qty &&
-						self.qty <= config.max_qty &&
-						self.qty.rem(config.qty_step_size).is_zero()
+					is_market_same
+						&& self.qty >= config.min_qty
+						&& self.qty <= config.max_qty
+						&& self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
-					is_market_same &&
-						self.quote_order_qty >= (config.min_qty * config.min_price) &&
-						self.quote_order_qty <= (config.max_qty * config.max_price) &&
-						self.quote_order_qty.rem(config.price_tick_size).is_zero()
-				},
+					is_market_same
+						&& self.quote_order_qty >= (config.min_qty * config.min_price)
+						&& self.quote_order_qty <= (config.max_qty * config.max_price)
+						&& self.quote_order_qty.rem(config.price_tick_size).is_zero()
+				}
+			},
 		};
 		if !result {
 			log::error!(target:"orderbook","pair config verification failed: config: {:?}, price: {:?}, qty: {:?}, quote_order_qty: {:?}", config, self.price, self.qty, self.quote_order_qty);
@@ -621,12 +626,13 @@ impl Ord for Order {
 				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
 				Ordering::Less => Ordering::Less,
 				// A.price == B.price => Order based on timestamp
-				Ordering::Equal =>
+				Ordering::Equal => {
 					if self.timestamp < other.timestamp {
 						Ordering::Greater
 					} else {
 						Ordering::Less
-					},
+					}
+				},
 				// A.price > B.price => [A, B]
 				Ordering::Greater => Ordering::Greater,
 			}
@@ -690,7 +696,7 @@ impl Order {
 			return Self::rounding_off(
 				self.quote_order_qty
 					.saturating_sub(self.avg_filled_price.saturating_mul(self.filled_quantity)),
-			)
+			);
 		}
 		//this is for market ask order
 		if self.order_type == OrderType::MARKET {
@@ -846,9 +852,9 @@ impl TryFrom<OrderDetails> for Order {
 					}
 				} else {
 					Err("Qty couldn't be converted to decimal")
-				}
+				};
 			}
-			return Err("Price couldn't be parsed")
+			return Err("Price couldn't be parsed");
 		}
 		Err("Qty could not be parsed")
 	}

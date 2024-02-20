@@ -234,7 +234,7 @@ impl TryFrom<&[u8]> for Signature {
 
 	fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
 		if value.len() != 196 {
-			return Err(())
+			return Err(());
 		}
 		Ok(Signature(value.try_into().unwrap()))
 	}
@@ -273,7 +273,7 @@ impl TryFrom<&[u8]> for Public {
 
 	fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
 		if value.len() != 96 {
-			return Err(())
+			return Err(());
 		}
 		Ok(Public(value.try_into().unwrap()))
 	}
@@ -363,7 +363,7 @@ impl sp_core::crypto::Pair for Pair {
 			Ok(secret) => secret,
 			Err(err) => {
 				log::error!(target:"bls","Error while computing secret from seed: {:?}",err);
-				return Err(SecretStringError::InvalidSeed)
+				return Err(SecretStringError::InvalidSeed);
 			},
 		};
 

@@ -320,7 +320,7 @@ pub mod pallet {
 							Err(_) => {
 								failed_withdrawal.push(withdrawal);
 								log::error!(target:"xcm-helper","Withdrawal failed: Not able to decode destination");
-								continue
+								continue;
 							},
 						};
 						if !Self::is_polkadex_parachain_destination(&destination) {
@@ -597,12 +597,12 @@ pub mod pallet {
 		/// Retrieves the existing assetid for given assetid or generates and stores a new assetid
 		pub fn generate_asset_id_for_parachain(asset: AssetId) -> u128 {
 			// Check if its native or not.
-			if asset ==
-				AssetId::Concrete(MultiLocation {
+			if asset
+				== AssetId::Concrete(MultiLocation {
 					parents: 1,
 					interior: Junctions::X1(Parachain(T::ParachainId::get())),
 				}) {
-				return T::NativeAssetId::get().into()
+				return T::NativeAssetId::get().into();
 			}
 			// If it's not native, then hash and generate the asset id
 			let asset_id = u128::from_be_bytes(sp_io::hashing::blake2_128(&asset.encode()[..]));

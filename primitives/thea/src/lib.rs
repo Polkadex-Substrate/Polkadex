@@ -21,7 +21,6 @@
 //! This crate contains common types and operations definition required for the `Thea` related
 //! components.
 
-#![feature(duration_constants)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
@@ -85,6 +84,8 @@ pub type Network = u8;
 
 /// Native network id.
 pub const NATIVE_NETWORK: Network = 0;
+pub const PARACHAIN_NETWORK: Network = 1;
+pub const ETHEREUM_NETWORK: Network = 2;
 
 /// TTL of the cached message.
 pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60;

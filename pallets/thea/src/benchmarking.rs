@@ -20,11 +20,16 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::benchmarks;
-use frame_support::BoundedVec;
+use crate::Pallet as Thea;
+use frame_benchmarking::v1::benchmarks;
+use frame_support::traits::fungible::{hold::Mutate as HoldMutate, Mutate};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
-use sp_std::collections::btree_set::BTreeSet;
+use polkadex_primitives::UNIT_BALANCE;
+use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
+use thea_primitives::types::{
+	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
+};
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
@@ -37,36 +42,29 @@ fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 }
 
 benchmarks! {
-	incoming_message {
+	submit_incoming_message {
 		let b in 0 .. 256; // keep withing u8 range
-		let key = <T as crate::Config>::TheaId::generate_pair(None);
 		let message = Message {
 			block_no: u64::MAX,
 			nonce: 1,
 			data: generate_deposit_payload::<T>().encode(),
 			network: 0u8,
-			is_key_change: false,
-			validator_set_id: 0,
+			payload_type: PayloadType::L1Deposit
 		};
-		let signature = key.sign(&message.encode()).unwrap();
-
-		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
-		set.try_push(key).unwrap();
-		<Authorities::<T>>::insert(0, set);
-	}: _(RawOrigin::None, message, vec!((0, signature.into())))
+		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		<AllowListTestingRelayers<T>>::insert(0u8, relayer.clone());
+		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+	}: _(RawOrigin::Signed(relayer), message, 10000*UNIT_BALANCE)
 	verify {
-		assert!(<IncomingNonce::<T>>::get(0) == 1);
-		assert!(<IncomingMessages::<T>>::iter().count() == 1);
+		// Nonce is updated only after execute_at number of blocks
+		assert_eq!(<IncomingNonce::<T>>::get(0),0);
+		assert_eq!(<IncomingMessages::<T>>::iter().count(), 0);
 	}
 
 	send_thea_message {
 		let b in 0 .. 256; // keep within u8 bounds
-		let key =  <T as crate::Config>::TheaId::generate_pair(None);
 		let network = b as u8;
 		let data = [b as u8; 1_048_576].to_vec(); // 10MB
-		let mut set: BoundedVec<<T as crate::Config>::TheaId, <T as crate::Config>::MaxAuthorities> = BoundedVec::with_bounded_capacity(1);
-		set.try_push(key).unwrap();
-		<Authorities::<T>>::insert(0, set);
 	}: _(RawOrigin::Root, data, network)
 	verify {
 		assert!(<OutgoingNonce::<T>>::get(network) == 1);
@@ -93,7 +91,7 @@ benchmarks! {
 
 	add_thea_network {
 		let network: u8 = 2;
-	}: _(RawOrigin::Root, network)
+	}: _(RawOrigin::Root, network, false, 20, 100*UNIT_BALANCE, 1000*UNIT_BALANCE)
 	verify {
 		let active_list = <ActiveNetworks<T>>::get();
 		assert!(active_list.contains(&network));
@@ -108,6 +106,138 @@ benchmarks! {
 	verify {
 		let active_list = <ActiveNetworks<T>>::get();
 		assert!(!active_list.contains(&network));
+	}
+
+	submit_signed_outgoing_messages {
+		// Add OutgoinMessage
+		let message = Message {
+			block_no: u64::MAX,
+			nonce: 1,
+			data: generate_deposit_payload::<T>().encode(),
+			network: 0u8,
+			payload_type: PayloadType::L1Deposit
+		};
+		let network_id: u8 = 2;
+		let nonce: u64 = 0;
+		<OutgoingMessages<T>>::insert(network_id, nonce, message.clone());
+		let mut signatures_map: BTreeMap<u32, T::Signature> = BTreeMap::new();
+		let signature: T::Signature = sp_core::ecdsa::Signature::default().into();
+		signatures_map.insert(0, signature.clone());
+		let signed_message = SignedMessage {
+			validator_set_id: 0,
+			message: message,
+			signatures: signatures_map
+		};
+		<SignedOutgoingMessages<T>>::insert(network_id, nonce, signed_message);
+		let signatures = (network_id, nonce, signature);
+		let sig_vec = vec![signatures];
+	}: _(RawOrigin::None, 1, 0, sig_vec)
+	verify {
+		let signed_outgoing_message = <SignedOutgoingMessages<T>>::get(network_id, nonce).unwrap();
+		assert!(signed_outgoing_message.signatures.len() == 2);
+	}
+
+	report_misbehaviour {
+		// Create fisherman account with some balance
+		let fisherman: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		let network_id: u8 = 2;
+		let nonce: u64 = 0;
+		let message = Message {
+			block_no: u64::MAX,
+			nonce: 1,
+			data: generate_deposit_payload::<T>().encode(),
+			network: 0u8,
+			payload_type: PayloadType::L1Deposit
+		};
+		let incoming_message = IncomingMessage {
+			message: message,
+			relayer: fisherman.clone(),
+			stake: (1000*UNIT_BALANCE).saturated_into(),
+			execute_at: 1000
+		};
+		<IncomingMessagesQueue<T>>::insert(network_id, nonce, incoming_message);
+	}: _(RawOrigin::Signed(fisherman), network_id, nonce)
+	verify {
+		let misbehaviour_report = <MisbehaviourReports<T>>::get(network_id, nonce);
+		assert!(misbehaviour_report.is_some());
+	}
+
+	handle_misbehaviour {
+		// Add MisbehaviourReports
+		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		let fisherman: T::AccountId = T::AccountId::decode(&mut &[1u8; 32][..]).unwrap();
+		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		let relayer_stake_amount = 1 * UNIT_BALANCE;
+		let fisherman_stake_amount = 1 * UNIT_BALANCE;
+		T::Currency::hold(
+				&THEA_HOLD_REASON,
+				&relayer,
+				relayer_stake_amount.saturated_into(),
+			)?;
+		T::Currency::hold(
+				&THEA_HOLD_REASON,
+				&fisherman,
+				fisherman_stake_amount.saturated_into(),
+			)?;
+		let message = Message {
+			block_no: u64::MAX,
+			nonce: 0,
+			data: generate_deposit_payload::<T>().encode(),
+			network: 2u8,
+			payload_type: PayloadType::L1Deposit
+		};
+		let incoming_message = IncomingMessage {
+			message: message,
+			relayer: relayer,
+			stake: relayer_stake_amount,
+			execute_at: 1000
+		};
+		let report = MisbehaviourReport {
+			reported_msg: incoming_message,
+			fisherman: fisherman,
+			stake: fisherman_stake_amount
+		};
+		<MisbehaviourReports<T>>::insert(2, 0, report);
+	}: _(RawOrigin::Root, 2, 0, true)
+
+	on_initialize {
+		let x in 1 .. 1_000;
+		let network_len: usize = x as usize;
+		let network_len: u8 = network_len as u8;
+		// Update active network
+		let mut networks: BTreeSet<u8> = BTreeSet::new();
+		for i in 0..network_len {
+			networks.insert(i);
+		}
+		<ActiveNetworks<T>>::put(networks.clone());
+		// Update IncomingMessagesQueue
+		let nonce = 1;
+		for network in networks.iter() {
+			let message = Message {
+			block_no: 1,
+			nonce: 1,
+			data: generate_deposit_payload::<T>().encode(),
+			network: *network,
+			payload_type: PayloadType::L1Deposit
+		};
+		let incoming_message = IncomingMessage {
+			message: message,
+			relayer: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
+			stake: (1000*UNIT_BALANCE).saturated_into(),
+			execute_at: 0
+		};
+			<IncomingNonce<T>>::insert(*network, nonce);
+			<IncomingMessagesQueue<T>>::insert(*network, nonce + 1, incoming_message.clone());
+		}
+	}: {
+			<Thea<T>>::on_initialize((x as u32).into());
+	} verify {
+		for network in networks.iter() {
+			let message = <IncomingMessages<T>>::get(*network, nonce);
+			assert!(message.is_some());
+		}
 	}
 }
 
