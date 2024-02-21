@@ -230,23 +230,7 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	/// Storage: `OCEX::ExchangeState` (r:1 w:0)
-	/// Proof: `OCEX::ExchangeState` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `OCEX::IngressMessages` (r:1 w:1)
-	/// Proof: `OCEX::IngressMessages` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// The range of component `x` is `[0, 255]`.
-	fn set_balances(x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `147`
-		//  Estimated: `3612`
-		// Minimum execution time: 24_260_000 picoseconds.
-		Weight::from_parts(25_365_570, 0)
-			.saturating_add(Weight::from_parts(0, 3612))
-			// Standard Error: 30
-			.saturating_add(Weight::from_parts(329, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
+
 	/// Storage: `OCEX::Withdrawals` (r:1 w:1)
 	/// Proof: `OCEX::Withdrawals` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// Storage: `Assets::Asset` (r:1 w:1)

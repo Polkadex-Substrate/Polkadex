@@ -68,7 +68,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	async fn account_scores_by_market(
 		&self,
 		at: Option<BlockHash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		sorted_by_mm_score: bool,
 		limit: u16,
@@ -78,7 +78,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	fn eligible_rewards(
 		&self,
 		at: Option<BlockHash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		main: AccountId,
 	) -> RpcResult<(String, String, bool)>;
@@ -107,8 +107,8 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 		at: Option<BlockHash>,
 		market: TradingPair,
 		main: AccountId,
-		until_epoch: u32,
-	) -> RpcResult<Vec<u32>>;
+		until_epoch: u16,
+	) -> RpcResult<Vec<u16>>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -256,7 +256,7 @@ where
 	async fn account_scores_by_market(
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		sorted_by_mm_score: bool,
 		limit: u16,
@@ -277,7 +277,7 @@ where
 	fn eligible_rewards(
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
-		epoch: u32,
+		epoch: u16,
 		market: TradingPair,
 		main: AccountId,
 	) -> RpcResult<(String, String, bool)> {
@@ -339,8 +339,8 @@ where
 		at: Option<<Block as BlockT>::Hash>,
 		market: TradingPair,
 		main: AccountId,
-		until_epoch: u32,
-	) -> RpcResult<Vec<u32>> {
+		until_epoch: u16,
+	) -> RpcResult<Vec<u16>> {
 		let api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,

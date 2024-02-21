@@ -18,8 +18,8 @@
 
 //! Tests for pallet-ocex
 
-use crate::*;
 use frame_support::{
+	pallet_prelude::Weight,
 	parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, ConstU64, OnTimestampSet},
 	PalletId,
@@ -30,6 +30,7 @@ use sp_application_crypto::sp_core::H256;
 use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
+use pallet_ocex_lmp as ocex;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
@@ -45,8 +46,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		Assets: pallet_assets,
 		Timestamp: pallet_timestamp,
-		LiqudityMining: pallet_lmp::pallet,
-		OCEX: crate,
+		LiqudityMining: crate::pallet,
+		OCEX: ocex,
 	}
 );
 
@@ -117,31 +118,31 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
 	pub const ProxyLimit: u32 = 2;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
-	pub const TreasuryPalletId: PalletId = PalletId(*b"OCEX_TRS");
-	//pub const TreasuryPalletId: PalletId = PalletId(*b"OCEX_CRW");
+	pub const TresuryPalletId: PalletId = PalletId(*b"OCEX_TRE");
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"OCEX_TMP");
 	pub const MsPerDay: u64 = 86_400_000;
 }
 
-impl pallet_lmp::pallet::Config for Test {
+impl crate::pallet::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type PalletId = OcexPalletId;
+	type OCEX = OCEX;
+	type PalletId = LMPRewardsPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
-	type OCEX = OCEX;
 }
 
-impl Config for Test {
+impl ocex::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = OcexPalletId;
-	type TreasuryPalletId = TreasuryPalletId;
-	type LMPRewardsPalletId = OcexPalletId;
+	type TreasuryPalletId = TresuryPalletId;
+	type LMPRewardsPalletId = LMPRewardsPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
-	type AuthorityId = crate::sr25519::AuthorityId;
+	type AuthorityId = ocex::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type CrowdSourceLiqudityMining = LiqudityMining;
-	type WeightInfo = crate::weights::WeightInfo<Test>;
+	type WeightInfo = ocex::weights::WeightInfo<Test>;
 }
 
 parameter_types! {
@@ -197,8 +198,8 @@ impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
 where
 	RuntimeCall: From<LocalCall>,
 {
-	type OverarchingCall = RuntimeCall;
 	type Extrinsic = Extrinsic;
+	type OverarchingCall = RuntimeCall;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test

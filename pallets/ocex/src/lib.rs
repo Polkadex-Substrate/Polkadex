@@ -59,14 +59,13 @@ use orderbook_primitives::{
 };
 pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
-#[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::traits::One;
+
 use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub mod weights;
 
@@ -123,7 +122,6 @@ pub trait OcexWeightInfo {
 	fn submit_snapshot() -> Weight;
 	fn collect_fees(_x: u32) -> Weight;
 	fn set_exchange_state(_x: u32) -> Weight;
-	fn set_balances(_x: u32) -> Weight;
 	fn claim_withdraw(_x: u32) -> Weight;
 	fn allowlist_token(_x: u32) -> Weight;
 	fn remove_allowlisted_token(_x: u32) -> Weight;
@@ -154,6 +152,7 @@ pub mod pallet {
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use orderbook_primitives::{
 		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
+		TradingPairMetricsMap,
 	};
 	use polkadex_primitives::{
 		assets::AssetId,
@@ -174,6 +173,20 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId,
 		Vec<Withdrawal<<T as frame_system::Config>::AccountId>>,
 	>;
+
+	pub type BatchProcessResult<T> = (
+		Vec<Withdrawal<<T as frame_system::Config>::AccountId>>,
+		Vec<EgressMessages<<T as frame_system::Config>::AccountId>>,
+		Option<
+			BTreeMap<
+				TradingPair,
+				(
+					BTreeMap<<T as frame_system::Config>::AccountId, (Decimal, Decimal)>,
+					(Decimal, Decimal),
+				),
+			>,
+		>,
+	);
 
 	pub struct AllowlistedTokenLimit;
 
@@ -1158,13 +1171,14 @@ pub mod pallet {
 			)?;
 			Ok(total_in_u128)
 		}
+
 		pub fn update_lmp_scores(
-			trader_metrics: &BTreeMap<
-				TradingPair,
-				(BTreeMap<T::AccountId, (Decimal, Decimal)>, (Decimal, Decimal)),
-			>,
+			trader_metrics: &TradingPairMetricsMap<T::AccountId>,
 		) -> DispatchResult {
 			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
+			if current_epoch == 0 {
+				return Ok(());
+			}
 			let config = <LMPConfig<T>>::get(current_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
 			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
@@ -1185,12 +1199,16 @@ pub mod pallet {
 			Ok(())
 		}
 
+		pub fn get_pot_account() -> T::AccountId {
+			FEE_POT_PALLET_ID.into_account_truncating()
+		}
+
 		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult {
 			for msg in msgs {
 				// Process egress messages
 				match msg {
 					EgressMessages::TradingFees(fees_map) => {
-						let pot_account: T::AccountId = FEE_POT_PALLET_ID.into_account_truncating();
+						let pot_account: T::AccountId = Self::get_pot_account();
 						for (asset, fees) in fees_map {
 							let fees = fees
 								.saturating_mul(Decimal::from(UNIT_BALANCE))
@@ -1347,7 +1365,6 @@ pub mod pallet {
 			let converted_amount = Decimal::from(amount.saturated_into::<u128>())
 				.checked_div(Decimal::from(UNIT_BALANCE))
 				.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-
 			Self::transfer_asset(&user, &Self::get_pallet_account(), amount, asset)?;
 			// Get Storage Map Value
 			if let Some(expected_total_amount) =
@@ -1868,7 +1885,7 @@ pub mod pallet {
 
 	/// Price Map showing the average prices ( value = (avg_price, ticks)
 	#[pallet::storage]
-	pub(super) type PriceOracle<T: Config> =
+	pub type PriceOracle<T: Config> =
 		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
 }
 
@@ -1978,7 +1995,7 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 					payer,
 					payee,
 					amount.unique_saturated_into(),
-					Preservation::Preserve,
+					Preservation::Expendable,
 				)?;
 			},
 		}

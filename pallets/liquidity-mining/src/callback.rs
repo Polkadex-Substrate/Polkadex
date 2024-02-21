@@ -20,13 +20,13 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 
 	fn add_liquidity_success(
 		market: TradingPair,
-		pool: &T::AccountId,
+		market_maker: &T::AccountId,
 		lp: &T::AccountId,
 		shared_issued: Decimal,
 		price: Decimal,
 		total_inventory_in_quote: Decimal,
 	) -> DispatchResult {
-		let pool_config = <Pools<T>>::get(market, pool).ok_or(Error::<T>::UnknownPool)?;
+		let pool_config = <Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
 		let new_shared_issued = shared_issued
 			.saturating_mul(Decimal::from(UNIT_BALANCE))
 			.to_u128()
@@ -56,10 +56,10 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 
 		Self::deposit_event(Event::<T>::LiquidityAdded {
 			market,
-			pool: pool.clone(),
+			pool: market_maker.clone(),
 			lp: lp.clone(),
 			shares: new_shared_issued.saturated_into(),
-			share_id: pool_config.share_id,
+			share_id: polkadex_primitives::AssetId::Asset(pool_config.share_id),
 			price,
 			total_inventory_in_quote,
 		});
@@ -146,13 +146,14 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 
 	fn pool_force_close_success(
 		market: TradingPair,
-		pool: &T::AccountId,
+		market_maker: &T::AccountId,
 		base_freed: Decimal,
 		quote_freed: Decimal,
 	) -> DispatchResult {
-		let mut pool_config = <Pools<T>>::get(market, pool).ok_or(Error::<T>::UnknownPool)?;
+		let mut pool_config =
+			<Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
 		pool_config.force_closed = true;
-		<Pools<T>>::insert(market, pool, pool_config);
+		<Pools<T>>::insert(market, market_maker, pool_config);
 		let base_freed = base_freed
 			.saturating_mul(Decimal::from(UNIT_BALANCE))
 			.to_u128()
@@ -163,9 +164,10 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 			.to_u128()
 			.ok_or(Error::<T>::ConversionError)?
 			.saturated_into();
+		//FIXME: What are we doing with base_freed and quote_freed?
 		Self::deposit_event(Event::<T>::PoolForceClosed {
 			market,
-			pool: pool.clone(),
+			pool: market_maker.clone(),
 			base_freed,
 			quote_freed,
 		});

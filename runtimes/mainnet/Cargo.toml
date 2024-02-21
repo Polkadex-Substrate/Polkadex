@@ -103,7 +103,7 @@ pdex-migration = { path = "../../pallets/pdex-migration", default-features = fal
 
 # Orderbook 
 pallet-ocex-lmp = { path = "../../pallets/ocex", default-features = false }
-pallet-lmp = {path="../../pallets/liquidity-mining", default-features = false}
+pallet-lmp = { path = "../../pallets/liquidity-mining", default-features = false }
 
 # Thea
 thea = { path = "../../pallets/thea", default-features = false }
@@ -217,6 +217,7 @@ runtime-benchmarks = [
   "pallet-rewards/runtime-benchmarks",
   "thea/runtime-benchmarks",
   "thea-executor/runtime-benchmarks",
+  "pallet-lmp/runtime-benchmarks",
   "thea-message-handler/runtime-benchmarks",
   "pallet-asset-conversion/runtime-benchmarks",
   "pallet-asset-tx-payment/runtime-benchmarks",
@@ -260,6 +261,7 @@ try-runtime = [
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",
+  "pallet-lmp/try-runtime",
   "pallet-collective/try-runtime",
   "thea/try-runtime",
   "pallet-rewards/try-runtime",

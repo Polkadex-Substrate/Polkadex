@@ -26,16 +26,15 @@ use constants::{currency::*, time::*};
 use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, onchain, ElectionDataProvider, SequentialPhragmen,
 };
-use frame_support::traits::fungible::Inspect;
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
 	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly,
-		Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
-		OnUnbalanced,
+		fungible::Inspect, AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin,
+		EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem,
+		LockIdentifier, OnUnbalanced,
 	},
 	weights::{
 		constants::{
@@ -845,11 +844,6 @@ type EnsureRootOrHalfCouncil = EitherOfDiverse<
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
 
-type EnsureRootOrHalfOrderbookCouncil = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
->;
-
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AddOrigin = EnsureRootOrHalfCouncil;
@@ -1503,14 +1497,13 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3> = 36,
 		Thea: thea::pallet = 39,
 		Rewards: pallet_rewards = 40,
-		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
 		TheaMH: thea_message_handler::pallet = 45,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 		Statement: pallet_statement = 48,
 		AssetTxPayment: pallet_asset_tx_payment = 49,
-		CrowdSourceLMP: pallet_lmp = 50,
+		CrowdSourceLMP: pallet_lmp::pallet = 50,
 	}
 );
 
@@ -1708,11 +1701,12 @@ impl_runtime_apis! {
 		DispatchError> {
 			OCEX::calculate_inventory_deviation()
 		}
-		fn top_lmp_accounts(epoch: u32, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
+
+		fn top_lmp_accounts(epoch: u16, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
 			OCEX::top_lmp_accounts(epoch.saturated_into(), market, sorted_by_mm_score, limit as usize)
 		}
 
-		fn calculate_lmp_rewards(main: AccountId, epoch: u32, market: TradingPair) -> (Decimal, Decimal, bool) {
+		fn calculate_lmp_rewards(main: AccountId, epoch: u16, market: TradingPair) -> (Decimal, Decimal, bool) {
 			OCEX::get_lmp_rewards(&main, epoch.saturated_into(), market)
 		}
 
@@ -1910,7 +1904,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
-			list_benchmark!(list, extra, liquidity, Liquidity);
 			list_benchmark!(list, extra, thea_executor, TheaExecutor);
 			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, thea_message_handler, TheaMH);
@@ -1947,7 +1940,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
-			add_benchmark!(params, batches, liquidity, Liquidity);
 			add_benchmark!(params, batches, thea_executor, TheaExecutor); //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);

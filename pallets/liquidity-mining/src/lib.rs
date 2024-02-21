@@ -25,6 +25,12 @@ use sp_std::vec::Vec;
 mod callback;
 pub mod types;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use super::*;
@@ -57,6 +63,19 @@ pub mod pallet {
 	type BalanceOf<T> = <<T as Config>::NativeCurrency as Currency<
 		<T as frame_system::Config>::AccountId,
 	>>::Balance;
+	type SumOfScores<T> = BalanceOf<T>;
+	type MMScore<T> = BalanceOf<T>;
+	type MMClaimFlag = bool;
+	type MMInfo<T> = (
+		BTreeMap<<T as frame_system::Config>::AccountId, (MMScore<T>, MMClaimFlag)>,
+		SumOfScores<T>,
+		MMClaimFlag,
+	);
+
+	type LMPScoreSheet<T> = BTreeMap<
+		(TradingPair, <T as frame_system::Config>::AccountId, u16),
+		(BTreeMap<<T as frame_system::Config>::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
+	>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
@@ -76,7 +95,7 @@ pub mod pallet {
 		type OtherAssets: Mutate<
 				<Self as frame_system::Config>::AccountId,
 				Balance = BalanceOf<Self>,
-				AssetId = AssetId,
+				AssetId = u128,
 			> + Inspect<<Self as frame_system::Config>::AccountId>
 			+ Create<<Self as frame_system::Config>::AccountId>;
 	}
@@ -89,7 +108,7 @@ pub mod pallet {
 	pub(super) type LPShares<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		AssetId, // share_id
+		u128, // share_id
 		Identity,
 		T::AccountId, // LP
 		BalanceOf<T>,
@@ -98,6 +117,7 @@ pub mod pallet {
 
 	/// Pools
 	#[pallet::storage]
+	#[pallet::getter(fn lmp_pool)]
 	pub(super) type Pools<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -154,11 +174,7 @@ pub mod pallet {
 		u16, // Epoch
 		Identity,
 		T::AccountId, // Pool address
-		(
-			BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, // (score, claim_flag)
-			BalanceOf<T>,                                 // sum of scores of all lps
-			bool,                                         // MM claim flag
-		),
+		MMInfo<T>,
 		ValueQuery,
 	>;
 
@@ -345,7 +361,41 @@ pub mod pallet {
 			);
 			// Create the a pool address with origin and market combo if it doesn't exist
 			let (pool, share_id) = Self::create_pool_account(&market_maker, market);
-			T::OtherAssets::create(AssetId::Asset(share_id), pool.clone(), false, Zero::zero())?;
+			T::OtherAssets::create(share_id, pool.clone(), true, One::one())?;
+			// Transfer existential balance to pool id as fee, so that it never dies
+			T::NativeCurrency::transfer(
+				&market_maker,
+				&pool,
+				T::NativeCurrency::minimum_balance(),
+				ExistenceRequirement::KeepAlive,
+			)?;
+			if let Some(base_asset) = market.base.asset_id() {
+				T::OtherAssets::transfer(
+					base_asset,
+					&market_maker,
+					&pool,
+					T::OtherAssets::minimum_balance(base_asset),
+					Preservation::Preserve,
+				)?;
+			}
+			if let Some(quote_asset) = market.quote.asset_id() {
+				T::OtherAssets::transfer(
+					quote_asset,
+					&market_maker,
+					&pool,
+					T::OtherAssets::minimum_balance(quote_asset),
+					Preservation::Preserve,
+				)?;
+			}
+			T::OtherAssets::transfer(
+				market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
+				&market_maker,
+				&pool,
+				T::OtherAssets::minimum_balance(
+					market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
+				),
+				Preservation::Preserve,
+			)?;
 			// Register on OCEX pallet
 			T::OCEX::register_pool(pool.clone(), trading_account)?;
 			// Start cycle
@@ -355,7 +405,7 @@ pub mod pallet {
 				exit_fee,
 				public_funds_allowed,
 				name,
-				share_id: AssetId::Asset(share_id),
+				share_id,
 				force_closed: false,
 			};
 			<Pools<T>>::insert(market, market_maker, config);
@@ -394,15 +444,12 @@ pub mod pallet {
 			// Calculate the required quote asset
 			let required_quote_amount = average_price.saturating_mul(base_amount);
 			ensure!(required_quote_amount <= max_quote_amount, Error::<T>::NotEnoughQuoteAmount);
-
 			Self::transfer_asset(&lp, &config.pool_id, base_amount, market.base)?;
 			Self::transfer_asset(&lp, &config.pool_id, required_quote_amount, market.quote)?;
-
 			let total_shares_issued = Decimal::from(
 				T::OtherAssets::total_issuance(config.share_id).saturated_into::<u128>(),
 			)
 			.div(Decimal::from(UNIT_BALANCE));
-
 			T::OCEX::add_liquidity(
 				market,
 				config.pool_id,
@@ -429,10 +476,10 @@ pub mod pallet {
 			let config = <Pools<T>>::get(market, market_maker).ok_or(Error::<T>::UnknownPool)?;
 			ensure!(<SnapshotFlag<T>>::get().is_none(), Error::<T>::SnapshotInProgress); // TODO: @zktony Replace with pool level flags
 
-			let total = T::OtherAssets::total_issuance(config.share_id.into());
+			let total = T::OtherAssets::total_issuance(config.share_id);
 			ensure!(!total.is_zero(), Error::<T>::TotalShareIssuanceIsZero);
 			let burned_amt = T::OtherAssets::burn_from(
-				config.share_id.into(),
+				config.share_id,
 				&lp,
 				shares,
 				Precision::Exact,
@@ -537,8 +584,11 @@ pub mod pallet {
 			};
 
 			// Get the rewards for this LP after commission and exit fee
-			let (scores_map, total_score, _) =
+			let (scores_map, total_score, already_claimed) =
 				<LiquidityProviders<T>>::get(epoch, &pool_config.pool_id);
+			if already_claimed {
+				return Err(Error::<T>::AlreadyClaimed.into());
+			}
 
 			let rewards_for_mm = pool_config
 				.commission
@@ -572,10 +622,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn submit_scores_of_lps(
 			origin: OriginFor<T>,
-			results: BTreeMap<
-				(TradingPair, T::AccountId, u16),
-				(BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
-			>,
+			results: LMPScoreSheet<T>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
 
@@ -610,13 +657,13 @@ pub mod pallet {
 			let pool_config =
 				<Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
 			let mut requests = <WithdrawalRequests<T>>::get(epoch, &pool_config.pool_id);
-			for index in 0..num_requests {
+			for request in requests.iter().take(num_requests) {
 				T::OCEX::remove_liquidity(
 					market,
 					pool_config.pool_id.clone(),
-					requests[index].0.clone(),
-					requests[index].1,
-					requests[index].2,
+					request.0.clone(),
+					request.1,
+					request.2,
 				);
 			}
 			requests = requests[num_requests..].to_vec();
@@ -646,7 +693,7 @@ pub mod pallet {
 			let total_issuance = T::OtherAssets::total_issuance(pool_config.share_id);
 
 			let base_balance = T::OtherAssets::reducible_balance(
-				market.base,
+				market.base.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				Preservation::Expendable,
 				Fortitude::Force,
@@ -658,7 +705,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::InvalidTotalIssuance)?;
 
 			let quote_balance = T::OtherAssets::reducible_balance(
-				market.base,
+				market.base.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				Preservation::Expendable,
 				Fortitude::Force,
@@ -677,20 +724,20 @@ pub mod pallet {
 				Fortitude::Force,
 			)?;
 			T::OtherAssets::transfer(
-				market.base,
+				market.base.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				&lp,
 				base_amt_to_claim,
 				Preservation::Expendable,
 			)?;
 			T::OtherAssets::transfer(
-				market.quote,
+				market.quote.asset_id().ok_or(Error::<T>::ConversionError)?,
 				&pool_config.pool_id,
 				&lp,
 				quote_amt_to_claim,
 				Preservation::Expendable,
 			)?;
-			// TODO: Emit events
+			// TODO: Emit events (Ask @frontend team about this)
 			Ok(())
 		}
 	}
@@ -704,10 +751,7 @@ pub mod pallet {
 			};
 			// TODO: Only compute the result every five blocks
 
-			let mut results: BTreeMap<
-				(TradingPair, T::AccountId, u16),
-				(BTreeMap<T::AccountId, (BalanceOf<T>, bool)>, BalanceOf<T>),
-			> = BTreeMap::new();
+			let mut results: LMPScoreSheet<T> = BTreeMap::new();
 			// Loop over all pools and lps and calculate score of all LPs
 			for (market, mm, config) in <Pools<T>>::iter() {
 				let mut scores_map = BTreeMap::new();
@@ -780,7 +824,7 @@ pub mod pallet {
 				},
 				AssetId::Asset(id) => {
 					T::OtherAssets::transfer(
-						id.into(),
+						id,
 						payer,
 						payee,
 						amount.unique_saturated_into(),

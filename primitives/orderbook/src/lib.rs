@@ -103,6 +103,16 @@ pub struct Fees {
 	pub amount: Decimal,
 }
 
+pub type TotalScore = Decimal;
+pub type TotalFeePaid = Decimal;
+pub type Score = Decimal;
+pub type FeePaid = Decimal;
+pub type TraderMetrics = (Score, FeePaid);
+pub type TraderMetricsMap<AccountId> = BTreeMap<AccountId, TraderMetrics>;
+pub type TradingPairMetrics = (TotalScore, TotalFeePaid);
+pub type TradingPairMetricsMap<AccountId> =
+	BTreeMap<TradingPair, (TraderMetricsMap<AccountId>, TradingPairMetrics)>;
+
 /// Defines the structure of snapshot DTO.
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub struct SnapshotSummary<AccountId: Clone + Codec + Ord> {
@@ -121,9 +131,7 @@ pub struct SnapshotSummary<AccountId: Clone + Codec + Ord> {
 	/// List of Egress messages
 	pub egress_messages: Vec<EgressMessages<AccountId>>,
 	/// Trader Metrics
-	pub trader_metrics: Option<
-		BTreeMap<TradingPair, (BTreeMap<AccountId, (Decimal, Decimal)>, (Decimal, Decimal))>,
-	>,
+	pub trader_metrics: Option<TradingPairMetricsMap<AccountId>>,
 }
 
 impl<AccountId: Clone + Codec + Ord> SnapshotSummary<AccountId> {
