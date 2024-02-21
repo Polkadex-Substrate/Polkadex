@@ -1176,6 +1176,9 @@ pub mod pallet {
 			trader_metrics: &TradingPairMetricsMap<T::AccountId>,
 		) -> DispatchResult {
 			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
+			if current_epoch == 0 {
+				return Ok(());
+			}
 			let config = <LMPConfig<T>>::get(current_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
 			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {

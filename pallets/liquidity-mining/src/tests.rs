@@ -604,13 +604,12 @@ fn add_liquidity() {
 fn mint_base_quote_asset_for_user(user: AccountId32) {
 	let quote_asset = AssetId::Asset(1);
 	Balances::mint_into(&user, UNIT_BALANCE * 100).unwrap();
-	Assets::create(
+	let _ = Assets::create(
 		RuntimeOrigin::signed(user.clone()),
 		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
 		AccountId32::new([1; 32]),
 		One::one(),
-	)
-	.unwrap();
+	);
 	assert_ok!(Assets::mint_into(quote_asset.asset_id().unwrap(), &user, UNIT_BALANCE * 100));
 }
 

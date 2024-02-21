@@ -2659,6 +2659,7 @@ fn test_update_lmp_scores_no_lmp_config() {
 			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
 			(trader_metrics, trading_pair_metrics),
 		);
+		<LMPEpoch<Test>>::put(2);
 		assert_noop!(
 			OCEX::update_lmp_scores(&trading_pair_metrics_map),
 			crate::pallet::Error::<Test>::LMPConfigNotFound
@@ -2672,7 +2673,7 @@ fn test_do_claim_lmp_rewards_happy_path() {
 		add_lmp_config();
 		update_lmp_score();
 		let main_account = AccountId32::new([1; 32]);
-		let epoch = 0;
+		let epoch = 1;
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
 		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
@@ -2811,6 +2812,7 @@ pub fn add_lmp_config() {
 		max_accounts_rewarded,
 		claim_safety_period
 	));
+	OCEX::start_new_epoch();
 	OCEX::start_new_epoch();
 }
 
