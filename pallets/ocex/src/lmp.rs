@@ -52,8 +52,7 @@ pub fn get_trade_volume_by_main_account(
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
 		Some(encoded_volume) => {
-			Decimal::decode(&mut &encoded_volume[..])
-				.map_err(|_| "Unable to decode decimal")?
+			Decimal::decode(&mut &encoded_volume[..]).map_err(|_| "Unable to decode decimal")?
 		},
 	})
 }
