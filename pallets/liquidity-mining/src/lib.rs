@@ -332,8 +332,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			name: [u8; 10],
 			market: TradingPair,
-			commission: u128,
-			exit_fee: u128,
+			#[pallet::compact] commission: u128,
+			#[pallet::compact] exit_fee: u128,
 			public_funds_allowed: bool,
 			trading_account: T::AccountId,
 		) -> DispatchResult {
@@ -417,8 +417,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			market: TradingPair,
 			market_maker: T::AccountId,
-			base_amount: u128,      // Amount of base asset to deposit
-			max_quote_amount: u128, // Max quote amount willing to deposit
+			#[pallet::compact] base_amount: u128,      // Amount of base asset to deposit
+			#[pallet::compact] max_quote_amount: u128, // Max quote amount willing to deposit
 		) -> DispatchResult {
 			let lp = ensure_signed(origin)?;
 			let config = <Pools<T>>::get(market, &market_maker).ok_or(Error::<T>::UnknownPool)?;
@@ -467,7 +467,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			market: TradingPair,
 			market_maker: T::AccountId,
-			shares: BalanceOf<T>,
+			#[pallet::compact] shares: BalanceOf<T>,
 		) -> DispatchResult {
 			let lp = ensure_signed(origin)?;
 
