@@ -154,6 +154,7 @@ pub mod pallet {
 		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
 		TradingPairMetricsMap,
 	};
+	use parity_scale_codec::Compact;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ingress::EgressMessages,
@@ -364,6 +365,12 @@ pub mod pallet {
 		InvalidLMPConfig,
 		/// Rewards are already claimed
 		RewardAlreadyClaimed,
+		/// Base token not allowlisted for deposits
+		BaseNotAllowlisted,
+		/// Quote token not allowlisted for deposits
+		QuoteNotAllowlisted,
+		/// Min volume cannot be greater than Max volume
+		MinVolGreaterThanMaxVolume,
 	}
 
 	#[pallet::hooks]
@@ -518,12 +525,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			base: AssetId,
 			quote: AssetId,
-			min_order_price: BalanceOf<T>,
-			max_order_price: BalanceOf<T>,
-			min_order_qty: BalanceOf<T>,
-			max_order_qty: BalanceOf<T>,
-			price_tick_size: BalanceOf<T>,
-			qty_step_size: BalanceOf<T>,
+			#[pallet::compact] min_volume: BalanceOf<T>,
+			#[pallet::compact] max_volume: BalanceOf<T>,
+			#[pallet::compact] price_tick_size: BalanceOf<T>,
+			#[pallet::compact] qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -538,89 +543,40 @@ pub mod pallet {
 				Error::<T>::TradingPairAlreadyRegistered
 			);
 
-			// We need to also check if provided values are not zero
-			ensure!(
-				min_order_price.saturated_into::<u128>() > 0
-					&& max_order_price.saturated_into::<u128>() > 0
-					&& min_order_qty.saturated_into::<u128>() > 0
-					&& max_order_qty.saturated_into::<u128>() > 0
-					&& price_tick_size.saturated_into::<u128>() > 0
-					&& qty_step_size.saturated_into::<u128>() > 0,
-				Error::<T>::TradingPairConfigCannotBeZero
-			);
+			Self::validate_trading_pair_config(
+				min_volume,
+				max_volume,
+				price_tick_size,
+				qty_step_size,
+			)?;
 
-			// We need to check if the provided parameters are not exceeding 10^27 so that there
-			// will not be an overflow upon performing calculations
-			ensure!(
-				min_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				max_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				min_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				max_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-
-			//enclave will only support min volume of 10^-8
-			//if trading pairs volume falls below it will pass a UnderFlow Error
-			ensure!(
-				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
-					&& min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
-					&& min_order_price
-						.saturated_into::<u128>()
-						.saturating_mul(min_order_qty.saturated_into::<u128>())
-						> TRADE_OPERATION_MIN_VALUE,
-				Error::<T>::TradingPairConfigUnderflow
-			);
-
-			// TODO: Check if base and quote assets are enabled for deposits
+			// Check if base and quote assets are enabled for deposits
+			ensure!(<AllowlistedToken<T>>::get().contains(&base), Error::<T>::BaseNotAllowlisted);
+			ensure!(<AllowlistedToken<T>>::get().contains(&quote), Error::<T>::QuoteNotAllowlisted);
 			// Decimal::from() here is infallable as we ensure provided parameters do not exceed
 			// Decimal::MAX
 			match (
-				Decimal::from(min_order_price.saturated_into::<u128>())
+				Decimal::from(min_volume.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
-				Decimal::from(max_order_price.saturated_into::<u128>())
+				Decimal::from(max_volume.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 				Decimal::from(price_tick_size.saturated_into::<u128>())
-					.checked_div(Decimal::from(UNIT_BALANCE)),
-				Decimal::from(min_order_qty.saturated_into::<u128>())
-					.checked_div(Decimal::from(UNIT_BALANCE)),
-				Decimal::from(max_order_qty.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 				Decimal::from(qty_step_size.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 			) {
 				(
-					Some(min_price),
-					Some(max_price),
+					Some(max_volume),
+					Some(min_volume),
 					Some(price_tick_size),
-					Some(min_qty),
-					Some(max_qty),
 					Some(qty_step_size),
 				) => {
 					let trading_pair_info = TradingPairConfig {
 						base_asset: base,
 						quote_asset: quote,
-						min_price,
-						max_price,
+						min_volume,
+						max_volume,
 						price_tick_size,
-						min_qty,
-						max_qty,
 						qty_step_size,
 						operational_status: true,
 						base_asset_precision: qty_step_size.scale() as u8,
@@ -651,12 +607,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			base: AssetId,
 			quote: AssetId,
-			min_order_price: BalanceOf<T>,
-			max_order_price: BalanceOf<T>,
-			min_order_qty: BalanceOf<T>,
-			max_order_qty: BalanceOf<T>,
-			price_tick_size: BalanceOf<T>,
-			qty_step_size: BalanceOf<T>,
+			#[pallet::compact] min_volume: BalanceOf<T>,
+			#[pallet::compact] max_volume: BalanceOf<T>,
+			#[pallet::compact] price_tick_size: BalanceOf<T>,
+			#[pallet::compact] qty_step_size: BalanceOf<T>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			ensure!(Self::orderbook_operational_state(), Error::<T>::ExchangeNotOperational);
@@ -670,86 +624,36 @@ pub mod pallet {
 				None => false,
 			};
 			ensure!(!is_pair_in_operation, Error::<T>::TradingPairIsNotClosed);
-			// We need to also check if provided values are not zero
-			ensure!(
-				min_order_price.saturated_into::<u128>() > 0
-					&& max_order_price.saturated_into::<u128>() > 0
-					&& min_order_qty.saturated_into::<u128>() > 0
-					&& max_order_qty.saturated_into::<u128>() > 0
-					&& price_tick_size.saturated_into::<u128>() > 0
-					&& qty_step_size.saturated_into::<u128>() > 0,
-				Error::<T>::TradingPairConfigCannotBeZero
-			);
-
-			// We need to check if the provided parameters are not exceeding 10^27 so that there
-			// will not be an overflow upon performing calculations
-			ensure!(
-				min_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				max_order_price.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				min_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				max_order_qty.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-			ensure!(
-				qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
-				Error::<T>::AmountOverflow
-			);
-
-			//enclave will only support min volume of 10^-8
-			//if trading pairs volume falls below it will pass a UnderFlow Error
-			ensure!(
-				min_order_price.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
-					&& min_order_qty.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE
-					&& min_order_price
-						.saturated_into::<u128>()
-						.saturating_mul(min_order_qty.saturated_into::<u128>())
-						> TRADE_OPERATION_MIN_VALUE,
-				Error::<T>::TradingPairConfigUnderflow
-			);
+			// Va
+			Self::validate_trading_pair_config(
+				min_volume,
+				max_volume,
+				price_tick_size,
+				qty_step_size,
+			)?;
 
 			match (
-				Decimal::from(min_order_price.saturated_into::<u128>())
+				Decimal::from(min_volume.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
-				Decimal::from(max_order_price.saturated_into::<u128>())
+				Decimal::from(max_volume.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 				Decimal::from(price_tick_size.saturated_into::<u128>())
-					.checked_div(Decimal::from(UNIT_BALANCE)),
-				Decimal::from(min_order_qty.saturated_into::<u128>())
-					.checked_div(Decimal::from(UNIT_BALANCE)),
-				Decimal::from(max_order_qty.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 				Decimal::from(qty_step_size.saturated_into::<u128>())
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 			) {
 				(
-					Some(min_price),
-					Some(max_price),
+					Some(min_volume),
+					Some(max_volume),
 					Some(price_tick_size),
-					Some(min_qty),
-					Some(max_qty),
 					Some(qty_step_size),
 				) => {
 					let trading_pair_info = TradingPairConfig {
 						base_asset: base,
 						quote_asset: quote,
-						min_price,
-						max_price,
+						min_volume,
+						max_volume,
 						price_tick_size,
-						min_qty,
-						max_qty,
 						qty_step_size,
 						operational_status: true,
 						base_asset_precision: price_tick_size.scale().saturated_into(),
@@ -779,7 +683,7 @@ pub mod pallet {
 		pub fn deposit(
 			origin: OriginFor<T>,
 			asset: AssetId,
-			amount: BalanceOf<T>,
+			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let user = ensure_signed(origin)?;
 			Self::do_deposit(user, asset, amount)?;
@@ -1077,8 +981,8 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn set_lmp_epoch_config(
 			origin: OriginFor<T>,
-			total_liquidity_mining_rewards: Option<u128>,
-			total_trading_rewards: Option<u128>,
+			total_liquidity_mining_rewards: Option<Compact<u128>>,
+			total_trading_rewards: Option<Compact<u128>>,
 			market_weightage: Option<BTreeMap<TradingPair, u128>>,
 			min_fees_paid: Option<BTreeMap<TradingPair, u128>>,
 			min_maker_volume: Option<BTreeMap<TradingPair, u128>>,
@@ -1090,10 +994,10 @@ pub mod pallet {
 			let unit: Decimal = Decimal::from(UNIT_BALANCE);
 			if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
 				config.total_liquidity_mining_rewards =
-					Decimal::from(total_liquidity_mining_rewards).div(unit);
+					Decimal::from(total_liquidity_mining_rewards.0).div(unit);
 			}
 			if let Some(total_trading_rewards) = total_trading_rewards {
-				config.total_trading_rewards = Decimal::from(total_trading_rewards).div(unit);
+				config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
 			}
 			if let Some(market_weightage) = market_weightage {
 				let mut total_percent: u128 = 0u128;
@@ -1170,6 +1074,44 @@ pub mod pallet {
 				ExistenceRequirement::AllowDeath,
 			)?;
 			Ok(total_in_u128)
+		}
+
+		pub fn validate_trading_pair_config(
+			min_volume: BalanceOf<T>,
+			max_volume: BalanceOf<T>,
+			price_tick_size: BalanceOf<T>,
+			qty_step_size: BalanceOf<T>,
+		) -> DispatchResult {
+			// We need to also check if provided values are not zero
+			ensure!(
+				min_volume.saturated_into::<u128>() > 0
+					&& max_volume.saturated_into::<u128>() > 0
+					&& price_tick_size.saturated_into::<u128>() > 0
+					&& qty_step_size.saturated_into::<u128>() > 0,
+				Error::<T>::TradingPairConfigCannotBeZero
+			);
+
+			// We need to check if the provided parameters are not exceeding 10^27 so that there
+			// will not be an overflow upon performing calculations
+			ensure!(
+				min_volume.saturated_into::<u128>() <= DEPOSIT_MAX
+					&& max_volume.saturated_into::<u128>() <= DEPOSIT_MAX
+					&& price_tick_size.saturated_into::<u128>() <= DEPOSIT_MAX
+					&& qty_step_size.saturated_into::<u128>() <= DEPOSIT_MAX,
+				Error::<T>::AmountOverflow
+			);
+
+			//enclave will only support min volume of 10^-8
+			//if trading pairs volume falls below it will pass a UnderFlow Error
+			ensure!(
+				min_volume.saturated_into::<u128>() >= TRADE_OPERATION_MIN_VALUE
+					&& max_volume.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE,
+				Error::<T>::TradingPairConfigUnderflow
+			);
+			// max volume cannot be greater than min volume
+			ensure!(min_volume < max_volume, Error::<T>::MinVolGreaterThanMaxVolume);
+
+			Ok(())
 		}
 
 		pub fn update_lmp_scores(

@@ -30,7 +30,7 @@ use crate::mock::*;
 use frame_support::traits::fungibles::Mutate as MutateAsset;
 use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
-use parity_scale_codec::Decode;
+use parity_scale_codec::{Compact, Decode};
 use polkadex_primitives::ocex::AccountInfo;
 use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
 use rust_decimal::Decimal;
@@ -843,10 +843,8 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
-				10001_u128.into(),
 				100_u128.into(),
 				10001_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -863,8 +861,6 @@ fn test_register_trading_pair_exchange_not_operational() {
 				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
-				10001_u128.into(),
-				100_u128.into(),
 				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -886,8 +882,6 @@ fn test_register_trading_pair_bad_origin() {
 				AssetId::Polkadex,
 				1_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -899,8 +893,6 @@ fn test_register_trading_pair_bad_origin() {
 				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -922,8 +914,6 @@ fn test_register_trading_pair_value_zero() {
 				AssetId::Asset(20),
 				0_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -936,13 +926,13 @@ fn test_register_trading_pair_value_zero() {
 fn test_register_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -984,8 +974,6 @@ fn test_register_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				DEPOSIT_MAX + 1,
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -999,12 +987,36 @@ fn test_register_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
 		);
 
 		assert_noop!(
@@ -1015,8 +1027,6 @@ fn test_register_trading_pair_amount_overflow() {
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
@@ -1028,38 +1038,6 @@ fn test_register_trading_pair_amount_overflow() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::register_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
-				DEPOSIT_MAX + 1,
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::register_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1
@@ -1073,13 +1051,13 @@ fn test_register_trading_pair_amount_overflow() {
 fn test_update_trading_pair_amount_overflow() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			10000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1096,8 +1074,6 @@ fn test_update_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				DEPOSIT_MAX + 1,
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -1116,12 +1092,46 @@ fn test_update_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
+		);
+		assert_ok!(OCEX::close_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Asset(10),
+			AssetId::Asset(20)
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
+		);
+		assert_ok!(OCEX::close_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Asset(10),
+			AssetId::Asset(20)
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
 		);
 		assert_ok!(OCEX::close_trading_pair(
 			RuntimeOrigin::root(),
@@ -1137,8 +1147,6 @@ fn test_update_trading_pair_amount_overflow() {
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
@@ -1155,48 +1163,6 @@ fn test_update_trading_pair_amount_overflow() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-		assert_ok!(OCEX::close_trading_pair(
-			RuntimeOrigin::root(),
-			AssetId::Asset(10),
-			AssetId::Asset(20)
-		));
-
-		assert_noop!(
-			OCEX::update_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
-				DEPOSIT_MAX + 1,
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-		assert_ok!(OCEX::close_trading_pair(
-			RuntimeOrigin::root(),
-			AssetId::Asset(10),
-			AssetId::Asset(20)
-		));
-
-		assert_noop!(
-			OCEX::update_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1
@@ -1209,14 +1175,14 @@ fn test_update_trading_pair_amount_overflow() {
 #[test]
 fn test_register_trading_pair_trading_pair_already_registered() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1227,8 +1193,6 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1242,8 +1206,6 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				RuntimeOrigin::root(),
 				AssetId::Asset(20),
 				AssetId::Asset(10),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1258,13 +1220,13 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 fn test_update_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1280,8 +1242,6 @@ fn test_update_trading_pair() {
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1306,14 +1266,14 @@ fn test_update_trading_pair() {
 fn test_update_trading_pair_with_less_than_min_volume() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Polkadex));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(1)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Polkadex,
 			AssetId::Asset(1),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
+			TRADE_OPERATION_MIN_VALUE.into(),
+			(TRADE_OPERATION_MIN_VALUE + 1).into(),
 			100_u128.into(),
 			10_u128.into()
 		));
@@ -1328,8 +1288,6 @@ fn test_update_trading_pair_with_less_than_min_volume() {
 				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Asset(1),
-				10000_u128.into(),
-				100_u128.into(),
 				10000_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1351,8 +1309,6 @@ fn test_update_trading_pair_trading_pair_not_registered() {
 				AssetId::Asset(20),
 				1_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -1369,8 +1325,6 @@ fn test_update_trading_pair_exchange_not_operational() {
 				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1392,8 +1346,6 @@ fn test_update_trading_pair_bad_origin() {
 				AssetId::Asset(20),
 				1_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -1404,8 +1356,6 @@ fn test_update_trading_pair_bad_origin() {
 				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1427,8 +1377,6 @@ fn test_register_trading_pair_volume_too_low() {
 				AssetId::Asset(1),
 				10000_u128.into(),
 				100_u128.into(),
-				10000_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -1441,13 +1389,13 @@ fn test_register_trading_pair_volume_too_low() {
 fn test_update_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1464,8 +1412,6 @@ fn test_update_trading_pair_value_zero() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				0_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
@@ -1711,6 +1657,8 @@ fn test_open_trading_pair_bad_origin() {
 			BadOrigin
 		);
 
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_noop!(
 			OCEX::open_trading_pair(
 				RuntimeOrigin::signed(account_id.into()),
@@ -1726,13 +1674,13 @@ fn test_open_trading_pair_bad_origin() {
 fn test_open_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1803,6 +1751,8 @@ fn test_close_trading_trading_bad_origin() {
 			BadOrigin
 		);
 
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_noop!(
 			OCEX::close_trading_pair(
 				RuntimeOrigin::signed(account_id.into()),
@@ -1818,13 +1768,13 @@ fn test_close_trading_trading_bad_origin() {
 fn test_close_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1854,13 +1804,13 @@ fn test_close_trading_pair() {
 fn test_update_trading_pair_with_closed_operational_status() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1871,8 +1821,6 @@ fn test_update_trading_pair_with_closed_operational_status() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				1_0000_0000_u128.into(),
-				1_000_000_000_000_000_u128.into(),
-				1_000_000_u128.into(),
 				1_000_000_000_000_000_u128.into(),
 				1_000_0000_u128.into(),
 				1_0000_000_u128.into(),
@@ -2511,8 +2459,9 @@ fn test_old_user_action_enum_payload_with_new_enum_returns_ok() {
 #[test]
 fn test_set_lmp_epoch_config_happy_path() {
 	new_test_ext().execute_with(|| {
-		let total_liquidity_mining_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
-		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+			Some(Compact::from(1000 * UNIT_BALANCE));
+		let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
 		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
@@ -2546,8 +2495,9 @@ fn test_set_lmp_epoch_config_happy_path() {
 #[test]
 fn test_set_lmp_epoch_config_invalid_market_weightage() {
 	new_test_ext().execute_with(|| {
-		let total_liquidity_mining_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
-		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+			Some(Compact::from(1000 * UNIT_BALANCE));
+		let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
 		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
@@ -2584,8 +2534,9 @@ fn test_set_lmp_epoch_config_invalid_market_weightage() {
 #[test]
 fn test_set_lmp_epoch_config_invalid_invalid_lmpconfig() {
 	new_test_ext().execute_with(|| {
-		let total_liquidity_mining_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
-		let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+			Some(Compact::from(1000 * UNIT_BALANCE));
+		let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
 		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
@@ -2713,11 +2664,9 @@ fn test_process_remove_liquidity_result() {
 		let market = TradingPairConfig {
 			base_asset: AssetId::Polkadex,
 			quote_asset: asset,
-			min_price: Default::default(),
-			max_price: Default::default(),
+			min_volume: TRADE_OPERATION_MIN_VALUE.into(),
+			max_volume: (TRADE_OPERATION_MIN_VALUE + 1000).into(),
 			price_tick_size: Default::default(),
-			min_qty: Default::default(),
-			max_qty: Default::default(),
 			qty_step_size: Default::default(),
 			operational_status: true,
 			base_asset_precision: 12,
@@ -2782,8 +2731,9 @@ pub fn update_lmp_score() {
 }
 
 pub fn add_lmp_config() {
-	let total_liquidity_mining_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
-	let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
+	let total_liquidity_mining_rewards: Option<Compact<u128>> =
+		Some(Compact::from(1000 * UNIT_BALANCE));
+	let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
 	let base_asset = AssetId::Polkadex;
 	let quote_asset = AssetId::Asset(1);
 	let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
@@ -2832,15 +2782,15 @@ fn crete_base_and_quote_asset() {
 fn register_trading_pair() {
 	let base_asset = AssetId::Polkadex;
 	let quote_asset = AssetId::Asset(1);
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), base_asset));
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), quote_asset));
 	assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 	assert_ok!(OCEX::register_trading_pair(
 		RuntimeOrigin::root(),
 		base_asset,
 		quote_asset,
-		1_0000_0000_u128.into(),
-		1_000_000_000_000_000_u128.into(),
-		1_000_000_u128.into(),
-		1_000_000_000_000_000_u128.into(),
+		(1_0000_0000_u128 * 1_000_000_u128).into(),
+		(1_000_000_000_000_000_u128 * 1_000_u128).into(),
 		1_000_000_u128.into(),
 		1_0000_0000_u128.into(),
 	));
@@ -3005,11 +2955,9 @@ pub fn get_trading_pair_config() -> TradingPairConfig {
 	TradingPairConfig {
 		base_asset: get_trading_pair().base,
 		quote_asset: get_trading_pair().quote,
-		min_price: Decimal::from_str("0.0001").unwrap(),
-		max_price: Decimal::from_str("1000").unwrap(),
+		min_volume: Decimal::from_str("0.000001").unwrap(),
+		max_volume: Decimal::from_str("1000000.0").unwrap(),
 		price_tick_size: Decimal::from_str("0.000001").unwrap(),
-		min_qty: Decimal::from_str("0.001").unwrap(),
-		max_qty: Decimal::from_str("1000").unwrap(),
 		qty_step_size: Decimal::from_str("0.001").unwrap(),
 		operational_status: true,
 		base_asset_precision: 8,

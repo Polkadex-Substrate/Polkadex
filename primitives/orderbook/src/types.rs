@@ -609,13 +609,12 @@ impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
+		let volume = self.price.saturating_mul(self.qty);
 		let result = match self.order_type {
 			OrderType::LIMIT => {
 				is_market_same
-					&& self.price >= config.min_price
-					&& self.price <= config.max_price
-					&& self.qty >= config.min_qty
-					&& self.qty <= config.max_qty
+					&& volume >= config.min_volume
+					&& volume <= config.max_volume
 					&& self.price.rem(config.price_tick_size).is_zero()
 					&& self.qty.rem(config.qty_step_size).is_zero()
 			},
@@ -623,14 +622,12 @@ impl Order {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
 					is_market_same
-						&& self.qty >= config.min_qty
-						&& self.qty <= config.max_qty
 						&& self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
 					is_market_same
-						&& self.quote_order_qty >= (config.min_qty * config.min_price)
-						&& self.quote_order_qty <= (config.max_qty * config.max_price)
+						&& self.quote_order_qty >= config.min_volume
+						&& self.quote_order_qty <= config.max_volume
 						&& self.quote_order_qty.rem(config.price_tick_size).is_zero()
 				}
 			},

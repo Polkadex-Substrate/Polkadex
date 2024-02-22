@@ -107,16 +107,12 @@ pub struct TradingPairConfig {
 	pub base_asset: AssetId,
 	/// Quote asset identifier.
 	pub quote_asset: AssetId,
-	/// Minimum trading price.
-	pub min_price: Decimal,
-	/// Maximum trading price.
-	pub max_price: Decimal,
 	/// The minimum price increment change.
 	pub price_tick_size: Decimal,
-	/// Minimum quantity.
-	pub min_qty: Decimal,
-	/// Maximum quantity.
-	pub max_qty: Decimal,
+	/// Minimum volume required for order
+	pub min_volume: Decimal,
+	/// Maximum volume allowed for order
+	pub max_volume: Decimal,
 	/// The minimum quantity increment change.
 	pub qty_step_size: Decimal,
 	/// Defines if trading operation is enabled or disabled.
@@ -132,7 +128,7 @@ pub struct TradingPairConfig {
 impl TradingPairConfig {
 	/// Minimum appropriate trading volume.
 	pub fn min_volume(&self) -> Decimal {
-		self.min_qty.saturating_mul(self.min_price)
+		self.min_volume
 	}
 
 	/// This is an easy to use default config for testing and other purposes.
@@ -140,11 +136,9 @@ impl TradingPairConfig {
 		Self {
 			base_asset: base,
 			quote_asset: quote,
-			min_price: Decimal::from_f64(0.0001).unwrap(),
-			max_price: Decimal::from_f64(1000.0).unwrap(),
+			min_volume: Decimal::from_f64(0.00000001).unwrap(),
+			max_volume: Decimal::from_f64(1000000.0).unwrap(),
 			price_tick_size: Decimal::from_f64(0.000001).unwrap(),
-			min_qty: Decimal::from_f64(0.0001).unwrap(),
-			max_qty: Decimal::from_f64(1000.0).unwrap(),
 			qty_step_size: Decimal::from_f64(0.001).unwrap(),
 			operational_status: true,
 			base_asset_precision: 8,
