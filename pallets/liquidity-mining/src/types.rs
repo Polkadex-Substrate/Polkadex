@@ -4,13 +4,13 @@ use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, MaxEncodedLen, TypeInfo)]
 pub struct MarketMakerConfig<AccountId> {
-	pub(crate) pool_id: AccountId,
-	pub(crate) commission: Decimal,
-	pub(crate) exit_fee: Decimal,
-	pub(crate) public_funds_allowed: bool,
-	pub(crate) name: [u8; 10],
-	pub(crate) share_id: u128,
-	pub(crate) force_closed: bool,
+	pub pool_id: AccountId,
+	pub commission: Decimal,
+	pub exit_fee: Decimal,
+	pub public_funds_allowed: bool,
+	pub name: [u8; 10],
+	pub share_id: u128,
+	pub force_closed: bool,
 }
 
 pub type EpochNumber = u32;
