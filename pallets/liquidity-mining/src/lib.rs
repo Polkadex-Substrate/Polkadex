@@ -284,12 +284,10 @@ pub mod pallet {
 				if <SnapshotFlag<T>>::get().is_none() {
 					return InvalidTransaction::Call.into();
 				}
-				match source {
-					TransactionSource::External => {
-						// Don't accept externally sourced calls
-						return InvalidTransaction::Call.into();
-					},
-					_ => {},
+
+				if source == TransactionSource::External {
+					// Don't accept externally sourced calls
+					return InvalidTransaction::Call.into();
 				}
 
 				// TODO: @zktony Update the verification logic to make it more stringent.
@@ -320,7 +318,7 @@ pub mod pallet {
 					.propagate(true)
 					.build()
 			} else {
-				return InvalidTransaction::Call.into();
+				InvalidTransaction::Call.into()
 			}
 		}
 	}
