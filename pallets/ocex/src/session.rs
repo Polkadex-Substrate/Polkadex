@@ -6,9 +6,11 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 use sp_runtime::SaturatedConversion;
 
+const EPOCH_LENGTH: u32 = 201600u32; // 28 days in blocks
+
 impl<T: Config> Pallet<T> {
 	pub(crate) fn should_start_new_epoch(n: BlockNumberFor<T>) -> bool {
-		n.saturated_into::<u32>() % 201600u32 == 0 // 28 days in blocks
+		n.saturated_into::<u32>() % EPOCH_LENGTH == 0
 	}
 
 	/// Starts new liquidity mining epoch
@@ -27,7 +29,7 @@ impl<T: Config> Pallet<T> {
 
 	pub(crate) fn should_stop_accepting_lmp_withdrawals(n: BlockNumberFor<T>) -> bool {
 		// Triggers 7200 blocks ( or approx 1 day before epoch change)
-		n.saturated_into::<u32>().saturating_add(7200) % 201600u32 == 0
+		n.saturated_into::<u32>().saturating_add(7200) % EPOCH_LENGTH == 0
 	}
 
 	pub(crate) fn stop_accepting_lmp_withdrawals() {
