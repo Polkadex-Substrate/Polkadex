@@ -39,10 +39,10 @@ use frame_support::{
 	},
 };
 use frame_system::ensure_signed;
-use num_traits::Zero;
+use num_traits::{ToPrimitive, Zero};
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE};
+use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE, auction::FeeDistribution};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
@@ -50,16 +50,18 @@ use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
 	Percent, SaturatedConversion, Saturating,
 };
+pub use pallet::*;
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_system::pallet_prelude::BlockNumberFor;
+use frame_support::traits::fungible::Inspect as InspectNative;
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-pub use pallet::*;
+//pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
-
+use sp_std::collections::btree_set::BTreeSet;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -132,9 +134,8 @@ pub trait OcexWeightInfo {
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
-#[frame_support::pallet(dev_mode)]
+#[frame_support::pallet]
 pub mod pallet {
-
 	use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
@@ -149,6 +150,7 @@ pub mod pallet {
 		},
 		transactional, PalletId,
 	};
+	use frame_support::traits::tokens::Precision;
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use orderbook_primitives::{
 		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
@@ -164,11 +166,9 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
-	use sp_runtime::{
-		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet,
-		SaturatedConversion,
-	};
+	use sp_runtime::{offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet, SaturatedConversion, Perbill};
 	use sp_std::vec::Vec;
+	use polkadex_primitives::auction::AuctionInfo;
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -219,7 +219,7 @@ pub mod pallet {
 	/// `frame_system::Config` should always be included.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
+	frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
 	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -237,25 +237,25 @@ pub mod pallet {
 		type LMPRewardsPalletId: Get<PalletId>;
 
 		/// Balances Pallet
-		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId> + InspectNative<Self::AccountId>;
 
 		/// Assets Pallet
 		type OtherAssets: Mutate<
-				<Self as frame_system::Config>::AccountId,
-				Balance = BalanceOf<Self>,
-				AssetId = u128,
-			> + Inspect<<Self as frame_system::Config>::AccountId>
-			+ Create<<Self as frame_system::Config>::AccountId>;
+			<Self as frame_system::Config>::AccountId,
+			Balance=BalanceOf<Self>,
+			AssetId=u128,
+		> + Inspect<<Self as frame_system::Config>::AccountId>
+		+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// The identifier type for an authority.
 		type AuthorityId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ Ord
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen;
+		+ Parameter
+		+ RuntimeAppPublic
+		+ Ord
+		+ MaybeSerializeDeserialize
+		+ MaxEncodedLen;
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
@@ -371,6 +371,14 @@ pub mod pallet {
 		QuoteNotAllowlisted,
 		/// Min volume cannot be greater than Max volume
 		MinVolGreaterThanMaxVolume,
+		/// Fee Distribution Config Not Found
+		FeeDistributionConfigNotFound,
+		/// Auction not found
+		AuctionNotFound,
+		/// Invalid bid amount
+		InvalidBidAmount,
+		/// InsufficientBalance
+		InsufficientBalance
 	}
 
 	#[pallet::hooks]
@@ -385,6 +393,24 @@ pub mod pallet {
 			}
 
 			let len = <OnChainEvents<T>>::get().len();
+			if let Some(auction_block) = <AuctionBlockNumber<T>>::get() {
+				if n == auction_block {
+					if let Err(err) = Self::consume_auction() {
+						log::error!(target:"ocex","Error consuming auction: {:?}",err);
+						Self::deposit_event(Event::<T>::FailedToConsumeAuction);
+					}
+					if let Err(err) = Self::create_auction() {
+						log::error!(target:"ocex","Error creating auction: {:?}",err);
+						Self::deposit_event(Event::<T>::FailedToCreateAuction);
+					}
+				}
+			} else {
+				if let Err(err) = Self::create_auction() {
+					log::error!(target:"ocex","Error creating auction: {:?}",err);
+					Self::deposit_event(Event::<T>::FailedToCreateAuction);
+				}
+			}
+
 			if len > 0 {
 				<OnChainEvents<T>>::kill();
 				Weight::default()
@@ -1040,16 +1066,284 @@ pub mod pallet {
 			<ExpectedLMPConfig<T>>::put(config);
 			Ok(())
 		}
+
+		/// Set Fee Distribution
+		#[pallet::call_index(21)]
+		#[pallet::weight(10_000)]
+		pub fn set_fee_distribution(origin: OriginFor<T>, fee_distribution: FeeDistribution<T::AccountId, BlockNumberFor<T>>) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<FeeDistributionConfig<T>>::put(fee_distribution);
+			Ok(())
+		}
+
+		/// Place Bid
+		#[pallet::call_index(22)]
+		#[pallet::weight(10_000)]
+		pub fn place_bid(origin: OriginFor<T>, bid_amount: BalanceOf<T>) -> DispatchResult {
+			let bidder = ensure_signed(origin)?;
+			let mut auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
+			ensure!(bid_amount > Zero::zero(), Error::<T>::InvalidBidAmount);
+			ensure!(bid_amount > auction_info.highest_bid, Error::<T>::InvalidBidAmount);
+			ensure!(T::NativeCurrency::can_reserve(&bidder, bid_amount), Error::<T>::InsufficientBalance);
+			T::NativeCurrency::reserve(&bidder, bid_amount)?;
+			auction_info.highest_bid = bid_amount;
+			auction_info.highest_bidder = Some(bidder);
+			<Auction<T>>::put(auction_info);
+			Ok(())
+		}
 	}
 
-	impl<T: Config> Pallet<T> {
+	/// Events are a simple means of reporting specific conditions and
+	/// circumstances that have happened that users, Dapps and/or chain explorers would find
+	/// interesting and otherwise difficult to detect.
+	#[pallet::event]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		SnapshotProcessed(u64),
+		UserActionsBatchSubmitted(u64),
+		FeesClaims {
+			beneficiary: T::AccountId,
+			snapshot_id: u64,
+		},
+		MainAccountRegistered {
+			main: T::AccountId,
+			proxy: T::AccountId,
+		},
+		TradingPairRegistered {
+			base: AssetId,
+			quote: AssetId,
+		},
+		TradingPairUpdated {
+			base: AssetId,
+			quote: AssetId,
+		},
+		DepositSuccessful {
+			user: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+		},
+		ShutdownTradingPair {
+			pair: TradingPairConfig,
+		},
+		OpenTradingPair {
+			pair: TradingPairConfig,
+		},
+		EnclaveRegistered(T::AccountId),
+		EnclaveAllowlisted(T::AccountId),
+		EnclaveCleanup(Vec<T::AccountId>),
+		TradingPairIsNotOperational,
+		WithdrawalClaimed {
+			main: T::AccountId,
+			withdrawals: Vec<Withdrawal<T::AccountId>>,
+		},
+		NewProxyAdded {
+			main: T::AccountId,
+			proxy: T::AccountId,
+		},
+		ProxyRemoved {
+			main: T::AccountId,
+			proxy: T::AccountId,
+		},
+		/// TokenAllowlisted
+		TokenAllowlisted(AssetId),
+		/// AllowlistedTokenRemoved
+		AllowlistedTokenRemoved(AssetId),
+		/// Withdrawal failed
+		WithdrawalFailed(Withdrawal<T::AccountId>),
+		/// Exchange state has been updated
+		ExchangeStateUpdated(bool),
+		/// DisputePeriod has been updated
+		DisputePeriodUpdated(BlockNumberFor<T>),
+		/// Withdraw Assets from Orderbook
+		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
+		/// Orderbook Operator Key Whitelisted
+		OrderbookOperatorKeyWhitelisted(sp_core::ecdsa::Public),
+		/// Failed do consume auction
+		FailedToConsumeAuction,
+		/// Failed to create Auction
+		FailedToCreateAuction
+	}
+
+	///Allowlisted tokens
+	#[pallet::storage]
+	#[pallet::getter(fn get_allowlisted_token)]
+	pub(super) type AllowlistedToken<T: Config> =
+		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
+
+	// A map that has enumerable entries.
+	#[pallet::storage]
+	#[pallet::getter(fn accounts)]
+	pub(super) type Accounts<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		AccountInfo<T::AccountId, ProxyLimit>,
+		OptionQuery,
+	>;
+
+	// Proxy to main account map
+	#[pallet::storage]
+	#[pallet::getter(fn proxies)]
+	pub(super) type Proxies<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId, OptionQuery>;
+
+	/// Trading pairs registered as Base, Quote => TradingPairInfo
+	#[pallet::storage]
+	#[pallet::getter(fn trading_pairs)]
+	pub(super) type TradingPairs<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		AssetId,
+		Blake2_128Concat,
+		AssetId,
+		TradingPairConfig,
+		OptionQuery,
+	>;
+
+	// Snapshots Storage
+	#[pallet::storage]
+	#[pallet::getter(fn snapshots)]
+	pub type Snapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, OptionQuery>;
+
+	// Snapshots Nonce
+	#[pallet::storage]
+	#[pallet::getter(fn snapshot_nonce)]
+	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	// Exchange Operation State
+	#[pallet::storage]
+	#[pallet::getter(fn orderbook_operational_state)]
+	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	// Fees collected
+	#[pallet::storage]
+	#[pallet::getter(fn fees_collected)]
+	pub(super) type FeesCollected<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, Vec<Fees>, ValueQuery>;
+
+	// Withdrawals mapped by their trading pairs and snapshot numbers
+	#[pallet::storage]
+	#[pallet::getter(fn withdrawals)]
+	pub(super) type Withdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
+
+	// Queue for enclave ingress messages
+	#[pallet::storage]
+	#[pallet::getter(fn ingress_messages)]
+	pub(super) type IngressMessages<T: Config> = StorageMap<
+		_,
+		Identity,
+		BlockNumberFor<T>,
+		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
+		ValueQuery,
+	>;
+
+	// Queue for onchain events
+	#[pallet::storage]
+	#[pallet::getter(fn onchain_events)]
+	pub(super) type OnChainEvents<T: Config> =
+		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
+
+	// Total Assets present in orderbook
+	#[pallet::storage]
+	#[pallet::getter(fn total_assets)]
+	pub(super) type TotalAssets<T: Config> =
+		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_authorities)]
+	pub(super) type Authorities<T: Config> = StorageMap<
+		_,
+		Identity,
+		orderbook_primitives::ValidatorSetId,
+		ValidatorSet<T::AuthorityId>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_next_authorities)]
+	pub(super) type NextAuthorities<T: Config> =
+		StorageValue<_, ValidatorSet<T::AuthorityId>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn validator_set_id)]
+	pub(super) type ValidatorSetId<T: Config> =
+		StorageValue<_, orderbook_primitives::ValidatorSetId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_orderbook_operator_public_key)]
+	pub(super) type OrderbookOperatorPublicKey<T: Config> =
+		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
+
+	/// Storage related to LMP
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_epoch)]
+	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn trader_metrics)]
+	pub(super) type TraderMetrics<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Identity, u16>, NMapKey<Identity, TradingPair>, NMapKey<Identity, T::AccountId>),
+		(Decimal, Decimal, bool),
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn total_scores)]
+	pub(super) type TotalScores<T: Config> =
+		StorageDoubleMap<_, Identity, u16, Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
+
+	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
+	#[pallet::storage]
+	#[pallet::getter(fn finalize_lmp_scores_flag)]
+	pub(super) type FinalizeLMPScore<T: Config> = StorageValue<_, u16, OptionQuery>;
+
+	/// Configuration for LMP for each epoch
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_config)]
+	pub(super) type LMPConfig<T: Config> =
+		StorageMap<_, Identity, u16, LMPEpochConfig, OptionQuery>;
+
+	/// Expected Configuration for LMP for next epoch
+	#[pallet::storage]
+	#[pallet::getter(fn expected_lmp_config)]
+	pub(super) type ExpectedLMPConfig<T: Config> = StorageValue<_, LMPEpochConfig, ValueQuery>;
+
+	/// Block at which rewards for each epoch can be claimed
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_claim_blk)]
+	pub(super) type LMPClaimBlk<T: Config> =
+		StorageMap<_, Identity, u16, BlockNumberFor<T>, OptionQuery>;
+
+	/// Price Map showing the average prices ( value = (avg_price, ticks)
+	#[pallet::storage]
+	pub type PriceOracle<T: Config> =
+		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type FeeDistributionConfig<T: Config> =
+	    StorageValue<_, FeeDistribution<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type AssetsCollected<T: Config> =
+	    StorageValue<_, BTreeSet<u128>, ValueQuery>; //TODO: Change it to BTreeSet
+
+	#[pallet::storage]
+	pub type AuctionBlockNumber<T: Config> = StorageValue<_, BlockNumberFor<T>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type Auction<T: Config> = StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
+
+	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
 		pub fn do_claim_lmp_rewards(
 			main: T::AccountId,
 			epoch: u16,
 			market: TradingPair,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Check if the Safety period for this epoch is over
-			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
+			let claim_blk = <crate::pallet::LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
 			let config: LMPEpochConfig =
@@ -1151,19 +1445,49 @@ pub mod pallet {
 				match msg {
 					EgressMessages::TradingFees(fees_map) => {
 						let pot_account: T::AccountId = Self::get_pot_account();
+						let mut asset_set = <AssetsCollected<T>>::get();
 						for (asset, fees) in fees_map {
 							let fees = fees
 								.saturating_mul(Decimal::from(UNIT_BALANCE))
 								.to_u128()
 								.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-							Self::transfer_asset(
-								&Self::get_pallet_account(),
-								&pot_account,
-								fees.saturated_into(),
-								*asset,
-							)?;
+							match asset {
+								AssetId::Asset(asset_id) => {
+									asset_set.insert(*asset_id);
+									Self::transfer_asset(
+										&Self::get_pallet_account(),
+										&pot_account,
+										fees.saturated_into(),
+										*asset,
+									)?;
+								}
+								AssetId::Polkadex => {
+									if let Some(distribution) = <FeeDistributionConfig<T>>::get() {
+										ensure!(T::NativeCurrency::reducible_balance(&Self::get_pallet_account(), Preservation::Preserve, Fortitude::Polite) > fees.saturated_into(), Error::<T>::AmountOverflow);
+										let fee_to_be_burnt = Percent::from_percent(distribution.burn_ration) * fees;
+										let fee_to_be_distributed = fees - fee_to_be_burnt;
+										// Burn the fee
+										T::NativeCurrency::burn(fee_to_be_burnt.saturated_into());
+										Self::transfer_asset(
+											&Self::get_pallet_account(),
+											&distribution.recipient_address,
+											fee_to_be_distributed.saturated_into(),
+											*asset,
+										)?;
+									} else {
+										Self::transfer_asset(
+											&Self::get_pallet_account(),
+											&pot_account,
+											fees.saturated_into(),
+											*asset,
+										)?;
+									}
+
+								}
+							}
 							// TODO: Emit an event here
 						}
+						<AssetsCollected<T>>::put(asset_set);
 					},
 					EgressMessages::AddLiquidityResult(
 						market,
@@ -1413,7 +1737,7 @@ pub mod pallet {
 					converted_withdrawal.saturated_into(),
 					withdrawal.asset,
 				)
-				.is_ok()
+					.is_ok()
 			} else {
 				false
 			}
@@ -1583,7 +1907,7 @@ pub mod pallet {
 				&market,
 				&main,
 			)
-			.unwrap_or_default()
+				.unwrap_or_default()
 		}
 
 		pub fn get_volume_by_user_per_epoch(
@@ -1601,234 +1925,41 @@ pub mod pallet {
 				&market,
 				&main,
 			)
-			.unwrap_or_default()
+				.unwrap_or_default()
+		}
+
+		pub fn create_auction() -> DispatchResult {
+			let mut auction_info: AuctionInfo<T::AccountId, BalanceOf<T>> = AuctionInfo::default();
+			let assets_collected = <AssetsCollected<T>>::get();
+			for asset_id in assets_collected {
+				let asset_reducible_balance = T::OtherAssets::reducible_balance(asset_id, &Self::get_pot_account(), Preservation::Preserve, Fortitude::Polite);
+				auction_info.fee_info.insert(asset_id, asset_reducible_balance);
+			}
+			let fee_config = <FeeDistributionConfig<T>>::get().ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
+            let next_auction_block = frame_system::Pallet::<T>::current_block_number().saturating_add(fee_config.auction_duration);
+			<AuctionBlockNumber<T>>::put(next_auction_block);
+			<AssetsCollected<T>>::kill();
+			<Auction<T>>::put(auction_info);
+			Ok(())
+		}
+
+		pub fn consume_auction() -> DispatchResult {
+			let auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
+			if let Some(bidder) = auction_info.highest_bidder {
+				let fee_config = <FeeDistributionConfig<T>>::get().ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
+				let fee_info = auction_info.fee_info;
+				for (asset_id, fee) in fee_info {
+					T::OtherAssets::transfer(asset_id, &Self::get_pot_account(), &bidder, fee, Preservation::Preserve)?;
+				}
+				let total_bidder_reserve_balance = auction_info.highest_bid;
+				let _ = T::NativeCurrency::unreserve(&bidder, total_bidder_reserve_balance);
+				let amount_to_be_burnt = Percent::from_percent(fee_config.burn_ration) * total_bidder_reserve_balance;
+				let trasnferable_amount = total_bidder_reserve_balance - amount_to_be_burnt;
+				T::NativeCurrency::transfer(&bidder, &fee_config.recipient_address, trasnferable_amount, ExistenceRequirement::KeepAlive)?;
+			}
+			Ok(())
 		}
 	}
-
-	/// Events are a simple means of reporting specific conditions and
-	/// circumstances that have happened that users, Dapps and/or chain explorers would find
-	/// interesting and otherwise difficult to detect.
-	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		SnapshotProcessed(u64),
-		UserActionsBatchSubmitted(u64),
-		FeesClaims {
-			beneficiary: T::AccountId,
-			snapshot_id: u64,
-		},
-		MainAccountRegistered {
-			main: T::AccountId,
-			proxy: T::AccountId,
-		},
-		TradingPairRegistered {
-			base: AssetId,
-			quote: AssetId,
-		},
-		TradingPairUpdated {
-			base: AssetId,
-			quote: AssetId,
-		},
-		DepositSuccessful {
-			user: T::AccountId,
-			asset: AssetId,
-			amount: BalanceOf<T>,
-		},
-		ShutdownTradingPair {
-			pair: TradingPairConfig,
-		},
-		OpenTradingPair {
-			pair: TradingPairConfig,
-		},
-		EnclaveRegistered(T::AccountId),
-		EnclaveAllowlisted(T::AccountId),
-		EnclaveCleanup(Vec<T::AccountId>),
-		TradingPairIsNotOperational,
-		WithdrawalClaimed {
-			main: T::AccountId,
-			withdrawals: Vec<Withdrawal<T::AccountId>>,
-		},
-		NewProxyAdded {
-			main: T::AccountId,
-			proxy: T::AccountId,
-		},
-		ProxyRemoved {
-			main: T::AccountId,
-			proxy: T::AccountId,
-		},
-		/// TokenAllowlisted
-		TokenAllowlisted(AssetId),
-		/// AllowlistedTokenRemoved
-		AllowlistedTokenRemoved(AssetId),
-		/// Withdrawal failed
-		WithdrawalFailed(Withdrawal<T::AccountId>),
-		/// Exchange state has been updated
-		ExchangeStateUpdated(bool),
-		/// DisputePeriod has been updated
-		DisputePeriodUpdated(BlockNumberFor<T>),
-		/// Withdraw Assets from Orderbook
-		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
-		/// Orderbook Operator Key Whitelisted
-		OrderbookOperatorKeyWhitelisted(sp_core::ecdsa::Public),
-	}
-
-	///Allowlisted tokens
-	#[pallet::storage]
-	#[pallet::getter(fn get_allowlisted_token)]
-	pub(super) type AllowlistedToken<T: Config> =
-		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
-
-	// A map that has enumerable entries.
-	#[pallet::storage]
-	#[pallet::getter(fn accounts)]
-	pub(super) type Accounts<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		AccountInfo<T::AccountId, ProxyLimit>,
-		OptionQuery,
-	>;
-
-	// Proxy to main account map
-	#[pallet::storage]
-	#[pallet::getter(fn proxies)]
-	pub(super) type Proxies<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId, OptionQuery>;
-
-	/// Trading pairs registered as Base, Quote => TradingPairInfo
-	#[pallet::storage]
-	#[pallet::getter(fn trading_pairs)]
-	pub(super) type TradingPairs<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		AssetId,
-		Blake2_128Concat,
-		AssetId,
-		TradingPairConfig,
-		OptionQuery,
-	>;
-
-	// Snapshots Storage
-	#[pallet::storage]
-	#[pallet::getter(fn snapshots)]
-	pub type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, OptionQuery>;
-
-	// Snapshots Nonce
-	#[pallet::storage]
-	#[pallet::getter(fn snapshot_nonce)]
-	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-	// Exchange Operation State
-	#[pallet::storage]
-	#[pallet::getter(fn orderbook_operational_state)]
-	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-	// Fees collected
-	#[pallet::storage]
-	#[pallet::getter(fn fees_collected)]
-	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, Vec<Fees>, ValueQuery>;
-
-	// Withdrawals mapped by their trading pairs and snapshot numbers
-	#[pallet::storage]
-	#[pallet::getter(fn withdrawals)]
-	pub(super) type Withdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
-
-	// Queue for enclave ingress messages
-	#[pallet::storage]
-	#[pallet::getter(fn ingress_messages)]
-	pub(super) type IngressMessages<T: Config> = StorageMap<
-		_,
-		Identity,
-		BlockNumberFor<T>,
-		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
-		ValueQuery,
-	>;
-
-	// Queue for onchain events
-	#[pallet::storage]
-	#[pallet::getter(fn onchain_events)]
-	pub(super) type OnChainEvents<T: Config> =
-		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
-
-	// Total Assets present in orderbook
-	#[pallet::storage]
-	#[pallet::getter(fn total_assets)]
-	pub(super) type TotalAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_authorities)]
-	pub(super) type Authorities<T: Config> = StorageMap<
-		_,
-		Identity,
-		orderbook_primitives::ValidatorSetId,
-		ValidatorSet<T::AuthorityId>,
-		ValueQuery,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_next_authorities)]
-	pub(super) type NextAuthorities<T: Config> =
-		StorageValue<_, ValidatorSet<T::AuthorityId>, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn validator_set_id)]
-	pub(super) type ValidatorSetId<T: Config> =
-		StorageValue<_, orderbook_primitives::ValidatorSetId, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_orderbook_operator_public_key)]
-	pub(super) type OrderbookOperatorPublicKey<T: Config> =
-		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
-
-	/// Storage related to LMP
-	#[pallet::storage]
-	#[pallet::getter(fn lmp_epoch)]
-	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn trader_metrics)]
-	pub(super) type TraderMetrics<T: Config> = StorageNMap<
-		_,
-		(NMapKey<Identity, u16>, NMapKey<Identity, TradingPair>, NMapKey<Identity, T::AccountId>),
-		(Decimal, Decimal, bool),
-		ValueQuery,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn total_scores)]
-	pub(super) type TotalScores<T: Config> =
-		StorageDoubleMap<_, Identity, u16, Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
-
-	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
-	#[pallet::storage]
-	#[pallet::getter(fn finalize_lmp_scores_flag)]
-	pub(super) type FinalizeLMPScore<T: Config> = StorageValue<_, u16, OptionQuery>;
-
-	/// Configuration for LMP for each epoch
-	#[pallet::storage]
-	#[pallet::getter(fn lmp_config)]
-	pub(super) type LMPConfig<T: Config> =
-		StorageMap<_, Identity, u16, LMPEpochConfig, OptionQuery>;
-
-	/// Expected Configuration for LMP for next epoch
-	#[pallet::storage]
-	#[pallet::getter(fn expected_lmp_config)]
-	pub(super) type ExpectedLMPConfig<T: Config> = StorageValue<_, LMPEpochConfig, ValueQuery>;
-
-	/// Block at which rewards for each epoch can be claimed
-	#[pallet::storage]
-	#[pallet::getter(fn lmp_claim_blk)]
-	pub(super) type LMPClaimBlk<T: Config> =
-		StorageMap<_, Identity, u16, BlockNumberFor<T>, OptionQuery>;
-
-	/// Price Map showing the average prices ( value = (avg_price, ticks)
-	#[pallet::storage]
-	pub type PriceOracle<T: Config> =
-		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

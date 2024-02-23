@@ -28,6 +28,7 @@ pub mod ingress;
 pub mod ocex;
 pub mod rewards;
 pub mod withdrawal;
+pub mod auction;
 
 pub use frame_support::storage::bounded_vec::BoundedVec;
 
