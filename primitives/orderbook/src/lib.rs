@@ -28,8 +28,11 @@ use crate::recovery::ObCheckpoint;
 use crate::types::{AccountAsset, TradingPair};
 use frame_support::dispatch::DispatchResult;
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{ingress::EgressMessages, withdrawal::Withdrawal, AssetId, BlockNumber};
+use polkadex_primitives::{
+	ingress::EgressMessages, withdrawal::Withdrawal, AssetId, BlockNumber, UNIT_BALANCE,
+};
 pub use primitive_types::H128;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -101,6 +104,15 @@ pub struct Fees {
 	pub asset: AssetId,
 	/// Amount.
 	pub amount: Decimal,
+}
+
+impl Fees {
+	pub fn amount(&self) -> u128 {
+		self.amount
+			.saturating_mul(Decimal::from(UNIT_BALANCE))
+			.to_u128()
+			.unwrap_or_default() // this shouldn't fail.
+	}
 }
 
 pub type TotalScore = Decimal;

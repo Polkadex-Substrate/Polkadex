@@ -176,6 +176,5 @@ impl<T: Config> LiquidityMiningCrowdSourcePallet<T::AccountId> for Pallet<T> {
 
 	fn stop_accepting_lmp_withdrawals(epoch: u16) {
 		<WithdrawingEpoch<T>>::put(epoch)
-		// TODO: Emit an event
 	}
 }

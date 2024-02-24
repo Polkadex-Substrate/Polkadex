@@ -21,7 +21,7 @@
 use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok};
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::prelude::FromPrimitive;
 use sp_std::collections::btree_map::BTreeMap;
 use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
@@ -32,7 +32,7 @@ use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
 use parity_scale_codec::{Compact, Decode};
 use polkadex_primitives::ocex::AccountInfo;
-use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
+use polkadex_primitives::{ingress::IngressMessages, AccountId};
 use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
@@ -1831,127 +1831,6 @@ fn test_update_trading_pair_with_closed_operational_status() {
 }
 
 #[test]
-fn collect_fees_unexpected_behaviour() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), 100, account_id.clone().into()));
-
-		assert_last_event::<Test>(
-			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
-		);
-	});
-}
-
-#[test]
-fn test_collect_fees_decimal_overflow() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		let max_fees = create_max_fees::<Test>();
-		FeesCollected::<Test>::insert::<u64, BoundedVec<Fees, AssetsLimit>>(
-			0,
-			bounded_vec![max_fees],
-		);
-		assert_noop!(
-			OCEX::collect_fees(RuntimeOrigin::root(), 0, account_id.into()),
-			Error::<Test>::FeesNotCollectedFully
-		);
-	})
-}
-
-#[test]
-fn collect_fees() {
-	let account_id = create_account_id();
-	let custodian_account = OCEX::get_pallet_account();
-	let mut t = new_test_ext();
-	t.execute_with(|| {
-		mint_into_account(account_id.clone());
-		mint_into_account(custodian_account.clone());
-		let initial_balance = 10_000_000_000 * UNIT_BALANCE;
-		// Initial Balances
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance
-		);
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance
-		);
-
-		let (mut snapshot, _public, signature) = get_dummy_snapshot(1);
-
-		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
-
-		assert_ok!(OCEX::submit_snapshot(
-			RuntimeOrigin::none(),
-			snapshot.clone(),
-			vec![(0, signature.into())]
-		));
-
-		// Complete dispute period
-		new_block();
-		new_block();
-
-		assert_ok!(OCEX::claim_withdraw(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			1,
-			account_id.clone()
-		));
-
-		// Balances after withdrawal
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance + UNIT_BALANCE
-		);
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance - UNIT_BALANCE
-		);
-
-		assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), 1, account_id.clone().into()));
-
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance
-				+ UNIT_BALANCE + snapshot.withdrawals[0]
-				.fees
-				.saturating_mul(Decimal::from(UNIT_BALANCE))
-				.to_u128()
-				.unwrap()
-		);
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance
-				- UNIT_BALANCE - snapshot.withdrawals[0]
-				.fees
-				.saturating_mul(Decimal::from(UNIT_BALANCE))
-				.to_u128()
-				.unwrap()
-		);
-	});
-}
-
-#[test]
-fn test_collect_fees_bad_origin() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::collect_fees(
-				RuntimeOrigin::signed(account_id.clone()),
-				100,
-				account_id.clone().into()
-			),
-			BadOrigin
-		);
-
-		assert_noop!(
-			OCEX::collect_fees(RuntimeOrigin::signed(account_id.clone()), 100, account_id.into()),
-			BadOrigin
-		);
-	});
-}
-
-#[test]
 fn withdrawal_when_exchange_not_operational() {
 	let (alice_account_id, proxy_account_id) = get_alice_accounts();
 
@@ -2074,19 +1953,6 @@ fn withdrawal() {
 	});
 }
 
-// P.S. This was to apply a DDOS attack and see the response in the mock environment
-#[ignore]
-#[test]
-fn collect_fees_ddos() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		for x in 0..10000000 {
-			assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), x, account_id.clone().into()));
-		}
-	});
-}
-
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
@@ -2169,7 +2035,6 @@ fn test_submit_snapshot() {
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
-		assert_eq!(FeesCollected::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
@@ -2262,7 +2127,7 @@ fn test_withdrawal() {
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
 	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
-	Fees, TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap,
+	TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
 
@@ -2971,11 +2836,6 @@ pub fn get_trading_pair() -> TradingPair {
 
 pub fn get_random_signature() -> Signature {
 	Signature::Ecdsa(Default::default())
-}
-
-fn create_max_fees<T: Config>() -> Fees {
-	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
-	return fees;
 }
 
 pub mod fixture_old_user_action {
