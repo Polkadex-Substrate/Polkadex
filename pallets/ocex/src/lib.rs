@@ -37,7 +37,7 @@ use frame_support::{
 	},
 };
 use frame_system::ensure_signed;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::Zero;
 pub use pallet::*;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
@@ -57,9 +57,7 @@ use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-//pub use pallet::*;
 use polkadex_primitives::ocex::TradingPairConfig;
-use sp_std::collections::btree_set::BTreeSet;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -132,7 +130,7 @@ pub trait OcexWeightInfo {
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
 	use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 	use sp_std::collections::btree_map::BTreeMap;
@@ -140,7 +138,6 @@ pub mod pallet {
 	use super::*;
 	use crate::storage::OffchainState;
 	use crate::validator::WORKER_STATUS;
-	use frame_support::traits::tokens::Precision;
 	use frame_support::traits::WithdrawReasons;
 	use frame_support::{
 		pallet_prelude::*,
@@ -167,7 +164,7 @@ pub mod pallet {
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
-		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet, Perbill,
+		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet,
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
@@ -383,6 +380,10 @@ pub mod pallet {
 		InvalidBidAmount,
 		/// InsufficientBalance
 		InsufficientBalance,
+		/// Withdrawal fee burn failed
+		WithdrawalFeeBurnFailed,
+		/// Trading fees burn failed
+		TradingFeesBurnFailed,
 	}
 
 	#[pallet::hooks]
@@ -1044,8 +1045,10 @@ pub mod pallet {
 				Error::<T>::InsufficientBalance
 			);
 			T::NativeCurrency::reserve(&bidder, bid_amount)?;
-			// Un-reserve the old bidder
-			T::NativeCurrency::unreserve(&auction_info.highest_bidder, auction_info.highest_bid);
+			if let Some(old_bidder) = auction_info.highest_bidder {
+				// Un-reserve the old bidder
+				T::NativeCurrency::unreserve(&old_bidder, auction_info.highest_bid);
+			}
 			auction_info.highest_bid = bid_amount;
 			auction_info.highest_bidder = Some(bidder);
 			<Auction<T>>::put(auction_info);
@@ -1339,24 +1342,25 @@ pub mod pallet {
 			Ok(total_in_u128)
 		}
 
-		pub fn settle_withdrawal_fees(fees: Vec<Fee>) -> DispatchResult {
+		pub fn settle_withdrawal_fees(fees: Vec<Fees>) -> DispatchResult {
 			for fee in fees {
 				match fee.asset {
 					AssetId::Polkadex => {
 						// Burn the fee
-						let imbalance = T::NativeCurrency::burn(fee.amount.saturated_into());
+						let imbalance = T::NativeCurrency::burn(fee.amount().saturated_into());
 						T::NativeCurrency::settle(
 							&Self::get_pallet_account(),
 							imbalance,
 							WithdrawReasons::all(),
 							ExistenceRequirement::KeepAlive,
-						)?;
+						)
+						.map_err(|_| Error::<T>::WithdrawalFeeBurnFailed)?;
 					},
 					_ => {
 						T::NativeCurrency::transfer(
 							&Self::get_pallet_account(),
 							&Self::get_pot_account(),
-							fee.amount,
+							fee.amount().saturated_into(),
 							ExistenceRequirement::KeepAlive,
 						)?;
 					},
@@ -1476,7 +1480,8 @@ pub mod pallet {
 											imbalance,
 											WithdrawReasons::all(),
 											ExistenceRequirement::KeepAlive,
-										)?;
+										)
+										.map_err(|_| Error::<T>::TradingFeesBurnFailed)?;
 										Self::transfer_asset(
 											&Self::get_pallet_account(),
 											&distribution.recipient_address,
@@ -1492,15 +1497,16 @@ pub mod pallet {
 											imbalance,
 											WithdrawReasons::all(),
 											ExistenceRequirement::KeepAlive,
-										)?;
+										)
+										.map_err(|_| Error::<T>::TradingFeesBurnFailed)?;
 									}
 								},
 							}
 							// Emit an event here
-							Self::deposit_event(Event::<T>::TradingFeesBurned(
-								*asset,
-								Compact::from(fees),
-							))
+							Self::deposit_event(Event::<T>::TradingFeesBurned {
+								asset: *asset,
+								amount: Compact::from(fees.saturated_into::<BalanceOf<T>>()),
+							})
 						}
 					},
 					EgressMessages::AddLiquidityResult(
@@ -2001,7 +2007,8 @@ pub mod pallet {
 					imbalance,
 					WithdrawReasons::all(),
 					ExistenceRequirement::KeepAlive,
-				)?;
+				)
+				.map_err(|_| Error::<T>::TradingFeesBurnFailed)?;
 				// Emit an event
 				Self::deposit_event(Event::<T>::AuctionClosed {
 					bidder,
