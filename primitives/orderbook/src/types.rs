@@ -621,8 +621,7 @@ impl Order {
 			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
-					is_market_same
-						&& self.qty.rem(config.qty_step_size).is_zero()
+					is_market_same && self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
 					is_market_same

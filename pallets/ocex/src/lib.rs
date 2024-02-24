@@ -1190,12 +1190,6 @@ pub mod pallet {
 	#[pallet::getter(fn orderbook_operational_state)]
 	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-	// Fees collected
-	#[pallet::storage]
-	#[pallet::getter(fn fees_collected)]
-	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, Vec<Fees>, ValueQuery>;
-
 	// Withdrawals mapped by their trading pairs and snapshot numbers
 	#[pallet::storage]
 	#[pallet::getter(fn withdrawals)]
