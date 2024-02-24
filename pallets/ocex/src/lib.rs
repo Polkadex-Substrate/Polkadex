@@ -25,8 +25,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
-// TODO: Convert trading fees to PDEX
-// TODO: Governance endpoint to set fee sharing ratio
 extern crate core;
 
 use frame_support::{
@@ -40,9 +38,10 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 use num_traits::{ToPrimitive, Zero};
+pub use pallet::*;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE, auction::FeeDistribution};
+use polkadex_primitives::{assets::AssetId, auction::FeeDistribution, AccountId, UNIT_BALANCE};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
@@ -50,11 +49,10 @@ use sp_runtime::{
 	traits::{AccountIdConversion, UniqueSaturatedInto},
 	Percent, SaturatedConversion, Saturating,
 };
-pub use pallet::*;
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::traits::fungible::Inspect as InspectNative;
+use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
@@ -142,6 +140,8 @@ pub mod pallet {
 	use super::*;
 	use crate::storage::OffchainState;
 	use crate::validator::WORKER_STATUS;
+	use frame_support::traits::tokens::Precision;
+	use frame_support::traits::WithdrawReasons;
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
@@ -150,13 +150,13 @@ pub mod pallet {
 		},
 		transactional, PalletId,
 	};
-	use frame_support::traits::tokens::Precision;
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use orderbook_primitives::{
 		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
 		TradingPairMetricsMap,
 	};
 	use parity_scale_codec::Compact;
+	use polkadex_primitives::auction::AuctionInfo;
 	use polkadex_primitives::{
 		assets::AssetId,
 		ingress::EgressMessages,
@@ -166,9 +166,11 @@ pub mod pallet {
 	};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
-	use sp_runtime::{offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet, SaturatedConversion, Perbill};
+	use sp_runtime::{
+		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet, Perbill,
+		SaturatedConversion,
+	};
 	use sp_std::vec::Vec;
-	use polkadex_primitives::auction::AuctionInfo;
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -219,7 +221,7 @@ pub mod pallet {
 	/// `frame_system::Config` should always be included.
 	#[pallet::config]
 	pub trait Config:
-	frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
+		frame_system::Config + timestamp::Config + SendTransactionTypes<Call<Self>>
 	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -237,25 +239,27 @@ pub mod pallet {
 		type LMPRewardsPalletId: Get<PalletId>;
 
 		/// Balances Pallet
-		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId> + InspectNative<Self::AccountId>;
+		type NativeCurrency: Currency<Self::AccountId>
+			+ ReservableCurrency<Self::AccountId>
+			+ InspectNative<Self::AccountId>;
 
 		/// Assets Pallet
 		type OtherAssets: Mutate<
-			<Self as frame_system::Config>::AccountId,
-			Balance=BalanceOf<Self>,
-			AssetId=u128,
-		> + Inspect<<Self as frame_system::Config>::AccountId>
-		+ Create<<Self as frame_system::Config>::AccountId>;
+				<Self as frame_system::Config>::AccountId,
+				Balance = BalanceOf<Self>,
+				AssetId = u128,
+			> + Inspect<<Self as frame_system::Config>::AccountId>
+			+ Create<<Self as frame_system::Config>::AccountId>;
 
 		/// Origin that can send orderbook snapshots and withdrawal requests
 		type EnclaveOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// The identifier type for an authority.
 		type AuthorityId: Member
-		+ Parameter
-		+ RuntimeAppPublic
-		+ Ord
-		+ MaybeSerializeDeserialize
-		+ MaxEncodedLen;
+			+ Parameter
+			+ RuntimeAppPublic
+			+ Ord
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// Governance Origin
 		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
@@ -378,7 +382,7 @@ pub mod pallet {
 		/// Invalid bid amount
 		InvalidBidAmount,
 		/// InsufficientBalance
-		InsufficientBalance
+		InsufficientBalance,
 	}
 
 	#[pallet::hooks]
@@ -395,7 +399,7 @@ pub mod pallet {
 			let len = <OnChainEvents<T>>::get().len();
 			if let Some(auction_block) = <AuctionBlockNumber<T>>::get() {
 				if n == auction_block {
-					if let Err(err) = Self::consume_auction() {
+					if let Err(err) = Self::close_auction() {
 						log::error!(target:"ocex","Error consuming auction: {:?}",err);
 						Self::deposit_event(Event::<T>::FailedToConsumeAuction);
 					}
@@ -762,59 +766,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Collects withdraws fees.
-		///
-		/// # Parameters
-		///
-		/// * `snapshot_id`: Snapshot identifier.
-		/// * `beneficiary`: Receiving fee account identifier.
-		#[pallet::call_index(11)]
-		#[pallet::weight(< T as Config >::WeightInfo::collect_fees(1))]
-		pub fn collect_fees(
-			origin: OriginFor<T>,
-			snapshot_id: u64,
-			beneficiary: T::AccountId,
-		) -> DispatchResult {
-			// TODO: The caller should be of operational council
-			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
-					while !internal_vector.is_empty() {
-						if let Some(fees) = internal_vector.pop() {
-							if let Some(converted_fee) =
-								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-							{
-								if Self::transfer_asset(
-									&Self::get_pallet_account(),
-									&beneficiary,
-									converted_fee.saturated_into(),
-									fees.asset,
-								)
-								.is_err()
-								{
-									// Push it back inside the internal vector
-									// The above function call will only fail if the beneficiary has
-									// balance below existential deposit requirements
-									internal_vector.push(fees);
-									return Err(Error::<T>::UnableToTransferFee);
-								}
-							} else {
-								// Push it back inside the internal vector
-								internal_vector.push(fees);
-								return Err(Error::<T>::FailedToConvertDecimaltoBalance);
-							}
-						}
-					}
-					Ok(())
-				})
-				.is_ok(),
-				Error::<T>::FeesNotCollectedFully
-			);
-			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
-			Ok(())
-		}
-
 		/// This extrinsic will pause/resume the exchange according to flag.
 		/// If flag is set to false it will stop the exchange.
 		/// If flag is set to true it will resume the exchange.
@@ -953,7 +904,8 @@ pub mod pallet {
 			if !summary.withdrawals.is_empty() {
 				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
 				<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
-				<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
+				let fees = summary.get_fees();
+				Self::settle_withdrawal_fees(fees)?;
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
 						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
@@ -1070,7 +1022,10 @@ pub mod pallet {
 		/// Set Fee Distribution
 		#[pallet::call_index(21)]
 		#[pallet::weight(10_000)]
-		pub fn set_fee_distribution(origin: OriginFor<T>, fee_distribution: FeeDistribution<T::AccountId, BlockNumberFor<T>>) -> DispatchResult {
+		pub fn set_fee_distribution(
+			origin: OriginFor<T>,
+			fee_distribution: FeeDistribution<T::AccountId, BlockNumberFor<T>>,
+		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			<FeeDistributionConfig<T>>::put(fee_distribution);
 			Ok(())
@@ -1084,8 +1039,13 @@ pub mod pallet {
 			let mut auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
 			ensure!(bid_amount > Zero::zero(), Error::<T>::InvalidBidAmount);
 			ensure!(bid_amount > auction_info.highest_bid, Error::<T>::InvalidBidAmount);
-			ensure!(T::NativeCurrency::can_reserve(&bidder, bid_amount), Error::<T>::InsufficientBalance);
+			ensure!(
+				T::NativeCurrency::can_reserve(&bidder, bid_amount),
+				Error::<T>::InsufficientBalance
+			);
 			T::NativeCurrency::reserve(&bidder, bid_amount)?;
+			// Un-reserve the old bidder
+			T::NativeCurrency::unreserve(&auction_info.highest_bidder, auction_info.highest_bid);
 			auction_info.highest_bid = bid_amount;
 			auction_info.highest_bidder = Some(bidder);
 			<Auction<T>>::put(auction_info);
@@ -1161,7 +1121,18 @@ pub mod pallet {
 		/// Failed do consume auction
 		FailedToConsumeAuction,
 		/// Failed to create Auction
-		FailedToCreateAuction
+		FailedToCreateAuction,
+		/// Trading Fees burned
+		TradingFeesBurned {
+			asset: AssetId,
+			amount: Compact<BalanceOf<T>>,
+		},
+		/// Auction closed
+		AuctionClosed {
+			bidder: T::AccountId,
+			burned: Compact<BalanceOf<T>>,
+			paid_to_operator: Compact<BalanceOf<T>>,
+		},
 	}
 
 	///Allowlisted tokens
@@ -1324,17 +1295,14 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type FeeDistributionConfig<T: Config> =
-	    StorageValue<_, FeeDistribution<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
-
-	#[pallet::storage]
-	pub type AssetsCollected<T: Config> =
-	    StorageValue<_, BTreeSet<u128>, ValueQuery>; //TODO: Change it to BTreeSet
+		StorageValue<_, FeeDistribution<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::storage]
 	pub type AuctionBlockNumber<T: Config> = StorageValue<_, BlockNumberFor<T>, OptionQuery>;
 
 	#[pallet::storage]
-	pub type Auction<T: Config> = StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
+	pub type Auction<T: Config> =
+		StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
 		pub fn do_claim_lmp_rewards(
@@ -1343,7 +1311,8 @@ pub mod pallet {
 			market: TradingPair,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Check if the Safety period for this epoch is over
-			let claim_blk = <crate::pallet::LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
+			let claim_blk =
+				<crate::pallet::LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
 			let config: LMPEpochConfig =
@@ -1368,6 +1337,32 @@ pub mod pallet {
 				ExistenceRequirement::AllowDeath,
 			)?;
 			Ok(total_in_u128)
+		}
+
+		pub fn settle_withdrawal_fees(fees: Vec<Fee>) -> DispatchResult {
+			for fee in fees {
+				match fee.asset {
+					AssetId::Polkadex => {
+						// Burn the fee
+						let imbalance = T::NativeCurrency::burn(fee.amount.saturated_into());
+						T::NativeCurrency::settle(
+							&Self::get_pallet_account(),
+							imbalance,
+							WithdrawReasons::all(),
+							ExistenceRequirement::KeepAlive,
+						)?;
+					},
+					_ => {
+						T::NativeCurrency::transfer(
+							&Self::get_pallet_account(),
+							&Self::get_pot_account(),
+							fee.amount,
+							ExistenceRequirement::KeepAlive,
+						)?;
+					},
+				}
+			}
+			Ok(())
 		}
 
 		pub fn validate_trading_pair_config(
@@ -1445,29 +1440,43 @@ pub mod pallet {
 				match msg {
 					EgressMessages::TradingFees(fees_map) => {
 						let pot_account: T::AccountId = Self::get_pot_account();
-						let mut asset_set = <AssetsCollected<T>>::get();
 						for (asset, fees) in fees_map {
 							let fees = fees
 								.saturating_mul(Decimal::from(UNIT_BALANCE))
 								.to_u128()
 								.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
 							match asset {
-								AssetId::Asset(asset_id) => {
-									asset_set.insert(*asset_id);
+								AssetId::Asset(_) => {
 									Self::transfer_asset(
 										&Self::get_pallet_account(),
 										&pot_account,
 										fees.saturated_into(),
 										*asset,
 									)?;
-								}
+								},
 								AssetId::Polkadex => {
 									if let Some(distribution) = <FeeDistributionConfig<T>>::get() {
-										ensure!(T::NativeCurrency::reducible_balance(&Self::get_pallet_account(), Preservation::Preserve, Fortitude::Polite) > fees.saturated_into(), Error::<T>::AmountOverflow);
-										let fee_to_be_burnt = Percent::from_percent(distribution.burn_ration) * fees;
+										ensure!(
+											T::NativeCurrency::reducible_balance(
+												&Self::get_pallet_account(),
+												Preservation::Preserve,
+												Fortitude::Polite
+											) > fees.saturated_into(),
+											Error::<T>::AmountOverflow
+										);
+										let fee_to_be_burnt =
+											Percent::from_percent(distribution.burn_ration) * fees;
 										let fee_to_be_distributed = fees - fee_to_be_burnt;
 										// Burn the fee
-										T::NativeCurrency::burn(fee_to_be_burnt.saturated_into());
+										let imbalance = T::NativeCurrency::burn(
+											fee_to_be_burnt.saturated_into(),
+										);
+										T::NativeCurrency::settle(
+											&Self::get_pallet_account(),
+											imbalance,
+											WithdrawReasons::all(),
+											ExistenceRequirement::KeepAlive,
+										)?;
 										Self::transfer_asset(
 											&Self::get_pallet_account(),
 											&distribution.recipient_address,
@@ -1475,19 +1484,24 @@ pub mod pallet {
 											*asset,
 										)?;
 									} else {
-										Self::transfer_asset(
+										// Burn here itself
+										let imbalance =
+											T::NativeCurrency::burn(fees.saturated_into());
+										T::NativeCurrency::settle(
 											&Self::get_pallet_account(),
-											&pot_account,
-											fees.saturated_into(),
-											*asset,
+											imbalance,
+											WithdrawReasons::all(),
+											ExistenceRequirement::KeepAlive,
 										)?;
 									}
-
-								}
+								},
 							}
-							// TODO: Emit an event here
+							// Emit an event here
+							Self::deposit_event(Event::<T>::TradingFeesBurned(
+								*asset,
+								Compact::from(fees),
+							))
 						}
-						<AssetsCollected<T>>::put(asset_set);
 					},
 					EgressMessages::AddLiquidityResult(
 						market,
@@ -1737,7 +1751,7 @@ pub mod pallet {
 					converted_withdrawal.saturated_into(),
 					withdrawal.asset,
 				)
-					.is_ok()
+				.is_ok()
 			} else {
 				false
 			}
@@ -1907,7 +1921,7 @@ pub mod pallet {
 				&market,
 				&main,
 			)
-				.unwrap_or_default()
+			.unwrap_or_default()
 		}
 
 		pub fn get_volume_by_user_per_epoch(
@@ -1925,37 +1939,75 @@ pub mod pallet {
 				&market,
 				&main,
 			)
-				.unwrap_or_default()
+			.unwrap_or_default()
 		}
 
 		pub fn create_auction() -> DispatchResult {
 			let mut auction_info: AuctionInfo<T::AccountId, BalanceOf<T>> = AuctionInfo::default();
-			let assets_collected = <AssetsCollected<T>>::get();
-			for asset_id in assets_collected {
-				let asset_reducible_balance = T::OtherAssets::reducible_balance(asset_id, &Self::get_pot_account(), Preservation::Preserve, Fortitude::Polite);
+			let tokens = <AllowlistedToken<T>>::get();
+			for asset in tokens {
+				let asset_id = match asset {
+					AssetId::Polkadex => continue,
+					AssetId::Asset(id) => id,
+				};
+				let asset_reducible_balance = T::OtherAssets::reducible_balance(
+					asset_id,
+					&Self::get_pot_account(),
+					Preservation::Preserve,
+					Fortitude::Polite,
+				);
 				auction_info.fee_info.insert(asset_id, asset_reducible_balance);
 			}
-			let fee_config = <FeeDistributionConfig<T>>::get().ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
-            let next_auction_block = frame_system::Pallet::<T>::current_block_number().saturating_add(fee_config.auction_duration);
+			let fee_config = <FeeDistributionConfig<T>>::get()
+				.ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
+			let next_auction_block = frame_system::Pallet::<T>::current_block_number()
+				.saturating_add(fee_config.auction_duration);
 			<AuctionBlockNumber<T>>::put(next_auction_block);
-			<AssetsCollected<T>>::kill();
 			<Auction<T>>::put(auction_info);
 			Ok(())
 		}
 
-		pub fn consume_auction() -> DispatchResult {
+		pub fn close_auction() -> DispatchResult {
 			let auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
 			if let Some(bidder) = auction_info.highest_bidder {
-				let fee_config = <FeeDistributionConfig<T>>::get().ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
+				let fee_config = <FeeDistributionConfig<T>>::get()
+					.ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
 				let fee_info = auction_info.fee_info;
 				for (asset_id, fee) in fee_info {
-					T::OtherAssets::transfer(asset_id, &Self::get_pot_account(), &bidder, fee, Preservation::Preserve)?;
+					T::OtherAssets::transfer(
+						asset_id,
+						&Self::get_pot_account(),
+						&bidder,
+						fee,
+						Preservation::Preserve,
+					)?;
 				}
 				let total_bidder_reserve_balance = auction_info.highest_bid;
 				let _ = T::NativeCurrency::unreserve(&bidder, total_bidder_reserve_balance);
-				let amount_to_be_burnt = Percent::from_percent(fee_config.burn_ration) * total_bidder_reserve_balance;
+				let amount_to_be_burnt =
+					Percent::from_percent(fee_config.burn_ration) * total_bidder_reserve_balance;
 				let trasnferable_amount = total_bidder_reserve_balance - amount_to_be_burnt;
-				T::NativeCurrency::transfer(&bidder, &fee_config.recipient_address, trasnferable_amount, ExistenceRequirement::KeepAlive)?;
+				T::NativeCurrency::transfer(
+					&bidder,
+					&fee_config.recipient_address,
+					trasnferable_amount,
+					ExistenceRequirement::KeepAlive,
+				)?;
+
+				// Burn the fee
+				let imbalance = T::NativeCurrency::burn(amount_to_be_burnt.saturated_into());
+				T::NativeCurrency::settle(
+					&bidder,
+					imbalance,
+					WithdrawReasons::all(),
+					ExistenceRequirement::KeepAlive,
+				)?;
+				// Emit an event
+				Self::deposit_event(Event::<T>::AuctionClosed {
+					bidder,
+					burned: Compact::from(amount_to_be_burnt),
+					paid_to_operator: Compact::from(trasnferable_amount),
+				})
 			}
 			Ok(())
 		}
