@@ -979,3 +979,11 @@ pub struct ApprovedSnapshot {
 	/// sr25519 signature of the authority
 	pub signature: Vec<u8>,
 }
+
+#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, Serialize, Deserialize, TypeInfo)]
+pub struct LmpConfig {
+	pub trading_pair: TradingPair,
+	pub market_weightage: u128,
+	pub min_fees_paid: u128,
+	pub min_maker_volume: u128
+}
