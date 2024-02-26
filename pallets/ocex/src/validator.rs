@@ -63,7 +63,7 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// as it verifies the signature and and relays them to destination.
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
-pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
+pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade"; //FIXME: Shold be changed back to aggregator.polkadex.trade
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 type TraderMetricsType<T> = BTreeMap<
@@ -172,7 +172,7 @@ impl<T: Config> Pallet<T> {
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
 				log::info!(target:"ocex","Syncing batch: {:?}",nonce);
 				// Load the next ObMessages
-				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) {
+				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) { // TODO: Make it mockable to
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
 						return Ok(true);

@@ -27,6 +27,9 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned};
 use polkadex_primitives::{Moment, Signature};
 use sp_application_crypto::sp_core::H256;
+use sp_core::Pair;
+use sp_keystore::{Keystore, KeystoreExt};
+use sp_keystore::testing::MemoryKeystore;
 use sp_std::cell::RefCell;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
@@ -176,6 +179,11 @@ impl pallet_assets::Config for Test {
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
+	let seed = "12345678901234567890123456789012";
+	let validator = sp_core::ecdsa::Pair::from_seed(b"12345678901234567890123456789012");
+	let keystore = MemoryKeystore::new();
+	keystore.insert(OCEX, seed, validator.public().as_ref()).unwrap();
+	ext.register_extension(KeystoreExt::new(MemoryKeystore::new()));
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
