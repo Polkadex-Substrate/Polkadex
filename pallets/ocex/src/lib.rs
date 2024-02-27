@@ -1388,7 +1388,7 @@ pub mod pallet {
 					&& max_volume.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE,
 				Error::<T>::TradingPairConfigUnderflow
 			);
-			// max volume cannot be greater than min volume
+			// min volume cannot be greater than max volume
 			ensure!(min_volume < max_volume, Error::<T>::MinVolGreaterThanMaxVolume);
 
 			Ok(())
