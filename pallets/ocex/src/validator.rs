@@ -164,6 +164,7 @@ impl<T: Config> Pallet<T> {
 			store_trie_root(computed_root);
 			last_processed_nonce = snapshot_summary.snapshot_id;
 		}
+
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
 				// state_info.last_block = 4768083; // This is hard coded as the starting point TODO: Uncomment this before mainnet upgrade otherwise itw ill corrupt mainnet state.
