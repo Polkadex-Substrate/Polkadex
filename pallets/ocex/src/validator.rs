@@ -60,10 +60,10 @@ pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 const STATE_INFO: [u8; 25] = *b"offchain-ocex::state_info";
 pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// Aggregator endpoint: Even though it is centralized for now, it is trustless
-/// as it verifies the signature and and relays them to destination.
+/// as it verifies the signature and relays them to destination.
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
-pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade";
+pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade";
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 type TraderMetricsType<T> = BTreeMap<
@@ -166,7 +166,7 @@ impl<T: Config> Pallet<T> {
 		}
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
-				state_info.last_block = 4768083; // This is hard coded as the starting point
+				// state_info.last_block = 4768083; // This is hard coded as the starting point TODO: Uncomment this before mainnet upgrade otherwise itw ill corrupt mainnet state.
 			}
 			// We need to sync our off chain state
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
