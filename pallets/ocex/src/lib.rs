@@ -601,8 +601,8 @@ pub mod pallet {
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 			) {
 				(
-					Some(max_volume),
 					Some(min_volume),
+					Some(max_volume),
 					Some(price_tick_size),
 					Some(qty_step_size),
 				) => {
