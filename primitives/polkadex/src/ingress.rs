@@ -21,7 +21,7 @@
 use crate::{ocex::TradingPairConfig, AssetId};
 use serde::{Deserialize, Serialize};
 use sp_std::collections::btree_map::BTreeMap;
-
+use sp_std::vec::Vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::Get;
 use rust_decimal::Decimal;

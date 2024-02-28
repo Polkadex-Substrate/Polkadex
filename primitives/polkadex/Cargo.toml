@@ -13,7 +13,7 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 frame-system = { default-features = false, workspace = true }
 pallet-asset-conversion = { default-features = false, workspace = true }
 sp-core = { default-features = false, workspace = true }
-serde_with = { version = "3.6.1", features = ["json"], optional = true }
+serde_with = { version = "3.6.1", features = ["json","macros"], default-features = false }
 sp-std = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-application-crypto = { default-features = false, workspace = true }
@@ -36,7 +36,7 @@ std = [
   "codec/std",
   "scale-info/std",
   "serde/std",
-  "serde_with",
+  "serde_with/std",
   "frame-system/std",
   "frame-support/std",
   "sp-application-crypto/std",

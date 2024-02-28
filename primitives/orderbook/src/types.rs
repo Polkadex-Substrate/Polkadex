@@ -33,9 +33,8 @@ use scale_info::TypeInfo;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
-
-#[cfg(feature = "std")]
 use serde_with::serde_as;
+
 #[cfg(not(feature = "std"))]
 use sp_std::fmt::{Display, Formatter};
 #[cfg(not(feature = "std"))]
