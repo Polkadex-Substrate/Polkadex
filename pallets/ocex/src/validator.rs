@@ -589,14 +589,19 @@ impl<T: Config> Pallet<T> {
 					if let EgressMessages::TradingFees(engine_fees_map) = egress_msg {
 						for asset in assets {
 							log::info!(target:"ocex","Withdrawing fees for asset: {:?}",asset);
+							let expected_balance =
+								engine_fees_map.get(&asset).ok_or("Fees for asset not found")?;
+							// Sanity check
+							if expected_balance.is_zero(){
+								log::error!(target:"ocex","Withdrawing fees for asset: {:?} cannot be zero, check engine code!",asset);
+								return Err("InvalidTradingFeesValue")
+							}
 							let balance = get_balance(
 								state,
 								&Decode::decode(&mut &pot_account.encode()[..])
 									.map_err(|_| "account id decode error")?,
 								asset,
 							)?;
-							let expected_balance =
-								engine_fees_map.get(&asset).ok_or("Fees for asset not found")?;
 
 							if balance != *expected_balance {
 								log::error!(target:"ocex","Fees withdrawn from engine {:?} doesn't match with offchain worker balance: {:?}",
