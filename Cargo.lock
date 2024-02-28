@@ -5382,6 +5382,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hash-db",
+ "lazy_static",
  "log",
  "num-traits",
  "orderbook-primitives",

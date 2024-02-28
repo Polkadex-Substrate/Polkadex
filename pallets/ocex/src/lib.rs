@@ -63,6 +63,9 @@ use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
+
+#[cfg(test)]
+mod mock_aggregator;
 #[cfg(test)]
 pub mod tests;
 

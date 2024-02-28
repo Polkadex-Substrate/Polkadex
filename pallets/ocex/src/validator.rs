@@ -123,9 +123,7 @@ impl<T: Config> Pallet<T> {
 			AggregatorClient::<T>::load_signed_summary_and_send(next_nonce);
 			return Ok(true);
 		}
-
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
-
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
 			log::debug!(target:"ocex","Fetching checkpoint from Aggregator");
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
@@ -213,6 +211,7 @@ impl<T: Config> Pallet<T> {
 			},
 			Some(batch) => batch,
 		};
+
 
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let (withdrawals, egress_messages, trader_metrics) =
@@ -866,7 +865,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Returns the FeeConfig from runtime for maker and taker
-	pub fn get_fee_structure(
+	pub fn aget_fee_structure(
 		maker: &T::AccountId,
 		taker: &T::AccountId,
 	) -> Option<(FeeConfig, FeeConfig)> {

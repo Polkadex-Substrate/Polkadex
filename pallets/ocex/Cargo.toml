@@ -42,6 +42,7 @@ sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
 pallet-lmp = { path = "../liquidity-mining", default-features = false }
+lazy_static = "1.4.0"
 
 [features]
 default = ["std"]

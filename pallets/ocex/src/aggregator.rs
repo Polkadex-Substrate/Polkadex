@@ -39,6 +39,7 @@ use sp_std::{marker::PhantomData, prelude::ToOwned, vec::Vec};
 
 pub struct AggregatorClient<T: Config>(PhantomData<T>);
 
+
 impl<T: Config> AggregatorClient<T> {
 	/// Load signed summary and send it to the aggregator
 	/// # Parameters
@@ -82,13 +83,12 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
-
-
 	/// Load user action batch from aggregator
 	/// # Parameters
 	/// * `id`: Batch id to load
 	/// # Returns
 	/// * `Option<UserActionBatch<T::AccountId>>`: Loaded batch or None if error occured
+	#[cfg(not(test))]
 	pub fn get_user_action_batch(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 		let body = serde_json::json!({ "id": id }).to_string();
 		let result = match Self::send_request(
@@ -112,9 +112,15 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
+	#[cfg(feature = "test")]
+	pub fn get_checkpoint() -> Option<ObCheckpointRaw> {
+		None
+	}
+
 	/// Load checkpoint from aggregator
 	/// # Returns
 	/// * `Option<ObCheckpointRaw>`: Loaded checkpoint or None if error occured
+	#[cfg(not(feature = "test"))]
 	pub fn get_checkpoint() -> Option<ObCheckpointRaw> {
 		let body = serde_json::json!({}).to_string();
 		let result = match Self::send_request(
