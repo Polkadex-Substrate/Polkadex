@@ -26,6 +26,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::Get;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
+use serde_with::serde_as;
 
 /// Definition of available ingress messages variants.
 #[derive(
@@ -76,6 +77,7 @@ pub enum IngressMessages<AccountId> {
 	ForceClosePool(TradingPairConfig, AccountId),
 }
 
+#[serde_as]
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EgressMessages<AccountId> {
 	/// Add Liquidity Result ( Pool, LP, Shares issued, Market price, total Inventory ( in Quote) )
@@ -98,9 +100,9 @@ pub enum EgressMessages<AccountId> {
 	/// Pool Closed (market, Pool, base freed, quote freed)
 	PoolForceClosed(TradingPairConfig, AccountId, Decimal, Decimal),
 	/// Trading Fees Collected
-	TradingFees(BTreeMap<AssetId, Decimal>),
+	TradingFees(#[serde_as(as = "Vec<(_, _)>")] BTreeMap<AssetId, Decimal>),
 	/// Price Oracle
-	PriceOracle(BTreeMap<(AssetId, AssetId), Decimal>),
+	PriceOracle(#[serde_as(as = "Vec<(_, _)>")] BTreeMap<(AssetId, AssetId), Decimal>),
 }
 
 /// Defines the structure of handle balance data which used to set account balance.

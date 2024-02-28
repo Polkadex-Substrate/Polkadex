@@ -34,6 +34,8 @@ use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
 
+#[cfg(feature = "std")]
+use serde_with::serde_as;
 #[cfg(not(feature = "std"))]
 use sp_std::fmt::{Display, Formatter};
 #[cfg(not(feature = "std"))]
@@ -44,7 +46,6 @@ use std::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
-
 pub type OrderId = H256;
 
 /// Defined account information required for the "Orderbook" client.
@@ -236,6 +237,7 @@ impl ObMessage {
 }
 
 /// Defines user specific operations variants.
+#[serde_as]
 #[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
@@ -245,15 +247,22 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Block import requested.
 	BlockImport(
 		u32,
+		#[serde_as(as = "Vec<(_, _)>")]
 		BTreeMap<IngressMessages<AccountId>, EgressMessages<AccountId>>,
-		BTreeMap<(AssetId, AssetId), Decimal>,
+		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<(AssetId, AssetId), Decimal>,
 	),
 	/// Reset Flag
 	Reset,
 	/// Withdraw operation requested.( request, stid)
 	WithdrawV1(WithdrawalRequest<AccountId>, u64),
 	/// One min LMP Report ( market, epoch, index, total_score, Q_scores)
-	OneMinLMPReport(TradingPair, u16, u16, Decimal, BTreeMap<AccountId, Decimal>),
+	OneMinLMPReport(
+		TradingPair,
+		u16,
+		u16,
+		Decimal,
+		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<AccountId, Decimal>,
+	),
 }
 
 /// Defines withdraw request DTO.
@@ -985,5 +994,29 @@ pub struct LmpConfig {
 	pub trading_pair: TradingPair,
 	pub market_weightage: u128,
 	pub min_fees_paid: u128,
-	pub min_maker_volume: u128
+	pub min_maker_volume: u128,
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::types::UserActions;
+	use polkadex_primitives::ingress::{EgressMessages, IngressMessages};
+	use polkadex_primitives::{AccountId, AssetId};
+	use rust_decimal::Decimal;
+	use std::collections::BTreeMap;
+
+	#[test]
+	pub fn test_serialize_deserialize_user_actions() {
+		let alice = AccountId::new([1; 32]);
+		let action = UserActions::BlockImport(
+			0,
+			BTreeMap::from([(
+				IngressMessages::Deposit(alice.clone(), AssetId::Asset(u128::MAX), Decimal::MAX),
+				EgressMessages::PriceOracle(Default::default()),
+			)]),
+			BTreeMap::from([(((AssetId::Polkadex, AssetId::Asset(u128::MAX)), Decimal::MAX))]),
+		);
+
+		serde_json::to_vec(&action).unwrap();
+	}
 }

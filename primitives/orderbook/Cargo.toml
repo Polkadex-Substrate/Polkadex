@@ -18,7 +18,7 @@ polkadex-primitives = { workspace = true }
 chrono = { version = "0.4.23", optional = true }
 rand = { version = "0.8.5", optional = true }
 serde = { workspace = true, default-features = false }
-serde_with = { version = "2.3.2", features = ["json"], optional = true }
+serde_with = { version = "3.6.1", features = ["json"], optional = true }
 log = { workspace = true, default-features = false }
 anyhow = { version = "1.0.69", default-features = false }
 rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git", branch = "master", features = [
