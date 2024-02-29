@@ -5,19 +5,17 @@ use rust_decimal::{
 	Decimal,
 };
 use scale_info::TypeInfo;
+use serde::{Deserialize, Serialize};
 use sp_std::collections::btree_map::BTreeMap;
-
 /// LMP Epoch config
-#[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LMPConfig {
 	pub epoch: u16,
 	pub index: u16,
 }
 
 /// All metrics used for calculating the LMP score of a main account
-#[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TraderMetric {
 	pub maker_volume: Decimal, // Trading volume generated where main acc is a maker
 	pub fees_paid: Decimal,    // defined in terms of quote asset
@@ -26,8 +24,7 @@ pub struct TraderMetric {
 }
 
 /// One minute LMP Q Score report
-#[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LMPOneMinuteReport<AccountId: Ord> {
 	pub market: TradingPair,
 	pub epoch: u16,
@@ -38,8 +35,7 @@ pub struct LMPOneMinuteReport<AccountId: Ord> {
 	pub scores: BTreeMap<AccountId, Decimal>,
 }
 
-#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, TypeInfo, Serialize, Deserialize)]
 pub struct LMPMarketConfigWrapper {
 	pub trading_pair: TradingPair,
 	pub market_weightage: u128,
@@ -51,9 +47,20 @@ pub struct LMPMarketConfigWrapper {
 
 /// LMP Configuration for a market
 #[derive(
-	Decode, Encode, TypeInfo, Clone, Copy, Debug, Eq, PartialEq, MaxEncodedLen, PartialOrd, Ord,
+	Decode,
+	Encode,
+	TypeInfo,
+	Clone,
+	Copy,
+	Debug,
+	Eq,
+	PartialEq,
+	MaxEncodedLen,
+	PartialOrd,
+	Ord,
+	Serialize,
+	Deserialize,
 )]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct LMPMarketConfig {
 	// % of Rewards allocated to each market from the pool
 	pub weightage: Decimal,
@@ -73,8 +80,9 @@ pub struct LMPMarketConfig {
 }
 
 /// LMP Configuration for an epoch
-#[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+	Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub struct LMPEpochConfig {
 	/// Total rewards given in this epoch for market making
 	pub total_liquidity_mining_rewards: Decimal,
