@@ -1,25 +1,28 @@
 use crate::{
-    BalanceOf,
-    Config,
-    Error, LMPEpoch, pallet::{IngressMessages, PriceOracle, TraderMetrics, TradingPairs}, Pallet, storage::OffchainState,
+	pallet::{IngressMessages, PriceOracle, TraderMetrics, TradingPairs},
+	storage::OffchainState,
+	BalanceOf, Config, Error, LMPEpoch, Pallet,
 };
 use frame_support::dispatch::DispatchResult;
 use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
+use orderbook_primitives::lmp::LMPConfig;
+use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::{
-    LiquidityMining,
-    types::{OrderSide, Trade, TradingPair},
+	types::{OrderSide, Trade, TradingPair},
+	LiquidityMining,
 };
 use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{AccountId, UNIT_BALANCE};
 use rust_decimal::{
-    Decimal,
-    prelude::{ToPrimitive, Zero},
+	prelude::{ToPrimitive, Zero},
+	Decimal,
 };
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
-use sp_runtime::{DispatchError, SaturatedConversion, traits::BlockNumberProvider};
+use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
-use orderbook_primitives::ocex::TradingPairConfig;
+
+pub const LMP_CONFIG_KEY: [u8; 14] = *b"LMP_CONFIG_KEY";
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -137,6 +140,20 @@ pub fn get_fees_paid_by_main_account_in_quote(
 			Decimal::decode(&mut &encoded_fees_paid[..]).map_err(|_| "Unable to decode decimal")?
 		},
 	})
+}
+
+pub fn get_lmp_config(state: &mut OffchainState) -> Result<LMPConfig, &'static str> {
+	let key = LMP_CONFIG_KEY.encode();
+	Ok(match state.get(&key)? {
+		None => return Err("LMPConfigNotFound"),
+		Some(encoded_config) => LMPConfig::decode(&mut &encoded_config[..])
+			.map_err(|_| "Unable to decode LMP config")?,
+	})
+}
+
+pub fn store_lmp_config(state: &mut OffchainState, config: LMPConfig) {
+	let key = LMP_CONFIG_KEY.encode();
+	state.insert(key, config.encode());
 }
 
 pub fn store_q_score_and_uptime(

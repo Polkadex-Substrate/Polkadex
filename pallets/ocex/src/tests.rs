@@ -30,11 +30,11 @@ use crate::mock::*;
 use frame_support::traits::fungibles::Mutate as MutateAsset;
 use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
+use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
+use orderbook_primitives::ocex::AccountInfo;
 use parity_scale_codec::{Compact, Decode};
 use polkadex_primitives::auction::{AuctionInfo, FeeDistribution};
-use orderbook_primitives::ocex::AccountInfo;
 use polkadex_primitives::AccountId;
-use orderbook_primitives::{ingress::{IngressMessages, EgressMessages}};
 use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
@@ -2185,7 +2185,6 @@ use crate::{
 	storage::OffchainState,
 };
 
-
 #[test]
 fn test_remove_proxy_account_faulty_cases() {
 	let (main, proxy) = get_alice_accounts();
@@ -2315,7 +2314,7 @@ fn test_set_lmp_epoch_config_happy_path() {
 		register_trading_pair();
 		let max_accounts_rewarded: Option<u16> = Some(10);
 		let claim_safety_period: Option<u32> = Some(10);
-		let lmp_config = LmpConfig {
+		let lmp_config = LMPMarketConfigWrapper {
 			trading_pair,
 			market_weightage: UNIT_BALANCE,
 			min_fees_paid: UNIT_BALANCE,
@@ -2348,7 +2347,7 @@ fn test_set_lmp_epoch_config_invalid_market_weightage() {
 		register_trading_pair();
 		let max_accounts_rewarded: Option<u16> = Some(10);
 		let claim_safety_period: Option<u32> = Some(10);
-		let lmp_config = LmpConfig {
+		let lmp_config = LMPMarketConfigWrapper {
 			trading_pair,
 			market_weightage: 10 * UNIT_BALANCE,
 			min_fees_paid: 10 * UNIT_BALANCE,
@@ -2384,7 +2383,7 @@ fn test_set_lmp_epoch_config_invalid_invalid_lmpconfig() {
 		let trading_pair = TradingPair { base: base_asset, quote: diff_quote_asset };
 		let max_accounts_rewarded: Option<u16> = Some(10);
 		let claim_safety_period: Option<u32> = Some(10);
-		let lmp_config = LmpConfig {
+		let lmp_config = LMPMarketConfigWrapper {
 			trading_pair,
 			market_weightage: UNIT_BALANCE,
 			min_fees_paid: UNIT_BALANCE,
@@ -2857,7 +2856,7 @@ pub fn add_lmp_config() {
 	register_trading_pair();
 	let max_accounts_rewarded: Option<u16> = Some(10);
 	let claim_safety_period: Option<u32> = Some(0);
-	let lmp_config = LmpConfig {
+	let lmp_config = LMPMarketConfigWrapper {
 		trading_pair,
 		market_weightage: UNIT_BALANCE,
 		min_fees_paid: UNIT_BALANCE,
@@ -2873,11 +2872,12 @@ pub fn add_lmp_config() {
 		max_accounts_rewarded,
 		claim_safety_period
 	));
-	OCEX::start_new_epoch();
-	OCEX::start_new_epoch();
+	OCEX::start_new_epoch(1);
+	OCEX::start_new_epoch(2);
 }
 
 use frame_support::traits::fungible::Mutate;
+use orderbook_primitives::lmp::LMPMarketConfigWrapper;
 use polkadex_primitives::fees::FeeConfig;
 
 fn crete_base_and_quote_asset() {

@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::lmp::{get_lmp_config, store_lmp_config};
 use crate::{
 	aggregator::AggregatorClient,
 	lmp::{
@@ -32,6 +33,7 @@ use core::ops::Div;
 use frame_system::pallet_prelude::BlockNumberFor;
 use num_traits::pow::Pow;
 use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
+use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
 use orderbook_primitives::{
 	constants::FEE_POT_PALLET_ID,
 	types::{
@@ -41,11 +43,7 @@ use orderbook_primitives::{
 };
 use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{
-	fees::FeeConfig,
-	withdrawal::Withdrawal,
-	AccountId, AssetId,
-};
+use polkadex_primitives::{fees::FeeConfig, withdrawal::Withdrawal, AccountId, AssetId};
 use rust_decimal::{prelude::Zero, Decimal};
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
@@ -56,7 +54,6 @@ use sp_runtime::{
 };
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use trie_db::{TrieError, TrieMut};
-use orderbook_primitives::ingress::{IngressMessages, EgressMessages};
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -628,12 +625,22 @@ impl<T: Config> Pallet<T> {
 						return Err("Invalid egress message for withdraw trading fees");
 					}
 				},
+				IngressMessages::NewLMPEpoch(epoch) => Self::start_new_lmp_epoch(state, epoch)?,
 				_ => {},
 			}
 		}
 
 		state_info.last_block = blk.saturated_into();
 		Ok(verified_egress_messages)
+	}
+
+	/// Reset the offchain state's LMP index and set the epoch
+	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
+		let mut config = get_lmp_config(state)?;
+		config.epoch = epoch;
+		config.index = 0;
+		store_lmp_config(state, config);
+		Ok(())
 	}
 
 	/// Processes a trade between a maker and a taker, updating their order states and balances
@@ -720,8 +727,8 @@ impl<T: Config> Pallet<T> {
 					let withdrawal = Self::withdraw(request, state, *stid)?;
 					withdrawals.push(withdrawal);
 				},
-				UserActions::OneMinLMPReport(market, epoch, index, _total, scores) => {
-					Self::store_q_scores(state, *market, *epoch, *index, scores)?;
+				UserActions::OneMinLMPReport(market, _total, scores) => {
+					Self::store_q_scores(state, *market, scores)?;
 				},
 			}
 		}
@@ -732,20 +739,22 @@ impl<T: Config> Pallet<T> {
 	pub fn store_q_scores(
 		state: &mut OffchainState,
 		market: TradingPair,
-		epoch: u16,
-		index: u16,
 		scores: &BTreeMap<T::AccountId, Decimal>,
 	) -> Result<(), &'static str> {
+		let mut config = get_lmp_config(state)?;
+		let next_index = config.index.saturating_add(1);
 		for (main, score) in scores {
 			store_q_score_and_uptime(
 				state,
-				epoch,
-				index,
+				config.epoch,
+				next_index,
 				*score,
 				&market,
 				&Decode::decode(&mut &main.encode()[..]).unwrap(), // unwrap is fine.
 			)?;
 		}
+		config.index = next_index;
+		store_lmp_config(state, config);
 		Ok(())
 	}
 

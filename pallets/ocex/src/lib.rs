@@ -31,9 +31,9 @@ use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
 	traits::{
-		Currency,
-		ExistenceRequirement,
-		fungibles::{Inspect, Mutate}, Get, OneSessionHandler, tokens::{Fortitude, Preservation},
+		fungibles::{Inspect, Mutate},
+		tokens::{Fortitude, Preservation},
+		Currency, ExistenceRequirement, Get, OneSessionHandler,
 	},
 };
 use frame_system::ensure_signed;
@@ -41,24 +41,24 @@ use num_traits::Zero;
 pub use pallet::*;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{AccountId, assets::AssetId, auction::FeeDistribution, UNIT_BALANCE};
+use polkadex_primitives::{assets::AssetId, auction::FeeDistribution, AccountId, UNIT_BALANCE};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
-	Percent,
-	SaturatedConversion, Saturating, traits::{AccountIdConversion, UniqueSaturatedInto},
+	traits::{AccountIdConversion, UniqueSaturatedInto},
+	Percent, SaturatedConversion, Saturating,
 };
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::traits::fungible::Inspect as InspectNative;
 use frame_system::pallet_prelude::BlockNumberFor;
-use orderbook_primitives::lmp::{LmpConfig, LMPMarketConfig};
-use orderbook_primitives::{
-	GENESIS_AUTHORITY_SET_ID,
-	SnapshotSummary, types::{AccountAsset, TradingPair}, ValidatorSet,
-};
+use orderbook_primitives::lmp::LMPMarketConfig;
 use orderbook_primitives::ocex::TradingPairConfig;
+use orderbook_primitives::{
+	types::{AccountAsset, TradingPair},
+	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+};
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -145,32 +145,29 @@ pub mod pallet {
 	use frame_support::traits::WithdrawReasons;
 	use frame_support::{
 		pallet_prelude::*,
-		PalletId,
 		traits::{
-			Currency,
-			fungibles::{Create, Inspect, Mutate}, ReservableCurrency,
-		}, transactional,
+			fungibles::{Create, Inspect, Mutate},
+			Currency, ReservableCurrency,
+		},
+		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
+	use orderbook_primitives::lmp::LMPMarketConfigWrapper;
+	use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 	use orderbook_primitives::{
-		constants::FEE_POT_PALLET_ID, Fees, lmp::LMPEpochConfig, ObCheckpointRaw, SnapshotSummary,
-		TradingPairMetricsMap, ingress::{EgressMessages}
+		constants::FEE_POT_PALLET_ID, ingress::EgressMessages, lmp::LMPEpochConfig, Fees,
+		ObCheckpointRaw, SnapshotSummary, TradingPairMetricsMap,
 	};
 	use parity_scale_codec::Compact;
 	use polkadex_primitives::auction::AuctionInfo;
-	use polkadex_primitives::{
-		assets::AssetId,
-		ProxyLimit,
-		UNIT_BALANCE, withdrawal::Withdrawal,
-	};
-	use rust_decimal::{Decimal, prelude::ToPrimitive};
+	use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE};
+	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
-		BoundedBTreeSet, offchain::storage::StorageValueRef, SaturatedConversion,
-		traits::BlockNumberProvider,
+		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet,
+		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
-	use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -393,7 +390,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			if Self::should_start_new_epoch(n) {
-				Self::start_new_epoch()
+				Self::start_new_epoch(n)
 			}
 
 			if Self::should_stop_accepting_lmp_withdrawals(n) {
@@ -477,10 +474,12 @@ pub mod pallet {
 				);
 				let current_blk = frame_system::Pallet::<T>::current_block_number();
 				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-					ingress_messages.push(orderbook_primitives::ingress::IngressMessages::AddProxy(
-						main_account.clone(),
-						proxy.clone(),
-					));
+					ingress_messages.push(
+						orderbook_primitives::ingress::IngressMessages::AddProxy(
+							main_account.clone(),
+							proxy.clone(),
+						),
+					);
 				});
 				<Accounts<T>>::insert(&main_account, account_info);
 				<Proxies<T>>::insert(&proxy, main_account.clone());
@@ -965,7 +964,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			total_liquidity_mining_rewards: Option<Compact<u128>>,
 			total_trading_rewards: Option<Compact<u128>>,
-			lmp_config: Vec<LmpConfig>,
+			lmp_config: Vec<LMPMarketConfigWrapper>,
 			max_accounts_rewarded: Option<u16>,
 			claim_safety_period: Option<u32>,
 		) -> DispatchResult {
@@ -1017,7 +1016,8 @@ pub mod pallet {
 			<ExpectedLMPConfig<T>>::put(config.clone());
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
+				ingress_messages
+					.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
 			});
 			Ok(())
 		}
@@ -1683,10 +1683,12 @@ pub mod pallet {
 
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::RegisterUser(
-					main_account.clone(),
-					proxy.clone(),
-				));
+				ingress_messages.push(
+					orderbook_primitives::ingress::IngressMessages::RegisterUser(
+						main_account.clone(),
+						proxy.clone(),
+					),
+				);
 			});
 			<Proxies<T>>::insert(&proxy, main_account.clone());
 			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });

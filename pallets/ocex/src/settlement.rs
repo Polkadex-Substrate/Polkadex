@@ -18,16 +18,16 @@
 
 //! Helper functions for updating the balance
 
-use crate::{Config, Pallet, storage::OffchainState};
+use crate::{storage::OffchainState, Config, Pallet};
 use log::{error, info};
+use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::{constants::FEE_POT_PALLET_ID, types::Trade};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
-use polkadex_primitives::{AccountId, AssetId, fees::FeeConfig};
-use rust_decimal::{Decimal, prelude::ToPrimitive};
+use polkadex_primitives::{fees::FeeConfig, AccountId, AssetId};
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::collections::btree_map::BTreeMap;
-use orderbook_primitives::ocex::TradingPairConfig;
 
 /// Returns the balance of an account and asset from state
 ///

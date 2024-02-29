@@ -20,9 +20,7 @@
 #[cfg(feature = "std")]
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
-use polkadex_primitives::{
-	AccountId, AssetId, Signature, withdrawal::Withdrawal,
-};
+use polkadex_primitives::{withdrawal::Withdrawal, AccountId, AssetId, Signature};
 use rust_decimal::Decimal;
 #[cfg(feature = "std")]
 use rust_decimal::{
@@ -30,10 +28,10 @@ use rust_decimal::{
 	RoundingStrategy,
 };
 use scale_info::TypeInfo;
+use serde_with::serde_as;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
-use serde_with::serde_as;
 
 #[cfg(not(feature = "std"))]
 use sp_std::fmt::{Display, Formatter};
@@ -257,8 +255,6 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// One min LMP Report ( market, epoch, index, total_score, Q_scores)
 	OneMinLMPReport(
 		TradingPair,
-		u16,
-		u16,
 		Decimal,
 		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<AccountId, Decimal>,
 	),
@@ -309,6 +305,8 @@ impl<AccountId: Codec + Clone + TypeInfo> WithdrawalRequest<AccountId> {
 		Decimal::from_str(&self.payload.amount)
 	}
 }
+use crate::ingress::{EgressMessages, IngressMessages};
+use crate::ocex::TradingPairConfig;
 #[cfg(not(feature = "std"))]
 use core::{
 	ops::{Mul, Rem},
@@ -318,8 +316,6 @@ use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
 use scale_info::prelude::string::String;
 use sp_std::collections::btree_map::BTreeMap;
-use crate::ingress::{EgressMessages, IngressMessages};
-use crate::ocex::TradingPairConfig;
 
 /// Withdraw payload requested by user.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
@@ -988,7 +984,6 @@ pub struct ApprovedSnapshot {
 	/// sr25519 signature of the authority
 	pub signature: Vec<u8>,
 }
-
 
 #[cfg(test)]
 mod tests {

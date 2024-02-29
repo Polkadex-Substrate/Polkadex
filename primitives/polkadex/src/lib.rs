@@ -38,8 +38,8 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	generic,
-	MultiSignature,
-	OpaqueExtrinsic, traits::{BlakeTwo256, IdentifyAccount, Verify},
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiSignature, OpaqueExtrinsic,
 };
 
 // reexports:

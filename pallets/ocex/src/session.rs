@@ -1,3 +1,4 @@
+use crate::pallet::IngressMessages;
 use crate::{
 	pallet::{Config, ExpectedLMPConfig, LMPConfig, Pallet},
 	FinalizeLMPScore, LMPEpoch,
@@ -14,7 +15,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Starts new liquidity mining epoch
-	pub fn start_new_epoch() {
+	pub fn start_new_epoch(n: BlockNumberFor<T>) {
 		if let Some(config) = <ExpectedLMPConfig<T>>::get() {
 			let mut current_epoch: u16 = <LMPEpoch<T>>::get();
 			if <FinalizeLMPScore<T>>::get().is_none() && current_epoch > 0 {
@@ -25,6 +26,12 @@ impl<T: Config> Pallet<T> {
 			<LMPConfig<T>>::insert(current_epoch, config);
 			// Notify Liquidity Crowd sourcing pallet about new epoch
 			T::CrowdSourceLiqudityMining::new_epoch(current_epoch);
+
+			<IngressMessages<T>>::mutate(n, |ingress_messages| {
+				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::NewLMPEpoch(
+					current_epoch,
+				))
+			});
 		}
 	}
 
