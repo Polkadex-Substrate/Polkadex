@@ -26,7 +26,6 @@ pub mod assets;
 pub mod auction;
 pub mod fees;
 pub mod ingress;
-pub mod ocex;
 pub mod rewards;
 pub mod withdrawal;
 
@@ -39,8 +38,8 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	MultiSignature, OpaqueExtrinsic,
+	MultiSignature,
+	OpaqueExtrinsic, traits::{BlakeTwo256, IdentifyAccount, Verify},
 };
 
 // reexports:

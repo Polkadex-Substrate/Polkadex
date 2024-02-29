@@ -1,24 +1,25 @@
 use crate::{
-	pallet::{IngressMessages, PriceOracle, TraderMetrics, TradingPairs},
-	storage::OffchainState,
-	BalanceOf, Config, Error, LMPEpoch, Pallet,
+    BalanceOf,
+    Config,
+    Error, LMPEpoch, pallet::{IngressMessages, PriceOracle, TraderMetrics, TradingPairs}, Pallet, storage::OffchainState,
 };
 use frame_support::dispatch::DispatchResult;
 use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::{
-	types::{OrderSide, Trade, TradingPair},
-	LiquidityMining,
+    LiquidityMining,
+    types::{OrderSide, Trade, TradingPair},
 };
 use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
+use polkadex_primitives::{AccountId, UNIT_BALANCE};
 use rust_decimal::{
-	prelude::{ToPrimitive, Zero},
-	Decimal,
+    Decimal,
+    prelude::{ToPrimitive, Zero},
 };
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
-use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
+use sp_runtime::{DispatchError, SaturatedConversion, traits::BlockNumberProvider};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+use orderbook_primitives::ocex::TradingPairConfig;
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -335,7 +336,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		Self::do_deposit(pool.clone(), market.quote, quote_amount_in_u128.saturated_into())?;
 		let current_blk = frame_system::Pallet::<T>::current_block_number();
 		<IngressMessages<T>>::mutate(current_blk, |messages| {
-			messages.push(polkadex_primitives::ingress::IngressMessages::AddLiquidity(
+			messages.push(orderbook_primitives::ingress::IngressMessages::AddLiquidity(
 				TradingPairConfig::default(market.base, market.quote),
 				pool,
 				lp,
@@ -360,7 +361,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 
 		let current_blk = frame_system::Pallet::<T>::current_block_number();
 		<IngressMessages<T>>::mutate(current_blk, |messages| {
-			messages.push(polkadex_primitives::ingress::IngressMessages::RemoveLiquidity(
+			messages.push(orderbook_primitives::ingress::IngressMessages::RemoveLiquidity(
 				TradingPairConfig::default(market.base, market.quote),
 				pool,
 				lp,
@@ -373,7 +374,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	fn force_close_pool(market: TradingPair, pool: T::AccountId) {
 		let current_blk = frame_system::Pallet::<T>::current_block_number();
 		<IngressMessages<T>>::mutate(current_blk, |messages| {
-			messages.push(polkadex_primitives::ingress::IngressMessages::ForceClosePool(
+			messages.push(orderbook_primitives::ingress::IngressMessages::ForceClosePool(
 				TradingPairConfig::default(market.base, market.quote),
 				pool,
 			));

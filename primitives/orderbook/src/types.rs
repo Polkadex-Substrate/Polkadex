@@ -21,7 +21,7 @@
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
+	AccountId, AssetId, Signature, withdrawal::Withdrawal,
 };
 use rust_decimal::Decimal;
 #[cfg(feature = "std")]
@@ -316,9 +316,10 @@ use core::{
 };
 use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
-use polkadex_primitives::ingress::{EgressMessages, IngressMessages};
 use scale_info::prelude::string::String;
 use sp_std::collections::btree_map::BTreeMap;
+use crate::ingress::{EgressMessages, IngressMessages};
+use crate::ocex::TradingPairConfig;
 
 /// Withdraw payload requested by user.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]

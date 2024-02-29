@@ -31,9 +31,9 @@ use frame_support::{
 	dispatch::DispatchResult,
 	pallet_prelude::{InvalidTransaction, TransactionValidity, ValidTransaction, Weight},
 	traits::{
-		fungibles::{Inspect, Mutate},
-		tokens::{Fortitude, Preservation},
-		Currency, ExistenceRequirement, Get, OneSessionHandler,
+		Currency,
+		ExistenceRequirement,
+		fungibles::{Inspect, Mutate}, Get, OneSessionHandler, tokens::{Fortitude, Preservation},
 	},
 };
 use frame_system::ensure_signed;
@@ -41,24 +41,24 @@ use num_traits::Zero;
 pub use pallet::*;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{assets::AssetId, auction::FeeDistribution, AccountId, UNIT_BALANCE};
+use polkadex_primitives::{AccountId, assets::AssetId, auction::FeeDistribution, UNIT_BALANCE};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
-	traits::{AccountIdConversion, UniqueSaturatedInto},
-	Percent, SaturatedConversion, Saturating,
+	Percent,
+	SaturatedConversion, Saturating, traits::{AccountIdConversion, UniqueSaturatedInto},
 };
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::traits::fungible::Inspect as InspectNative;
 use frame_system::pallet_prelude::BlockNumberFor;
-use orderbook_primitives::lmp::{LMPMarketConfig, LmpConfig};
+use orderbook_primitives::lmp::{LmpConfig, LMPMarketConfig};
 use orderbook_primitives::{
-	types::{AccountAsset, TradingPair},
-	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
+	GENESIS_AUTHORITY_SET_ID,
+	SnapshotSummary, types::{AccountAsset, TradingPair}, ValidatorSet,
 };
-use polkadex_primitives::ocex::TradingPairConfig;
+use orderbook_primitives::ocex::TradingPairConfig;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -145,33 +145,32 @@ pub mod pallet {
 	use frame_support::traits::WithdrawReasons;
 	use frame_support::{
 		pallet_prelude::*,
+		PalletId,
 		traits::{
-			fungibles::{Create, Inspect, Mutate},
-			Currency, ReservableCurrency,
-		},
-		transactional, PalletId,
+			Currency,
+			fungibles::{Create, Inspect, Mutate}, ReservableCurrency,
+		}, transactional,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
 	use orderbook_primitives::{
-		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
-		TradingPairMetricsMap,
+		constants::FEE_POT_PALLET_ID, Fees, lmp::LMPEpochConfig, ObCheckpointRaw, SnapshotSummary,
+		TradingPairMetricsMap, ingress::{EgressMessages}
 	};
 	use parity_scale_codec::Compact;
 	use polkadex_primitives::auction::AuctionInfo;
 	use polkadex_primitives::{
 		assets::AssetId,
-		ingress::EgressMessages,
-		ocex::{AccountInfo, TradingPairConfig},
-		withdrawal::Withdrawal,
-		ProxyLimit, UNIT_BALANCE,
+		ProxyLimit,
+		UNIT_BALANCE, withdrawal::Withdrawal,
 	};
-	use rust_decimal::{prelude::ToPrimitive, Decimal};
+	use rust_decimal::{Decimal, prelude::ToPrimitive};
 	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
-		offchain::storage::StorageValueRef, traits::BlockNumberProvider, BoundedBTreeSet,
-		SaturatedConversion,
+		BoundedBTreeSet, offchain::storage::StorageValueRef, SaturatedConversion,
+		traits::BlockNumberProvider,
 	};
 	use sp_std::vec::Vec;
+	use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -478,7 +477,7 @@ pub mod pallet {
 				);
 				let current_blk = frame_system::Pallet::<T>::current_block_number();
 				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
+					ingress_messages.push(orderbook_primitives::ingress::IngressMessages::AddProxy(
 						main_account.clone(),
 						proxy.clone(),
 					));
@@ -508,7 +507,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
+							orderbook_primitives::ingress::IngressMessages::CloseTradingPair(
 								*trading_pair,
 							),
 						);
@@ -540,7 +539,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+							orderbook_primitives::ingress::IngressMessages::OpenTradingPair(
 								*trading_pair,
 							),
 						);
@@ -622,7 +621,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+							orderbook_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair_info,
 							),
 						);
@@ -699,7 +698,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
+							orderbook_primitives::ingress::IngressMessages::UpdateTradingPair(
 								trading_pair_info,
 							),
 						);
@@ -744,7 +743,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::RemoveProxy(
+							orderbook_primitives::ingress::IngressMessages::RemoveProxy(
 								main_account.clone(),
 								proxy.clone(),
 							),
@@ -783,7 +782,7 @@ pub mod pallet {
 			//SetExchangeState Ingress message store in queue
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
-					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
+					.push(orderbook_primitives::ingress::IngressMessages::SetExchangeState(state))
 			});
 
 			Self::deposit_event(Event::ExchangeStateUpdated(state));
@@ -850,7 +849,7 @@ pub mod pallet {
 				});
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
-						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+						orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 							snapshot_id,
 							account.clone(),
 							processed_withdrawals,
@@ -913,7 +912,7 @@ pub mod pallet {
 				Self::settle_withdrawal_fees(fees)?;
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
-						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+						orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
 							summary.snapshot_id,
 							summary.withdrawals.clone(),
 						),
@@ -927,7 +926,7 @@ pub mod pallet {
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
-					.push(polkadex_primitives::ingress::IngressMessages::WithdrawTradingFees)
+					.push(orderbook_primitives::ingress::IngressMessages::WithdrawTradingFees)
 			});
 			Self::deposit_event(Event::<T>::SnapshotProcessed(id));
 			Ok(())
@@ -1015,7 +1014,11 @@ pub mod pallet {
 				config.claim_safety_period = claim_safety_period;
 			}
 			ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
-			<ExpectedLMPConfig<T>>::put(config);
+			<ExpectedLMPConfig<T>>::put(config.clone());
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
+			});
 			Ok(())
 		}
 
@@ -1202,7 +1205,7 @@ pub mod pallet {
 		_,
 		Identity,
 		BlockNumberFor<T>,
-		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
+		Vec<orderbook_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;
 
@@ -1210,7 +1213,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn onchain_events)]
 	pub(super) type OnChainEvents<T: Config> =
-		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
+		StorageValue<_, Vec<orderbook_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
 
 	// Total Assets present in orderbook
 	#[pallet::storage]
@@ -1655,7 +1658,7 @@ pub mod pallet {
 			}
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
 					asset,
 					converted_amount,
@@ -1680,7 +1683,7 @@ pub mod pallet {
 
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
+				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::RegisterUser(
 					main_account.clone(),
 					proxy.clone(),
 				));
@@ -1708,7 +1711,7 @@ pub mod pallet {
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
+					orderbook_primitives::ingress::IngressMessages::DirectWithdrawal(
 						proxy_account,
 						asset,
 						converted_amount,

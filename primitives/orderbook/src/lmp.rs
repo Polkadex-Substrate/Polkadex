@@ -1,5 +1,5 @@
 use crate::types::TradingPair;
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use rust_decimal::{
 	prelude::{One, Zero},
 	Decimal,
@@ -42,7 +42,7 @@ pub struct LmpConfig {
 }
 
 /// LMP Configuration for a market
-#[derive(Decode, Encode, TypeInfo, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Decode, Encode, TypeInfo, Clone, Copy, Debug, Eq, PartialEq, MaxEncodedLen, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct LMPMarketConfig {
 	// % of Rewards allocated to each market from the pool
@@ -63,7 +63,7 @@ pub struct LMPMarketConfig {
 }
 
 /// LMP Configuration for an epoch
-#[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq)]
+#[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct LMPEpochConfig {
 	/// Total rewards given in this epoch for market making

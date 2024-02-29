@@ -21,12 +21,12 @@ frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
+orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec", "maths-nopanic"], default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }

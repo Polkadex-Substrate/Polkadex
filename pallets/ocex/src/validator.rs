@@ -43,7 +43,6 @@ use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
 	fees::FeeConfig,
-	ingress::{EgressMessages, IngressMessages},
 	withdrawal::Withdrawal,
 	AccountId, AssetId,
 };
@@ -57,6 +56,7 @@ use sp_runtime::{
 };
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use trie_db::{TrieError, TrieMut};
+use orderbook_primitives::ingress::{IngressMessages, EgressMessages};
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";

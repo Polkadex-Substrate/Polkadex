@@ -29,7 +29,7 @@ use crate::types::{AccountAsset, TradingPair};
 use frame_support::dispatch::DispatchResult;
 use parity_scale_codec::{Codec, Decode, Encode};
 use polkadex_primitives::{
-	ingress::EgressMessages, withdrawal::Withdrawal, AssetId, BlockNumber, UNIT_BALANCE,
+	AssetId, BlockNumber, UNIT_BALANCE, withdrawal::Withdrawal,
 };
 pub use primitive_types::H128;
 use rust_decimal::prelude::ToPrimitive;
@@ -38,6 +38,7 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+use crate::ingress::EgressMessages;
 
 pub mod constants;
 pub mod types;
@@ -46,6 +47,8 @@ pub mod lmp;
 #[cfg(feature = "std")]
 pub mod recovery;
 pub mod traits;
+pub mod ingress;
+pub mod ocex;
 
 /// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
