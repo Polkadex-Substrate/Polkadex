@@ -224,7 +224,6 @@ impl<T: Config> Pallet<T> {
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
-
 		if sp_io::offchain::is_validator() {
 			match available_keys.first() {
 				None => return Err("No active keys found"),
@@ -253,7 +252,6 @@ impl<T: Config> Pallet<T> {
 						signature: signature.encode(),
 					})
 					.map_err(|_| "ApprovedSnapshot serialization failed")?;
-
 					if let Err(err) = AggregatorClient::<T>::send_request(
 						"submit_snapshot_api",
 						&(AGGREGATOR.to_owned() + "/submit_snapshot"),
@@ -297,7 +295,6 @@ impl<T: Config> Pallet<T> {
 		engine_messages: &BTreeMap<IngressMessages<T::AccountId>, EgressMessages<T::AccountId>>,
 	) -> Result<Vec<EgressMessages<T::AccountId>>, &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
-
 		if blk != state_info.last_block.saturating_add(1).into() {
 			log::error!(target:"ocex","Last processed blk: {:?},  given: {:?}",state_info.last_block, blk);
 			return Err("BlockOutofSequence");
@@ -618,7 +615,6 @@ impl<T: Config> Pallet<T> {
 				_ => {},
 			}
 		}
-
 		state_info.last_block = blk.saturated_into();
 		Ok(verified_egress_messages)
 	}
@@ -821,7 +817,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Stores the state info in the offchain state
-	fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
+	pub fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
 		state.insert(STATE_INFO.to_vec(), state_info.encode());
 	}
 
@@ -865,7 +861,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Returns the FeeConfig from runtime for maker and taker
-	pub fn aget_fee_structure(
+	pub fn get_fee_structure(
 		maker: &T::AccountId,
 		taker: &T::AccountId,
 	) -> Option<(FeeConfig, FeeConfig)> {

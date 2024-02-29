@@ -112,15 +112,9 @@ impl<T: Config> AggregatorClient<T> {
 		}
 	}
 
-	#[cfg(feature = "test")]
-	pub fn get_checkpoint() -> Option<ObCheckpointRaw> {
-		None
-	}
-
 	/// Load checkpoint from aggregator
 	/// # Returns
 	/// * `Option<ObCheckpointRaw>`: Loaded checkpoint or None if error occured
-	#[cfg(not(feature = "test"))]
 	pub fn get_checkpoint() -> Option<ObCheckpointRaw> {
 		let body = serde_json::json!({}).to_string();
 		let result = match Self::send_request(
@@ -151,6 +145,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `body`: Body of the request
 	/// # Returns
 	/// * `Result<Vec<u8>, &'static str>`: Response body or error message
+	#[cfg(not(test))]
 	pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 

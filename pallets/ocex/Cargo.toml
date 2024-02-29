@@ -43,6 +43,7 @@ sp-keystore = { workspace = true }
 sp-io = { workspace = true }
 pallet-lmp = { path = "../liquidity-mining", default-features = false }
 lazy_static = "1.4.0"
+sequential-test = "0.2.4"
 
 [features]
 default = ["std"]

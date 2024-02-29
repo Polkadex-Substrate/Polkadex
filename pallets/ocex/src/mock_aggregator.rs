@@ -44,14 +44,14 @@ impl<T: Config> AggregatorClient<T> {
     }
 
     #[cfg(test)]
-    pub fn mock_get_user_action_batch() {
-        let mut data = SHARED_DATA.lock().unwrap();
-        *data = Some(UserActionBatch {
-            actions: vec![],
-            stid: 0,
-            snapshot_id: 0,
-            signature: Default::default(),
-        });
+    pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+        Ok(Vec::new())
+    }
 
+    #[cfg(test)]
+    pub fn mock_get_user_action_batch(user_action_batch: UserActionBatch<T::AccountId>) {
+        let user_action_batch: UserActionBatch<AccountId32> = Decode::decode(&mut &user_action_batch.encode()[..]).unwrap();
+        let mut data = SHARED_DATA.lock().unwrap();
+        *data = Some(user_action_batch);
     }
 }
