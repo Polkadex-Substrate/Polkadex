@@ -988,13 +988,6 @@ pub struct ApprovedSnapshot {
 	pub signature: Vec<u8>,
 }
 
-#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, Serialize, Deserialize, TypeInfo)]
-pub struct LmpConfig {
-	pub trading_pair: TradingPair,
-	pub market_weightage: u128,
-	pub min_fees_paid: u128,
-	pub min_maker_volume: u128,
-}
 
 #[cfg(test)]
 mod tests {

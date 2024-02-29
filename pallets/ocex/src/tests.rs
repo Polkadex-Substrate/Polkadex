@@ -31,6 +31,7 @@ use frame_support::traits::fungibles::Mutate as MutateAsset;
 use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
 use parity_scale_codec::{Compact, Decode};
+use polkadex_primitives::auction::{AuctionInfo, FeeDistribution};
 use polkadex_primitives::ocex::AccountInfo;
 use polkadex_primitives::{ingress::IngressMessages, AccountId};
 use rust_decimal::Decimal;
@@ -42,7 +43,6 @@ use sp_core::{
 use sp_keystore::{testing::MemoryKeystore, Keystore};
 use sp_runtime::{AccountId32, DispatchError::BadOrigin, SaturatedConversion, TokenError};
 use sp_std::default::Default;
-use polkadex_primitives::auction::{AuctionInfo, FeeDistribution};
 
 pub fn register_offchain_ext(ext: &mut sp_io::TestExternalities) {
 	let (offchain, _offchain_state) = TestOffchainExt::with_offchain_db(ext.offchain_db());
@@ -2568,14 +2568,10 @@ fn test_price_oracle() {
 #[test]
 fn test_set_fee_distribution() {
 	new_test_ext().execute_with(|| {
-		let recipient_address = AccountId32::new([1;32]);
+		let recipient_address = AccountId32::new([1; 32]);
 		let auction_duration = 100;
 		let burn_ration = 50;
-		let fee_distribution = FeeDistribution {
-			recipient_address,
-			auction_duration,
-			burn_ration,
-		};
+		let fee_distribution = FeeDistribution { recipient_address, auction_duration, burn_ration };
 		assert_ok!(OCEX::set_fee_distribution(RuntimeOrigin::root(), fee_distribution));
 	})
 }
@@ -2598,11 +2594,7 @@ fn test_create_auction_happy_path() {
 		let mut fee_info = BTreeMap::new();
 		fee_info.insert(usdt_asset.asset_id().unwrap(), 99999999999999);
 		fee_info.insert(usdc_asset.asset_id().unwrap(), 99999999999999);
-		let expected_auction = AuctionInfo {
-			fee_info,
-			highest_bidder: None,
-			highest_bid: 0,
-		};
+		let expected_auction = AuctionInfo { fee_info, highest_bidder: None, highest_bid: 0 };
 		let actual_auction = <Auction<Test>>::get();
 		assert_eq!(actual_auction, Some(expected_auction));
 		let next_auction_block = <AuctionBlockNumber<Test>>::get();
@@ -2636,11 +2628,8 @@ fn test_create_auction_no_fee_collected() {
 			One::one()
 		));
 		assert_ok!(OCEX::create_auction());
-		let expected_auction = AuctionInfo {
-			fee_info: BTreeMap::new(),
-			highest_bidder: None,
-			highest_bid: 0,
-		};
+		let expected_auction =
+			AuctionInfo { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: 0 };
 		let actual_auction = <Auction<Test>>::get();
 		assert_eq!(actual_auction, Some(expected_auction));
 		let next_auction_block = <AuctionBlockNumber<Test>>::get();
@@ -2661,7 +2650,10 @@ fn test_create_auction_error_fee_config_not_set() {
 		// Mint Asset 1 and Asset 2 into pot account
 		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
 		// Crete Auction
-		assert_noop!(OCEX::create_auction(), crate::pallet::Error::<Test>::FeeDistributionConfigNotFound);
+		assert_noop!(
+			OCEX::create_auction(),
+			crate::pallet::Error::<Test>::FeeDistributionConfigNotFound
+		);
 	})
 }
 
@@ -2670,7 +2662,7 @@ fn test_close_auction_happy_path() {
 	new_test_ext().execute_with(|| {
 		let usdt_asset = AssetId::Asset(1);
 		let usdc_asset = AssetId::Asset(2);
-		let recipient_address = AccountId32::new([1;32]);
+		let recipient_address = AccountId32::new([1; 32]);
 		let bidder = AccountId32::new([2; 32]);
 		let bidding_amount = 50 * UNIT_BALANCE;
 		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
@@ -2691,8 +2683,14 @@ fn test_close_auction_happy_path() {
 		assert_eq!(Assets::balance(usdt_asset.asset_id().unwrap(), &bidder), 10 * UNIT_BALANCE);
 		assert_eq!(Assets::balance(usdc_asset.asset_id().unwrap(), &bidder), 10 * UNIT_BALANCE);
 		let pot_account = OCEX::get_pot_account();
-		assert_eq!(Assets::balance(usdt_asset.asset_id().unwrap(), &pot_account), 90 * UNIT_BALANCE);
-		assert_eq!(Assets::balance(usdc_asset.asset_id().unwrap(), &pot_account), 90 * UNIT_BALANCE);
+		assert_eq!(
+			Assets::balance(usdt_asset.asset_id().unwrap(), &pot_account),
+			90 * UNIT_BALANCE
+		);
+		assert_eq!(
+			Assets::balance(usdc_asset.asset_id().unwrap(), &pot_account),
+			90 * UNIT_BALANCE
+		);
 	})
 }
 
@@ -2701,7 +2699,7 @@ fn test_close_auction_error_transfer_zero_fee() {
 	new_test_ext().execute_with(|| {
 		let usdt_asset = AssetId::Asset(1);
 		let usdc_asset = AssetId::Asset(2);
-		let recipient_address = AccountId32::new([1;32]);
+		let recipient_address = AccountId32::new([1; 32]);
 		let bidder = AccountId32::new([2; 32]);
 		let bidding_amount = 50 * UNIT_BALANCE;
 		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
@@ -2723,13 +2721,10 @@ fn test_close_auction_error_transfer_zero_fee() {
 #[test]
 fn test_place_bid_happy_path() {
 	new_test_ext().execute_with(|| {
-		let auction_info = AuctionInfo {
-			fee_info: BTreeMap::new(),
-			highest_bidder: None,
-			highest_bid: 0,
-		};
+		let auction_info =
+			AuctionInfo { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: 0 };
 		<Auction<Test>>::put(auction_info);
-		let bidder = AccountId32::new([2;32]);
+		let bidder = AccountId32::new([2; 32]);
 		let bid_amount = 20 * UNIT_BALANCE;
 		//Mint Bidder
 		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
@@ -2741,7 +2736,7 @@ fn test_place_bid_happy_path() {
 			highest_bid: bid_amount,
 		};
 		assert_eq!(actual_auction_info, Some(expected_auction_info));
-		let bidder_two = AccountId32::new([3;32]);
+		let bidder_two = AccountId32::new([3; 32]);
 		let bid_amount_two = 30 * UNIT_BALANCE;
 		//Mint Bidder
 		Balances::mint_into(&bidder_two, 100 * UNIT_BALANCE).unwrap();
@@ -2761,13 +2756,10 @@ fn test_place_bid_happy_path() {
 #[test]
 fn test_place_bid_error_use_ext_balance_later() {
 	new_test_ext().execute_with(|| {
-		let auction_info = AuctionInfo {
-			fee_info: BTreeMap::new(),
-			highest_bidder: None,
-			highest_bid: 0,
-		};
+		let auction_info =
+			AuctionInfo { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: 0 };
 		<Auction<Test>>::put(auction_info);
-		let bidder = AccountId32::new([2;32]);
+		let bidder = AccountId32::new([2; 32]);
 		let bid_amount = 20 * UNIT_BALANCE;
 		//Mint Bidder
 		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
@@ -2780,7 +2772,14 @@ fn test_place_bid_error_use_ext_balance_later() {
 		};
 		assert_eq!(actual_auction_info, Some(expected_auction_info));
 		assert_eq!(Balances::free_balance(&bidder), 80 * UNIT_BALANCE);
-		assert_noop!(Balances::transfer_allow_death(RuntimeOrigin::signed(bidder),AccountId32::new([9;32]), 80 * UNIT_BALANCE), TokenError::Frozen);
+		assert_noop!(
+			Balances::transfer_allow_death(
+				RuntimeOrigin::signed(bidder),
+				AccountId32::new([9; 32]),
+				80 * UNIT_BALANCE
+			),
+			TokenError::Frozen
+		);
 	})
 }
 
@@ -2789,15 +2788,18 @@ fn test_place_bid_error_low_bid() {
 	new_test_ext().execute_with(|| {
 		let auction_info = AuctionInfo {
 			fee_info: BTreeMap::new(),
-			highest_bidder: Some(AccountId32::new([10;32])),
+			highest_bidder: Some(AccountId32::new([10; 32])),
 			highest_bid: 20 * UNIT_BALANCE,
 		};
 		<Auction<Test>>::put(auction_info);
-		let bidder = AccountId32::new([2;32]);
+		let bidder = AccountId32::new([2; 32]);
 		let bid_amount = 10 * UNIT_BALANCE;
 		//Mint Bidder
 		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
-		assert_noop!(OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount), crate::pallet::Error::<Test>::InvalidBidAmount);
+		assert_noop!(
+			OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount),
+			crate::pallet::Error::<Test>::InvalidBidAmount
+		);
 	})
 }
 
@@ -2806,25 +2808,24 @@ fn test_place_bid_error_insufficient_balance() {
 	new_test_ext().execute_with(|| {
 		let auction_info = AuctionInfo {
 			fee_info: BTreeMap::new(),
-			highest_bidder: Some(AccountId32::new([10;32])),
+			highest_bidder: Some(AccountId32::new([10; 32])),
 			highest_bid: 20 * UNIT_BALANCE,
 		};
 		<Auction<Test>>::put(auction_info);
-		let bidder = AccountId32::new([2;32]);
+		let bidder = AccountId32::new([2; 32]);
 		let bid_amount = 30 * UNIT_BALANCE;
-		assert_noop!(OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount), crate::pallet::Error::<Test>::InsufficientBalance);
+		assert_noop!(
+			OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount),
+			crate::pallet::Error::<Test>::InsufficientBalance
+		);
 	})
 }
 
 pub fn create_fee_config() {
-	let recipient_address = AccountId32::new([1;32]);
+	let recipient_address = AccountId32::new([1; 32]);
 	let auction_duration = 100;
 	let burn_ration = 50;
-	let fee_distribution = FeeDistribution {
-		recipient_address,
-		auction_duration,
-		burn_ration,
-	};
+	let fee_distribution = FeeDistribution { recipient_address, auction_duration, burn_ration };
 	assert_ok!(OCEX::set_fee_distribution(RuntimeOrigin::root(), fee_distribution));
 }
 

@@ -53,12 +53,12 @@ use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::traits::fungible::Inspect as InspectNative;
 use frame_system::pallet_prelude::BlockNumberFor;
+use orderbook_primitives::lmp::{LMPMarketConfig, LmpConfig};
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 use polkadex_primitives::ocex::TradingPairConfig;
-use orderbook_primitives::types::LmpConfig;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -962,13 +962,13 @@ pub mod pallet {
 		/// Set Incentivised markets
 		#[pallet::call_index(20)]
 		#[pallet::weight(10_000)]
-		pub fn set_lmp_epoch_config(origin: OriginFor<T>,
-									total_liquidity_mining_rewards: Option<Compact<u128>>,
-									total_trading_rewards: Option<Compact<u128>>,
-									lmp_config: Vec<LmpConfig>,
-									max_accounts_rewarded: Option<u16>,
-									claim_safety_period: Option<u32>,
-
+		pub fn set_lmp_epoch_config(
+			origin: OriginFor<T>,
+			total_liquidity_mining_rewards: Option<Compact<u128>>,
+			total_trading_rewards: Option<Compact<u128>>,
+			lmp_config: Vec<LmpConfig>,
+			max_accounts_rewarded: Option<u16>,
+			claim_safety_period: Option<u32>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut config = if let Some(config) = <ExpectedLMPConfig<T>>::get() {
@@ -985,23 +985,29 @@ pub mod pallet {
 				config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
 			}
 			let mut total_percent: u128 = 0u128;
-			let mut weightage_map = BTreeMap::new();
-			let mut fees_map = BTreeMap::new();
-			let mut volume_map = BTreeMap::new();
 			for market_config in lmp_config {
 				ensure!(
-						<TradingPairs<T>>::get(market_config.trading_pair.base, market_config.trading_pair.quote).is_some(),
-						Error::<T>::TradingPairNotRegistered
-					);
+					<TradingPairs<T>>::get(
+						market_config.trading_pair.base,
+						market_config.trading_pair.quote
+					)
+					.is_some(),
+					Error::<T>::TradingPairNotRegistered
+				);
 				total_percent = total_percent.saturating_add(market_config.market_weightage);
-				weightage_map.insert(market_config.trading_pair, Decimal::from(market_config.market_weightage).div(unit));
-				fees_map.insert(market_config.trading_pair, Decimal::from(market_config.min_fees_paid).div(unit));
-				volume_map.insert(market_config.trading_pair, Decimal::from(market_config.min_maker_volume).div(unit));
+
+				config.config.insert(
+					market_config.trading_pair,
+					LMPMarketConfig {
+						weightage: Decimal::from(market_config.market_weightage).div(unit),
+						min_fees_paid: Decimal::from(market_config.min_fees_paid).div(unit),
+						min_maker_volume: Decimal::from(market_config.min_maker_volume).div(unit),
+						max_spread: Decimal::from(market_config.max_spread).div(unit),
+						min_depth: Decimal::from(market_config.min_depth).div(unit),
+					},
+				);
 			}
 			ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
-			config.market_weightage = weightage_map;
-			config.min_fees_paid = fees_map;
-			config.min_maker_volume = volume_map;
 			if let Some(max_accounts_rewarded) = max_accounts_rewarded {
 				config.max_accounts_rewarded = max_accounts_rewarded;
 			}

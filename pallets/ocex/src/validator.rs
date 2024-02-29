@@ -31,6 +31,7 @@ use crate::{
 use core::ops::Div;
 use frame_system::pallet_prelude::BlockNumberFor;
 use num_traits::pow::Pow;
+use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::{
 	constants::FEE_POT_PALLET_ID,
 	types::{
@@ -38,6 +39,7 @@ use orderbook_primitives::{
 	},
 	ObCheckpointRaw, SnapshotSummary,
 };
+use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{
 	fees::FeeConfig,
@@ -48,6 +50,7 @@ use polkadex_primitives::{
 use rust_decimal::{prelude::Zero, Decimal};
 use serde::{Deserialize, Serialize};
 use sp_application_crypto::RuntimeAppPublic;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_core::{crypto::ByteArray, H256};
 use sp_runtime::{
 	offchain::storage::StorageValueRef, traits::AccountIdConversion, SaturatedConversion,
@@ -589,12 +592,15 @@ impl<T: Config> Pallet<T> {
 					if let EgressMessages::TradingFees(engine_fees_map) = egress_msg {
 						for asset in assets {
 							log::info!(target:"ocex","Withdrawing fees for asset: {:?}",asset);
-							let expected_balance =
-								engine_fees_map.get(&asset).ok_or("Fees for asset not found")?;
+							let expected_balance = match engine_fees_map.get(&asset) {
+								None => continue,
+								Some(b) => b,
+							};
+
 							// Sanity check
-							if expected_balance.is_zero(){
+							if expected_balance.is_zero() {
 								log::error!(target:"ocex","Withdrawing fees for asset: {:?} cannot be zero, check engine code!",asset);
-								return Err("InvalidTradingFeesValue")
+								return Err("InvalidTradingFeesValue");
 							}
 							let balance = get_balance(
 								state,
@@ -750,7 +756,7 @@ impl<T: Config> Pallet<T> {
 		if let Some(epoch) = <FinalizeLMPScore<T>>::get() {
 			let config =
 				<LMPConfig<T>>::get(epoch).ok_or("LMPConfig not defined for this epoch")?;
-			let enabled_pairs: Vec<TradingPair> = config.market_weightage.keys().cloned().collect();
+			let enabled_pairs: Vec<TradingPair> = config.config.keys().cloned().collect();
 			// map( market => (map(account => (score,fees)),total_score, total_fees_paid))
 			let mut scores_map: BTreeMap<
 				TradingPair,
@@ -778,16 +784,24 @@ impl<T: Config> Pallet<T> {
 						.saturating_mul(uptime.pow(5.0f64))
 						.saturating_mul(maker_volume.pow(0.85f64)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85
 											// Update the trader map
-					map.insert(main_type, (final_score, fees_paid));
+					if !final_score.is_zero() || !fees_paid.is_zero() {
+						map.insert(main_type, (final_score, fees_paid));
+					} else {
+						log::info!(target: "ocex", "Scores and Fees are zero, so skipping for {:?} ...", main.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)))
+					}
 					// Compute the total
 					total_score = total_score.saturating_add(final_score);
 					total_fees_paid = total_fees_paid.saturating_add(fees_paid);
 				}
 				// Aggregate into a map
-				scores_map.insert(pair, (map, (total_score, total_fees_paid)));
+				if !total_score.is_zero() || !total_fees_paid.is_zero() {
+					scores_map.insert(pair, (map, (total_score, total_fees_paid)));
+				} else {
+					log::info!(target: "ocex", "Scores and Fees are zero, so skipping for {:?}...",pair.to_string())
+				}
 			}
 			// Store the results so it's not computed again.
-			return Ok(Some(scores_map));
+			return if !scores_map.is_empty() { Ok(Some(scores_map)) } else { Ok(None) };
 		}
 		Ok(None)
 	}

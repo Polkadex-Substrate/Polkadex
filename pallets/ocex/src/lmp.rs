@@ -4,16 +4,19 @@ use crate::{
 	BalanceOf, Config, Error, LMPEpoch, Pallet,
 };
 use frame_support::dispatch::DispatchResult;
+use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::{
 	types::{OrderSide, Trade, TradingPair},
 	LiquidityMining,
 };
+use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
 use rust_decimal::{
 	prelude::{ToPrimitive, Zero},
 	Decimal,
 };
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
@@ -153,6 +156,7 @@ pub fn store_q_score_and_uptime(
 				log::error!(target:"ocex","Overwriting q score with index: {:?}, epoch: {:?}, main: {:?}, market: {:?}",index,epoch,main,trading_pair);
 				return Err("Overwriting q score");
 			}
+			log::info!(target: "ocex","Writing Q score and uptime for main: {:?}",main);
 			state.insert(key, map.encode());
 		},
 	}
@@ -169,8 +173,9 @@ pub fn get_q_score_and_uptime(
 	let key = (epoch, trading_pair, "q_score&uptime", main).encode();
 	match state.get(&key)? {
 		None => {
-			log::error!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main, trading_pair);
-			Err("Q score not found")
+			log::warn!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)), trading_pair.to_string());
+			// If the q_score is not found, zero will be returned.
+			Ok((Decimal::zero(), 0))
 		},
 		Some(encoded_q_scores_map) => {
 			let map = BTreeMap::<u16, Decimal>::decode(&mut &encoded_q_scores_map[..])
