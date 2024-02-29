@@ -409,11 +409,9 @@ pub mod pallet {
 						Self::deposit_event(Event::<T>::FailedToCreateAuction);
 					}
 				}
-			} else {
-				if let Err(err) = Self::create_auction() {
+			} else if let Err(err) = Self::create_auction() {
 					log::error!(target:"ocex","Error creating auction: {:?}",err);
 					Self::deposit_event(Event::<T>::FailedToCreateAuction);
-				}
 			}
 
 			if len > 0 {
