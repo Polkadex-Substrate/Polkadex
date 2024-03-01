@@ -987,8 +987,8 @@ pub struct ApprovedSnapshot {
 
 #[cfg(test)]
 mod tests {
+	use crate::ingress::{EgressMessages, IngressMessages};
 	use crate::types::UserActions;
-	use polkadex_primitives::ingress::{EgressMessages, IngressMessages};
 	use polkadex_primitives::{AccountId, AssetId};
 	use rust_decimal::Decimal;
 	use std::collections::BTreeMap;

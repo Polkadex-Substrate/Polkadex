@@ -6,6 +6,7 @@ use rust_decimal::{
 };
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use sp_std::collections::btree_map::BTreeMap;
 /// LMP Epoch config
 #[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -80,6 +81,7 @@ pub struct LMPMarketConfig {
 }
 
 /// LMP Configuration for an epoch
+#[serde_as]
 #[derive(
 	Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize,
 )]
@@ -89,6 +91,7 @@ pub struct LMPEpochConfig {
 	/// Total rewards given in this epoch for trading
 	pub total_trading_rewards: Decimal,
 	/// Market Configurations
+	#[serde_as(as = "Vec<(_, _)>")]
 	pub config: BTreeMap<TradingPair, LMPMarketConfig>,
 	/// Max number of accounts rewarded
 	pub max_accounts_rewarded: u16,
