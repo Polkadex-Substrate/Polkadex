@@ -636,7 +636,12 @@ impl<T: Config> Pallet<T> {
 
 	/// Reset the offchain state's LMP index and set the epoch
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
-		let mut config = get_lmp_config(state)?;
+		let mut config = if epoch > 1 {
+			get_lmp_config(state)?
+		}else{
+			// To Handle the corner case of zero
+			orderbook_primitives::lmp::LMPConfig{ epoch, index: 0 }
+		};
 		config.epoch = epoch;
 		config.index = 0;
 		store_lmp_config(state, config);
