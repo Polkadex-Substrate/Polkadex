@@ -8,6 +8,8 @@ use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
+
 /// LMP Epoch config
 #[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LMPConfig {
