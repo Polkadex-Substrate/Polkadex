@@ -1136,6 +1136,8 @@ pub mod pallet {
 			burned: Compact<BalanceOf<T>>,
 			paid_to_operator: Compact<BalanceOf<T>>,
 		},
+		/// LMP Scores updated
+		LMPScoresUpdated(u16)
 	}
 
 	///Allowlisted tokens
@@ -1425,6 +1427,7 @@ pub mod pallet {
 				current_blk.saturating_add(config.claim_safety_period.saturated_into()),
 			); // Seven days of block
 			<FinalizeLMPScore<T>>::take(); // Remove the finalize LMP score flag.
+			Self::deposit_event(Event::<T>::LMPScoresUpdated(current_epoch));
 			Ok(())
 		}
 
