@@ -1054,6 +1054,19 @@ pub mod pallet {
 			<Auction<T>>::put(auction_info);
 			Ok(())
 		}
+
+
+		/// Root call to set finalize lmp score
+		#[pallet::call_index(23)]
+		#[pallet::weight(10_000)]
+		pub fn set_finalize_lmp_score(
+			origin: OriginFor<T>,
+			epoch: u16,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<FinalizeLMPScore<T>>::put(epoch);
+			Ok(())
+		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -1406,28 +1419,29 @@ pub mod pallet {
 		pub fn update_lmp_scores(
 			trader_metrics: &TradingPairMetricsMap<T::AccountId>,
 		) -> DispatchResult {
-			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
-			if current_epoch == 0 {
-				return Ok(());
-			}
-			let config = <LMPConfig<T>>::get(current_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
-			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
-			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
-				for (main, (score, fees_paid)) in map {
-					<TraderMetrics<T>>::insert(
-						(current_epoch, pair, main),
-						(score, fees_paid, false),
-					);
+			// Remove  and process FinalizeLMPScore flag.
+			if let Some(finalizing_epoch) = <FinalizeLMPScore<T>>::take() {
+				if finalizing_epoch == 0 {
+					return Ok(());
 				}
-				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
+				let config = <LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
+				// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
+				for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
+					for (main, (score, fees_paid)) in map {
+						<TraderMetrics<T>>::insert(
+							(finalizing_epoch, pair, main),
+							(score, fees_paid, false),
+						);
+					}
+					<TotalScores<T>>::insert(finalizing_epoch, pair, (total_score, total_fees_paid));
+				}
+				let current_blk = frame_system::Pallet::<T>::current_block_number();
+				<LMPClaimBlk<T>>::insert(
+					finalizing_epoch,
+					current_blk.saturating_add(config.claim_safety_period.saturated_into()),
+				); // Seven days of block
+				Self::deposit_event(Event::<T>::LMPScoresUpdated(finalizing_epoch));
 			}
-			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			<LMPClaimBlk<T>>::insert(
-				current_epoch,
-				current_blk.saturating_add(config.claim_safety_period.saturated_into()),
-			); // Seven days of block
-			<FinalizeLMPScore<T>>::take(); // Remove the finalize LMP score flag.
-			Self::deposit_event(Event::<T>::LMPScoresUpdated(current_epoch));
 			Ok(())
 		}
 

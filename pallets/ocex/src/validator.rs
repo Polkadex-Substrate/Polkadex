@@ -815,7 +815,7 @@ impl<T: Config> Pallet<T> {
 				}
 			}
 			// Store the results so it's not computed again.
-			return if !scores_map.is_empty() { Ok(Some(scores_map)) } else { Ok(None) };
+			return Ok(Some(scores_map));
 		}
 		Ok(None)
 	}
