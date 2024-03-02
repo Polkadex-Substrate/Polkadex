@@ -1054,19 +1054,6 @@ pub mod pallet {
 			<Auction<T>>::put(auction_info);
 			Ok(())
 		}
-
-
-		/// Root call to set finalize lmp score
-		#[pallet::call_index(23)]
-		#[pallet::weight(10_000)]
-		pub fn set_finalize_lmp_score(
-			origin: OriginFor<T>,
-			epoch: u16,
-		) -> DispatchResult {
-			ensure_root(origin)?;
-			<FinalizeLMPScore<T>>::put(epoch);
-			Ok(())
-		}
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -1440,6 +1427,12 @@ pub mod pallet {
 					finalizing_epoch,
 					current_blk.saturating_add(config.claim_safety_period.saturated_into()),
 				); // Seven days of block
+				let current_epoch = <LMPEpoch<T>>::get();
+				let next_finalizing_epoch = finalizing_epoch.saturating_add(1);
+				if next_finalizing_epoch < current_epoch{
+					// This is required if engine is offline for more than an epoch duration
+					<FinalizeLMPScore<T>>::put(next_finalizing_epoch);
+				}
 				Self::deposit_event(Event::<T>::LMPScoresUpdated(finalizing_epoch));
 			}
 			Ok(())
