@@ -29,9 +29,7 @@ use frame_support::traits::{EnsureOrigin, UnfilteredDispatchable};
 use frame_system::RawOrigin;
 use orderbook_primitives::Fees;
 use parity_scale_codec::Decode;
-use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE,
-};
+use polkadex_primitives::{withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE};
 use rust_decimal::{prelude::*, Decimal};
 use sp_runtime::{traits::One, BoundedBTreeSet};
 
@@ -398,6 +396,7 @@ fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
 
 #[cfg(test)]
 use frame_benchmarking::impl_benchmark_test_suite;
+use orderbook_primitives::ocex::TradingPairConfig;
 
 #[cfg(test)]
 impl_benchmark_test_suite!(Ocex, crate::mock::new_test_ext(), crate::mock::Test);

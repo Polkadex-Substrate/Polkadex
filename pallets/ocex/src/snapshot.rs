@@ -34,6 +34,11 @@ pub struct StateInfo {
 
 impl Default for StateInfo {
 	fn default() -> Self {
-		Self { last_block: 4768083, worker_nonce: 0, stid: 0, snapshot_id: 0 }
+		Self {
+			last_block: 0, //4768083 TODO: Don't upgrade on mainnet without uncommenting this value
+			worker_nonce: 0,
+			stid: 0,
+			snapshot_id: 0,
+		}
 	}
 }

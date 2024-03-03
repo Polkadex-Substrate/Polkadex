@@ -20,8 +20,9 @@
 
 use std::collections::BTreeMap;
 use frame_support::assert_ok;
-use num_traits::FromPrimitive;
-use parity_scale_codec::Encode;
+use frame_support::traits::fungible::Mutate;
+use num_traits::{FromPrimitive, One};
+use parity_scale_codec::{Compact, Encode};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::AccountId32;
@@ -31,23 +32,28 @@ use sp_runtime::offchain::storage::StorageValueRef;
 use orderbook_primitives::SnapshotSummary;
 use orderbook_primitives::types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade, TradingPair, UserActionBatch};
 use orderbook_primitives::types::UserActions;
-use polkadex_primitives::AssetId;
-use polkadex_primitives::ocex::{AccountInfo, TradingPairConfig};
+use polkadex_primitives::{AssetId, UNIT_BALANCE};
+use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 use crate::aggregator::AggregatorClient;
 use crate::mock::*;
 use crate::mock::new_test_ext;
 use crate::pallet::{Accounts, TradingPairs, IngressMessages as IngressMessagesStorage};
-use polkadex_primitives::ingress::IngressMessages;
+use orderbook_primitives::ingress::IngressMessages;
+use sequential_test::sequential;
+use orderbook_primitives::lmp::LMPMarketConfigWrapper;
+use polkadex_primitives::auction::FeeDistribution;
 use crate::Config;
 use crate::snapshot::StateInfo;
 use crate::storage::{OffchainState, store_trie_root};
-use crate::validator::LAST_PROCESSED_SNAPSHOT;
+use crate::tests::get_trading_pair;
+use crate::validator::{LAST_PROCESSED_SNAPSHOT, WORKER_STATUS};
 
 
 #[test]
+#[sequential]
 fn test_run_on_chain_validation_trades_happy_path() {
     new_test_ext().execute_with(|| {
-        push_trade_user_actions();
+        push_trade_user_actions(1, 0, 1);
         assert_ok!(OCEX::run_on_chain_validation(1));
         let snapshot_id:u64 = 1;
         let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
@@ -61,7 +67,7 @@ fn test_run_on_chain_validation_trades_happy_path() {
             Ok(Some((summary, signature, index))) => {
                 assert_eq!(summary.snapshot_id, 1);
                 assert_eq!(summary.state_change_id, 1);
-                assert_eq!(summary.last_processed_blk, 4768084);
+                assert_eq!(summary.last_processed_blk, 1);
             },
             _ => panic!("Snapshot not found"),
             };
@@ -75,14 +81,154 @@ fn test_run_on_chain_validation_trades_happy_path() {
                  store_trie_root(H256::zero());
                  panic!("Error {:?}", err);
              }};
-        assert_eq!(state_info.last_block, 4768084);
+        assert_eq!(state_info.last_block, 1);
         assert_eq!(state_info.stid, 1);
-        assert_eq!(state_info.snapshot_id, 1);
+        assert_eq!(state_info.snapshot_id, 0);
     });
 }
 
+#[test]
+#[sequential]
+fn test_lmp_complete_flow() {
+    new_test_ext().execute_with(|| {
+        set_lmp_config();
+        push_trade_user_actions(1, 1, 1);
+        assert_ok!(OCEX::run_on_chain_validation(1));
+        let snapshot_id:u64 = 1;
+        let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
+        key.append(&mut snapshot_id.encode());
+        let summay_ref = StorageValueRef::persistent(&key);
+        match summay_ref.get::<(
+            SnapshotSummary<AccountId32>,
+            crate::sr25519::AuthoritySignature,
+            u16,
+        )>() {
+            Ok(Some((summary, signature, index))) => {
+                println!("Summary {:?}", summary);
+                assert_eq!(summary.snapshot_id, 1);
+                assert_eq!(summary.state_change_id, 1);
+                assert_eq!(summary.last_processed_blk, 1);
+                assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), summary, Vec::new()));
+            },
+            _ => panic!("Snapshot not found"),
+        };
+        OCEX::start_new_epoch(2);
+        push_trade_user_actions(2, 1, 2);
+        let s_info = StorageValueRef::persistent(&WORKER_STATUS);
+        s_info.set(&false);
+        assert_ok!(OCEX::run_on_chain_validation(2));
+        let snapshot_id:u64 = 2;
+        let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
+        key.append(&mut snapshot_id.encode());
+        let summay_ref = StorageValueRef::persistent(&key);
+        match summay_ref.get::<(
+            SnapshotSummary<AccountId32>,
+            crate::sr25519::AuthoritySignature,
+            u16,
+        )>() {
+            Ok(Some((summary, signature, index))) => {
+                println!("Summary {:?}", summary);
+                assert_eq!(summary.snapshot_id, 2);
+                assert_eq!(summary.state_change_id, 2);
+                assert_eq!(summary.last_processed_blk, 2);
+                assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), summary, Vec::new()));
+            },
+            _ => panic!("Snapshot not found"),
+        };
+        OCEX::start_new_epoch(3);
+        let (maker_account, taker_account) = get_maker_and_taker__account();
+        let trading_pair = TradingPair {base: AssetId::Polkadex, quote: AssetId::Asset(1)};
+        assert_ok!(OCEX::claim_lmp_rewards(RuntimeOrigin::signed(maker_account.clone()), 1, trading_pair));
+        assert_ok!(OCEX::claim_lmp_rewards(RuntimeOrigin::signed(taker_account.clone()), 1, trading_pair));
+    })
+}
 
-fn push_trade_user_actions() {
+#[test]
+#[sequential]
+fn test_on_chain_validation_with_auction() {
+    new_test_ext().execute_with(|| {
+        let recipient_address = AccountId32::new([1; 32]);
+        let auction_duration = 100;
+        let burn_ration = 50;
+        let fee_distribution = FeeDistribution { recipient_address, auction_duration, burn_ration };
+        assert_ok!(OCEX::set_fee_distribution(RuntimeOrigin::root(), fee_distribution));
+        set_lmp_config();
+        push_trade_user_actions(1, 1, 1);
+        assert_ok!(OCEX::run_on_chain_validation(1));
+        let snapshot_id:u64 = 1;
+        let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
+        key.append(&mut snapshot_id.encode());
+        let summay_ref = StorageValueRef::persistent(&key);
+        match summay_ref.get::<(
+            SnapshotSummary<AccountId32>,
+            crate::sr25519::AuthoritySignature,
+            u16,
+        )>() {
+            Ok(Some((summary, signature, index))) => {
+                println!("Summary {:?}", summary);
+                assert_eq!(summary.snapshot_id, 1);
+                assert_eq!(summary.state_change_id, 1);
+                assert_eq!(summary.last_processed_blk, 1);
+                assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), summary, Vec::new()));
+            },
+            _ => panic!("Snapshot not found"),
+        };
+    })
+}
+
+pub fn set_lmp_config() {
+    let total_liquidity_mining_rewards: Option<Compact<u128>> =
+        Some(Compact::from(1000 * UNIT_BALANCE));
+    let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+    let reward_pallet_account = OCEX::get_pallet_account();
+    assert_ok!(Balances::mint_into(&reward_pallet_account, 1100 * UNIT_BALANCE));
+    let base_asset = AssetId::Polkadex;
+    let quote_asset = AssetId::Asset(1);
+    let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+    // Register trading pair
+    Balances::mint_into(&AccountId32::new([1; 32]), UNIT_BALANCE).unwrap();
+    assert_ok!(Assets::create(
+		RuntimeOrigin::signed(AccountId32::new([1; 32])),
+		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
+		AccountId32::new([1; 32]),
+		One::one()
+	));
+    let base_asset = AssetId::Polkadex;
+    let quote_asset = AssetId::Asset(1);
+    assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), base_asset));
+    assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), quote_asset));
+    assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+    assert_ok!(OCEX::register_trading_pair(
+		RuntimeOrigin::root(),
+		base_asset,
+		quote_asset,
+		(1_0000_0000_u128 * 1_000_000_u128).into(),
+		(1_000_000_000_000_000_u128 * 1_000_u128).into(),
+		1_000_000_u128.into(),
+		1_0000_0000_u128.into(),
+	));
+    let max_accounts_rewarded: Option<u16> = Some(10);
+    let claim_safety_period: Option<u32> = Some(0);
+    let lmp_config = LMPMarketConfigWrapper {
+        trading_pair,
+        market_weightage: UNIT_BALANCE,
+        min_fees_paid: UNIT_BALANCE,
+        min_maker_volume: UNIT_BALANCE,
+        max_spread: UNIT_BALANCE,
+        min_depth: UNIT_BALANCE,
+    };
+    assert_ok!(OCEX::set_lmp_epoch_config(
+		RuntimeOrigin::root(),
+		total_liquidity_mining_rewards,
+		total_trading_rewards,
+		vec![lmp_config],
+		max_accounts_rewarded,
+		claim_safety_period
+	));
+    OCEX::start_new_epoch(1);
+}
+
+fn push_trade_user_actions(stid: u64, snapshot_id: u64, block_no: u64) {
     let (maker_trade, taker_trade) = get_trades();
 
     let trade = Trade {
@@ -92,20 +238,20 @@ fn push_trade_user_actions() {
         amount: Decimal::from(10),
         time: 0,
     };
-    let block_no = get_block_import();
+    let block_no = get_block_import(block_no);
     let block_import_action = UserActions::BlockImport(block_no as u32, BTreeMap::new(), BTreeMap::new());
     let trade_action = UserActions::Trade(vec![trade]);
     let user_action_batch = UserActionBatch {
         actions: vec![block_import_action, trade_action],
-        stid: 1,
-        snapshot_id: 0,
+        stid: stid,
+        snapshot_id: snapshot_id,
         signature: sp_core::ecdsa::Signature::from_raw([0;65]),
     };
     AggregatorClient::<Test>::mock_get_user_action_batch(user_action_batch);
 }
 
-fn get_block_import() -> u64 {
-    let block_no = 4768084;
+fn get_block_import(block_no: u64) -> u64 {
+    let block_no = block_no;
     let (maker_account, taker_account) = get_maker_and_taker__account();
     let maker_ingress_message = IngressMessages::Deposit(maker_account, AssetId::Asset(1), Decimal::from(100));
     let taker_ingress_message = IngressMessages::Deposit(taker_account, AssetId::Polkadex, Decimal::from(100));

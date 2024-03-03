@@ -4,18 +4,25 @@ use crate::{
 	BalanceOf, Config, Error, LMPEpoch, Pallet,
 };
 use frame_support::dispatch::DispatchResult;
+use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
+use orderbook_primitives::lmp::LMPConfig;
+use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::{
 	types::{OrderSide, Trade, TradingPair},
 	LiquidityMining,
 };
+use parity_scale_codec::alloc::string::ToString;
 use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::{ocex::TradingPairConfig, AccountId, UNIT_BALANCE};
+use polkadex_primitives::{AccountId, UNIT_BALANCE};
 use rust_decimal::{
 	prelude::{ToPrimitive, Zero},
 	Decimal,
 };
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::{traits::BlockNumberProvider, DispatchError, SaturatedConversion};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
+
+pub const LMP_CONFIG_KEY: [u8; 14] = *b"LMP_CONFIG_KEY";
 
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
@@ -104,6 +111,7 @@ pub fn store_fees_paid_by_main_account_in_quote(
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
 	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
+	println!("Epoch Value {:?}", epoch);
 	let key = (epoch, trading_pair, "fees_paid", main).encode();
 	Ok(match state.get(&key)? {
 		None => {
@@ -135,6 +143,20 @@ pub fn get_fees_paid_by_main_account_in_quote(
 	})
 }
 
+pub fn get_lmp_config(state: &mut OffchainState) -> Result<LMPConfig, &'static str> {
+	let key = LMP_CONFIG_KEY.encode();
+	Ok(match state.get(&key)? {
+		None => return Err("LMPConfigNotFound"),
+		Some(encoded_config) => LMPConfig::decode(&mut &encoded_config[..])
+			.map_err(|_| "Unable to decode LMP config")?,
+	})
+}
+
+pub fn store_lmp_config(state: &mut OffchainState, config: LMPConfig) {
+	let key = LMP_CONFIG_KEY.encode();
+	state.insert(key, config.encode());
+}
+
 pub fn store_q_score_and_uptime(
 	state: &mut OffchainState,
 	epoch: u16,
@@ -153,6 +175,7 @@ pub fn store_q_score_and_uptime(
 				log::error!(target:"ocex","Overwriting q score with index: {:?}, epoch: {:?}, main: {:?}, market: {:?}",index,epoch,main,trading_pair);
 				return Err("Overwriting q score");
 			}
+			log::info!(target: "ocex","Writing Q score and uptime for main: {:?}",main);
 			state.insert(key, map.encode());
 		},
 	}
@@ -169,8 +192,9 @@ pub fn get_q_score_and_uptime(
 	let key = (epoch, trading_pair, "q_score&uptime", main).encode();
 	match state.get(&key)? {
 		None => {
-			log::error!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main, trading_pair);
-			Err("Q score not found")
+			log::warn!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)), trading_pair.to_string());
+			// If the q_score is not found, zero will be returned.
+			Ok((Decimal::zero(), 0))
 		},
 		Some(encoded_q_scores_map) => {
 			let map = BTreeMap::<u16, Decimal>::decode(&mut &encoded_q_scores_map[..])
@@ -330,7 +354,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 		Self::do_deposit(pool.clone(), market.quote, quote_amount_in_u128.saturated_into())?;
 		let current_blk = frame_system::Pallet::<T>::current_block_number();
 		<IngressMessages<T>>::mutate(current_blk, |messages| {
-			messages.push(polkadex_primitives::ingress::IngressMessages::AddLiquidity(
+			messages.push(orderbook_primitives::ingress::IngressMessages::AddLiquidity(
 				TradingPairConfig::default(market.base, market.quote),
 				pool,
 				lp,
@@ -355,7 +379,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 
 		let current_blk = frame_system::Pallet::<T>::current_block_number();
 		<IngressMessages<T>>::mutate(current_blk, |messages| {
-			messages.push(polkadex_primitives::ingress::IngressMessages::RemoveLiquidity(
+			messages.push(orderbook_primitives::ingress::IngressMessages::RemoveLiquidity(
 				TradingPairConfig::default(market.base, market.quote),
 				pool,
 				lp,
@@ -368,7 +392,7 @@ impl<T: Config> LiquidityMining<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	fn force_close_pool(market: TradingPair, pool: T::AccountId) {
 		let current_blk = frame_system::Pallet::<T>::current_block_number();
 		<IngressMessages<T>>::mutate(current_blk, |messages| {
-			messages.push(polkadex_primitives::ingress::IngressMessages::ForceClosePool(
+			messages.push(orderbook_primitives::ingress::IngressMessages::ForceClosePool(
 				TradingPairConfig::default(market.base, market.quote),
 				pool,
 			));

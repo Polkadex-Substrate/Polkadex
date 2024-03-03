@@ -53,12 +53,12 @@ use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use frame_support::traits::fungible::Inspect as InspectNative;
 use frame_system::pallet_prelude::BlockNumberFor;
+use orderbook_primitives::lmp::LMPMarketConfig;
+use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-use polkadex_primitives::ocex::TradingPairConfig;
-use orderbook_primitives::types::LmpConfig;
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -155,19 +155,15 @@ pub mod pallet {
 		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
+	use orderbook_primitives::lmp::LMPMarketConfigWrapper;
+	use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 	use orderbook_primitives::{
-		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
-		TradingPairMetricsMap,
+		constants::FEE_POT_PALLET_ID, ingress::EgressMessages, lmp::LMPEpochConfig, Fees,
+		ObCheckpointRaw, SnapshotSummary, TradingPairMetricsMap,
 	};
 	use parity_scale_codec::Compact;
 	use polkadex_primitives::auction::AuctionInfo;
-	use polkadex_primitives::{
-		assets::AssetId,
-		ingress::EgressMessages,
-		ocex::{AccountInfo, TradingPairConfig},
-		withdrawal::Withdrawal,
-		ProxyLimit, UNIT_BALANCE,
-	};
+	use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
@@ -397,7 +393,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			if Self::should_start_new_epoch(n) {
-				Self::start_new_epoch()
+				Self::start_new_epoch(n)
 			}
 
 			if Self::should_stop_accepting_lmp_withdrawals(n) {
@@ -416,11 +412,9 @@ pub mod pallet {
 						Self::deposit_event(Event::<T>::FailedToCreateAuction);
 					}
 				}
-			} else {
-				if let Err(err) = Self::create_auction() {
+			} else if let Err(err) = Self::create_auction() {
 					log::error!(target:"ocex","Error creating auction: {:?}",err);
 					Self::deposit_event(Event::<T>::FailedToCreateAuction);
-				}
 			}
 
 			if len > 0 {
@@ -481,10 +475,12 @@ pub mod pallet {
 				);
 				let current_blk = frame_system::Pallet::<T>::current_block_number();
 				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
-						main_account.clone(),
-						proxy.clone(),
-					));
+					ingress_messages.push(
+						orderbook_primitives::ingress::IngressMessages::AddProxy(
+							main_account.clone(),
+							proxy.clone(),
+						),
+					);
 				});
 				<Accounts<T>>::insert(&main_account, account_info);
 				<Proxies<T>>::insert(&proxy, main_account.clone());
@@ -511,7 +507,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
+							orderbook_primitives::ingress::IngressMessages::CloseTradingPair(
 								*trading_pair,
 							),
 						);
@@ -543,7 +539,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+							orderbook_primitives::ingress::IngressMessages::OpenTradingPair(
 								*trading_pair,
 							),
 						);
@@ -604,8 +600,8 @@ pub mod pallet {
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 			) {
 				(
-					Some(max_volume),
 					Some(min_volume),
+					Some(max_volume),
 					Some(price_tick_size),
 					Some(qty_step_size),
 				) => {
@@ -625,7 +621,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+							orderbook_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair_info,
 							),
 						);
@@ -702,7 +698,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
+							orderbook_primitives::ingress::IngressMessages::UpdateTradingPair(
 								trading_pair_info,
 							),
 						);
@@ -747,7 +743,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::RemoveProxy(
+							orderbook_primitives::ingress::IngressMessages::RemoveProxy(
 								main_account.clone(),
 								proxy.clone(),
 							),
@@ -786,7 +782,7 @@ pub mod pallet {
 			//SetExchangeState Ingress message store in queue
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
-					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
+					.push(orderbook_primitives::ingress::IngressMessages::SetExchangeState(state))
 			});
 
 			Self::deposit_event(Event::ExchangeStateUpdated(state));
@@ -853,7 +849,7 @@ pub mod pallet {
 				});
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
-						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+						orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 							snapshot_id,
 							account.clone(),
 							processed_withdrawals,
@@ -907,6 +903,7 @@ pub mod pallet {
 			if let Some(ref metrics) = summary.trader_metrics {
 				Self::update_lmp_scores(metrics)?;
 			}
+			println!("Egress Messages: {:?}", summary.egress_messages);
 			// Process egress messages from summary.
 			Self::process_egress_msg(summary.egress_messages.as_ref())?;
 			if !summary.withdrawals.is_empty() {
@@ -916,7 +913,7 @@ pub mod pallet {
 				Self::settle_withdrawal_fees(fees)?;
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
-						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+						orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
 							summary.snapshot_id,
 							summary.withdrawals.clone(),
 						),
@@ -930,7 +927,7 @@ pub mod pallet {
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
-					.push(polkadex_primitives::ingress::IngressMessages::WithdrawTradingFees)
+					.push(orderbook_primitives::ingress::IngressMessages::WithdrawTradingFees)
 			});
 			Self::deposit_event(Event::<T>::SnapshotProcessed(id));
 			Ok(())
@@ -965,13 +962,13 @@ pub mod pallet {
 		/// Set Incentivised markets
 		#[pallet::call_index(20)]
 		#[pallet::weight(10_000)]
-		pub fn set_lmp_epoch_config(origin: OriginFor<T>,
-									total_liquidity_mining_rewards: Option<Compact<u128>>,
-									total_trading_rewards: Option<Compact<u128>>,
-									lmp_config: Vec<LmpConfig>,
-									max_accounts_rewarded: Option<u16>,
-									claim_safety_period: Option<u32>,
-
+		pub fn set_lmp_epoch_config(
+			origin: OriginFor<T>,
+			total_liquidity_mining_rewards: Option<Compact<u128>>,
+			total_trading_rewards: Option<Compact<u128>>,
+			lmp_config: Vec<LMPMarketConfigWrapper>,
+			max_accounts_rewarded: Option<u16>,
+			claim_safety_period: Option<u32>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			let mut config = if let Some(config) = <ExpectedLMPConfig<T>>::get() {
@@ -988,23 +985,29 @@ pub mod pallet {
 				config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
 			}
 			let mut total_percent: u128 = 0u128;
-			let mut weightage_map = BTreeMap::new();
-			let mut fees_map = BTreeMap::new();
-			let mut volume_map = BTreeMap::new();
 			for market_config in lmp_config {
 				ensure!(
-						<TradingPairs<T>>::get(market_config.trading_pair.base, market_config.trading_pair.quote).is_some(),
-						Error::<T>::TradingPairNotRegistered
-					);
+					<TradingPairs<T>>::get(
+						market_config.trading_pair.base,
+						market_config.trading_pair.quote
+					)
+					.is_some(),
+					Error::<T>::TradingPairNotRegistered
+				);
 				total_percent = total_percent.saturating_add(market_config.market_weightage);
-				weightage_map.insert(market_config.trading_pair, Decimal::from(market_config.market_weightage).div(unit));
-				fees_map.insert(market_config.trading_pair, Decimal::from(market_config.min_fees_paid).div(unit));
-				volume_map.insert(market_config.trading_pair, Decimal::from(market_config.min_maker_volume).div(unit));
+
+				config.config.insert(
+					market_config.trading_pair,
+					LMPMarketConfig {
+						weightage: Decimal::from(market_config.market_weightage).div(unit),
+						min_fees_paid: Decimal::from(market_config.min_fees_paid).div(unit),
+						min_maker_volume: Decimal::from(market_config.min_maker_volume).div(unit),
+						max_spread: Decimal::from(market_config.max_spread).div(unit),
+						min_depth: Decimal::from(market_config.min_depth).div(unit),
+					},
+				);
 			}
 			ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
-			config.market_weightage = weightage_map;
-			config.min_fees_paid = fees_map;
-			config.min_maker_volume = volume_map;
 			if let Some(max_accounts_rewarded) = max_accounts_rewarded {
 				config.max_accounts_rewarded = max_accounts_rewarded;
 			}
@@ -1012,7 +1015,12 @@ pub mod pallet {
 				config.claim_safety_period = claim_safety_period;
 			}
 			ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
-			<ExpectedLMPConfig<T>>::put(config);
+			<ExpectedLMPConfig<T>>::put(config.clone());
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages
+					.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
+			});
 			Ok(())
 		}
 
@@ -1199,7 +1207,7 @@ pub mod pallet {
 		_,
 		Identity,
 		BlockNumberFor<T>,
-		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
+		Vec<orderbook_primitives::ingress::IngressMessages<T::AccountId>>,
 		ValueQuery,
 	>;
 
@@ -1207,7 +1215,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn onchain_events)]
 	pub(super) type OnChainEvents<T: Config> =
-		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
+		StorageValue<_, Vec<orderbook_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
 
 	// Total Assets present in orderbook
 	#[pallet::storage]
@@ -1323,6 +1331,7 @@ pub mod pallet {
 			// Transfer it to main from pallet account.
 			let rewards_account: T::AccountId =
 				T::LMPRewardsPalletId::get().into_account_truncating();
+			println!("total amount {:?}", total_in_u128);
 			T::NativeCurrency::transfer(
 				&rewards_account,
 				&main,
@@ -1391,7 +1400,7 @@ pub mod pallet {
 					&& max_volume.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE,
 				Error::<T>::TradingPairConfigUnderflow
 			);
-			// max volume cannot be greater than min volume
+			// min volume cannot be greater than max volume
 			ensure!(min_volume < max_volume, Error::<T>::MinVolGreaterThanMaxVolume);
 
 			Ok(())
@@ -1652,7 +1661,7 @@ pub mod pallet {
 			}
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
 					asset,
 					converted_amount,
@@ -1677,10 +1686,12 @@ pub mod pallet {
 
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
-					main_account.clone(),
-					proxy.clone(),
-				));
+				ingress_messages.push(
+					orderbook_primitives::ingress::IngressMessages::RegisterUser(
+						main_account.clone(),
+						proxy.clone(),
+					),
+				);
 			});
 			<Proxies<T>>::insert(&proxy, main_account.clone());
 			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
@@ -1705,7 +1716,7 @@ pub mod pallet {
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
+					orderbook_primitives::ingress::IngressMessages::DirectWithdrawal(
 						proxy_account,
 						asset,
 						converted_amount,
