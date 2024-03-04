@@ -19,7 +19,9 @@
 //! This module contains constants definitions related to the "Orderbook".
 
 use frame_support::PalletId;
-use polkadex_primitives::Balance;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
+use sp_runtime::traits::AccountIdConversion;
+use polkadex_primitives::{AccountId, Balance};
 
 /// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;
@@ -42,6 +44,7 @@ pub fn test_overflow_check() {
 
 #[test]
 pub fn test_fee_pot_address() {
-	let pot: AccountId = FEE_POT_PALLET_ID.into_account_truncating();
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
+	let pot: AccountId = LMPRewardsPalletId.into_account_truncating();
 	println!("{:?}", pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)))
 }

@@ -261,8 +261,9 @@ where
 		limit: u16,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<Vec<AccountId>> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
 		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
@@ -282,7 +283,8 @@ where
 		main: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<(String, String, bool)> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
@@ -303,7 +305,8 @@ where
 		main: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
@@ -324,7 +327,8 @@ where
 		main: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
@@ -345,7 +349,8 @@ where
 		until_epoch: u16,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<Vec<u16>> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
