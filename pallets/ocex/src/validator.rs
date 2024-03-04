@@ -638,9 +638,9 @@ impl<T: Config> Pallet<T> {
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
 		let mut config = if epoch > 1 {
 			get_lmp_config(state)?
-		}else{
+		} else {
 			// To Handle the corner case of zero
-			orderbook_primitives::lmp::LMPConfig{ epoch, index: 0 }
+			orderbook_primitives::lmp::LMPConfig { epoch, index: 0 }
 		};
 		config.epoch = epoch;
 		config.index = 0;

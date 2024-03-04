@@ -19,7 +19,7 @@
 //! This module contains constants definitions related to the "Orderbook".
 
 use frame_support::PalletId;
-use polkadex_primitives::{Balance};
+use polkadex_primitives::Balance;
 
 /// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;
@@ -40,9 +40,8 @@ pub fn test_overflow_check() {
 	assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
 }
 
-
 #[test]
-pub fn test_fee_pot_address(){
+pub fn test_fee_pot_address() {
 	let pot: AccountId = FEE_POT_PALLET_ID.into_account_truncating();
 	println!("{:?}", pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)))
 }
