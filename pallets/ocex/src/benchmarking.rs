@@ -256,6 +256,8 @@ benchmarks! {
 	submit_snapshot {
 		<ExchangeState<T>>::put(true);
 		let snapshot = get_dummy_snapshot::<T>();
+		let pallet_account = Ocex::<T>::get_pallet_account();
+		T::NativeCurrency::deposit_creating(&pallet_account, (1000u128 * UNIT_BALANCE).saturated_into());
 		let call = Call::<T>::submit_snapshot { summary: snapshot, signatures: Vec::new() };
 	}: { call.dispatch_bypass_filter(RawOrigin::None.into())? }
 	verify {
@@ -540,6 +542,27 @@ benchmarks! {
 	}
 }
 
+fn create_trade_metrics<T: Config>() -> TradingPairMetricsMap<T::AccountId>{
+	let total_score = Decimal::from(1000);
+	let total_fee_paid = Decimal::from(1000);
+	let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+	let trader_score = Decimal::from(100);
+	let trader_fee_paid = Decimal::from(100);
+	let mut trader_metrics: TraderMetricsMap<T::AccountId> = BTreeMap::new();
+	for i in 1..200 {
+		let trader = T::AccountId::decode(&mut &[i; 32][..]).unwrap();
+		trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
+	}
+	let mut trading_pair_metrics_map: TradingPairMetricsMap<T::AccountId> = BTreeMap::new();
+	for trading_pair in 1..30 {
+		trading_pair_metrics_map.insert(
+			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(trading_pair) },
+			(trader_metrics.clone(), trading_pair_metrics.clone()),
+		);
+	}
+	trading_pair_metrics_map
+}
+
 fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
 	let mut withdrawals = Vec::new();
 	for _ in 0..20 {
@@ -559,13 +582,14 @@ fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
 		last_processed_blk: 11,
 		withdrawals,
 		egress_messages: Vec::new(),
-		trader_metrics: Default::default(),
+		trader_metrics: Some(create_trade_metrics::<T>()),
 	}
 }
 
 #[cfg(test)]
 use frame_benchmarking::impl_benchmark_test_suite;
 use frame_support::traits::fungibles::Create;
+use sp_core::crypto::AccountId32;
 use orderbook_primitives::lmp::LMPMarketConfigWrapper;
 use orderbook_primitives::ocex::TradingPairConfig;
 use polkadex_primitives::auction::AuctionInfo;

@@ -1412,6 +1412,7 @@ pub mod pallet {
 					return Ok(());
 				}
 				let config = <LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
+				let mut max_account_counter = config.max_accounts_rewarded;
 				// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 				for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
 					for (main, (score, fees_paid)) in map {
@@ -1419,6 +1420,10 @@ pub mod pallet {
 							(finalizing_epoch, pair, main),
 							(score, fees_paid, false),
 						);
+						max_account_counter = max_account_counter.saturating_sub(1);
+						if max_account_counter == 0 {
+							break;
+						}
 					}
 					<TotalScores<T>>::insert(finalizing_epoch, pair, (total_score, total_fees_paid));
 				}
