@@ -111,6 +111,7 @@ pub fn store_fees_paid_by_main_account_in_quote(
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
 	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
+	println!("Epoch Value {:?}", epoch);
 	let key = (epoch, trading_pair, "fees_paid", main).encode();
 	Ok(match state.get(&key)? {
 		None => {

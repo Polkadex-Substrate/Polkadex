@@ -157,7 +157,7 @@ impl Trade {
 	/// * `config`: Trading pair configuration DTO.
 	pub fn verify(&self, config: TradingPairConfig) -> bool {
 		// Verify signatures
-		self.maker.verify_signature() &
+		    self.maker.verify_signature() &
             self.taker.verify_signature() &
             // Verify pair configs
             self.maker.verify_config(&config) &

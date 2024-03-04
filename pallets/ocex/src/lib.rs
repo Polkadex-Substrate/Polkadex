@@ -63,6 +63,9 @@ use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
+
+#[cfg(test)]
+mod mock_aggregator;
 #[cfg(test)]
 pub mod tests;
 
@@ -900,6 +903,7 @@ pub mod pallet {
 			if let Some(ref metrics) = summary.trader_metrics {
 				Self::update_lmp_scores(metrics)?;
 			}
+			println!("Egress Messages: {:?}", summary.egress_messages);
 			// Process egress messages from summary.
 			Self::process_egress_msg(summary.egress_messages.as_ref())?;
 			if !summary.withdrawals.is_empty() {
@@ -1329,6 +1333,7 @@ pub mod pallet {
 			// Transfer it to main from pallet account.
 			let rewards_account: T::AccountId =
 				T::LMPRewardsPalletId::get().into_account_truncating();
+			println!("total amount {:?}", total_in_u128);
 			T::NativeCurrency::transfer(
 				&rewards_account,
 				&main,

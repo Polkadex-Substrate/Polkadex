@@ -63,7 +63,8 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// as it verifies the signature and relays them to destination.
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
-pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade";
+
+pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade"; //FIXME: Shold be changed back to aggregator.polkadex.trade
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 type TraderMetricsType<T> = BTreeMap<
@@ -100,6 +101,7 @@ impl<T: Config> Pallet<T> {
 		}
 		// Check the next batch to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
+		println!("next nonce {:?}", next_nonce);
 		let mut root = crate::storage::load_trie_root();
 		log::info!(target:"ocex","block: {:?}, state_root {:?}", block_num, root);
 		let mut storage = crate::storage::State;
@@ -115,6 +117,7 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let mut last_processed_nonce = state_info.snapshot_id;
+		println!("Imp state_info {:?}", last_processed_nonce);
 
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
@@ -123,9 +126,7 @@ impl<T: Config> Pallet<T> {
 			AggregatorClient::<T>::load_signed_summary_and_send(next_nonce);
 			return Ok(true);
 		}
-
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
-
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
 			log::debug!(target:"ocex","Fetching checkpoint from Aggregator");
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
@@ -167,13 +168,13 @@ impl<T: Config> Pallet<T> {
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
-				// state_info.last_block = 4768083; // This is hard coded as the starting point TODO: Uncomment this before mainnet upgrade otherwise itw ill corrupt mainnet state.
+				state_info.last_block = 4768083; // This is hard coded as the starting point TODO: Uncomment this before mainnet upgrade otherwise itw ill corrupt mainnet state.
 			}
 			// We need to sync our off chain state
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
 				log::info!(target:"ocex","Syncing batch: {:?}",nonce);
 				// Load the next ObMessages
-				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) {
+				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) { // TODO: Make it mockable to
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
 						return Ok(true);
@@ -192,6 +193,7 @@ impl<T: Config> Pallet<T> {
 					},
 					Err(err) => {
 						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
+						println!("err {:?}", err);
 						return Err("Sync failed");
 					},
 				}
@@ -215,6 +217,7 @@ impl<T: Config> Pallet<T> {
 			Some(batch) => batch,
 		};
 
+
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let (withdrawals, egress_messages, trader_metrics) =
 			Self::process_batch(&mut state, &batch, &mut state_info)?;
@@ -226,7 +229,6 @@ impl<T: Config> Pallet<T> {
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
-
 		if sp_io::offchain::is_validator() {
 			match available_keys.first() {
 				None => return Err("No active keys found"),
@@ -255,7 +257,6 @@ impl<T: Config> Pallet<T> {
 						signature: signature.encode(),
 					})
 					.map_err(|_| "ApprovedSnapshot serialization failed")?;
-
 					if let Err(err) = AggregatorClient::<T>::send_request(
 						"submit_snapshot_api",
 						&(AGGREGATOR.to_owned() + "/submit_snapshot"),
@@ -299,7 +300,6 @@ impl<T: Config> Pallet<T> {
 		engine_messages: &BTreeMap<IngressMessages<T::AccountId>, EgressMessages<T::AccountId>>,
 	) -> Result<Vec<EgressMessages<T::AccountId>>, &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
-
 		if blk != state_info.last_block.saturating_add(1).into() {
 			log::error!(target:"ocex","Last processed blk: {:?},  given: {:?}",state_info.last_block, blk);
 			return Err("BlockOutofSequence");
@@ -629,7 +629,6 @@ impl<T: Config> Pallet<T> {
 				_ => {},
 			}
 		}
-
 		state_info.last_block = blk.saturated_into();
 		Ok(verified_egress_messages)
 	}
@@ -701,6 +700,7 @@ impl<T: Config> Pallet<T> {
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
 	) -> Result<BatchProcessResult<T>, &'static str> {
+		println!("state_info.stid {:?} batch.stid {:?}", state_info.stid, batch.stid);
 		if state_info.stid >= batch.stid {
 			return Err("Invalid stid");
 		}
@@ -789,6 +789,7 @@ impl<T: Config> Pallet<T> {
 					// total maker volume in the previous epoch, otherwise ignore this account
 					let fees_paid =
 						get_fees_paid_by_main_account_in_quote(state, epoch, &pair, &main)?;
+					println!("fee paid {:?}", fees_paid); //TODO: Remove this
 					// Get Q_score and uptime information from offchain state
 					let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, &main)?;
 					let uptime = Decimal::from(uptime);
@@ -797,6 +798,7 @@ impl<T: Config> Pallet<T> {
 						.pow(0.15f64)
 						.saturating_mul(uptime.pow(5.0f64))
 						.saturating_mul(maker_volume.pow(0.85f64)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85
+					println!("final score {:?}", fees_paid); //TODO: Remove this
 											// Update the trader map
 					if !final_score.is_zero() || !fees_paid.is_zero() {
 						map.insert(main_type, (final_score, fees_paid));
@@ -851,12 +853,12 @@ impl<T: Config> Pallet<T> {
 	pub fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
 		match state.get(&STATE_INFO.to_vec())? {
 			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
-			None => Ok(StateInfo::default()),
+			None => {Ok(StateInfo::default())},
 		}
 	}
 
 	/// Stores the state info in the offchain state
-	fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
+	pub fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
 		state.insert(STATE_INFO.to_vec(), state_info.encode());
 	}
 
