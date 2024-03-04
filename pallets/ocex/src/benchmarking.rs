@@ -19,19 +19,19 @@
 //! Benchmarking setup for pallet-ocex
 #![cfg(feature = "runtime-benchmarks")]
 
-use std::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 use super::*;
 use crate::Pallet as Ocex;
 use frame_benchmarking::{
 	v1::{account, benchmarks},
 	whitelisted_caller,
 };
-use crate::mock::RuntimeOrigin;
 use frame_support::traits::{EnsureOrigin, UnfilteredDispatchable};
 use frame_system::RawOrigin;
 use orderbook_primitives::{Fees, TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap};
 use parity_scale_codec::{Compact, Decode};
 use polkadex_primitives::{withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE};
+use frame_support::traits::OnInitialize;
 use rust_decimal::{prelude::*, Decimal};
 use sp_runtime::{traits::One, BoundedBTreeSet};
 
@@ -473,6 +473,71 @@ benchmarks! {
 		let bidder = T::AccountId::decode(&mut &[2; 32][..]).unwrap();
 		T::NativeCurrency::deposit_creating(&bidder, (100 * UNIT_BALANCE).saturated_into());
 	}: _(RawOrigin::Signed(bidder), (10 * UNIT_BALANCE).saturated_into())
+
+	on_initialize {
+		let block_no: BlockNumberFor<T> = 200u32.into();
+		let max_accounts_rewarded: Option<u16> = Some(10);
+		let claim_safety_period: Option<u32> = Some(0);
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+		Some(Compact::from(1000 * UNIT_BALANCE));
+	    let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+		let base_asset = AssetId::Polkadex;
+		let quote_asset = AssetId::Asset(1);
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+		let mut allowliested_tokens = AllowlistedToken::<T>::get();
+		allowliested_tokens.try_insert(base_asset).unwrap();
+		allowliested_tokens.try_insert(quote_asset).unwrap();
+		AllowlistedToken::<T>::put(allowliested_tokens);
+		<ExchangeState<T>>::put(true);
+		Ocex::<T>::register_trading_pair(
+		RawOrigin::Root.into(),
+		base_asset,
+		quote_asset,
+		(1_0000_0000_u128 * 1_000_000_u128).saturated_into(),
+		(1_000_000_000_000_000_u128 * 1_000_u128).saturated_into(),
+		1_000_000_u128.saturated_into(),
+		1_0000_0000_u128.saturated_into(),
+		).unwrap();
+		let lmp_config = LMPMarketConfigWrapper {
+		trading_pair,
+		market_weightage: UNIT_BALANCE,
+		min_fees_paid: UNIT_BALANCE,
+		min_maker_volume: UNIT_BALANCE,
+		max_spread: UNIT_BALANCE,
+		min_depth: UNIT_BALANCE,
+		};
+		Ocex::<T>::set_lmp_epoch_config(
+		RawOrigin::Root.into(),
+		total_liquidity_mining_rewards,
+		total_trading_rewards,
+		vec![lmp_config],
+		max_accounts_rewarded,
+		claim_safety_period
+		).unwrap();
+		let usdt_asset = AssetId::Asset(1);
+		let usdc_asset = AssetId::Asset(2);
+		let recipient_address = T::AccountId::decode(&mut &[1; 32][..]).unwrap();
+		let auction_duration: BlockNumberFor<T> = 100u32.into();
+		let burn_ration = 10u8;
+		let fee_distribution = FeeDistribution {
+			recipient_address,
+	    	auction_duration,
+			burn_ration,
+		};
+		Ocex::<T>::set_fee_distribution(RawOrigin::Root.into(), fee_distribution).unwrap();
+		let mut allowlisted_tokens = <AllowlistedToken<T>>::get();
+		allowlisted_tokens.try_insert(usdt_asset).unwrap();
+		allowlisted_tokens.try_insert(usdc_asset).unwrap();
+		<AllowlistedToken<T>>::put(allowlisted_tokens);
+		let pot_account = Ocex::<T>::get_pot_account();
+		T::NativeCurrency::deposit_creating(&pot_account, (100 * UNIT_BALANCE).saturated_into());
+		T::OtherAssets::create(usdt_asset.asset_id().unwrap(), pot_account.clone(), true, One::one()).unwrap();
+		T::OtherAssets::create(usdc_asset.asset_id().unwrap(), pot_account.clone(), true, One::one()).unwrap();
+		Ocex::<T>::create_auction().unwrap();
+		<AuctionBlockNumber<T>>::put(block_no);
+	}: {
+		Ocex::<T>::on_initialize(block_no);
+	}
 }
 
 fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
