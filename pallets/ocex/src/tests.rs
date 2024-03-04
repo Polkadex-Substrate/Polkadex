@@ -2464,6 +2464,7 @@ fn test_do_claim_lmp_rewards_happy_path() {
 			<mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
 		println!("pallet Id {:?}", reward_account);
 		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
+		assert_eq!(Balances::free_balance(&main_account), 999999999900u128);
 		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
 		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
 	})

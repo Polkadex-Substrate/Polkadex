@@ -62,6 +62,7 @@ std = [
   "hash-db/std",
   "trie-db/std",
   "polkadex-primitives/std",
+  "frame-benchmarking?/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
   "sp-core/std",
