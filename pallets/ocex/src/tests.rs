@@ -2443,6 +2443,7 @@ fn test_update_lmp_scores_no_lmp_config() {
 			(trader_metrics, trading_pair_metrics),
 		);
 		<LMPEpoch<Test>>::put(2);
+		<FinalizeLMPScore<Test>>::put(2);
 		assert_noop!(
 			OCEX::update_lmp_scores(&trading_pair_metrics_map),
 			crate::pallet::Error::<Test>::LMPConfigNotFound
