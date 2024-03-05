@@ -22,10 +22,10 @@ use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
 use polkadex_primitives::{withdrawal::Withdrawal, AccountId, AssetId, Signature};
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
 #[cfg(feature = "std")]
 use rust_decimal::{
 	prelude::{FromPrimitive, Zero},
-	RoundingStrategy,
 };
 use scale_info::TypeInfo;
 use serde_with::serde_as;
@@ -757,6 +757,14 @@ impl Ord for Order {
 	}
 }
 
+impl Order {
+	pub fn rounding_off(a: Decimal) -> Decimal {
+		// if we want to operate with a precision of 8 decimal places,
+		// all calculations should be done with latest 9 decimal places
+		a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
+	}
+}
+
 #[cfg(feature = "std")]
 impl Order {
 	/// Computes the new avg_price and adds qty to filled_qty. If returned is false - then underflow
@@ -815,12 +823,6 @@ impl Order {
 				self.qty.saturating_sub(self.filled_quantity).saturating_mul(self.price),
 			)
 		}
-	}
-
-	pub fn rounding_off(a: Decimal) -> Decimal {
-		// if we want to operate with a precision of 8 decimal places,
-		// all calculations should be done with latest 9 decimal places
-		a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
 	}
 
 	// TODO: how to gate this only for testing
