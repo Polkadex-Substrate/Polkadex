@@ -116,7 +116,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 		market: String,
 		epoch: u16,
 		at: Option<BlockHash>,
-	) -> RpcResult<String>;
+	) -> RpcResult<(String, String)>;
 
 	#[method(name = "lmp_traderMetrics")]
 	fn get_trader_metrics(
@@ -390,7 +390,7 @@ where
 		Ok(claimable_epochs)
 	}
 
-	fn get_total_score(&self, market: String, epoch: u16, at: Option<<Block as BlockT>::Hash>) -> RpcResult<String> {
+	fn get_total_score(&self, market: String, epoch: u16, at: Option<<Block as BlockT>::Hash>) -> RpcResult<(String, String)> {
 		let mut api = self.client.runtime_api();
 		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
@@ -401,7 +401,7 @@ where
 
 		let score = api.get_total_score(at, epoch, market).map_err(runtime_error_into_rpc_err)?;
 
-		Ok(format!("{} {}",score.0.to_string(),score.1.to_string()))
+		Ok((score.0.to_string(), score.1.to_string())
 
 	}
 
