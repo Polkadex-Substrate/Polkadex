@@ -37,24 +37,24 @@ pub const FEE_POT_PALLET_ID: PalletId = PalletId(*b"ocexfees");
 
 #[cfg(test)]
 mod test {
-    use crate::constants::{MAX_PRICE, MAX_QTY, POLKADEX_MAINNET_SS58};
-    use frame_support::PalletId;
-    use polkadex_primitives::AccountId;
-    use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
-    use sp_runtime::traits::AccountIdConversion;
+	use crate::constants::{MAX_PRICE, MAX_QTY, POLKADEX_MAINNET_SS58};
+	use frame_support::PalletId;
+	use polkadex_primitives::AccountId;
+	use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
+	use sp_runtime::traits::AccountIdConversion;
 
-    #[test]
-    pub fn test_overflow_check() {
-        assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
-    }
+	#[test]
+	pub fn test_overflow_check() {
+		assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
+	}
 
-    #[test]
-    pub fn test_fee_pot_address() {
-        pub const LMPREWARDS_PALLET_ID: PalletId = PalletId(*b"LMPREWAR");
-        let pot: AccountId = LMPREWARDS_PALLET_ID.into_account_truncating();
-        println!(
-            "{:?}",
-            pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58))
-        )
-    }
+	#[test]
+	pub fn test_fee_pot_address() {
+		pub const LMPREWARDS_PALLET_ID: PalletId = PalletId(*b"LMPREWAR");
+		let pot: AccountId = LMPREWARDS_PALLET_ID.into_account_truncating();
+		println!(
+			"{:?}",
+			pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58))
+		)
+	}
 }

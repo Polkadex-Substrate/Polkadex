@@ -35,26 +35,23 @@ use sp_externalities::ExternalitiesExt;
 
 #[runtime_interface]
 pub trait BLSCryptoExt {
-    fn bls_generate_pair(&mut self, id: KeyTypeId, seed: Option<Vec<u8>>) -> Public {
-        let (pair, seed) = match seed {
-            None => {
-                let (pair, seed_string, _) = crate::Pair::generate_with_phrase(None);
-                (pair, seed_string)
-            }
-            Some(seed) => {
-                let seed = String::from_utf8(seed).expect("expected seed to be Utf-8");
-                (
-                    crate::Pair::from_string(seed.as_str(), None).expect("Seed not valid!"),
-                    seed,
-                )
-            }
-        };
-        let keystore = &***self
-            .extension::<KeystoreExt>()
-            .expect("No `keystore` associated for the current context!");
-        let public_key = pair.public().to_raw_vec();
-        <(dyn Keystore + 'static)>::insert(keystore, id, seed.as_str(), public_key.as_slice())
-            .unwrap();
-        pair.public()
-    }
+	fn bls_generate_pair(&mut self, id: KeyTypeId, seed: Option<Vec<u8>>) -> Public {
+		let (pair, seed) = match seed {
+			None => {
+				let (pair, seed_string, _) = crate::Pair::generate_with_phrase(None);
+				(pair, seed_string)
+			},
+			Some(seed) => {
+				let seed = String::from_utf8(seed).expect("expected seed to be Utf-8");
+				(crate::Pair::from_string(seed.as_str(), None).expect("Seed not valid!"), seed)
+			},
+		};
+		let keystore = &***self
+			.extension::<KeystoreExt>()
+			.expect("No `keystore` associated for the current context!");
+		let public_key = pair.public().to_raw_vec();
+		<(dyn Keystore + 'static)>::insert(keystore, id, seed.as_str(), public_key.as_slice())
+			.unwrap();
+		pair.public()
+	}
 }

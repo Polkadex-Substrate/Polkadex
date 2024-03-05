@@ -27,47 +27,47 @@ pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
 
 /// Adapter to Access OCEX Offchain Storage
 pub struct OffchainStorageAdapter<T: OffchainStorage> {
-    storage: OffchainDb<T>,
+	storage: OffchainDb<T>,
 }
 
 impl<T: OffchainStorage> OffchainStorageAdapter<T> {
-    /// Create a new `OffchainStorageAdapter` instance.
-    /// # Parameters
-    /// * `storage`: Offchain storage
-    /// # Returns
-    /// * `OffchainStorageAdapter`: A new `OffchainStorageAdapter` instance.
-    pub fn new(storage: OffchainDb<T>) -> Self {
-        Self { storage }
-    }
+	/// Create a new `OffchainStorageAdapter` instance.
+	/// # Parameters
+	/// * `storage`: Offchain storage
+	/// # Returns
+	/// * `OffchainStorageAdapter`: A new `OffchainStorageAdapter` instance.
+	pub fn new(storage: OffchainDb<T>) -> Self {
+		Self { storage }
+	}
 
-    /// Acquire offchain lock
-    /// # Parameters
-    /// * `tries`: Number of tries to acquire lock
-    /// # Returns
-    /// * `bool`: True if lock is acquired else false
-    pub async fn acquire_offchain_lock(&mut self, tries: u8) -> bool {
-        let old_value = Encode::encode(&false);
-        let new_value = Encode::encode(&true);
-        for _ in 0..tries {
-            if self.storage.local_storage_compare_and_set(
-                StorageKind::PERSISTENT,
-                &WORKER_STATUS,
-                Some(&old_value),
-                &new_value,
-            ) {
-                return true;
-            }
-            // Wait for 1 sec
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
-        false
-    }
+	/// Acquire offchain lock
+	/// # Parameters
+	/// * `tries`: Number of tries to acquire lock
+	/// # Returns
+	/// * `bool`: True if lock is acquired else false
+	pub async fn acquire_offchain_lock(&mut self, tries: u8) -> bool {
+		let old_value = Encode::encode(&false);
+		let new_value = Encode::encode(&true);
+		for _ in 0..tries {
+			if self.storage.local_storage_compare_and_set(
+				StorageKind::PERSISTENT,
+				&WORKER_STATUS,
+				Some(&old_value),
+				&new_value,
+			) {
+				return true;
+			}
+			// Wait for 1 sec
+			tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+		}
+		false
+	}
 }
 
 impl<T: OffchainStorage> Drop for OffchainStorageAdapter<T> {
-    fn drop(&mut self) {
-        let encoded_value = Encode::encode(&false);
-        self.storage
-            .local_storage_set(StorageKind::PERSISTENT, &WORKER_STATUS, &encoded_value);
-    }
+	fn drop(&mut self) {
+		let encoded_value = Encode::encode(&false);
+		self.storage
+			.local_storage_set(StorageKind::PERSISTENT, &WORKER_STATUS, &encoded_value);
+	}
 }
