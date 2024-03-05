@@ -30,6 +30,7 @@ use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 use thea_primitives::types::{
 	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
 };
+use thea_primitives::types::AssetMetadata;
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
@@ -53,7 +54,7 @@ benchmarks! {
 		};
 		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
 		<AllowListTestingRelayers<T>>::insert(0u8, relayer.clone());
-		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 	}: _(RawOrigin::Signed(relayer), message, 10000*UNIT_BALANCE)
 	verify {
 		// Nonce is updated only after execute_at number of blocks
@@ -140,7 +141,7 @@ benchmarks! {
 	report_misbehaviour {
 		// Create fisherman account with some balance
 		let fisherman: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
-		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let network_id: u8 = 2;
 		let nonce: u64 = 0;
 		let message = Message {
@@ -166,17 +167,17 @@ benchmarks! {
 	handle_misbehaviour {
 		// Add MisbehaviourReports
 		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
-		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let fisherman: T::AccountId = T::AccountId::decode(&mut &[1u8; 32][..]).unwrap();
-		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let relayer_stake_amount = 1 * UNIT_BALANCE;
 		let fisherman_stake_amount = 1 * UNIT_BALANCE;
-		T::Currency::hold(
+		T::NativeCurrency::hold(
 				&THEA_HOLD_REASON,
 				&relayer,
 				relayer_stake_amount.saturated_into(),
 			)?;
-		T::Currency::hold(
+		T::NativeCurrency::hold(
 				&THEA_HOLD_REASON,
 				&fisherman,
 				fisherman_stake_amount.saturated_into(),
@@ -212,6 +213,8 @@ benchmarks! {
 			networks.insert(i);
 		}
 		<ActiveNetworks<T>>::put(networks.clone());
+		let metadata = AssetMetadata::new(12).unwrap();
+		<thea_executor::Metadata<T>>::insert(0, metadata);
 		// Update IncomingMessagesQueue
 		let nonce = 1;
 		for network in networks.iter() {

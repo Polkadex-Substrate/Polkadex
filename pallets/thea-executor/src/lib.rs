@@ -170,7 +170,7 @@ pub mod pallet {
     /// Stores the metadata ( asset_id => Metadata )
     #[pallet::storage]
     #[pallet::getter(fn asset_metadata)]
-    pub(super) type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
+    pub type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
 
     // Pallets use events to inform users when important changes are made.
     // https://docs.substrate.io/main-docs/build/events-errors/

@@ -1341,8 +1341,8 @@ impl thea::Config for Runtime {
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
-	type Currency = Balances;
-	type GovernanceOrigin = EnsureRootOrHalfCouncil;
+	type NativeCurrency = Balances;
+	type TheaGovernanceOrigin = EnsureRootOrHalfCouncil;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 

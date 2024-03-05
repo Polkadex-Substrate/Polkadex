@@ -141,8 +141,8 @@ impl crate::Config for Test {
 	type Signature = crate::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
-	type Currency = Balances;
-	type GovernanceOrigin = EnsureRoot<u64>;
+	type NativeCurrency = Balances;
+	type TheaGovernanceOrigin = EnsureRoot<u64>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 }
 

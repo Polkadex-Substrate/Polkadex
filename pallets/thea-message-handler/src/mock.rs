@@ -143,8 +143,8 @@ impl thea::Config for Test {
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
-	type Currency = Balances;
-	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
+	type NativeCurrency = Balances;
+	type TheaGovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = thea::weights::WeightInfo<Test>;
 }
 

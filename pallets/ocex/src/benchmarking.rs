@@ -411,7 +411,7 @@ benchmarks! {
 		(trader_metrics, trading_pair_metrics),
 		);
 		Ocex::<T>::update_lmp_scores(&trading_pair_metrics_map).unwrap();
-		let epoch = 1;
+		let epoch = 0;
 		let reward_account =
 			T::LMPRewardsPalletId::get().into_account_truncating();
 		let _imbalance = T::NativeCurrency::deposit_creating(&reward_account, (300 * UNIT_BALANCE).saturated_into());

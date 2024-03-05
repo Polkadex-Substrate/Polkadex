@@ -109,7 +109,7 @@ pub mod pallet {
 	};
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> + thea_executor::Config{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
@@ -135,12 +135,12 @@ pub mod pallet {
 		type Executor: thea_primitives::TheaIncomingExecutor;
 
 		/// Balances Pallet
-		type Currency: frame_support::traits::fungible::Mutate<Self::AccountId>
+		type NativeCurrency: frame_support::traits::fungible::Mutate<Self::AccountId>
 			+ frame_support::traits::fungible::Inspect<Self::AccountId>
 			+ frame_support::traits::fungible::hold::Mutate<Self::AccountId, Reason = [u8; 8]>;
 
 		/// Governance Origin
-		type GovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+		type TheaGovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: TheaWeightInfo;
@@ -312,7 +312,7 @@ pub mod pallet {
 					None => continue,
 					Some(msg) => {
 						if msg.execute_at <= blk.saturated_into::<u32>() {
-							T::Executor::execute_deposits(
+							<T as pallet::Config>::Executor::execute_deposits(
 								msg.message.network,
 								msg.message.data.clone(),
 							);
@@ -327,7 +327,7 @@ pub mod pallet {
 								msg.message.nonce,
 								msg.message,
 							);
-							if let Err(err) = T::Currency::release(
+							if let Err(err) = T::NativeCurrency::release(
 								&THEA_HOLD_REASON,
 								&msg.relayer,
 								msg.stake.saturated_into(),
@@ -343,7 +343,7 @@ pub mod pallet {
 					},
 				}
 			}
-			T::WeightInfo::on_initialize(active_networks.len() as u32)
+			<T as pallet::Config>::WeightInfo::on_initialize(active_networks.len() as u32)
 		}
 		fn offchain_worker(blk: BlockNumberFor<T>) {
 			log::debug!(target:"thea","Thea offchain worker started");
@@ -395,7 +395,7 @@ pub mod pallet {
 			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
 				None => {
 					// Lock balance
-					T::Currency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+					T::NativeCurrency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
 					// Put it in a queue
 					<IncomingMessagesQueue<T>>::insert(
 						payload.network,
@@ -413,13 +413,13 @@ pub mod pallet {
 				Some(mut existing_payload) => {
 					// Update the message only if stake is higher.
 					if existing_payload.stake < stake {
-						T::Currency::release(
+						T::NativeCurrency::release(
 							&THEA_HOLD_REASON,
 							&existing_payload.relayer,
 							existing_payload.stake.saturated_into(),
 							Precision::BestEffort,
 						)?;
-						T::Currency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+						T::NativeCurrency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
 						existing_payload.message = payload;
 						existing_payload.relayer = signer;
 						existing_payload.stake = stake;
@@ -575,12 +575,12 @@ pub mod pallet {
 			let fisherman = ensure_signed(origin)?;
 			let config = <NetworkConfig<T>>::get(network);
 			//  Check if min stake is given
-			if T::Currency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite)
+			if T::NativeCurrency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite)
 				< config.fisherman_stake.saturated_into()
 			{
 				return Err(Error::<T>::NotEnoughStake.into());
 			}
-			T::Currency::hold(
+			T::NativeCurrency::hold(
 				&THEA_HOLD_REASON,
 				&fisherman,
 				config.fisherman_stake.saturated_into(),
@@ -615,27 +615,27 @@ pub mod pallet {
 			nonce: u64,
 			acceptance: bool,
 		) -> DispatchResult {
-			T::GovernanceOrigin::ensure_origin(origin)?;
+			T::TheaGovernanceOrigin::ensure_origin(origin)?;
 			match <MisbehaviourReports<T>>::take(network, nonce) {
 				None => {},
 				Some(report) => {
 					if acceptance {
 						// Release lock on relayer
-						T::Currency::release(
+						T::NativeCurrency::release(
 							&THEA_HOLD_REASON,
 							&report.reported_msg.relayer,
 							report.reported_msg.stake.saturated_into(),
 							Precision::BestEffort,
 						)?;
 						// Transfer to fisherman
-						T::Currency::transfer(
+						T::NativeCurrency::transfer(
 							&report.reported_msg.relayer,
 							&report.fisherman,
 							report.reported_msg.stake.saturated_into(),
 							Preservation::Expendable,
 						)?;
 						// Release fisherman lock
-						T::Currency::release(
+						T::NativeCurrency::release(
 							&THEA_HOLD_REASON,
 							&report.fisherman,
 							report.stake.saturated_into(),
@@ -649,7 +649,7 @@ pub mod pallet {
 							report.reported_msg,
 						);
 						// burn fisherman stake
-						T::Currency::burn_from(
+						T::NativeCurrency::burn_from(
 							&report.fisherman,
 							report.stake.saturated_into(),
 							Precision::BestEffort,
