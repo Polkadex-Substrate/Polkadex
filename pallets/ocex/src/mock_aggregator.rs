@@ -32,7 +32,7 @@ lazy_static! {
 
 impl<T: Config> AggregatorClient<T> {
     #[cfg(test)]
-    pub fn get_user_action_batch(id: u64) -> Option<UserActionBatch<T::AccountId>> {
+    pub fn get_user_action_batch(_id: u64) -> Option<UserActionBatch<T::AccountId>> {
         let data = SHARED_DATA.lock().unwrap();
         let data: Option<UserActionBatch<T::AccountId>> = if let Some(data) = data.clone() {
             let data = data.encode();
@@ -44,7 +44,7 @@ impl<T: Config> AggregatorClient<T> {
     }
 
     #[cfg(test)]
-    pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
+    pub fn send_request(_log_target: &str, _url: &str, _body: &str) -> Result<Vec<u8>, &'static str> {
         Ok(Vec::new())
     }
 

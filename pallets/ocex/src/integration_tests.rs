@@ -22,16 +22,12 @@ use crate::aggregator::AggregatorClient;
 use crate::mock::new_test_ext;
 use crate::mock::*;
 use crate::pallet::{Accounts, IngressMessages as IngressMessagesStorage, TradingPairs};
-use crate::snapshot::StateInfo;
 use crate::storage::{store_trie_root, OffchainState};
-use crate::tests::get_trading_pair;
 use crate::validator::{LAST_PROCESSED_SNAPSHOT, WORKER_STATUS};
-use crate::Config;
 use frame_support::assert_ok;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::fungibles::Mutate as FunMutate;
 use num_traits::{FromPrimitive, One};
-use orderbook_primitives::constants::FEE_POT_PALLET_ID;
 use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
 use orderbook_primitives::lmp::LMPMarketConfigWrapper;
 use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
@@ -42,10 +38,9 @@ use orderbook_primitives::types::{
 use orderbook_primitives::SnapshotSummary;
 use parity_scale_codec::{Compact, Encode};
 use polkadex_primitives::auction::FeeDistribution;
-use polkadex_primitives::{AccountId, AssetId, UNIT_BALANCE};
+use polkadex_primitives::{AssetId, UNIT_BALANCE};
 use rust_decimal::Decimal;
 use sequential_test::sequential;
-use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::AccountId32;
 use sp_core::sr25519::Signature;
 use sp_core::{Pair, H256};
@@ -148,7 +143,7 @@ fn test_lmp_complete_flow() {
             _ => panic!("Snapshot not found"),
         };
         OCEX::start_new_epoch(3);
-        let (maker_account, taker_account) = get_maker_and_taker__account();
+        let (maker_account, taker_account) = get_maker_and_taker_account();
         let trading_pair = TradingPair {
             base: AssetId::Polkadex,
             quote: AssetId::Asset(1),
@@ -173,8 +168,8 @@ fn test_on_chain_validation_with_auction() {
         let recipient_address = AccountId32::new([2; 32]);
         let pot_account: AccountId32 = OCEX::get_pot_account();
         let pallet_account: AccountId32 = OCEX::get_pallet_account();
-        Balances::mint_into(&pot_account, 10 * UNIT_BALANCE);
-        Balances::mint_into(&pallet_account, 20 * UNIT_BALANCE);
+        Balances::mint_into(&pot_account, 10 * UNIT_BALANCE).unwrap();
+        Balances::mint_into(&pallet_account, 20 * UNIT_BALANCE).unwrap();
         let auction_duration = 100;
         let burn_ration = 50;
         let fee_distribution = FeeDistribution {
@@ -200,7 +195,7 @@ fn test_on_chain_validation_with_auction() {
             crate::sr25519::AuthoritySignature,
             u16,
         )>() {
-            Ok(Some((summary, signature, index))) => {
+            Ok(Some((summary, _signature, _index))) => {
                 println!("Summary {:?}", summary);
                 assert_eq!(summary.snapshot_id, 1);
                 assert_eq!(summary.state_change_id, 1);
@@ -227,7 +222,7 @@ fn test_on_chain_validation_with_auction() {
             crate::sr25519::AuthoritySignature,
             u16,
         )>() {
-            Ok(Some((summary, signature, index))) => {
+            Ok(Some((summary, _signature, _index))) => {
                 println!("Summary {:?}", summary);
                 assert_eq!(summary.snapshot_id, 2);
                 assert_eq!(summary.state_change_id, 2);
@@ -363,7 +358,7 @@ fn push_trade_user_actions(stid: u64, snapshot_id: u64, block_no: u64) {
 
 fn get_block_import(block_no: u64) -> u64 {
     let block_no = block_no;
-    let (maker_account, taker_account) = get_maker_and_taker__account();
+    let (maker_account, taker_account) = get_maker_and_taker_account();
     let maker_ingress_message =
         IngressMessages::Deposit(maker_account, AssetId::Asset(1), Decimal::from(100));
     let taker_ingress_message =
@@ -375,7 +370,7 @@ fn get_block_import(block_no: u64) -> u64 {
     block_no
 }
 
-fn get_maker_and_taker__account() -> (AccountId32, AccountId32) {
+fn get_maker_and_taker_account() -> (AccountId32, AccountId32) {
     let (maker_user_pair, _) = sp_core::sr25519::Pair::from_phrase(
         "spider sell nice animal border success square soda stem charge caution echo",
         None,
@@ -399,8 +394,8 @@ fn get_trades() -> (Order, Order) {
     )
     .unwrap();
     <Accounts<Test>>::insert(
-        AccountId32::new((maker_user_pair.public().0)),
-        AccountInfo::new(AccountId32::new((maker_user_pair.public().0))),
+        AccountId32::new(maker_user_pair.public().0),
+        AccountInfo::new(AccountId32::new(maker_user_pair.public().0)),
     );
     let trading_pair = TradingPair {
         base: AssetId::Polkadex,
@@ -431,8 +426,8 @@ fn get_trades() -> (Order, Order) {
         filled_quantity: Decimal::from(1),
         status: OrderStatus::OPEN,
         id: H256::from_low_u64_be(1),
-        user: AccountId32::new((maker_user_pair.public().0)),
-        main_account: AccountId32::new((maker_user_pair.public().0)),
+        user: AccountId32::new(maker_user_pair.public().0),
+        main_account: AccountId32::new(maker_user_pair.public().0),
         pair: trading_pair,
         side: OrderSide::Bid,
         order_type: OrderType::LIMIT,
@@ -454,8 +449,8 @@ fn get_trades() -> (Order, Order) {
     )
     .unwrap();
     <Accounts<Test>>::insert(
-        AccountId32::new((taker_user_pair.public().0)),
-        AccountInfo::new(AccountId32::new((taker_user_pair.public().0))),
+        AccountId32::new(taker_user_pair.public().0),
+        AccountInfo::new(AccountId32::new(taker_user_pair.public().0)),
     );
     let mut taker_order = Order {
         //User is selling PDEX - User has PDEX
@@ -466,8 +461,8 @@ fn get_trades() -> (Order, Order) {
         filled_quantity: Decimal::from(1),
         status: OrderStatus::OPEN,
         id: H256::from_low_u64_be(1),
-        user: AccountId32::new((taker_user_pair.public().0)),
-        main_account: AccountId32::new((taker_user_pair.public().0)),
+        user: AccountId32::new(taker_user_pair.public().0),
+        main_account: AccountId32::new(taker_user_pair.public().0),
         pair: trading_pair,
         side: OrderSide::Ask,
         order_type: OrderType::LIMIT,

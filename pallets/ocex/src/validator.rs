@@ -823,9 +823,9 @@ impl<T: Config> Pallet<T> {
     ) -> Result<Decimal, &'static str> {
         // TODO: Check if the maker volume of this main is greater than 0.25% of the
         // total maker volume in the previous epoch, otherwise ignore this account
-        let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair, &main)?;
+        let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair, main)?;
         // Get Q_score and uptime information from offchain state
-        let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, &main)?;
+        let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, main)?;
         let uptime = Decimal::from(uptime);
         // Compute the final score
         let final_score = q_score

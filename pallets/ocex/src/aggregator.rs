@@ -16,26 +16,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(not(test))]
+use crate::validator::JSONRPCResponse;
+#[cfg(not(test))]
+use orderbook_primitives::types::UserActionBatch;
 use crate::{
-    validator::{JSONRPCResponse, AGGREGATOR, LAST_PROCESSED_SNAPSHOT},
+    validator::{AGGREGATOR, LAST_PROCESSED_SNAPSHOT},
     Config,
 };
 use orderbook_primitives::{
-    types::{ApprovedSnapshot, UserActionBatch},
+    types::{ApprovedSnapshot},
     ObCheckpointRaw, SnapshotSummary,
 };
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use sp_application_crypto::RuntimeAppPublic;
+#[cfg(not(test))]
 use sp_core::offchain::{Duration, HttpError};
+#[cfg(not(test))]
+use sp_runtime::offchain::{http, http::{Error, PendingRequest, Response}};
 use sp_runtime::{
     offchain::{
-        http,
-        http::{Error, PendingRequest, Response},
         storage::StorageValueRef,
     },
     SaturatedConversion,
 };
-use sp_std::{marker::PhantomData, prelude::ToOwned, vec::Vec};
+#[cfg(not(test))]
+use sp_std::vec::Vec;
+
+use sp_std::{marker::PhantomData, prelude::ToOwned};
 
 pub struct AggregatorClient<T: Config>(PhantomData<T>);
 
@@ -189,6 +197,7 @@ impl<T: Config> AggregatorClient<T> {
     /// * `err`: Http error to map
     /// # Returns
     /// * `&'static str`: Mapped error
+    #[cfg(not(test))]
     fn map_http_err(err: HttpError) -> &'static str {
         match err {
             HttpError::DeadlineReached => "Deadline Reached",
@@ -202,6 +211,7 @@ impl<T: Config> AggregatorClient<T> {
     /// * `err`: Http error to map
     /// # Returns
     /// * `&'static str`: Mapped error
+    #[cfg(not(test))]
     fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
         match err {
             Error::DeadlineReached => "Deadline Reached",

@@ -183,7 +183,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .build_storage()
         .unwrap();
     let mut ext = sp_io::TestExternalities::new(t);
-    let (pair, seed) = sp_core::sr25519::Pair::from_phrase(
+    let (pair, _seed) = sp_core::sr25519::Pair::from_phrase(
         "spider sell nice animal border success square soda stem charge caution echo",
         None,
     )
