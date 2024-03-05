@@ -36,14 +36,14 @@ mod tests;
 pub mod weights;
 
 pub trait TheaExecutorWeightInfo {
-    fn set_withdrawal_fee(_r: u32) -> Weight;
-    fn update_asset_metadata(_r: u32) -> Weight;
-    fn withdraw(r: u32) -> Weight;
-    fn parachain_withdraw(_r: u32) -> Weight;
-    fn evm_withdraw(_r: u32) -> Weight;
-    fn on_initialize(x: u32, y: u32) -> Weight;
-    fn burn_native_tokens() -> Weight;
-    fn claim_deposit(_r: u32) -> Weight;
+	fn set_withdrawal_fee(_r: u32) -> Weight;
+	fn update_asset_metadata(_r: u32) -> Weight;
+	fn withdraw(r: u32) -> Weight;
+	fn parachain_withdraw(_r: u32) -> Weight;
+	fn evm_withdraw(_r: u32) -> Weight;
+	fn on_initialize(x: u32, y: u32) -> Weight;
+	fn burn_native_tokens() -> Weight;
+	fn claim_deposit(_r: u32) -> Weight;
 }
 
 #[frame_support::pallet]
