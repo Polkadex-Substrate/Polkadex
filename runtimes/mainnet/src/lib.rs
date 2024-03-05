@@ -1297,7 +1297,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfCouncil;
-	type CrowdSourceLiqudityMining = CrowdSourceLMP;
+	type CrowdSourceLiqudityMining = ();
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 

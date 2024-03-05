@@ -43,3 +43,29 @@ pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
 
 	fn stop_accepting_lmp_withdrawals(epoch: u16);
 }
+
+impl<AccountId> LiquidityMiningCrowdSourcePallet<AccountId> for () {
+	fn new_epoch(_n: u16) {
+		return;
+	}
+
+	fn add_liquidity_success(_market: TradingPair, _pool: &AccountId, _lp: &AccountId, _shared_issued: Decimal, _price: Decimal, _total_inventory_in_quote: Decimal) -> DispatchResult {
+		Ok(())
+	}
+
+	fn remove_liquidity_success(_market: TradingPair, _pool: &AccountId, _lp: &AccountId, _base_free: Decimal, _quote_free: Decimal) -> DispatchResult {
+		Ok(())
+	}
+
+	fn remove_liquidity_failed(_market: TradingPair, _pool: &AccountId, _lp: &AccountId, _burn_frac: Decimal, _total_shares: Decimal, _base_free: Decimal, _quote_free: Decimal, _base_required: Decimal, _quote_required: Decimal) -> DispatchResult {
+		Ok(())
+	}
+
+	fn pool_force_close_success(_market: TradingPair, _pool: &AccountId, _base_freed: Decimal, _quote_freed: Decimal) -> DispatchResult {
+		Ok(())
+	}
+
+	fn stop_accepting_lmp_withdrawals(_epoch: u16) {
+		return;
+	}
+}

@@ -401,7 +401,7 @@ where
 
 		let score = api.get_total_score(at, epoch, market).map_err(runtime_error_into_rpc_err)?;
 
-		Ok((score.0.to_string(), score.1.to_string())
+		Ok((score.0.to_string(), score.1.to_string()))
 
 	}
 
