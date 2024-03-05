@@ -67,47 +67,64 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 	#[method(name = "lmp_accountsSorted")]
 	async fn account_scores_by_market(
 		&self,
-		at: Option<BlockHash>,
 		epoch: u16,
-		market: TradingPair,
+		market: String,
 		sorted_by_mm_score: bool,
 		limit: u16,
+		at: Option<BlockHash>,
 	) -> RpcResult<Vec<AccountId>>;
 
 	#[method(name = "lmp_eligibleRewards")]
 	fn eligible_rewards(
 		&self,
-		at: Option<BlockHash>,
 		epoch: u16,
-		market: TradingPair,
+		market: String,
 		main: AccountId,
+		at: Option<BlockHash>,
 	) -> RpcResult<(String, String, bool)>;
 
 	#[method(name = "lmp_feesPaidByUserPerEpoch")]
 	fn get_fees_paid_by_user_per_epoch(
 		&self,
-		at: Option<BlockHash>,
-		epoch: u32,
-		market: TradingPair,
+		epoch: u16,
+		market: String,
 		main: AccountId,
+		at: Option<BlockHash>,
 	) -> RpcResult<String>;
 
 	#[method(name = "lmp_volumeGeneratedByUserPerEpoch")]
 	fn get_volume_by_user_per_epoch(
 		&self,
-		at: Option<BlockHash>,
-		epoch: u32,
-		market: TradingPair,
+		epoch: u16,
+		market: String,
 		main: AccountId,
+		at: Option<BlockHash>,
 	) -> RpcResult<String>;
 
 	#[method(name = "lmp_listClaimableEpochs")]
 	fn list_claimable_epochs(
 		&self,
-		at: Option<BlockHash>,
-		market: TradingPair,
+		market: String,
 		main: AccountId,
 		until_epoch: u16,
+		at: Option<BlockHash>,
+	) -> RpcResult<Vec<u16>>;
+
+	#[method(name = "lmp_totalScore")]
+	fn get_total_score(
+		&self,
+		market: String,
+		epoch: u16,
+		at: Option<BlockHash>,
+	) -> RpcResult<Vec<u16>>;
+
+	#[method(name = "lmp_traderMetrics")]
+	fn get_trader_metrics(
+		&self,
+		market: String,
+		main: AccountId,
+		epoch: u16,
+		at: Option<BlockHash>,
 	) -> RpcResult<Vec<u16>>;
 }
 
@@ -255,13 +272,15 @@ where
 
 	async fn account_scores_by_market(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
 		epoch: u16,
-		market: TradingPair,
+		market: String,
 		sorted_by_mm_score: bool,
 		limit: u16,
+		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<Vec<AccountId>> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
@@ -276,12 +295,14 @@ where
 
 	fn eligible_rewards(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
 		epoch: u16,
-		market: TradingPair,
+		market: String,
 		main: AccountId,
+		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<(String, String, bool)> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
@@ -296,19 +317,21 @@ where
 
 	fn get_fees_paid_by_user_per_epoch(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
-		epoch: u32,
-		market: TradingPair,
+		epoch: u16,
+		market: String,
 		main: AccountId,
+		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
 
 		let fees_paid: Decimal = api
-			.get_fees_paid_by_user_per_epoch(at, epoch, market, main)
+			.get_fees_paid_by_user_per_epoch(at, epoch.into(), market, main)
 			.map_err(runtime_error_into_rpc_err)?;
 
 		Ok(fees_paid.to_string())
@@ -316,19 +339,21 @@ where
 
 	fn get_volume_by_user_per_epoch(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
-		epoch: u32,
-		market: TradingPair,
+		epoch: u16,
+		market: String,
 		main: AccountId,
+		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
 		};
 
 		let volume_generated: Decimal = api
-			.get_volume_by_user_per_epoch(at, epoch, market, main)
+			.get_volume_by_user_per_epoch(at, epoch.into(), market, main)
 			.map_err(runtime_error_into_rpc_err)?;
 
 		Ok(volume_generated.to_string())
@@ -336,12 +361,14 @@ where
 
 	fn list_claimable_epochs(
 		&self,
-		at: Option<<Block as BlockT>::Hash>,
-		market: TradingPair,
+		market: String,
 		main: AccountId,
 		until_epoch: u16,
+		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<Vec<u16>> {
-		let api = self.client.runtime_api();
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
 		let at = match at {
 			Some(at) => at,
 			None => self.client.info().best_hash,
@@ -361,6 +388,34 @@ where
 		}
 
 		Ok(claimable_epochs)
+	}
+
+	fn get_total_score(&self, market: String, epoch: u16, at: Option<<Block as BlockT>::Hash>) -> RpcResult<String> {
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let score = api.get_total_score(at, epoch, market).map_err(runtime_error_into_rpc_err)?;
+
+		Ok(fmt!("{} {}",score.0.to_string(),score.1.to_string()))
+
+	}
+
+	fn get_trader_metrics(&self, market: String, main: AccountId, epoch: u16, at: Option<<Block as BlockT>::Hash>) -> RpcResult<(String, String, bool)> {
+		let mut api = self.client.runtime_api();
+		api.register_extension(OffchainDbExt::new(self.offchain_db.clone()));
+		let market = TradingPair::try_from(market).map_err(runtime_error_into_rpc_err)?;
+		let at = match at {
+			Some(at) => at,
+			None => self.client.info().best_hash,
+		};
+
+		let (mm_score, trading_score, is_claimed) = api.get_trader_metrics(at, epoch, market, main).map_err(runtime_error_into_rpc_err)?;
+		Ok((mm_score.to_string(), trading_score.to_string(), is_claimed))
 	}
 }
 

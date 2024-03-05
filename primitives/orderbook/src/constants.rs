@@ -44,6 +44,7 @@ pub fn test_overflow_check() {
 
 #[test]
 pub fn test_fee_pot_address() {
-	let pot: AccountId = FEE_POT_PALLET_ID.into_account_truncating();
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
+	let pot: AccountId = LMPRewardsPalletId.into_account_truncating();
 	println!("{:?}", pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)))
 }

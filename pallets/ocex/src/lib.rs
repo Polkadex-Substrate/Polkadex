@@ -147,6 +147,7 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use crate::lmp::get_fees_paid_by_main_account_in_quote;
 	use crate::storage::OffchainState;
 	use crate::validator::WORKER_STATUS;
 	use frame_support::traits::WithdrawReasons;
@@ -907,7 +908,6 @@ pub mod pallet {
 			if let Some(ref metrics) = summary.trader_metrics {
 				Self::update_lmp_scores(metrics)?;
 			}
-			println!("Egress Messages: {:?}", summary.egress_messages);
 			// Process egress messages from summary.
 			Self::process_egress_msg(summary.egress_messages.as_ref())?;
 			if !summary.withdrawals.is_empty() {
@@ -963,7 +963,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set Incentivised markets
 		#[pallet::call_index(20)]
 		#[pallet::weight(< T as Config >::WeightInfo::set_lmp_epoch_config())]
 		pub fn set_lmp_epoch_config(
@@ -1027,6 +1026,71 @@ pub mod pallet {
 			});
 			Ok(())
 		}
+
+		// /// Set Incentivised markets
+		// #[pallet::call_index(20)]
+		// #[pallet::weight(10_000)]
+		// pub fn set_lmp_epoch_config(
+		// 	origin: OriginFor<T>,
+		// 	total_liquidity_mining_rewards: Option<Compact<u128>>,
+		// 	total_trading_rewards: Option<Compact<u128>>,
+		// 	market_weightage: Option<BTreeMap<TradingPair, u128>>,
+		// 	min_fees_paid: Option<BTreeMap<TradingPair, u128>>,
+		// 	min_maker_volume: Option<BTreeMap<TradingPair, u128>>,
+		// 	max_accounts_rewarded: Option<u16>,
+		// 	claim_safety_period: Option<u32>,
+		// ) -> DispatchResult {
+		// 	T::GovernanceOrigin::ensure_origin(origin)?;
+		// 	let mut config = <ExpectedLMPConfig<T>>::get();
+		// 	let unit: Decimal = Decimal::from(UNIT_BALANCE);
+		// 	if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
+		// 		config.total_liquidity_mining_rewards =
+		// 			Decimal::from(total_liquidity_mining_rewards.0).div(unit);
+		// 	}
+		// 	if let Some(total_trading_rewards) = total_trading_rewards {
+		// 		config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
+		// 	}
+		// 	if let Some(market_weightage) = market_weightage {
+		// 		let mut total_percent: u128 = 0u128;
+		// 		let mut weightage_map = BTreeMap::new();
+		// 		for (market, percent) in market_weightage {
+		// 			// Check if market is registered
+		// 			ensure!(
+		// 				<TradingPairs<T>>::get(market.base, market.quote).is_some(),
+		// 				Error::<T>::TradingPairNotRegistered
+		// 			);
+		// 			// Add market weightage to total percent
+		// 			total_percent = total_percent.saturating_add(percent);
+		// 			weightage_map.insert(market, Decimal::from(percent).div(unit));
+		// 		}
+		// 		ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
+		// 		config.market_weightage = weightage_map;
+		// 	}
+		// 	if let Some(min_fees_paid) = min_fees_paid {
+		// 		let mut fees_map = BTreeMap::new();
+		// 		for (market, fees_in_quote) in min_fees_paid {
+		// 			fees_map.insert(market, Decimal::from(fees_in_quote).div(unit));
+		// 		}
+		// 		config.min_fees_paid = fees_map;
+		// 	}
+		//
+		// 	if let Some(min_maker_volume) = min_maker_volume {
+		// 		let mut volume_map = BTreeMap::new();
+		// 		for (market, volume_in_quote) in min_maker_volume {
+		// 			volume_map.insert(market, Decimal::from(volume_in_quote).div(unit));
+		// 		}
+		// 		config.min_maker_volume = volume_map;
+		// 	}
+		// 	if let Some(max_accounts_rewarded) = max_accounts_rewarded {
+		// 		config.max_accounts_rewarded = max_accounts_rewarded;
+		// 	}
+		// 	if let Some(claim_safety_period) = claim_safety_period {
+		// 		config.claim_safety_period = claim_safety_period;
+		// 	}
+		// 	ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
+		// 	<ExpectedLMPConfig<T>>::put(config);
+		// 	Ok(())
+		// }
 
 		/// Set Fee Distribution
 		#[pallet::call_index(21)]
@@ -1337,7 +1401,6 @@ pub mod pallet {
 			// Transfer it to main from pallet account.
 			let rewards_account: T::AccountId =
 				T::LMPRewardsPalletId::get().into_account_truncating();
-			println!("total amount {:?}", total_in_u128);
 			T::NativeCurrency::transfer(
 				&rewards_account,
 				&main,
@@ -1423,7 +1486,6 @@ pub mod pallet {
 				let config =
 					<LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
 				let mut max_account_counter = config.max_accounts_rewarded;
-				// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 				for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
 					for (main, (score, fees_paid)) in map {
 						<TraderMetrics<T>>::insert(
@@ -1971,6 +2033,62 @@ pub mod pallet {
 				&main,
 			)
 			.unwrap_or_default()
+		}
+
+		pub fn get_total_score(epoch: u16, market: TradingPair) -> (Decimal, Decimal) {
+			let mut total_score: Decimal = Decimal::zero();
+			let mut total_trading_fees: Decimal = Decimal::zero();
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+
+			for (main, _) in <Accounts<T>>::iter() {
+				let (score, fees, _) =
+					Self::get_trader_metrics_inner(&mut state, market, main, epoch);
+				total_score = total_score.saturating_add(score);
+				total_trading_fees = total_trading_fees.saturating_add(fees);
+			}
+			(total_score, total_trading_fees)
+		}
+
+		pub fn get_trader_metrics(
+			epoch: u16,
+			market: TradingPair,
+			main: T::AccountId,
+		) -> (Decimal, Decimal, bool) {
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+			Self::get_trader_metrics_inner(&mut state, market, main, epoch)
+		}
+
+		pub fn get_trader_metrics_inner(
+			state: &mut OffchainState,
+			market: TradingPair,
+			main: T::AccountId,
+			epoch: u16,
+		) -> (Decimal, Decimal, bool) {
+			let current_epoch = <LMPEpoch<T>>::get();
+			if epoch <= current_epoch {
+				let main_concrete: AccountId = Decode::decode(&mut &main.encode()[..]).unwrap();
+				// Read from offchain storage
+				let current_score = Self::compute_score(state, &main_concrete, market, epoch)
+					.map_err(
+						|err| log::error!(target:"ocex","Error while computing score for RPC call: {:?}",err),
+					)
+					.unwrap_or_default();
+				let fees_paid =
+					get_fees_paid_by_main_account_in_quote(state, epoch, &market, &main_concrete)
+						.map_err(
+							|err| log::error!(target:"ocex","Error while computing trading fees for RPC call: {:?}",err),
+						)
+						.unwrap_or_default();
+				let (_, _, is_claimed) = <TraderMetrics<T>>::get((epoch, market, main));
+				(current_score, fees_paid, is_claimed)
+			} else {
+				// Future epoch
+				(Decimal::zero(), Decimal::zero(), false)
+			}
 		}
 
 		pub fn create_auction() -> DispatchResult {

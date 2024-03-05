@@ -101,7 +101,6 @@ impl<T: Config> Pallet<T> {
 		}
 		// Check the next batch to process
 		let next_nonce = <SnapshotNonce<T>>::get().saturating_add(1);
-		println!("next nonce {:?}", next_nonce);
 		let mut root = crate::storage::load_trie_root();
 		log::info!(target:"ocex","block: {:?}, state_root {:?}", block_num, root);
 		let mut storage = crate::storage::State;
@@ -117,8 +116,6 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let mut last_processed_nonce = state_info.snapshot_id;
-		println!("Imp state_info {:?}", last_processed_nonce);
-
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
 			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
@@ -194,7 +191,6 @@ impl<T: Config> Pallet<T> {
 					},
 					Err(err) => {
 						log::error!(target:"ocex","Error processing batch: {:?}: {:?}",batch.snapshot_id,err);
-						println!("err {:?}", err);
 						return Err("Sync failed");
 					},
 				}
@@ -699,7 +695,6 @@ impl<T: Config> Pallet<T> {
 		batch: &UserActionBatch<T::AccountId>,
 		state_info: &mut StateInfo,
 	) -> Result<BatchProcessResult<T>, &'static str> {
-		println!("state_info.stid {:?} batch.stid {:?}", state_info.stid, batch.stid);
 		if state_info.stid >= batch.stid {
 			return Err("Invalid stid");
 		}
@@ -782,23 +777,10 @@ impl<T: Config> Pallet<T> {
 				// Loop over all main accounts and compute their final scores
 				for (main_type, _) in <Accounts<T>>::iter() {
 					let main: AccountId = Decode::decode(&mut &main_type.encode()[..]).unwrap();
-					let maker_volume =
-						get_maker_volume_by_main_account(state, epoch, &pair, &main)?;
-					// TODO: Check if the maker volume of this main is greater than 0.25% of the
-					// total maker volume in the previous epoch, otherwise ignore this account
 					let fees_paid =
 						get_fees_paid_by_main_account_in_quote(state, epoch, &pair, &main)?;
-					println!("fee paid {:?}", fees_paid); //TODO: Remove this
-									  // Get Q_score and uptime information from offchain state
-					let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, &main)?;
-					let uptime = Decimal::from(uptime);
-					// Compute the final score
-					let final_score = q_score
-						.pow(0.15f64)
-						.saturating_mul(uptime.pow(5.0f64))
-						.saturating_mul(maker_volume.pow(0.85f64)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85
-					println!("final score {:?}", fees_paid); //TODO: Remove this
-										 // Update the trader map
+					let final_score = Self::compute_score(state, &main, pair, epoch)?;
+					// Update the trader map
 					if !final_score.is_zero() || !fees_paid.is_zero() {
 						map.insert(main_type, (final_score, fees_paid));
 					} else {
@@ -819,6 +801,26 @@ impl<T: Config> Pallet<T> {
 			return Ok(Some(scores_map));
 		}
 		Ok(None)
+	}
+
+	pub fn compute_score(
+		state: &mut OffchainState,
+		main: &AccountId,
+		pair: TradingPair,
+		epoch: u16,
+	) -> Result<Decimal, &'static str> {
+		// TODO: Check if the maker volume of this main is greater than 0.25% of the
+		// total maker volume in the previous epoch, otherwise ignore this account
+		let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair, &main)?;
+		// Get Q_score and uptime information from offchain state
+		let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, &main)?;
+		let uptime = Decimal::from(uptime);
+		// Compute the final score
+		let final_score = q_score
+			.pow(0.15f64)
+			.saturating_mul(uptime.pow(5.0f64))
+			.saturating_mul(maker_volume.pow(0.85f64)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85
+		Ok(final_score)
 	}
 
 	/// Processes a checkpoint, updating the offchain state accordingly.

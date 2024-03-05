@@ -172,7 +172,6 @@ impl<T: Config> Pallet<T> {
 			sub_balance(state, &taker_asset.main, taker_asset.asset, taker_debit)?;
 			taker_fees
 		};
-		println!("maker and taker fee {:?} {:?}", maker_fees, taker_fees);
 
 		// Updates the LMP Storage
 		Self::update_lmp_storage_from_trade(state, trade, config, maker_fees, taker_fees)?;
