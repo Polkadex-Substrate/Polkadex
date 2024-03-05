@@ -560,8 +560,8 @@ pub fn add_lmp_config() {
 		max_accounts_rewarded,
 		claim_safety_period
 	));
-	OCEX::start_new_epoch();
-	OCEX::start_new_epoch();
+	OCEX::start_new_epoch(1);
+	OCEX::start_new_epoch(2);
 }
 
 fn add_liquidity() {
@@ -638,10 +638,8 @@ fn register_test_pool(public_fund_allowed: bool) {
 fn register_test_trading_pair() {
 	let base = AssetId::Polkadex;
 	let quote = AssetId::Asset(1);
-	let min_order_price: u128 = UNIT_BALANCE * 2;
-	let max_order_price: u128 = UNIT_BALANCE * 10;
-	let min_order_qty: u128 = UNIT_BALANCE * 2;
-	let max_order_qty: u128 = UNIT_BALANCE * 10;
+	let min_volume: u128 = UNIT_BALANCE * 2;
+	let max_volume: u128 = UNIT_BALANCE * 10;
 	let price_tick_size: u128 = UNIT_BALANCE;
 	let qty_step_size: u128 = UNIT_BALANCE;
 	assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
@@ -649,10 +647,8 @@ fn register_test_trading_pair() {
 		RuntimeOrigin::root(),
 		base,
 		quote,
-		min_order_price,
-		max_order_price,
-		min_order_qty,
-		max_order_qty,
+		min_volume,
+		max_volume,
 		price_tick_size,
 		qty_step_size
 	));

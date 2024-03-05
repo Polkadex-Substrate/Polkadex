@@ -417,7 +417,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			market: TradingPair,
 			market_maker: T::AccountId,
-			#[pallet::compact] base_amount: u128,      // Amount of base asset to deposit
+			#[pallet::compact] base_amount: u128, // Amount of base asset to deposit
 			#[pallet::compact] max_quote_amount: u128, // Max quote amount willing to deposit
 		) -> DispatchResult {
 			let lp = ensure_signed(origin)?;

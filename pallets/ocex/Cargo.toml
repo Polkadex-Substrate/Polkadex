@@ -21,12 +21,12 @@ frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
+orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec", "maths-nopanic"], default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
-orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
@@ -42,6 +42,8 @@ sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
 pallet-lmp = { path = "../liquidity-mining", default-features = false }
+lazy_static = "1.4.0"
+sequential-test = "0.2.4"
 
 [features]
 default = ["std"]
@@ -62,6 +64,7 @@ std = [
   "hash-db/std",
   "trie-db/std",
   "polkadex-primitives/std",
+  "frame-benchmarking?/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
   "sp-core/std",

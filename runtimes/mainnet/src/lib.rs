@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 330,
+	spec_version: 337,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1716,6 +1716,13 @@ impl_runtime_apis! {
 
 		fn get_volume_by_user_per_epoch(epoch: u32, market: TradingPair, main: AccountId) -> Decimal{
 			OCEX::get_volume_by_user_per_epoch(epoch,market, main)
+		}
+
+		fn get_total_score(epoch: u16, market: TradingPair) -> (Decimal, Decimal) {
+			OCEX::get_total_score(epoch,market)
+		}
+		fn get_trader_metrics(epoch: u16, market: TradingPair, main: AccountId) -> (Decimal, Decimal, bool){
+			OCEX::get_trader_metrics(epoch,market,main)
 		}
 	}
 

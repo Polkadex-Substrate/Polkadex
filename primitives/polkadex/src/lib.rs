@@ -23,9 +23,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod assets;
+pub mod auction;
 pub mod fees;
 pub mod ingress;
-pub mod ocex;
 pub mod rewards;
 pub mod withdrawal;
 

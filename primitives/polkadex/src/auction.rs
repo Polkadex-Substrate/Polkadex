@@ -16,29 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use parity_scale_codec::{Decode, Encode};
-use polkadex_primitives::BlockNumber;
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::pallet_prelude::TypeInfo;
+use frame_support::{Deserialize, Serialize};
+use sp_std::collections::btree_map::BTreeMap;
 
-// Accounts storage
-#[derive(Encode, Decode, PartialEq, Debug, Clone, Copy)]
-pub struct StateInfo {
-	/// Last block processed
-	pub last_block: BlockNumber,
-	/// Last processed worker nonce
-	pub worker_nonce: u64,
-	/// Last processed stid
-	pub stid: u64,
-	/// Last processed snapshot id
-	pub snapshot_id: u64,
+#[derive(
+	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
+)]
+pub struct FeeDistribution<AccountId, BlockNo> {
+	pub recipient_address: AccountId,
+	pub auction_duration: BlockNo,
+	pub burn_ration: u8,
 }
 
-impl Default for StateInfo {
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
+pub struct AuctionInfo<AccountId, Balance> {
+	pub fee_info: BTreeMap<u128, Balance>,
+	pub highest_bidder: Option<AccountId>,
+	pub highest_bid: Balance,
+}
+
+impl<AccountId, Balance: Default> Default for AuctionInfo<AccountId, Balance> {
 	fn default() -> Self {
-		Self {
-			last_block: 0, //4768083 TODO: Don't upgrade on mainnet without uncommenting this value
-			worker_nonce: 0,
-			stid: 0,
-			snapshot_id: 0,
-		}
+		Self { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: Balance::default() }
 	}
 }

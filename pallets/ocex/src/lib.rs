@@ -25,8 +25,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_crate_dependencies)]
 
-// TODO: Convert trading fees to PDEX
-// TODO: Governance endpoint to set fee sharing ratio
 extern crate core;
 
 use frame_support::{
@@ -40,9 +38,10 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 use num_traits::Zero;
+pub use pallet::*;
 use pallet_timestamp as timestamp;
 use parity_scale_codec::Encode;
-use polkadex_primitives::{assets::AssetId, AccountId, UNIT_BALANCE};
+use polkadex_primitives::{assets::AssetId, auction::FeeDistribution, AccountId, UNIT_BALANCE};
 use rust_decimal::Decimal;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_core::crypto::KeyTypeId;
@@ -52,20 +51,26 @@ use sp_runtime::{
 };
 use sp_std::{ops::Div, prelude::*};
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use frame_support::traits::fungible::Inspect as InspectNative;
 use frame_system::pallet_prelude::BlockNumberFor;
+use orderbook_primitives::lmp::LMPMarketConfig;
+use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::{
 	types::{AccountAsset, TradingPair},
 	SnapshotSummary, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
-pub use pallet::*;
-use polkadex_primitives::ocex::TradingPairConfig;
-
 use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
+
+#[cfg(test)]
+mod mock_aggregator;
 #[cfg(test)]
 pub mod tests;
+
+#[cfg(test)]
+mod integration_tests;
 
 pub mod weights;
 
@@ -120,13 +125,17 @@ pub trait OcexWeightInfo {
 	fn deposit(_x: u32) -> Weight;
 	fn remove_proxy_account(x: u32) -> Weight;
 	fn submit_snapshot() -> Weight;
-	fn collect_fees(_x: u32) -> Weight;
 	fn set_exchange_state(_x: u32) -> Weight;
 	fn claim_withdraw(_x: u32) -> Weight;
 	fn allowlist_token(_x: u32) -> Weight;
 	fn remove_allowlisted_token(_x: u32) -> Weight;
 	fn set_snapshot() -> Weight;
 	fn whitelist_orderbook_operator() -> Weight;
+	fn claim_lmp_rewards() -> Weight;
+	fn set_lmp_epoch_config() -> Weight;
+	fn set_fee_distribution() -> Weight;
+	fn place_bid() -> Weight;
+	fn on_initialize() -> Weight;
 }
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -134,13 +143,14 @@ pub trait OcexWeightInfo {
 #[allow(clippy::too_many_arguments)]
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-
 	use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use crate::lmp::get_fees_paid_by_main_account_in_quote;
 	use crate::storage::OffchainState;
 	use crate::validator::WORKER_STATUS;
+	use frame_support::traits::WithdrawReasons;
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
@@ -150,18 +160,15 @@ pub mod pallet {
 		transactional, PalletId,
 	};
 	use frame_system::{offchain::SendTransactionTypes, pallet_prelude::*};
+	use orderbook_primitives::lmp::LMPMarketConfigWrapper;
+	use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 	use orderbook_primitives::{
-		constants::FEE_POT_PALLET_ID, lmp::LMPEpochConfig, Fees, ObCheckpointRaw, SnapshotSummary,
-		TradingPairMetricsMap,
+		constants::FEE_POT_PALLET_ID, ingress::EgressMessages, lmp::LMPEpochConfig, Fees,
+		ObCheckpointRaw, SnapshotSummary, TradingPairMetricsMap,
 	};
 	use parity_scale_codec::Compact;
-	use polkadex_primitives::{
-		assets::AssetId,
-		ingress::EgressMessages,
-		ocex::{AccountInfo, TradingPairConfig},
-		withdrawal::Withdrawal,
-		ProxyLimit, UNIT_BALANCE,
-	};
+	use polkadex_primitives::auction::AuctionInfo;
+	use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, ProxyLimit, UNIT_BALANCE};
 	use rust_decimal::{prelude::ToPrimitive, Decimal};
 	use sp_application_crypto::RuntimeAppPublic;
 	use sp_runtime::{
@@ -237,7 +244,9 @@ pub mod pallet {
 		type LMPRewardsPalletId: Get<PalletId>;
 
 		/// Balances Pallet
-		type NativeCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		type NativeCurrency: Currency<Self::AccountId>
+			+ ReservableCurrency<Self::AccountId>
+			+ InspectNative<Self::AccountId>;
 
 		/// Assets Pallet
 		type OtherAssets: Mutate<
@@ -371,13 +380,25 @@ pub mod pallet {
 		QuoteNotAllowlisted,
 		/// Min volume cannot be greater than Max volume
 		MinVolGreaterThanMaxVolume,
+		/// Fee Distribution Config Not Found
+		FeeDistributionConfigNotFound,
+		/// Auction not found
+		AuctionNotFound,
+		/// Invalid bid amount
+		InvalidBidAmount,
+		/// InsufficientBalance
+		InsufficientBalance,
+		/// Withdrawal fee burn failed
+		WithdrawalFeeBurnFailed,
+		/// Trading fees burn failed
+		TradingFeesBurnFailed,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
 			if Self::should_start_new_epoch(n) {
-				Self::start_new_epoch()
+				Self::start_new_epoch(n)
 			}
 
 			if Self::should_stop_accepting_lmp_withdrawals(n) {
@@ -385,6 +406,22 @@ pub mod pallet {
 			}
 
 			let len = <OnChainEvents<T>>::get().len();
+			if let Some(auction_block) = <AuctionBlockNumber<T>>::get() {
+				if n == auction_block {
+					if let Err(err) = Self::close_auction() {
+						log::error!(target:"ocex","Error consuming auction: {:?}",err);
+						Self::deposit_event(Event::<T>::FailedToConsumeAuction);
+					}
+					if let Err(err) = Self::create_auction() {
+						log::error!(target:"ocex","Error creating auction: {:?}",err);
+						Self::deposit_event(Event::<T>::FailedToCreateAuction);
+					}
+				}
+			} else if let Err(err) = Self::create_auction() {
+				log::error!(target:"ocex","Error creating auction: {:?}",err);
+				Self::deposit_event(Event::<T>::FailedToCreateAuction);
+			}
+
 			if len > 0 {
 				<OnChainEvents<T>>::kill();
 				Weight::default()
@@ -443,10 +480,12 @@ pub mod pallet {
 				);
 				let current_blk = frame_system::Pallet::<T>::current_block_number();
 				<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-					ingress_messages.push(polkadex_primitives::ingress::IngressMessages::AddProxy(
-						main_account.clone(),
-						proxy.clone(),
-					));
+					ingress_messages.push(
+						orderbook_primitives::ingress::IngressMessages::AddProxy(
+							main_account.clone(),
+							proxy.clone(),
+						),
+					);
 				});
 				<Accounts<T>>::insert(&main_account, account_info);
 				<Proxies<T>>::insert(&proxy, main_account.clone());
@@ -473,7 +512,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::CloseTradingPair(
+							orderbook_primitives::ingress::IngressMessages::CloseTradingPair(
 								*trading_pair,
 							),
 						);
@@ -505,7 +544,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+							orderbook_primitives::ingress::IngressMessages::OpenTradingPair(
 								*trading_pair,
 							),
 						);
@@ -566,8 +605,8 @@ pub mod pallet {
 					.checked_div(Decimal::from(UNIT_BALANCE)),
 			) {
 				(
-					Some(max_volume),
 					Some(min_volume),
+					Some(max_volume),
 					Some(price_tick_size),
 					Some(qty_step_size),
 				) => {
@@ -587,7 +626,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::OpenTradingPair(
+							orderbook_primitives::ingress::IngressMessages::OpenTradingPair(
 								trading_pair_info,
 							),
 						);
@@ -664,7 +703,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::UpdateTradingPair(
+							orderbook_primitives::ingress::IngressMessages::UpdateTradingPair(
 								trading_pair_info,
 							),
 						);
@@ -709,7 +748,7 @@ pub mod pallet {
 					let current_blk = frame_system::Pallet::<T>::current_block_number();
 					<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 						ingress_messages.push(
-							polkadex_primitives::ingress::IngressMessages::RemoveProxy(
+							orderbook_primitives::ingress::IngressMessages::RemoveProxy(
 								main_account.clone(),
 								proxy.clone(),
 							),
@@ -736,59 +775,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Collects withdraws fees.
-		///
-		/// # Parameters
-		///
-		/// * `snapshot_id`: Snapshot identifier.
-		/// * `beneficiary`: Receiving fee account identifier.
-		#[pallet::call_index(11)]
-		#[pallet::weight(< T as Config >::WeightInfo::collect_fees(1))]
-		pub fn collect_fees(
-			origin: OriginFor<T>,
-			snapshot_id: u64,
-			beneficiary: T::AccountId,
-		) -> DispatchResult {
-			// TODO: The caller should be of operational council
-			T::GovernanceOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				<FeesCollected<T>>::mutate(snapshot_id, |internal_vector| {
-					while !internal_vector.is_empty() {
-						if let Some(fees) = internal_vector.pop() {
-							if let Some(converted_fee) =
-								fees.amount.saturating_mul(Decimal::from(UNIT_BALANCE)).to_u128()
-							{
-								if Self::transfer_asset(
-									&Self::get_pallet_account(),
-									&beneficiary,
-									converted_fee.saturated_into(),
-									fees.asset,
-								)
-								.is_err()
-								{
-									// Push it back inside the internal vector
-									// The above function call will only fail if the beneficiary has
-									// balance below existential deposit requirements
-									internal_vector.push(fees);
-									return Err(Error::<T>::UnableToTransferFee);
-								}
-							} else {
-								// Push it back inside the internal vector
-								internal_vector.push(fees);
-								return Err(Error::<T>::FailedToConvertDecimaltoBalance);
-							}
-						}
-					}
-					Ok(())
-				})
-				.is_ok(),
-				Error::<T>::FeesNotCollectedFully
-			);
-			Self::deposit_event(Event::FeesClaims { beneficiary, snapshot_id });
-			Ok(())
-		}
-
 		/// This extrinsic will pause/resume the exchange according to flag.
 		/// If flag is set to false it will stop the exchange.
 		/// If flag is set to true it will resume the exchange.
@@ -801,7 +787,7 @@ pub mod pallet {
 			//SetExchangeState Ingress message store in queue
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
-					.push(polkadex_primitives::ingress::IngressMessages::SetExchangeState(state))
+					.push(orderbook_primitives::ingress::IngressMessages::SetExchangeState(state))
 			});
 
 			Self::deposit_event(Event::ExchangeStateUpdated(state));
@@ -868,7 +854,7 @@ pub mod pallet {
 				});
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
-						polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+						orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 							snapshot_id,
 							account.clone(),
 							processed_withdrawals,
@@ -927,10 +913,11 @@ pub mod pallet {
 			if !summary.withdrawals.is_empty() {
 				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
 				<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
-				<FeesCollected<T>>::insert(summary.snapshot_id, summary.get_fees());
+				let fees = summary.get_fees();
+				Self::settle_withdrawal_fees(fees)?;
 				<OnChainEvents<T>>::mutate(|onchain_events| {
 					onchain_events.push(
-						polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+						orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
 							summary.snapshot_id,
 							summary.withdrawals.clone(),
 						),
@@ -944,7 +931,7 @@ pub mod pallet {
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages
-					.push(polkadex_primitives::ingress::IngressMessages::WithdrawTradingFees)
+					.push(orderbook_primitives::ingress::IngressMessages::WithdrawTradingFees)
 			});
 			Self::deposit_event(Event::<T>::SnapshotProcessed(id));
 			Ok(())
@@ -965,7 +952,7 @@ pub mod pallet {
 
 		/// Claim LMP rewards
 		#[pallet::call_index(19)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(< T as Config >::WeightInfo::claim_lmp_rewards())]
 		pub fn claim_lmp_rewards(
 			origin: OriginFor<T>,
 			epoch: u16,
@@ -976,21 +963,22 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set Incentivised markets
 		#[pallet::call_index(20)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_lmp_epoch_config())]
 		pub fn set_lmp_epoch_config(
 			origin: OriginFor<T>,
 			total_liquidity_mining_rewards: Option<Compact<u128>>,
 			total_trading_rewards: Option<Compact<u128>>,
-			market_weightage: Option<BTreeMap<TradingPair, u128>>,
-			min_fees_paid: Option<BTreeMap<TradingPair, u128>>,
-			min_maker_volume: Option<BTreeMap<TradingPair, u128>>,
+			lmp_config: Vec<LMPMarketConfigWrapper>,
 			max_accounts_rewarded: Option<u16>,
 			claim_safety_period: Option<u32>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			let mut config = <ExpectedLMPConfig<T>>::get();
+			let mut config = if let Some(config) = <ExpectedLMPConfig<T>>::get() {
+				config
+			} else {
+				LMPEpochConfig::default()
+			};
 			let unit: Decimal = Decimal::from(UNIT_BALANCE);
 			if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
 				config.total_liquidity_mining_rewards =
@@ -999,37 +987,30 @@ pub mod pallet {
 			if let Some(total_trading_rewards) = total_trading_rewards {
 				config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
 			}
-			if let Some(market_weightage) = market_weightage {
-				let mut total_percent: u128 = 0u128;
-				let mut weightage_map = BTreeMap::new();
-				for (market, percent) in market_weightage {
-					// Check if market is registered
-					ensure!(
-						<TradingPairs<T>>::get(market.base, market.quote).is_some(),
-						Error::<T>::TradingPairNotRegistered
-					);
-					// Add market weightage to total percent
-					total_percent = total_percent.saturating_add(percent);
-					weightage_map.insert(market, Decimal::from(percent).div(unit));
-				}
-				ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
-				config.market_weightage = weightage_map;
-			}
-			if let Some(min_fees_paid) = min_fees_paid {
-				let mut fees_map = BTreeMap::new();
-				for (market, fees_in_quote) in min_fees_paid {
-					fees_map.insert(market, Decimal::from(fees_in_quote).div(unit));
-				}
-				config.min_fees_paid = fees_map;
-			}
+			let mut total_percent: u128 = 0u128;
+			for market_config in lmp_config {
+				ensure!(
+					<TradingPairs<T>>::get(
+						market_config.trading_pair.base,
+						market_config.trading_pair.quote
+					)
+					.is_some(),
+					Error::<T>::TradingPairNotRegistered
+				);
+				total_percent = total_percent.saturating_add(market_config.market_weightage);
 
-			if let Some(min_maker_volume) = min_maker_volume {
-				let mut volume_map = BTreeMap::new();
-				for (market, volume_in_quote) in min_maker_volume {
-					volume_map.insert(market, Decimal::from(volume_in_quote).div(unit));
-				}
-				config.min_maker_volume = volume_map;
+				config.config.insert(
+					market_config.trading_pair,
+					LMPMarketConfig {
+						weightage: Decimal::from(market_config.market_weightage).div(unit),
+						min_fees_paid: Decimal::from(market_config.min_fees_paid).div(unit),
+						min_maker_volume: Decimal::from(market_config.min_maker_volume).div(unit),
+						max_spread: Decimal::from(market_config.max_spread).div(unit),
+						min_depth: Decimal::from(market_config.min_depth).div(unit),
+					},
+				);
 			}
+			ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
 			if let Some(max_accounts_rewarded) = max_accounts_rewarded {
 				config.max_accounts_rewarded = max_accounts_rewarded;
 			}
@@ -1037,19 +1018,372 @@ pub mod pallet {
 				config.claim_safety_period = claim_safety_period;
 			}
 			ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
-			<ExpectedLMPConfig<T>>::put(config);
+			<ExpectedLMPConfig<T>>::put(config.clone());
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
+				ingress_messages
+					.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
+			});
+			Ok(())
+		}
+
+		// /// Set Incentivised markets
+		// #[pallet::call_index(20)]
+		// #[pallet::weight(10_000)]
+		// pub fn set_lmp_epoch_config(
+		// 	origin: OriginFor<T>,
+		// 	total_liquidity_mining_rewards: Option<Compact<u128>>,
+		// 	total_trading_rewards: Option<Compact<u128>>,
+		// 	market_weightage: Option<BTreeMap<TradingPair, u128>>,
+		// 	min_fees_paid: Option<BTreeMap<TradingPair, u128>>,
+		// 	min_maker_volume: Option<BTreeMap<TradingPair, u128>>,
+		// 	max_accounts_rewarded: Option<u16>,
+		// 	claim_safety_period: Option<u32>,
+		// ) -> DispatchResult {
+		// 	T::GovernanceOrigin::ensure_origin(origin)?;
+		// 	let mut config = <ExpectedLMPConfig<T>>::get();
+		// 	let unit: Decimal = Decimal::from(UNIT_BALANCE);
+		// 	if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
+		// 		config.total_liquidity_mining_rewards =
+		// 			Decimal::from(total_liquidity_mining_rewards.0).div(unit);
+		// 	}
+		// 	if let Some(total_trading_rewards) = total_trading_rewards {
+		// 		config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
+		// 	}
+		// 	if let Some(market_weightage) = market_weightage {
+		// 		let mut total_percent: u128 = 0u128;
+		// 		let mut weightage_map = BTreeMap::new();
+		// 		for (market, percent) in market_weightage {
+		// 			// Check if market is registered
+		// 			ensure!(
+		// 				<TradingPairs<T>>::get(market.base, market.quote).is_some(),
+		// 				Error::<T>::TradingPairNotRegistered
+		// 			);
+		// 			// Add market weightage to total percent
+		// 			total_percent = total_percent.saturating_add(percent);
+		// 			weightage_map.insert(market, Decimal::from(percent).div(unit));
+		// 		}
+		// 		ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
+		// 		config.market_weightage = weightage_map;
+		// 	}
+		// 	if let Some(min_fees_paid) = min_fees_paid {
+		// 		let mut fees_map = BTreeMap::new();
+		// 		for (market, fees_in_quote) in min_fees_paid {
+		// 			fees_map.insert(market, Decimal::from(fees_in_quote).div(unit));
+		// 		}
+		// 		config.min_fees_paid = fees_map;
+		// 	}
+		//
+		// 	if let Some(min_maker_volume) = min_maker_volume {
+		// 		let mut volume_map = BTreeMap::new();
+		// 		for (market, volume_in_quote) in min_maker_volume {
+		// 			volume_map.insert(market, Decimal::from(volume_in_quote).div(unit));
+		// 		}
+		// 		config.min_maker_volume = volume_map;
+		// 	}
+		// 	if let Some(max_accounts_rewarded) = max_accounts_rewarded {
+		// 		config.max_accounts_rewarded = max_accounts_rewarded;
+		// 	}
+		// 	if let Some(claim_safety_period) = claim_safety_period {
+		// 		config.claim_safety_period = claim_safety_period;
+		// 	}
+		// 	ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
+		// 	<ExpectedLMPConfig<T>>::put(config);
+		// 	Ok(())
+		// }
+
+		/// Set Fee Distribution
+		#[pallet::call_index(21)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_fee_distribution())]
+		pub fn set_fee_distribution(
+			origin: OriginFor<T>,
+			fee_distribution: FeeDistribution<T::AccountId, BlockNumberFor<T>>,
+		) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			<FeeDistributionConfig<T>>::put(fee_distribution);
+			Ok(())
+		}
+
+		/// Place Bid
+		#[pallet::call_index(22)]
+		#[pallet::weight(< T as Config >::WeightInfo::place_bid())]
+		pub fn place_bid(origin: OriginFor<T>, bid_amount: BalanceOf<T>) -> DispatchResult {
+			let bidder = ensure_signed(origin)?;
+			let mut auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
+			ensure!(bid_amount > Zero::zero(), Error::<T>::InvalidBidAmount);
+			ensure!(bid_amount > auction_info.highest_bid, Error::<T>::InvalidBidAmount);
+			ensure!(
+				T::NativeCurrency::can_reserve(&bidder, bid_amount),
+				Error::<T>::InsufficientBalance
+			);
+			T::NativeCurrency::reserve(&bidder, bid_amount)?;
+			if let Some(old_bidder) = auction_info.highest_bidder {
+				// Un-reserve the old bidder
+				T::NativeCurrency::unreserve(&old_bidder, auction_info.highest_bid);
+			}
+			auction_info.highest_bid = bid_amount;
+			auction_info.highest_bidder = Some(bidder);
+			<Auction<T>>::put(auction_info);
 			Ok(())
 		}
 	}
 
-	impl<T: Config> Pallet<T> {
+	/// Events are a simple means of reporting specific conditions and
+	/// circumstances that have happened that users, Dapps and/or chain explorers would find
+	/// interesting and otherwise difficult to detect.
+	#[pallet::event]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		SnapshotProcessed(u64),
+		UserActionsBatchSubmitted(u64),
+		FeesClaims {
+			beneficiary: T::AccountId,
+			snapshot_id: u64,
+		},
+		MainAccountRegistered {
+			main: T::AccountId,
+			proxy: T::AccountId,
+		},
+		TradingPairRegistered {
+			base: AssetId,
+			quote: AssetId,
+		},
+		TradingPairUpdated {
+			base: AssetId,
+			quote: AssetId,
+		},
+		DepositSuccessful {
+			user: T::AccountId,
+			asset: AssetId,
+			amount: BalanceOf<T>,
+		},
+		ShutdownTradingPair {
+			pair: TradingPairConfig,
+		},
+		OpenTradingPair {
+			pair: TradingPairConfig,
+		},
+		EnclaveRegistered(T::AccountId),
+		EnclaveAllowlisted(T::AccountId),
+		EnclaveCleanup(Vec<T::AccountId>),
+		TradingPairIsNotOperational,
+		WithdrawalClaimed {
+			main: T::AccountId,
+			withdrawals: Vec<Withdrawal<T::AccountId>>,
+		},
+		NewProxyAdded {
+			main: T::AccountId,
+			proxy: T::AccountId,
+		},
+		ProxyRemoved {
+			main: T::AccountId,
+			proxy: T::AccountId,
+		},
+		/// TokenAllowlisted
+		TokenAllowlisted(AssetId),
+		/// AllowlistedTokenRemoved
+		AllowlistedTokenRemoved(AssetId),
+		/// Withdrawal failed
+		WithdrawalFailed(Withdrawal<T::AccountId>),
+		/// Exchange state has been updated
+		ExchangeStateUpdated(bool),
+		/// DisputePeriod has been updated
+		DisputePeriodUpdated(BlockNumberFor<T>),
+		/// Withdraw Assets from Orderbook
+		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
+		/// Orderbook Operator Key Whitelisted
+		OrderbookOperatorKeyWhitelisted(sp_core::ecdsa::Public),
+		/// Failed do consume auction
+		FailedToConsumeAuction,
+		/// Failed to create Auction
+		FailedToCreateAuction,
+		/// Trading Fees burned
+		TradingFeesBurned {
+			asset: AssetId,
+			amount: Compact<BalanceOf<T>>,
+		},
+		/// Auction closed
+		AuctionClosed {
+			bidder: T::AccountId,
+			burned: Compact<BalanceOf<T>>,
+			paid_to_operator: Compact<BalanceOf<T>>,
+		},
+		/// LMP Scores updated
+		LMPScoresUpdated(u16),
+	}
+
+	///Allowlisted tokens
+	#[pallet::storage]
+	#[pallet::getter(fn get_allowlisted_token)]
+	pub(super) type AllowlistedToken<T: Config> =
+		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
+
+	// A map that has enumerable entries.
+	#[pallet::storage]
+	#[pallet::getter(fn accounts)]
+	pub(super) type Accounts<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		AccountInfo<T::AccountId, ProxyLimit>,
+		OptionQuery,
+	>;
+
+	// Proxy to main account map
+	#[pallet::storage]
+	#[pallet::getter(fn proxies)]
+	pub(super) type Proxies<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId, OptionQuery>;
+
+	/// Trading pairs registered as Base, Quote => TradingPairInfo
+	#[pallet::storage]
+	#[pallet::getter(fn trading_pairs)]
+	pub(super) type TradingPairs<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		AssetId,
+		Blake2_128Concat,
+		AssetId,
+		TradingPairConfig,
+		OptionQuery,
+	>;
+
+	// Snapshots Storage
+	#[pallet::storage]
+	#[pallet::getter(fn snapshots)]
+	pub type Snapshots<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, OptionQuery>;
+
+	// Snapshots Nonce
+	#[pallet::storage]
+	#[pallet::getter(fn snapshot_nonce)]
+	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	// Exchange Operation State
+	#[pallet::storage]
+	#[pallet::getter(fn orderbook_operational_state)]
+	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	// Withdrawals mapped by their trading pairs and snapshot numbers
+	#[pallet::storage]
+	#[pallet::getter(fn withdrawals)]
+	pub(super) type Withdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
+
+	// Queue for enclave ingress messages
+	#[pallet::storage]
+	#[pallet::getter(fn ingress_messages)]
+	pub(super) type IngressMessages<T: Config> = StorageMap<
+		_,
+		Identity,
+		BlockNumberFor<T>,
+		Vec<orderbook_primitives::ingress::IngressMessages<T::AccountId>>,
+		ValueQuery,
+	>;
+
+	// Queue for onchain events
+	#[pallet::storage]
+	#[pallet::getter(fn onchain_events)]
+	pub(super) type OnChainEvents<T: Config> =
+		StorageValue<_, Vec<orderbook_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
+
+	// Total Assets present in orderbook
+	#[pallet::storage]
+	#[pallet::getter(fn total_assets)]
+	pub(super) type TotalAssets<T: Config> =
+		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_authorities)]
+	pub(super) type Authorities<T: Config> = StorageMap<
+		_,
+		Identity,
+		orderbook_primitives::ValidatorSetId,
+		ValidatorSet<T::AuthorityId>,
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_next_authorities)]
+	pub(super) type NextAuthorities<T: Config> =
+		StorageValue<_, ValidatorSet<T::AuthorityId>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn validator_set_id)]
+	pub(super) type ValidatorSetId<T: Config> =
+		StorageValue<_, orderbook_primitives::ValidatorSetId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_orderbook_operator_public_key)]
+	pub(super) type OrderbookOperatorPublicKey<T: Config> =
+		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
+
+	/// Storage related to LMP
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_epoch)]
+	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn trader_metrics)]
+	pub(super) type TraderMetrics<T: Config> = StorageNMap<
+		_,
+		(NMapKey<Identity, u16>, NMapKey<Identity, TradingPair>, NMapKey<Identity, T::AccountId>),
+		(Decimal, Decimal, bool),
+		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn total_scores)]
+	pub(super) type TotalScores<T: Config> =
+		StorageDoubleMap<_, Identity, u16, Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
+
+	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
+	#[pallet::storage]
+	#[pallet::getter(fn finalize_lmp_scores_flag)]
+	pub(super) type FinalizeLMPScore<T: Config> = StorageValue<_, u16, OptionQuery>;
+
+	/// Configuration for LMP for each epoch
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_config)]
+	pub(super) type LMPConfig<T: Config> =
+		StorageMap<_, Identity, u16, LMPEpochConfig, OptionQuery>;
+
+	/// Expected Configuration for LMP for next epoch
+	#[pallet::storage]
+	#[pallet::getter(fn expected_lmp_config)]
+	pub(super) type ExpectedLMPConfig<T: Config> = StorageValue<_, LMPEpochConfig, OptionQuery>;
+
+	/// Block at which rewards for each epoch can be claimed
+	#[pallet::storage]
+	#[pallet::getter(fn lmp_claim_blk)]
+	pub(super) type LMPClaimBlk<T: Config> =
+		StorageMap<_, Identity, u16, BlockNumberFor<T>, OptionQuery>;
+
+	/// Price Map showing the average prices ( value = (avg_price, ticks)
+	#[pallet::storage]
+	pub type PriceOracle<T: Config> =
+		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
+
+	#[pallet::storage]
+	pub type FeeDistributionConfig<T: Config> =
+		StorageValue<_, FeeDistribution<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type AuctionBlockNumber<T: Config> = StorageValue<_, BlockNumberFor<T>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type Auction<T: Config> =
+		StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
+
+	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
 		pub fn do_claim_lmp_rewards(
 			main: T::AccountId,
 			epoch: u16,
 			market: TradingPair,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			// Check if the Safety period for this epoch is over
-			let claim_blk = <LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
+			let claim_blk =
+				<crate::pallet::LMPClaimBlk<T>>::get(epoch).ok_or(Error::<T>::RewardsNotReady)?;
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			ensure!(current_blk >= claim_blk.saturated_into(), Error::<T>::RewardsNotReady);
 			let config: LMPEpochConfig =
@@ -1074,6 +1408,33 @@ pub mod pallet {
 				ExistenceRequirement::AllowDeath,
 			)?;
 			Ok(total_in_u128)
+		}
+
+		pub fn settle_withdrawal_fees(fees: Vec<Fees>) -> DispatchResult {
+			for fee in fees {
+				match fee.asset {
+					AssetId::Polkadex => {
+						// Burn the fee
+						let imbalance = T::NativeCurrency::burn(fee.amount().saturated_into());
+						T::NativeCurrency::settle(
+							&Self::get_pallet_account(),
+							imbalance,
+							WithdrawReasons::all(),
+							ExistenceRequirement::KeepAlive,
+						)
+						.map_err(|_| Error::<T>::WithdrawalFeeBurnFailed)?;
+					},
+					_ => {
+						T::NativeCurrency::transfer(
+							&Self::get_pallet_account(),
+							&Self::get_pot_account(),
+							fee.amount().saturated_into(),
+							ExistenceRequirement::KeepAlive,
+						)?;
+					},
+				}
+			}
+			Ok(())
 		}
 
 		pub fn validate_trading_pair_config(
@@ -1108,7 +1469,7 @@ pub mod pallet {
 					&& max_volume.saturated_into::<u128>() > TRADE_OPERATION_MIN_VALUE,
 				Error::<T>::TradingPairConfigUnderflow
 			);
-			// max volume cannot be greater than min volume
+			// min volume cannot be greater than max volume
 			ensure!(min_volume < max_volume, Error::<T>::MinVolGreaterThanMaxVolume);
 
 			Ok(())
@@ -1117,27 +1478,44 @@ pub mod pallet {
 		pub fn update_lmp_scores(
 			trader_metrics: &TradingPairMetricsMap<T::AccountId>,
 		) -> DispatchResult {
-			let current_epoch = <LMPEpoch<T>>::get().saturating_sub(1); // We are finalizing for the last epoch
-			if current_epoch == 0 {
-				return Ok(());
-			}
-			let config = <LMPConfig<T>>::get(current_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
-			// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
-			for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
-				for (main, (score, fees_paid)) in map {
-					<TraderMetrics<T>>::insert(
-						(current_epoch, pair, main),
-						(score, fees_paid, false),
+			// Remove  and process FinalizeLMPScore flag.
+			if let Some(finalizing_epoch) = <FinalizeLMPScore<T>>::take() {
+				if finalizing_epoch == 0 {
+					return Ok(());
+				}
+				let config =
+					<LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
+				let mut max_account_counter = config.max_accounts_rewarded;
+				for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
+					for (main, (score, fees_paid)) in map {
+						<TraderMetrics<T>>::insert(
+							(finalizing_epoch, pair, main),
+							(score, fees_paid, false),
+						);
+						max_account_counter = max_account_counter.saturating_sub(1);
+						if max_account_counter == 0 {
+							break;
+						}
+					}
+					<TotalScores<T>>::insert(
+						finalizing_epoch,
+						pair,
+						(total_score, total_fees_paid),
 					);
 				}
-				<TotalScores<T>>::insert(current_epoch, pair, (total_score, total_fees_paid));
+				let current_blk = frame_system::Pallet::<T>::current_block_number();
+				<LMPClaimBlk<T>>::insert(
+					finalizing_epoch,
+					current_blk.saturating_add(config.claim_safety_period.saturated_into()),
+				); // Seven days of block
+				let current_epoch = <LMPEpoch<T>>::get();
+				let next_finalizing_epoch = finalizing_epoch.saturating_add(1);
+				if next_finalizing_epoch < current_epoch {
+					// This is required if engine is offline for more than an epoch duration
+					<FinalizeLMPScore<T>>::put(next_finalizing_epoch);
+				}
+				Self::deposit_event(Event::<T>::LMPScoresUpdated(finalizing_epoch));
 			}
-			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			<LMPClaimBlk<T>>::insert(
-				current_epoch,
-				current_blk.saturating_add(config.claim_safety_period.saturated_into()),
-			); // Seven days of block
-			<FinalizeLMPScore<T>>::take(); // Remove the finalize LMP score flag.
 			Ok(())
 		}
 
@@ -1156,13 +1534,64 @@ pub mod pallet {
 								.saturating_mul(Decimal::from(UNIT_BALANCE))
 								.to_u128()
 								.ok_or(Error::<T>::FailedToConvertDecimaltoBalance)?;
-							Self::transfer_asset(
-								&Self::get_pallet_account(),
-								&pot_account,
-								fees.saturated_into(),
-								*asset,
-							)?;
-							// TODO: Emit an event here
+							match asset {
+								AssetId::Asset(_) => {
+									Self::transfer_asset(
+										&Self::get_pallet_account(),
+										&pot_account,
+										fees.saturated_into(),
+										*asset,
+									)?;
+								},
+								AssetId::Polkadex => {
+									if let Some(distribution) = <FeeDistributionConfig<T>>::get() {
+										ensure!(
+											T::NativeCurrency::reducible_balance(
+												&Self::get_pallet_account(),
+												Preservation::Preserve,
+												Fortitude::Polite
+											) > fees.saturated_into(),
+											Error::<T>::AmountOverflow
+										);
+										let fee_to_be_burnt =
+											Percent::from_percent(distribution.burn_ration) * fees;
+										let fee_to_be_distributed = fees - fee_to_be_burnt;
+										// Burn the fee
+										let imbalance = T::NativeCurrency::burn(
+											fee_to_be_burnt.saturated_into(),
+										);
+										T::NativeCurrency::settle(
+											&Self::get_pallet_account(),
+											imbalance,
+											WithdrawReasons::all(),
+											ExistenceRequirement::KeepAlive,
+										)
+										.map_err(|_| Error::<T>::TradingFeesBurnFailed)?;
+										Self::transfer_asset(
+											&Self::get_pallet_account(),
+											&distribution.recipient_address,
+											fee_to_be_distributed.saturated_into(),
+											*asset,
+										)?;
+									} else {
+										// Burn here itself
+										let imbalance =
+											T::NativeCurrency::burn(fees.saturated_into());
+										T::NativeCurrency::settle(
+											&Self::get_pallet_account(),
+											imbalance,
+											WithdrawReasons::all(),
+											ExistenceRequirement::KeepAlive,
+										)
+										.map_err(|_| Error::<T>::TradingFeesBurnFailed)?;
+									}
+								},
+							}
+							// Emit an event here
+							Self::deposit_event(Event::<T>::TradingFeesBurned {
+								asset: *asset,
+								amount: Compact::from(fees.saturated_into::<BalanceOf<T>>()),
+							})
 						}
 					},
 					EgressMessages::AddLiquidityResult(
@@ -1318,7 +1747,7 @@ pub mod pallet {
 			}
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::Deposit(
+				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::Deposit(
 					user.clone(),
 					asset,
 					converted_amount,
@@ -1343,10 +1772,12 @@ pub mod pallet {
 
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages.push(polkadex_primitives::ingress::IngressMessages::RegisterUser(
-					main_account.clone(),
-					proxy.clone(),
-				));
+				ingress_messages.push(
+					orderbook_primitives::ingress::IngressMessages::RegisterUser(
+						main_account.clone(),
+						proxy.clone(),
+					),
+				);
 			});
 			<Proxies<T>>::insert(&proxy, main_account.clone());
 			Self::deposit_event(Event::MainAccountRegistered { main: main_account, proxy });
@@ -1371,7 +1802,7 @@ pub mod pallet {
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
 			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
 				ingress_messages.push(
-					polkadex_primitives::ingress::IngressMessages::DirectWithdrawal(
+					orderbook_primitives::ingress::IngressMessages::DirectWithdrawal(
 						proxy_account,
 						asset,
 						converted_amount,
@@ -1603,232 +2034,136 @@ pub mod pallet {
 			)
 			.unwrap_or_default()
 		}
+
+		pub fn get_total_score(epoch: u16, market: TradingPair) -> (Decimal, Decimal) {
+			let mut total_score: Decimal = Decimal::zero();
+			let mut total_trading_fees: Decimal = Decimal::zero();
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+
+			for (main, _) in <Accounts<T>>::iter() {
+				let (score, fees, _) =
+					Self::get_trader_metrics_inner(&mut state, market, main, epoch);
+				total_score = total_score.saturating_add(score);
+				total_trading_fees = total_trading_fees.saturating_add(fees);
+			}
+			(total_score, total_trading_fees)
+		}
+
+		pub fn get_trader_metrics(
+			epoch: u16,
+			market: TradingPair,
+			main: T::AccountId,
+		) -> (Decimal, Decimal, bool) {
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+			Self::get_trader_metrics_inner(&mut state, market, main, epoch)
+		}
+
+		pub fn get_trader_metrics_inner(
+			state: &mut OffchainState,
+			market: TradingPair,
+			main: T::AccountId,
+			epoch: u16,
+		) -> (Decimal, Decimal, bool) {
+			let current_epoch = <LMPEpoch<T>>::get();
+			if epoch <= current_epoch {
+				let main_concrete: AccountId = Decode::decode(&mut &main.encode()[..]).unwrap();
+				// Read from offchain storage
+				let current_score = Self::compute_score(state, &main_concrete, market, epoch)
+					.map_err(
+						|err| log::error!(target:"ocex","Error while computing score for RPC call: {:?}",err),
+					)
+					.unwrap_or_default();
+				let fees_paid =
+					get_fees_paid_by_main_account_in_quote(state, epoch, &market, &main_concrete)
+						.map_err(
+							|err| log::error!(target:"ocex","Error while computing trading fees for RPC call: {:?}",err),
+						)
+						.unwrap_or_default();
+				let (_, _, is_claimed) = <TraderMetrics<T>>::get((epoch, market, main));
+				(current_score, fees_paid, is_claimed)
+			} else {
+				// Future epoch
+				(Decimal::zero(), Decimal::zero(), false)
+			}
+		}
+
+		pub fn create_auction() -> DispatchResult {
+			let mut auction_info: AuctionInfo<T::AccountId, BalanceOf<T>> = AuctionInfo::default();
+			let tokens = <AllowlistedToken<T>>::get();
+			for asset in tokens {
+				let asset_id = match asset {
+					AssetId::Polkadex => continue,
+					AssetId::Asset(id) => id,
+				};
+				let asset_reducible_balance = T::OtherAssets::reducible_balance(
+					asset_id,
+					&Self::get_pot_account(),
+					Preservation::Preserve,
+					Fortitude::Polite,
+				);
+				if asset_reducible_balance > T::OtherAssets::minimum_balance(asset_id) {
+					auction_info.fee_info.insert(asset_id, asset_reducible_balance);
+				}
+			}
+			let fee_config = <FeeDistributionConfig<T>>::get()
+				.ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
+			let next_auction_block = frame_system::Pallet::<T>::current_block_number()
+				.saturating_add(fee_config.auction_duration);
+			<AuctionBlockNumber<T>>::put(next_auction_block);
+			<Auction<T>>::put(auction_info);
+			Ok(())
+		}
+
+		pub fn close_auction() -> DispatchResult {
+			let auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
+			if let Some(bidder) = auction_info.highest_bidder {
+				let fee_config = <FeeDistributionConfig<T>>::get()
+					.ok_or(Error::<T>::FeeDistributionConfigNotFound)?;
+				let fee_info = auction_info.fee_info;
+				for (asset_id, fee) in fee_info {
+					T::OtherAssets::transfer(
+						asset_id,
+						&Self::get_pot_account(),
+						&bidder,
+						fee,
+						Preservation::Preserve,
+					)?;
+				}
+				let total_bidder_reserve_balance = auction_info.highest_bid;
+				let _ = T::NativeCurrency::unreserve(&bidder, total_bidder_reserve_balance);
+				let amount_to_be_burnt =
+					Percent::from_percent(fee_config.burn_ration) * total_bidder_reserve_balance;
+				let trasnferable_amount = total_bidder_reserve_balance - amount_to_be_burnt;
+				T::NativeCurrency::transfer(
+					&bidder,
+					&fee_config.recipient_address,
+					trasnferable_amount,
+					ExistenceRequirement::KeepAlive,
+				)?;
+
+				// Burn the fee
+				let imbalance = T::NativeCurrency::burn(amount_to_be_burnt.saturated_into());
+				T::NativeCurrency::settle(
+					&bidder,
+					imbalance,
+					WithdrawReasons::all(),
+					ExistenceRequirement::KeepAlive,
+				)
+				.map_err(|_| Error::<T>::TradingFeesBurnFailed)?;
+				// Emit an event
+				Self::deposit_event(Event::<T>::AuctionClosed {
+					bidder,
+					burned: Compact::from(amount_to_be_burnt),
+					paid_to_operator: Compact::from(trasnferable_amount),
+				})
+			}
+			Ok(())
+		}
 	}
-
-	/// Events are a simple means of reporting specific conditions and
-	/// circumstances that have happened that users, Dapps and/or chain explorers would find
-	/// interesting and otherwise difficult to detect.
-	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		SnapshotProcessed(u64),
-		UserActionsBatchSubmitted(u64),
-		FeesClaims {
-			beneficiary: T::AccountId,
-			snapshot_id: u64,
-		},
-		MainAccountRegistered {
-			main: T::AccountId,
-			proxy: T::AccountId,
-		},
-		TradingPairRegistered {
-			base: AssetId,
-			quote: AssetId,
-		},
-		TradingPairUpdated {
-			base: AssetId,
-			quote: AssetId,
-		},
-		DepositSuccessful {
-			user: T::AccountId,
-			asset: AssetId,
-			amount: BalanceOf<T>,
-		},
-		ShutdownTradingPair {
-			pair: TradingPairConfig,
-		},
-		OpenTradingPair {
-			pair: TradingPairConfig,
-		},
-		EnclaveRegistered(T::AccountId),
-		EnclaveAllowlisted(T::AccountId),
-		EnclaveCleanup(Vec<T::AccountId>),
-		TradingPairIsNotOperational,
-		WithdrawalClaimed {
-			main: T::AccountId,
-			withdrawals: Vec<Withdrawal<T::AccountId>>,
-		},
-		NewProxyAdded {
-			main: T::AccountId,
-			proxy: T::AccountId,
-		},
-		ProxyRemoved {
-			main: T::AccountId,
-			proxy: T::AccountId,
-		},
-		/// TokenAllowlisted
-		TokenAllowlisted(AssetId),
-		/// AllowlistedTokenRemoved
-		AllowlistedTokenRemoved(AssetId),
-		/// Withdrawal failed
-		WithdrawalFailed(Withdrawal<T::AccountId>),
-		/// Exchange state has been updated
-		ExchangeStateUpdated(bool),
-		/// DisputePeriod has been updated
-		DisputePeriodUpdated(BlockNumberFor<T>),
-		/// Withdraw Assets from Orderbook
-		WithdrawFromOrderbook(T::AccountId, AssetId, BalanceOf<T>),
-		/// Orderbook Operator Key Whitelisted
-		OrderbookOperatorKeyWhitelisted(sp_core::ecdsa::Public),
-	}
-
-	///Allowlisted tokens
-	#[pallet::storage]
-	#[pallet::getter(fn get_allowlisted_token)]
-	pub(super) type AllowlistedToken<T: Config> =
-		StorageValue<_, BoundedBTreeSet<AssetId, AllowlistedTokenLimit>, ValueQuery>;
-
-	// A map that has enumerable entries.
-	#[pallet::storage]
-	#[pallet::getter(fn accounts)]
-	pub(super) type Accounts<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		AccountInfo<T::AccountId, ProxyLimit>,
-		OptionQuery,
-	>;
-
-	// Proxy to main account map
-	#[pallet::storage]
-	#[pallet::getter(fn proxies)]
-	pub(super) type Proxies<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::AccountId, OptionQuery>;
-
-	/// Trading pairs registered as Base, Quote => TradingPairInfo
-	#[pallet::storage]
-	#[pallet::getter(fn trading_pairs)]
-	pub(super) type TradingPairs<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		AssetId,
-		Blake2_128Concat,
-		AssetId,
-		TradingPairConfig,
-		OptionQuery,
-	>;
-
-	// Snapshots Storage
-	#[pallet::storage]
-	#[pallet::getter(fn snapshots)]
-	pub type Snapshots<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, SnapshotSummary<T::AccountId>, OptionQuery>;
-
-	// Snapshots Nonce
-	#[pallet::storage]
-	#[pallet::getter(fn snapshot_nonce)]
-	pub type SnapshotNonce<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-	// Exchange Operation State
-	#[pallet::storage]
-	#[pallet::getter(fn orderbook_operational_state)]
-	pub(super) type ExchangeState<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-	// Fees collected
-	#[pallet::storage]
-	#[pallet::getter(fn fees_collected)]
-	pub(super) type FeesCollected<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, Vec<Fees>, ValueQuery>;
-
-	// Withdrawals mapped by their trading pairs and snapshot numbers
-	#[pallet::storage]
-	#[pallet::getter(fn withdrawals)]
-	pub(super) type Withdrawals<T: Config> =
-		StorageMap<_, Blake2_128Concat, u64, WithdrawalsMap<T>, ValueQuery>;
-
-	// Queue for enclave ingress messages
-	#[pallet::storage]
-	#[pallet::getter(fn ingress_messages)]
-	pub(super) type IngressMessages<T: Config> = StorageMap<
-		_,
-		Identity,
-		BlockNumberFor<T>,
-		Vec<polkadex_primitives::ingress::IngressMessages<T::AccountId>>,
-		ValueQuery,
-	>;
-
-	// Queue for onchain events
-	#[pallet::storage]
-	#[pallet::getter(fn onchain_events)]
-	pub(super) type OnChainEvents<T: Config> =
-		StorageValue<_, Vec<polkadex_primitives::ocex::OnChainEvents<T::AccountId>>, ValueQuery>;
-
-	// Total Assets present in orderbook
-	#[pallet::storage]
-	#[pallet::getter(fn total_assets)]
-	pub(super) type TotalAssets<T: Config> =
-		StorageMap<_, Blake2_128Concat, AssetId, Decimal, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_authorities)]
-	pub(super) type Authorities<T: Config> = StorageMap<
-		_,
-		Identity,
-		orderbook_primitives::ValidatorSetId,
-		ValidatorSet<T::AuthorityId>,
-		ValueQuery,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_next_authorities)]
-	pub(super) type NextAuthorities<T: Config> =
-		StorageValue<_, ValidatorSet<T::AuthorityId>, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn validator_set_id)]
-	pub(super) type ValidatorSetId<T: Config> =
-		StorageValue<_, orderbook_primitives::ValidatorSetId, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_orderbook_operator_public_key)]
-	pub(super) type OrderbookOperatorPublicKey<T: Config> =
-		StorageValue<_, sp_core::ecdsa::Public, OptionQuery>;
-
-	/// Storage related to LMP
-	#[pallet::storage]
-	#[pallet::getter(fn lmp_epoch)]
-	pub(super) type LMPEpoch<T: Config> = StorageValue<_, u16, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn trader_metrics)]
-	pub(super) type TraderMetrics<T: Config> = StorageNMap<
-		_,
-		(NMapKey<Identity, u16>, NMapKey<Identity, TradingPair>, NMapKey<Identity, T::AccountId>),
-		(Decimal, Decimal, bool),
-		ValueQuery,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn total_scores)]
-	pub(super) type TotalScores<T: Config> =
-		StorageDoubleMap<_, Identity, u16, Identity, TradingPair, (Decimal, Decimal), ValueQuery>;
-
-	/// FinalizeLMPScore will be set to Some(epoch score to finalize)
-	#[pallet::storage]
-	#[pallet::getter(fn finalize_lmp_scores_flag)]
-	pub(super) type FinalizeLMPScore<T: Config> = StorageValue<_, u16, OptionQuery>;
-
-	/// Configuration for LMP for each epoch
-	#[pallet::storage]
-	#[pallet::getter(fn lmp_config)]
-	pub(super) type LMPConfig<T: Config> =
-		StorageMap<_, Identity, u16, LMPEpochConfig, OptionQuery>;
-
-	/// Expected Configuration for LMP for next epoch
-	#[pallet::storage]
-	#[pallet::getter(fn expected_lmp_config)]
-	pub(super) type ExpectedLMPConfig<T: Config> = StorageValue<_, LMPEpochConfig, ValueQuery>;
-
-	/// Block at which rewards for each epoch can be claimed
-	#[pallet::storage]
-	#[pallet::getter(fn lmp_claim_blk)]
-	pub(super) type LMPClaimBlk<T: Config> =
-		StorageMap<_, Identity, u16, BlockNumberFor<T>, OptionQuery>;
-
-	/// Price Map showing the average prices ( value = (avg_price, ticks)
-	#[pallet::storage]
-	pub type PriceOracle<T: Config> =
-		StorageValue<_, BTreeMap<(AssetId, AssetId), (Decimal, Decimal)>, ValueQuery>;
 }
 
 // The main implementation block for the pallet. Functions here fall into three broad

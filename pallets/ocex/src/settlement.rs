@@ -20,9 +20,10 @@
 
 use crate::{storage::OffchainState, Config, Pallet};
 use log::{error, info};
+use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::{constants::FEE_POT_PALLET_ID, types::Trade};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
-use polkadex_primitives::{fees::FeeConfig, ocex::TradingPairConfig, AccountId, AssetId};
+use polkadex_primitives::{fees::FeeConfig, AccountId, AssetId};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_runtime::traits::AccountIdConversion;

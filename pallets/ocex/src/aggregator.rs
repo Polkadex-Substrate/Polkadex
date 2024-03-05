@@ -87,6 +87,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `id`: Batch id to load
 	/// # Returns
 	/// * `Option<UserActionBatch<T::AccountId>>`: Loaded batch or None if error occured
+	#[cfg(not(test))]
 	pub fn get_user_action_batch(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 		let body = serde_json::json!({ "id": id }).to_string();
 		let result = match Self::send_request(
@@ -143,6 +144,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `body`: Body of the request
 	/// # Returns
 	/// * `Result<Vec<u8>, &'static str>`: Response body or error message
+	#[cfg(not(test))]
 	pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
