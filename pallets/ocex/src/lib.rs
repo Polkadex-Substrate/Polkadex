@@ -125,13 +125,17 @@ pub trait OcexWeightInfo {
 	fn deposit(_x: u32) -> Weight;
 	fn remove_proxy_account(x: u32) -> Weight;
 	fn submit_snapshot() -> Weight;
-	fn collect_fees(_x: u32) -> Weight;
 	fn set_exchange_state(_x: u32) -> Weight;
 	fn claim_withdraw(_x: u32) -> Weight;
 	fn allowlist_token(_x: u32) -> Weight;
 	fn remove_allowlisted_token(_x: u32) -> Weight;
 	fn set_snapshot() -> Weight;
 	fn whitelist_orderbook_operator() -> Weight;
+	fn claim_lmp_rewards() -> Weight;
+	fn set_lmp_epoch_config() -> Weight;
+	fn set_fee_distribution() -> Weight;
+	fn place_bid() -> Weight;
+	fn on_initialize() -> Weight;
 }
 
 // Definition of the pallet logic, to be aggregated at runtime definition through
@@ -948,7 +952,7 @@ pub mod pallet {
 
 		/// Claim LMP rewards
 		#[pallet::call_index(19)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(< T as Config >::WeightInfo::claim_lmp_rewards())]
 		pub fn claim_lmp_rewards(
 			origin: OriginFor<T>,
 			epoch: u16,
@@ -961,7 +965,7 @@ pub mod pallet {
 
 		/// Set Incentivised markets
 		#[pallet::call_index(20)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_lmp_epoch_config())]
 		pub fn set_lmp_epoch_config(
 			origin: OriginFor<T>,
 			total_liquidity_mining_rewards: Option<Compact<u128>>,
@@ -1026,7 +1030,7 @@ pub mod pallet {
 
 		/// Set Fee Distribution
 		#[pallet::call_index(21)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_fee_distribution())]
 		pub fn set_fee_distribution(
 			origin: OriginFor<T>,
 			fee_distribution: FeeDistribution<T::AccountId, BlockNumberFor<T>>,
@@ -1038,7 +1042,7 @@ pub mod pallet {
 
 		/// Place Bid
 		#[pallet::call_index(22)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(< T as Config >::WeightInfo::place_bid())]
 		pub fn place_bid(origin: OriginFor<T>, bid_amount: BalanceOf<T>) -> DispatchResult {
 			let bidder = ensure_signed(origin)?;
 			let mut auction_info = <Auction<T>>::get().ok_or(Error::<T>::AuctionNotFound)?;
