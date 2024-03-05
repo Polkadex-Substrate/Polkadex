@@ -22,9 +22,9 @@
 use std::sync::Arc;
 
 use jsonrpsee::{
-	core::{async_trait, Error as JsonRpseeError, RpcResult},
-	proc_macros::rpc,
-	types::error::{CallError, ErrorObject},
+    core::{async_trait, Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    types::error::{CallError, ErrorObject},
 };
 use parity_scale_codec::Codec;
 pub use rpc_assets_runtime_api::PolkadexAssetHandlerRuntimeApi;
@@ -36,21 +36,21 @@ const RUNTIME_ERROR: i32 = 1;
 
 #[rpc(client, server)]
 pub trait PolkadexAssetHandlerRpcApi<BlockHash, AccountId, Hash> {
-	/// Provides account balances statement by assets types and account identifier (at a specific
-	/// block if specified).
-	///
-	/// # Parameters
-	///
-	/// * `assets`: Collection of assets types to retrieve balances for.
-	/// * `account_id`: Account identifier.
-	/// * `at`: Block hash (optional). If not specified - best block is considered.
-	#[method(name = "assethandler_accountbalances")]
-	fn account_balances(
-		&self,
-		assets: Vec<String>,
-		account_id: AccountId,
-		at: Option<BlockHash>,
-	) -> RpcResult<Vec<String>>;
+    /// Provides account balances statement by assets types and account identifier (at a specific
+    /// block if specified).
+    ///
+    /// # Parameters
+    ///
+    /// * `assets`: Collection of assets types to retrieve balances for.
+    /// * `account_id`: Account identifier.
+    /// * `at`: Block hash (optional). If not specified - best block is considered.
+    #[method(name = "assethandler_accountbalances")]
+    fn account_balances(
+        &self,
+        assets: Vec<String>,
+        account_id: AccountId,
+        at: Option<BlockHash>,
+    ) -> RpcResult<Vec<String>>;
 }
 
 /// The structure that represents the Polkadex Asset Handler RPC, which allows querying
@@ -61,50 +61,61 @@ pub trait PolkadexAssetHandlerRpcApi<BlockHash, AccountId, Hash> {
 /// * `Client`: The client API used to interact with the Substrate Runtime.
 /// * `Block`: The block type of the Substrate runtime.
 pub struct PolkadexAssetHandlerRpc<Client, Block> {
-	client: Arc<Client>,
-	_marker: std::marker::PhantomData<Block>,
+    client: Arc<Client>,
+    _marker: std::marker::PhantomData<Block>,
 }
 
 impl<Client, Block> PolkadexAssetHandlerRpc<Client, Block> {
-	pub fn new(client: Arc<Client>) -> Self {
-		Self { client, _marker: Default::default() }
-	}
+    pub fn new(client: Arc<Client>) -> Self {
+        Self {
+            client,
+            _marker: Default::default(),
+        }
+    }
 }
 
 #[async_trait]
 impl<Client, Block, AccountId, Hash>
-	PolkadexAssetHandlerRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
-	for PolkadexAssetHandlerRpc<Client, Block>
+    PolkadexAssetHandlerRpcApiServer<<Block as BlockT>::Hash, AccountId, Hash>
+    for PolkadexAssetHandlerRpc<Client, Block>
 where
-	Block: BlockT,
-	Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	Client::Api: PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
-	AccountId: Codec,
-	Hash: Codec,
+    Block: BlockT,
+    Client: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+    Client::Api: PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
+    AccountId: Codec,
+    Hash: Codec,
 {
-	fn account_balances(
-		&self,
-		assets: Vec<String>,
-		account_id: AccountId,
-		at: Option<<Block as BlockT>::Hash>,
-	) -> RpcResult<Vec<String>> {
-		let assets: RpcResult<Vec<_>> = assets
-			.iter()
-			.map(|asset_id| asset_id.parse::<u128>().map_err(runtime_error_into_rpc_err))
-			.collect();
-		let api = self.client.runtime_api();
+    fn account_balances(
+        &self,
+        assets: Vec<String>,
+        account_id: AccountId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> RpcResult<Vec<String>> {
+        let assets: RpcResult<Vec<_>> = assets
+            .iter()
+            .map(|asset_id| asset_id.parse::<u128>().map_err(runtime_error_into_rpc_err))
+            .collect();
+        let api = self.client.runtime_api();
 
-		let at = if let Some(at) = at { at } else { self.client.info().best_hash };
+        let at = if let Some(at) = at {
+            at
+        } else {
+            self.client.info().best_hash
+        };
 
-		let runtime_api_result = api.account_balances(at, assets?, account_id);
-		runtime_api_result
-			.map(|balances| balances.iter().map(|balance| balance.to_string()).collect())
-			.map_err(runtime_error_into_rpc_err)
-	}
+        let runtime_api_result = api.account_balances(at, assets?, account_id);
+        runtime_api_result
+            .map(|balances| balances.iter().map(|balance| balance.to_string()).collect())
+            .map_err(runtime_error_into_rpc_err)
+    }
 }
 
 /// Converts a runtime trap into an RPC error.
 fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
-	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
-		.into()
+    CallError::Custom(ErrorObject::owned(
+        RUNTIME_ERROR,
+        "Runtime error",
+        Some(format!("{err:?}")),
+    ))
+    .into()
 }

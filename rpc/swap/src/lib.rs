@@ -20,10 +20,10 @@
 //! recovery data.
 
 use jsonrpsee::{
-	core::{async_trait, Error as JsonRpseeError, RpcResult},
-	proc_macros::rpc,
-	tracing::log,
-	types::error::{CallError, ErrorObject},
+    core::{async_trait, Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    tracing::log,
+    types::error::{CallError, ErrorObject},
 };
 pub use pallet_asset_conversion::AssetConversionApi;
 use polkadex_primitives::AssetId;
@@ -36,30 +36,30 @@ const RUNTIME_ERROR: i32 = 1;
 
 #[rpc(client, server)]
 pub trait PolkadexSwapRpcApi<BlockHash> {
-	#[method(name = "tx_quotePriceExactTokensForTokens")]
-	async fn quote_price_exact_tokens_for_tokens(
-		&self,
-		asset_id1: String,
-		asset_id2: String,
-		amount: String,
-		include_fee: bool,
-	) -> RpcResult<Option<u128>>;
+    #[method(name = "tx_quotePriceExactTokensForTokens")]
+    async fn quote_price_exact_tokens_for_tokens(
+        &self,
+        asset_id1: String,
+        asset_id2: String,
+        amount: String,
+        include_fee: bool,
+    ) -> RpcResult<Option<u128>>;
 
-	#[method(name = "tx_quotePriceTokensForExactTokens")]
-	async fn quote_price_tokens_for_exact_tokens(
-		&self,
-		asset_id1: String,
-		asset_id2: String,
-		amount: String,
-		include_fee: bool,
-	) -> RpcResult<Option<u128>>;
+    #[method(name = "tx_quotePriceTokensForExactTokens")]
+    async fn quote_price_tokens_for_exact_tokens(
+        &self,
+        asset_id1: String,
+        asset_id2: String,
+        amount: String,
+        include_fee: bool,
+    ) -> RpcResult<Option<u128>>;
 
-	#[method(name = "tx_getReserves")]
-	async fn get_reserves(
-		&self,
-		asset_id1: String,
-		asset_id2: String,
-	) -> RpcResult<Option<(u128, u128)>>;
+    #[method(name = "tx_getReserves")]
+    async fn get_reserves(
+        &self,
+        asset_id1: String,
+        asset_id2: String,
+    ) -> RpcResult<Option<(u128, u128)>>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -70,87 +70,95 @@ pub trait PolkadexSwapRpcApi<BlockHash> {
 /// * `Client`: The client API used to interact with the Substrate runtime.
 /// * `Block`: The block type of the Substrate.
 pub struct PolkadexSwapRpc<Client, Block> {
-	/// An `Arc` reference to the client API for accessing runtime functionality.
-	client: Arc<Client>,
-	/// A marker for the `Block` type parameter, used to ensure the struct
-	/// is covariant with respect to the block type.
-	_marker: std::marker::PhantomData<Block>,
+    /// An `Arc` reference to the client API for accessing runtime functionality.
+    client: Arc<Client>,
+    /// A marker for the `Block` type parameter, used to ensure the struct
+    /// is covariant with respect to the block type.
+    _marker: std::marker::PhantomData<Block>,
 }
 
 impl<Client, Block> PolkadexSwapRpc<Client, Block> {
-	pub fn new(client: Arc<Client>) -> Self {
-		Self { client, _marker: Default::default() }
-	}
+    pub fn new(client: Arc<Client>) -> Self {
+        Self {
+            client,
+            _marker: Default::default(),
+        }
+    }
 }
 
 #[async_trait]
 impl<Client, Block> PolkadexSwapRpcApiServer<<Block as BlockT>::Hash>
-	for PolkadexSwapRpc<Client, Block>
+    for PolkadexSwapRpc<Client, Block>
 where
-	Block: BlockT,
-	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
-	Client::Api: pallet_asset_conversion::AssetConversionApi<Block, u128, u128, AssetId>,
+    Block: BlockT,
+    Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
+    Client::Api: pallet_asset_conversion::AssetConversionApi<Block, u128, u128, AssetId>,
 {
-	async fn quote_price_exact_tokens_for_tokens(
-		&self,
-		asset_id1: String,
-		asset_id2: String,
-		amount: String,
-		include_fee: bool,
-	) -> RpcResult<Option<u128>> {
-		let api = self.client.runtime_api();
-		let at = self.client.info().best_hash;
-		let asset_id1: AssetId =
-			AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
-		let asset_id2: AssetId =
-			AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
-		let amount: u128 = amount.parse().map_err(runtime_error_into_rpc_err)?;
-		let runtime_api_result = api
-			.quote_price_exact_tokens_for_tokens(at, asset_id1, asset_id2, amount, include_fee)
-			.map_err(runtime_error_into_rpc_err)?;
-		Ok(runtime_api_result)
-	}
+    async fn quote_price_exact_tokens_for_tokens(
+        &self,
+        asset_id1: String,
+        asset_id2: String,
+        amount: String,
+        include_fee: bool,
+    ) -> RpcResult<Option<u128>> {
+        let api = self.client.runtime_api();
+        let at = self.client.info().best_hash;
+        let asset_id1: AssetId =
+            AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+        let asset_id2: AssetId =
+            AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
+        let amount: u128 = amount.parse().map_err(runtime_error_into_rpc_err)?;
+        let runtime_api_result = api
+            .quote_price_exact_tokens_for_tokens(at, asset_id1, asset_id2, amount, include_fee)
+            .map_err(runtime_error_into_rpc_err)?;
+        Ok(runtime_api_result)
+    }
 
-	async fn quote_price_tokens_for_exact_tokens(
-		&self,
-		asset_id1: String,
-		asset_id2: String,
-		amount: String,
-		include_fee: bool,
-	) -> RpcResult<Option<u128>> {
-		let api = self.client.runtime_api();
-		let at = self.client.info().best_hash;
-		let asset_id1: AssetId =
-			AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
-		let asset_id2: AssetId =
-			AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
-		let amount: u128 = amount.parse().map_err(runtime_error_into_rpc_err)?;
-		let runtime_api_result = api
-			.quote_price_tokens_for_exact_tokens(at, asset_id1, asset_id2, amount, include_fee)
-			.map_err(runtime_error_into_rpc_err)?;
-		Ok(runtime_api_result)
-	}
+    async fn quote_price_tokens_for_exact_tokens(
+        &self,
+        asset_id1: String,
+        asset_id2: String,
+        amount: String,
+        include_fee: bool,
+    ) -> RpcResult<Option<u128>> {
+        let api = self.client.runtime_api();
+        let at = self.client.info().best_hash;
+        let asset_id1: AssetId =
+            AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+        let asset_id2: AssetId =
+            AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
+        let amount: u128 = amount.parse().map_err(runtime_error_into_rpc_err)?;
+        let runtime_api_result = api
+            .quote_price_tokens_for_exact_tokens(at, asset_id1, asset_id2, amount, include_fee)
+            .map_err(runtime_error_into_rpc_err)?;
+        Ok(runtime_api_result)
+    }
 
-	async fn get_reserves(
-		&self,
-		asset_id1: String,
-		asset_id2: String,
-	) -> RpcResult<Option<(u128, u128)>> {
-		let api = self.client.runtime_api();
-		let at = self.client.info().best_hash;
-		let asset_id1: AssetId =
-			AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
-		let asset_id2: AssetId =
-			AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
-		let runtime_api_result =
-			api.get_reserves(at, asset_id1, asset_id2).map_err(runtime_error_into_rpc_err)?;
-		Ok(runtime_api_result)
-	}
+    async fn get_reserves(
+        &self,
+        asset_id1: String,
+        asset_id2: String,
+    ) -> RpcResult<Option<(u128, u128)>> {
+        let api = self.client.runtime_api();
+        let at = self.client.info().best_hash;
+        let asset_id1: AssetId =
+            AssetId::try_from(asset_id1).map_err(runtime_error_into_rpc_err)?;
+        let asset_id2: AssetId =
+            AssetId::try_from(asset_id2).map_err(runtime_error_into_rpc_err)?;
+        let runtime_api_result = api
+            .get_reserves(at, asset_id1, asset_id2)
+            .map_err(runtime_error_into_rpc_err)?;
+        Ok(runtime_api_result)
+    }
 }
 
 /// Converts a runtime trap into an RPC error.
 fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
-	log::error!(target:"ocex","runtime rpc error: {:?} ",err);
-	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
-		.into()
+    log::error!(target:"ocex","runtime rpc error: {:?} ",err);
+    CallError::Custom(ErrorObject::owned(
+        RUNTIME_ERROR,
+        "Runtime error",
+        Some(format!("{err:?}")),
+    ))
+    .into()
 }

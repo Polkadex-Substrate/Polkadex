@@ -39,41 +39,44 @@ pub type ValidatorSetId = u64;
 /// A set of Orderbook authorities, a.k.a. validators.
 #[derive(Decode, Encode, Debug, PartialEq, Clone, TypeInfo)]
 pub struct ValidatorSet<AuthorityId> {
-	/// Validator Set id.
-	pub set_id: ValidatorSetId,
-	/// Public keys of the validator set elements.
-	pub validators: Vec<AuthorityId>,
+    /// Validator Set id.
+    pub set_id: ValidatorSetId,
+    /// Public keys of the validator set elements.
+    pub validators: Vec<AuthorityId>,
 }
 
 impl<AuthorityId> ValidatorSet<AuthorityId> {
-	/// Returns a validator set with the given validators and set id.
-	pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
-	where
-		I: IntoIterator<Item = AuthorityId>,
-	{
-		let validators: Vec<AuthorityId> = validators.into_iter().collect();
-		if validators.is_empty() {
-			// No validators; the set would be empty.
-			None
-		} else {
-			Some(Self { set_id: id, validators })
-		}
-	}
+    /// Returns a validator set with the given validators and set id.
+    pub fn new<I>(validators: I, id: ValidatorSetId) -> Option<Self>
+    where
+        I: IntoIterator<Item = AuthorityId>,
+    {
+        let validators: Vec<AuthorityId> = validators.into_iter().collect();
+        if validators.is_empty() {
+            // No validators; the set would be empty.
+            None
+        } else {
+            Some(Self {
+                set_id: id,
+                validators,
+            })
+        }
+    }
 
-	/// Returns a reference to the vec of validators.
-	pub fn validators(&self) -> &[AuthorityId] {
-		&self.validators
-	}
+    /// Returns a reference to the vec of validators.
+    pub fn validators(&self) -> &[AuthorityId] {
+        &self.validators
+    }
 
-	/// Returns the number of validators in the set.
-	pub fn len(&self) -> usize {
-		self.validators.len()
-	}
+    /// Returns the number of validators in the set.
+    pub fn len(&self) -> usize {
+        self.validators.len()
+    }
 
-	/// Return true if set is empty.
-	pub fn is_empty(&self) -> bool {
-		self.validators.is_empty()
-	}
+    /// Return true if set is empty.
+    pub fn is_empty(&self) -> bool {
+        self.validators.is_empty()
+    }
 }
 
 /// The index of an authority.
@@ -92,14 +95,14 @@ pub const MESSAGE_CACHE_DURATION_IN_SECS: u64 = 60;
 
 /// Thea incoming message executor abstraction which should be implemented by the "Thea Executor".
 pub trait TheaIncomingExecutor {
-	fn execute_deposits(network: Network, deposits: Vec<u8>);
+    fn execute_deposits(network: Network, deposits: Vec<u8>);
 }
 
 /// Thea outgoing message executor abstraction which should be implemented by the "Thea" pallet.
 pub trait TheaOutgoingExecutor {
-	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> DispatchResult;
+    fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> DispatchResult;
 }
 
 impl TheaIncomingExecutor for () {
-	fn execute_deposits(_network: Network, _deposits: Vec<u8>) {}
+    fn execute_deposits(_network: Network, _deposits: Vec<u8>) {}
 }

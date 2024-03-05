@@ -22,19 +22,19 @@
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = (
-		frame_benchmarking::benchmarking::HostFunctions,
-		// NOTE: BLS host functions is a un-removable relic and should not be used or removed from
-		// here
-		bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
-		sp_statement_store::runtime_api::HostFunctions,
-	);
+    type ExtendHostFunctions = (
+        frame_benchmarking::benchmarking::HostFunctions,
+        // NOTE: BLS host functions is a un-removable relic and should not be used or removed from
+        // here
+        bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
+        sp_statement_store::runtime_api::HostFunctions,
+    );
 
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		node_polkadex_runtime::api::dispatch(method, data)
-	}
+    fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+        node_polkadex_runtime::api::dispatch(method, data)
+    }
 
-	fn native_version() -> sc_executor::NativeVersion {
-		node_polkadex_runtime::native_version()
-	}
+    fn native_version() -> sc_executor::NativeVersion {
+        node_polkadex_runtime::native_version()
+    }
 }

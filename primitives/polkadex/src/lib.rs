@@ -37,9 +37,9 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_runtime::{
-	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	MultiSignature, OpaqueExtrinsic,
+    generic,
+    traits::{BlakeTwo256, IdentifyAccount, Verify},
+    MultiSignature, OpaqueExtrinsic,
 };
 
 // reexports:
@@ -98,10 +98,10 @@ pub type BlockId = generic::BlockId<Block>;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ProxyLimit;
 impl Get<u32> for ProxyLimit {
-	/// Accessor to the proxy accounts amount limit amount.
-	fn get() -> u32 {
-		3
-	}
+    /// Accessor to the proxy accounts amount limit amount.
+    fn get() -> u32 {
+        3
+    }
 }
 
 /// Defines a limit of the assets per main account.
@@ -109,8 +109,8 @@ impl Get<u32> for ProxyLimit {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetsLimit;
 impl Get<u32> for AssetsLimit {
-	/// Accessor to the assets amount limit amount.
-	fn get() -> u32 {
-		1000
-	}
+    /// Accessor to the assets amount limit amount.
+    fn get() -> u32 {
+        1000
+    }
 }

@@ -29,17 +29,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Copy, Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FeeConfig {
-	/// Market fee fraction.
-	pub maker_fraction: Decimal,
-	/// Trade fee fraction.
-	pub taker_fraction: Decimal,
+    /// Market fee fraction.
+    pub maker_fraction: Decimal,
+    /// Trade fee fraction.
+    pub taker_fraction: Decimal,
 }
 
 impl Default for FeeConfig {
-	fn default() -> Self {
-		Self {
-			maker_fraction: Decimal::from_f64(0.001).unwrap(),
-			taker_fraction: Decimal::from_f64(0.001).unwrap(),
-		}
-	}
+    fn default() -> Self {
+        Self {
+            maker_fraction: Decimal::from_f64(0.001).unwrap(),
+            taker_fraction: Decimal::from_f64(0.001).unwrap(),
+        }
+    }
 }

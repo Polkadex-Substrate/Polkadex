@@ -22,23 +22,27 @@ use frame_support::{Deserialize, Serialize};
 use sp_std::collections::btree_map::BTreeMap;
 
 #[derive(
-	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
+    Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
 )]
 pub struct FeeDistribution<AccountId, BlockNo> {
-	pub recipient_address: AccountId,
-	pub auction_duration: BlockNo,
-	pub burn_ration: u8,
+    pub recipient_address: AccountId,
+    pub auction_duration: BlockNo,
+    pub burn_ration: u8,
 }
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
 pub struct AuctionInfo<AccountId, Balance> {
-	pub fee_info: BTreeMap<u128, Balance>,
-	pub highest_bidder: Option<AccountId>,
-	pub highest_bid: Balance,
+    pub fee_info: BTreeMap<u128, Balance>,
+    pub highest_bidder: Option<AccountId>,
+    pub highest_bid: Balance,
 }
 
 impl<AccountId, Balance: Default> Default for AuctionInfo<AccountId, Balance> {
-	fn default() -> Self {
-		Self { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: Balance::default() }
-	}
+    fn default() -> Self {
+        Self {
+            fee_info: BTreeMap::new(),
+            highest_bidder: None,
+            highest_bid: Balance::default(),
+        }
+    }
 }
