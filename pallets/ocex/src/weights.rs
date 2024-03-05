@@ -41,13 +41,15 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Storage: `OCEX::IngressMessages` (r:1 w:1)
 	/// Proof: `OCEX::IngressMessages` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// The range of component `b` is `[0, 255]`.
-	fn register_main_account(_b: u32, ) -> Weight {
+	fn register_main_account(b: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `3632`
-		// Minimum execution time: 63_020_000 picoseconds.
-		Weight::from_parts(64_927_181, 0)
+		// Minimum execution time: 62_580_000 picoseconds.
+		Weight::from_parts(64_219_291, 0)
 			.saturating_add(Weight::from_parts(0, 3632))
+			// Standard Error: 51
+			.saturating_add(Weight::from_parts(2_279, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
@@ -60,13 +62,15 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Storage: `OCEX::IngressMessages` (r:1 w:1)
 	/// Proof: `OCEX::IngressMessages` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// The range of component `x` is `[0, 255]`.
-	fn add_proxy_account(_x: u32, ) -> Weight {
+	fn add_proxy_account(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `499`
 		//  Estimated: `3964`
-		// Minimum execution time: 77_580_000 picoseconds.
-		Weight::from_parts(79_573_706, 0)
+		// Minimum execution time: 77_011_000 picoseconds.
+		Weight::from_parts(79_608_430, 0)
 			.saturating_add(Weight::from_parts(0, 3964))
+			// Standard Error: 49
+			.saturating_add(Weight::from_parts(160, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
@@ -81,8 +85,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `359`
 		//  Estimated: `3824`
-		// Minimum execution time: 60_020_000 picoseconds.
-		Weight::from_parts(61_868_943, 0)
+		// Minimum execution time: 60_581_000 picoseconds.
+		Weight::from_parts(62_177_551, 0)
 			.saturating_add(Weight::from_parts(0, 3824))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
@@ -98,8 +102,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `359`
 		//  Estimated: `3824`
-		// Minimum execution time: 60_030_000 picoseconds.
-		Weight::from_parts(61_993_833, 0)
+		// Minimum execution time: 60_630_000 picoseconds.
+		Weight::from_parts(62_321_908, 0)
 			.saturating_add(Weight::from_parts(0, 3824))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
@@ -117,8 +121,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `224`
 		//  Estimated: `6164`
-		// Minimum execution time: 72_030_000 picoseconds.
-		Weight::from_parts(74_513_153, 0)
+		// Minimum execution time: 72_580_000 picoseconds.
+		Weight::from_parts(74_688_581, 0)
 			.saturating_add(Weight::from_parts(0, 6164))
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(2))
@@ -134,8 +138,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `388`
 		//  Estimated: `3853`
-		// Minimum execution time: 68_061_000 picoseconds.
-		Weight::from_parts(70_357_202, 0)
+		// Minimum execution time: 68_600_000 picoseconds.
+		Weight::from_parts(70_833_615, 0)
 			.saturating_add(Weight::from_parts(0, 3853))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
@@ -159,8 +163,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `773`
 		//  Estimated: `6232`
-		// Minimum execution time: 157_401_000 picoseconds.
-		Weight::from_parts(160_766_914, 0)
+		// Minimum execution time: 158_171_000 picoseconds.
+		Weight::from_parts(161_592_723, 0)
 			.saturating_add(Weight::from_parts(0, 6232))
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(4))
@@ -178,8 +182,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `462`
 		//  Estimated: `3927`
-		// Minimum execution time: 65_530_000 picoseconds.
-		Weight::from_parts(67_749_783, 0)
+		// Minimum execution time: 65_600_000 picoseconds.
+		Weight::from_parts(67_673_877, 0)
 			.saturating_add(Weight::from_parts(0, 3927))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(3))
@@ -202,8 +206,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `333`
 		//  Estimated: `3798`
-		// Minimum execution time: 1_324_803_000 picoseconds.
-		Weight::from_parts(1_340_624_000, 0)
+		// Minimum execution time: 1_430_335_000 picoseconds.
+		Weight::from_parts(1_461_555_000, 0)
 			.saturating_add(Weight::from_parts(0, 3798))
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(6))
@@ -213,13 +217,15 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Storage: `OCEX::ExchangeState` (r:0 w:1)
 	/// Proof: `OCEX::ExchangeState` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `x` is `[0, 100000]`.
-	fn set_exchange_state(_x: u32, ) -> Weight {
+	fn set_exchange_state(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `3632`
-		// Minimum execution time: 38_620_000 picoseconds.
-		Weight::from_parts(40_069_985, 0)
+		// Minimum execution time: 38_190_000 picoseconds.
+		Weight::from_parts(39_450_923, 0)
 			.saturating_add(Weight::from_parts(0, 3632))
+			// Standard Error: 0
+			.saturating_add(Weight::from_parts(1, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
@@ -232,13 +238,15 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Storage: `OCEX::OnChainEvents` (r:1 w:1)
 	/// Proof: `OCEX::OnChainEvents` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `x` is `[1, 255]`.
-	fn claim_withdraw(_x: u32, ) -> Weight {
+	fn claim_withdraw(x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `763`
 		//  Estimated: `6232`
-		// Minimum execution time: 143_931_000 picoseconds.
-		Weight::from_parts(146_923_301, 0)
+		// Minimum execution time: 144_320_000 picoseconds.
+		Weight::from_parts(147_449_100, 0)
 			.saturating_add(Weight::from_parts(0, 6232))
+			// Standard Error: 77
+			.saturating_add(Weight::from_parts(202, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
@@ -249,8 +257,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `1652`
-		// Minimum execution time: 34_150_000 picoseconds.
-		Weight::from_parts(35_458_379, 0)
+		// Minimum execution time: 33_740_000 picoseconds.
+		Weight::from_parts(35_028_116, 0)
 			.saturating_add(Weight::from_parts(0, 1652))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
@@ -258,15 +266,13 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Storage: `OCEX::AllowlistedToken` (r:1 w:1)
 	/// Proof: `OCEX::AllowlistedToken` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `x` is `[0, 65000]`.
-	fn remove_allowlisted_token(x: u32, ) -> Weight {
+	fn remove_allowlisted_token(_x: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `205`
 		//  Estimated: `1690`
-		// Minimum execution time: 36_980_000 picoseconds.
-		Weight::from_parts(38_492_042, 0)
+		// Minimum execution time: 36_640_000 picoseconds.
+		Weight::from_parts(38_065_860, 0)
 			.saturating_add(Weight::from_parts(0, 1690))
-			// Standard Error: 0
-			.saturating_add(Weight::from_parts(1, 0).saturating_mul(x.into()))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -276,8 +282,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 10_750_000 picoseconds.
-		Weight::from_parts(11_190_000, 0)
+		// Minimum execution time: 10_740_000 picoseconds.
+		Weight::from_parts(11_160_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -287,8 +293,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 24_530_000 picoseconds.
-		Weight::from_parts(25_220_000, 0)
+		// Minimum execution time: 24_290_000 picoseconds.
+		Weight::from_parts(25_000_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -304,10 +310,10 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
 	fn claim_lmp_rewards() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1102`
+		//  Measured:  `1268`
 		//  Estimated: `6196`
-		// Minimum execution time: 183_841_000 picoseconds.
-		Weight::from_parts(185_890_000, 0)
+		// Minimum execution time: 197_880_000 picoseconds.
+		Weight::from_parts(199_690_000, 0)
 			.saturating_add(Weight::from_parts(0, 6196))
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(2))
@@ -322,8 +328,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `419`
 		//  Estimated: `3884`
-		// Minimum execution time: 48_720_000 picoseconds.
-		Weight::from_parts(50_140_000, 0)
+		// Minimum execution time: 49_100_000 picoseconds.
+		Weight::from_parts(49_951_000, 0)
 			.saturating_add(Weight::from_parts(0, 3884))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(2))
@@ -334,8 +340,8 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 11_970_000 picoseconds.
-		Weight::from_parts(12_410_000, 0)
+		// Minimum execution time: 11_680_000 picoseconds.
+		Weight::from_parts(12_120_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -347,20 +353,12 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `326`
 		//  Estimated: `3593`
-		// Minimum execution time: 80_351_000 picoseconds.
-		Weight::from_parts(81_781_000, 0)
+		// Minimum execution time: 81_830_000 picoseconds.
+		Weight::from_parts(83_280_000, 0)
 			.saturating_add(Weight::from_parts(0, 3593))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	/// Storage: `OCEX::ExpectedLMPConfig` (r:1 w:0)
-	/// Proof: `OCEX::ExpectedLMPConfig` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `OCEX::LMPEpoch` (r:1 w:1)
-	/// Proof: `OCEX::LMPEpoch` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `OCEX::FinalizeLMPScore` (r:1 w:0)
-	/// Proof: `OCEX::FinalizeLMPScore` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `OCEX::IngressMessages` (r:1 w:1)
-	/// Proof: `OCEX::IngressMessages` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// Storage: `OCEX::OnChainEvents` (r:1 w:0)
 	/// Proof: `OCEX::OnChainEvents` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// Storage: `OCEX::AuctionBlockNumber` (r:1 w:1)
@@ -375,22 +373,14 @@ impl<T: frame_system::Config> crate::OcexWeightInfo for WeightInfo<T> {
 	/// Proof: `Assets::Account` (`max_values`: None, `max_size`: Some(146), added: 2621, mode: `MaxEncodedLen`)
 	/// Storage: `OCEX::FeeDistributionConfig` (r:1 w:0)
 	/// Proof: `OCEX::FeeDistributionConfig` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `OCEX::LMPConfig` (r:0 w:1)
-	/// Proof: `OCEX::LMPConfig` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `CrowdSourceLMP::LMPEpoch` (r:0 w:1)
-	/// Proof: `CrowdSourceLMP::LMPEpoch` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `CrowdSourceLMP::WithdrawingEpoch` (r:0 w:1)
-	/// Proof: `CrowdSourceLMP::WithdrawingEpoch` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `CrowdSourceLMP::SnapshotFlag` (r:0 w:1)
-	/// Proof: `CrowdSourceLMP::SnapshotFlag` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	fn on_initialize() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1121`
+		//  Measured:  `948`
 		//  Estimated: `6384`
-		// Minimum execution time: 131_571_000 picoseconds.
-		Weight::from_parts(133_111_000, 0)
+		// Minimum execution time: 92_200_000 picoseconds.
+		Weight::from_parts(93_700_000, 0)
 			.saturating_add(Weight::from_parts(0, 6384))
-			.saturating_add(T::DbWeight::get().reads(13))
-			.saturating_add(T::DbWeight::get().writes(8))
+			.saturating_add(T::DbWeight::get().reads(9))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 }

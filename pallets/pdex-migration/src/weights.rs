@@ -38,8 +38,8 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 10_980_000 picoseconds.
-		Weight::from_parts(11_410_000, 0)
+		// Minimum execution time: 10_540_000 picoseconds.
+		Weight::from_parts(10_920_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -49,8 +49,8 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 27_710_000 picoseconds.
-		Weight::from_parts(28_390_000, 0)
+		// Minimum execution time: 27_300_000 picoseconds.
+		Weight::from_parts(27_950_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -69,13 +69,15 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	/// Storage: `PDEXMigration::LockedTokenHolders` (r:0 w:1)
 	/// Proof: `PDEXMigration::LockedTokenHolders` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 254]`.
-	fn mint(_b: u32, ) -> Weight {
+	fn mint(b: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `985`
 		//  Estimated: `4764`
-		// Minimum execution time: 208_290_000 picoseconds.
-		Weight::from_parts(212_932_378, 0)
+		// Minimum execution time: 208_200_000 picoseconds.
+		Weight::from_parts(211_398_222, 0)
 			.saturating_add(Weight::from_parts(0, 4764))
+			// Standard Error: 95
+			.saturating_add(Weight::from_parts(4_847, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
@@ -88,15 +90,13 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	/// Storage: `Balances::Freezes` (r:1 w:0)
 	/// Proof: `Balances::Freezes` (`max_values`: None, `max_size`: Some(849), added: 3324, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 254]`.
-	fn unlock(b: u32, ) -> Weight {
+	fn unlock(_b: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `882`
 		//  Estimated: `4764`
-		// Minimum execution time: 104_161_000 picoseconds.
-		Weight::from_parts(106_554_462, 0)
+		// Minimum execution time: 104_620_000 picoseconds.
+		Weight::from_parts(106_992_318, 0)
 			.saturating_add(Weight::from_parts(0, 4764))
-			// Standard Error: 60
-			.saturating_add(Weight::from_parts(318, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
@@ -109,13 +109,15 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	/// Storage: `PDEXMigration::MintableTokens` (r:1 w:1)
 	/// Proof: `PDEXMigration::MintableTokens` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	/// The range of component `b` is `[1, 254]`.
-	fn remove_minted_tokens(_b: u32, ) -> Weight {
+	fn remove_minted_tokens(b: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `885`
 		//  Estimated: `4764`
-		// Minimum execution time: 207_500_000 picoseconds.
-		Weight::from_parts(212_453_055, 0)
+		// Minimum execution time: 208_561_000 picoseconds.
+		Weight::from_parts(212_307_654, 0)
 			.saturating_add(Weight::from_parts(0, 4764))
+			// Standard Error: 104
+			.saturating_add(Weight::from_parts(54, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}

@@ -37,15 +37,17 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 	/// The range of component `b` is `[0, 4838400]`.
 	/// The range of component `i` is `[1, 100]`.
 	/// The range of component `r` is `[0, 10]`.
-	fn create_reward_cycle(_b: u32, i: u32, _r: u32, ) -> Weight {
+	fn create_reward_cycle(_b: u32, i: u32, r: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `76`
 		//  Estimated: `3541`
-		// Minimum execution time: 35_201_000 picoseconds.
-		Weight::from_parts(36_532_715, 0)
+		// Minimum execution time: 35_141_000 picoseconds.
+		Weight::from_parts(36_486_240, 0)
 			.saturating_add(Weight::from_parts(0, 3541))
-			// Standard Error: 51
-			.saturating_add(Weight::from_parts(1_949, 0).saturating_mul(i.into()))
+			// Standard Error: 49
+			.saturating_add(Weight::from_parts(190, 0).saturating_mul(i.into()))
+			// Standard Error: 464
+			.saturating_add(Weight::from_parts(2_517, 0).saturating_mul(r.into()))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
@@ -63,8 +65,8 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1010`
 		//  Estimated: `6196`
-		// Minimum execution time: 259_461_000 picoseconds.
-		Weight::from_parts(262_241_000, 0)
+		// Minimum execution time: 263_131_000 picoseconds.
+		Weight::from_parts(266_091_000, 0)
 			.saturating_add(Weight::from_parts(0, 6196))
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(4))
@@ -83,8 +85,8 @@ impl<T: frame_system::Config> crate::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1016`
 		//  Estimated: `4764`
-		// Minimum execution time: 145_490_000 picoseconds.
-		Weight::from_parts(147_220_000, 0)
+		// Minimum execution time: 146_781_000 picoseconds.
+		Weight::from_parts(148_411_000, 0)
 			.saturating_add(Weight::from_parts(0, 4764))
 			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().writes(3))
