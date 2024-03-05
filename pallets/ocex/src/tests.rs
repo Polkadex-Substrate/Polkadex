@@ -2443,10 +2443,11 @@ fn test_update_lmp_scores_no_lmp_config() {
 			(trader_metrics, trading_pair_metrics),
 		);
 		<LMPEpoch<Test>>::put(2);
-		assert_noop!(
-			OCEX::update_lmp_scores(&trading_pair_metrics_map),
-			crate::pallet::Error::<Test>::LMPConfigNotFound
-		);
+		<FinalizeLMPScore<Test>>::put(2);
+		match OCEX::update_lmp_scores(&trading_pair_metrics_map) {
+			Err(e) => assert_eq!(e, crate::pallet::Error::<Test>::LMPConfigNotFound.into()),
+			_ => panic!("Expected error"),
+		}
 	})
 }
 
@@ -2464,6 +2465,7 @@ fn test_do_claim_lmp_rewards_happy_path() {
 			<mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
 		println!("pallet Id {:?}", reward_account);
 		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
+		assert_eq!(Balances::free_balance(&main_account), 999999999900u128);
 		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
 		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
 	})

@@ -42,6 +42,8 @@ sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
 pallet-lmp = { path = "../liquidity-mining", default-features = false }
+lazy_static = "1.4.0"
+sequential-test = "0.2.4"
 
 [features]
 default = ["std"]
@@ -62,6 +64,7 @@ std = [
   "hash-db/std",
   "trie-db/std",
   "polkadex-primitives/std",
+  "frame-benchmarking?/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
   "sp-core/std",

@@ -19,7 +19,9 @@
 //! This module contains constants definitions related to the "Orderbook".
 
 use frame_support::PalletId;
-use polkadex_primitives::{Balance};
+use polkadex_primitives::{AccountId, Balance};
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
+use sp_runtime::traits::AccountIdConversion;
 
 /// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;

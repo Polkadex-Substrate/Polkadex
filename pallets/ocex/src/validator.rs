@@ -63,7 +63,8 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// as it verifies the signature and relays them to destination.
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
-pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade";
+
+pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade"; //FIXME: Shold be changed back to aggregator.polkadex.trade
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 type TraderMetricsType<T> = BTreeMap<
@@ -115,7 +116,6 @@ impl<T: Config> Pallet<T> {
 		};
 
 		let mut last_processed_nonce = state_info.snapshot_id;
-
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
 			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
@@ -123,9 +123,7 @@ impl<T: Config> Pallet<T> {
 			AggregatorClient::<T>::load_signed_summary_and_send(next_nonce);
 			return Ok(true);
 		}
-
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
-
 		if next_nonce.saturating_sub(last_processed_nonce) >= CHECKPOINT_BLOCKS {
 			log::debug!(target:"ocex","Fetching checkpoint from Aggregator");
 			let checkpoint = AggregatorClient::<T>::get_checkpoint();
@@ -167,13 +165,14 @@ impl<T: Config> Pallet<T> {
 
 		if next_nonce.saturating_sub(last_processed_nonce) >= 2 {
 			if state_info.last_block == 0 {
-				// state_info.last_block = 4768083; // This is hard coded as the starting point TODO: Uncomment this before mainnet upgrade otherwise itw ill corrupt mainnet state.
+				state_info.last_block = 4768083; // This is hard coded as the starting point TODO: Uncomment this before mainnet upgrade otherwise itw ill corrupt mainnet state.
 			}
 			// We need to sync our off chain state
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
 				log::info!(target:"ocex","Syncing batch: {:?}",nonce);
 				// Load the next ObMessages
 				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) {
+					// TODO: Make it mockable to
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
 						return Ok(true);
@@ -226,7 +225,6 @@ impl<T: Config> Pallet<T> {
 		let state_hash: H256 = state.commit()?;
 		store_trie_root(state_hash);
 		log::info!(target:"ocex","updated trie root: {:?}", state_hash);
-
 		if sp_io::offchain::is_validator() {
 			match available_keys.first() {
 				None => return Err("No active keys found"),
@@ -255,7 +253,6 @@ impl<T: Config> Pallet<T> {
 						signature: signature.encode(),
 					})
 					.map_err(|_| "ApprovedSnapshot serialization failed")?;
-
 					if let Err(err) = AggregatorClient::<T>::send_request(
 						"submit_snapshot_api",
 						&(AGGREGATOR.to_owned() + "/submit_snapshot"),
@@ -299,7 +296,6 @@ impl<T: Config> Pallet<T> {
 		engine_messages: &BTreeMap<IngressMessages<T::AccountId>, EgressMessages<T::AccountId>>,
 	) -> Result<Vec<EgressMessages<T::AccountId>>, &'static str> {
 		log::debug!(target:"ocex","Importing block: {:?}",blk);
-
 		if blk != state_info.last_block.saturating_add(1).into() {
 			log::error!(target:"ocex","Last processed blk: {:?},  given: {:?}",state_info.last_block, blk);
 			return Err("BlockOutofSequence");
@@ -605,7 +601,6 @@ impl<T: Config> Pallet<T> {
 									.map_err(|_| "account id decode error")?,
 								asset,
 							)?;
-
 							if balance != *expected_balance {
 								log::error!(target:"ocex","Fees withdrawn from engine {:?} doesn't match with offchain worker balance: {:?}",
 									expected_balance,balance);
@@ -629,7 +624,6 @@ impl<T: Config> Pallet<T> {
 				_ => {},
 			}
 		}
-
 		state_info.last_block = blk.saturated_into();
 		Ok(verified_egress_messages)
 	}
@@ -865,7 +859,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Stores the state info in the offchain state
-	fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
+	pub fn store_state_info(state_info: StateInfo, state: &mut OffchainState) {
 		state.insert(STATE_INFO.to_vec(), state_info.encode());
 	}
 

@@ -116,7 +116,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 		market: String,
 		epoch: u16,
 		at: Option<BlockHash>,
-	) -> RpcResult<Vec<u16>>;
+	) -> RpcResult<String>;
 
 	#[method(name = "lmp_traderMetrics")]
 	fn get_trader_metrics(
@@ -125,7 +125,7 @@ pub trait PolkadexOcexRpcApi<BlockHash, AccountId, Hash> {
 		main: AccountId,
 		epoch: u16,
 		at: Option<BlockHash>,
-	) -> RpcResult<Vec<u16>>;
+	) -> RpcResult<(String, String, bool)>;
 }
 
 /// A structure that represents the Polkadex OCEX pallet RPC, which allows querying
@@ -399,9 +399,9 @@ where
 			None => self.client.info().best_hash,
 		};
 
-		let score = api.get_total_score(at, market, epoch).map_err(runtime_error_into_rpc_err)?;
+		let score = api.get_total_score(at, epoch, market).map_err(runtime_error_into_rpc_err)?;
 
-		Ok(score.to_string())
+		Ok(format!("{} {}",score.0.to_string(),score.1.to_string()))
 
 	}
 
@@ -414,8 +414,8 @@ where
 			None => self.client.info().best_hash,
 		};
 
-		let (mm_score, trading_score, is_claimed) = api.get_trader_metrics(at, market, epoch).map_err(runtime_error_into_rpc_err)?;
-
+		let (mm_score, trading_score, is_claimed) = api.get_trader_metrics(at, epoch, market, main).map_err(runtime_error_into_rpc_err)?;
+		Ok((mm_score.to_string(), trading_score.to_string(), is_claimed))
 	}
 }
 
