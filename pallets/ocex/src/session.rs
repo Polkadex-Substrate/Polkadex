@@ -18,7 +18,11 @@ impl<T: Config> Pallet<T> {
 	pub fn start_new_epoch(n: BlockNumberFor<T>) {
 		if let Some(config) = <ExpectedLMPConfig<T>>::get() {
 			let mut current_epoch: u16 = <LMPEpoch<T>>::get();
-			if <FinalizeLMPScore<T>>::get().is_none() && current_epoch > 0 {
+			//This is to handle the corner case when epoch is 0
+			if current_epoch == 0 && !<LMPConfig<T>>::contains_key(current_epoch) {
+				<LMPConfig<T>>::insert(current_epoch, config.clone());
+			}
+			if <FinalizeLMPScore<T>>::get().is_none() {
 				<FinalizeLMPScore<T>>::put(current_epoch);
 			}
 			current_epoch = current_epoch.saturating_add(1);
