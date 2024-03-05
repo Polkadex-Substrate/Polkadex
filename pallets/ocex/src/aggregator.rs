@@ -39,7 +39,6 @@ use sp_std::{marker::PhantomData, prelude::ToOwned, vec::Vec};
 
 pub struct AggregatorClient<T: Config>(PhantomData<T>);
 
-
 impl<T: Config> AggregatorClient<T> {
 	/// Load signed summary and send it to the aggregator
 	/// # Parameters

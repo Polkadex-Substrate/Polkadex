@@ -417,8 +417,8 @@ pub mod pallet {
 					}
 				}
 			} else if let Err(err) = Self::create_auction() {
-					log::error!(target:"ocex","Error creating auction: {:?}",err);
-					Self::deposit_event(Event::<T>::FailedToCreateAuction);
+				log::error!(target:"ocex","Error creating auction: {:?}",err);
+				Self::deposit_event(Event::<T>::FailedToCreateAuction);
 			}
 
 			if len > 0 {
@@ -1145,7 +1145,7 @@ pub mod pallet {
 			paid_to_operator: Compact<BalanceOf<T>>,
 		},
 		/// LMP Scores updated
-		LMPScoresUpdated(u16)
+		LMPScoresUpdated(u16),
 	}
 
 	///Allowlisted tokens
@@ -1420,7 +1420,8 @@ pub mod pallet {
 				if finalizing_epoch == 0 {
 					return Ok(());
 				}
-				let config = <LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
+				let config =
+					<LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
 				let mut max_account_counter = config.max_accounts_rewarded;
 				// TODO: @zktony: Find a maximum bound of this map for a reasonable amount of weight
 				for (pair, (map, (total_score, total_fees_paid))) in trader_metrics {
@@ -1434,7 +1435,11 @@ pub mod pallet {
 							break;
 						}
 					}
-					<TotalScores<T>>::insert(finalizing_epoch, pair, (total_score, total_fees_paid));
+					<TotalScores<T>>::insert(
+						finalizing_epoch,
+						pair,
+						(total_score, total_fees_paid),
+					);
 				}
 				let current_blk = frame_system::Pallet::<T>::current_block_number();
 				<LMPClaimBlk<T>>::insert(
@@ -1443,7 +1448,7 @@ pub mod pallet {
 				); // Seven days of block
 				let current_epoch = <LMPEpoch<T>>::get();
 				let next_finalizing_epoch = finalizing_epoch.saturating_add(1);
-				if next_finalizing_epoch < current_epoch{
+				if next_finalizing_epoch < current_epoch {
 					// This is required if engine is offline for more than an epoch duration
 					<FinalizeLMPScore<T>>::put(next_finalizing_epoch);
 				}

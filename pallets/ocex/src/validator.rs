@@ -174,7 +174,8 @@ impl<T: Config> Pallet<T> {
 			for nonce in last_processed_nonce.saturating_add(1)..next_nonce {
 				log::info!(target:"ocex","Syncing batch: {:?}",nonce);
 				// Load the next ObMessages
-				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) { // TODO: Make it mockable to
+				let batch = match AggregatorClient::<T>::get_user_action_batch(nonce) {
+					// TODO: Make it mockable to
 					None => {
 						log::error!(target:"ocex","No user actions found for nonce: {:?}",nonce);
 						return Ok(true);
@@ -216,7 +217,6 @@ impl<T: Config> Pallet<T> {
 			},
 			Some(batch) => batch,
 		};
-
 
 		log::info!(target:"ocex","Processing user actions for nonce: {:?}",next_nonce);
 		let (withdrawals, egress_messages, trader_metrics) =
@@ -636,9 +636,9 @@ impl<T: Config> Pallet<T> {
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
 		let mut config = if epoch > 1 {
 			get_lmp_config(state)?
-		}else{
+		} else {
 			// To Handle the corner case of zero
-			orderbook_primitives::lmp::LMPConfig{ epoch, index: 0 }
+			orderbook_primitives::lmp::LMPConfig { epoch, index: 0 }
 		};
 		config.epoch = epoch;
 		config.index = 0;
@@ -789,7 +789,7 @@ impl<T: Config> Pallet<T> {
 					let fees_paid =
 						get_fees_paid_by_main_account_in_quote(state, epoch, &pair, &main)?;
 					println!("fee paid {:?}", fees_paid); //TODO: Remove this
-					// Get Q_score and uptime information from offchain state
+									  // Get Q_score and uptime information from offchain state
 					let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, &main)?;
 					let uptime = Decimal::from(uptime);
 					// Compute the final score
@@ -798,7 +798,7 @@ impl<T: Config> Pallet<T> {
 						.saturating_mul(uptime.pow(5.0f64))
 						.saturating_mul(maker_volume.pow(0.85f64)); // q_final = (q_score)^0.15*(uptime)^5*(maker_volume)^0.85
 					println!("final score {:?}", fees_paid); //TODO: Remove this
-											// Update the trader map
+										 // Update the trader map
 					if !final_score.is_zero() || !fees_paid.is_zero() {
 						map.insert(main_type, (final_score, fees_paid));
 					} else {
@@ -852,7 +852,7 @@ impl<T: Config> Pallet<T> {
 	pub fn load_state_info(state: &mut OffchainState) -> Result<StateInfo, &'static str> {
 		match state.get(&STATE_INFO.to_vec())? {
 			Some(data) => Ok(StateInfo::decode(&mut &data[..]).unwrap_or_default()),
-			None => {Ok(StateInfo::default())},
+			None => Ok(StateInfo::default()),
 		}
 	}
 
