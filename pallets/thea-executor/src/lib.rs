@@ -67,7 +67,7 @@ pub mod pallet {
     use sp_std::vec::Vec;
     use thea_primitives::{
         types::{AssetMetadata, Deposit, Withdraw},
-        Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
+        Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK, TheaBenchmarkHelper
     };
     use xcm::VersionedMultiLocation;
 
@@ -666,5 +666,14 @@ pub mod pallet {
             <T as Config>::NativeAssetId,
         > for Pallet<T>
     {
+    }
+
+    impl<T: Config> TheaBenchmarkHelper for Pallet<T> {
+        fn set_metadata(asset_id: AssetId) {
+            let metadata = AssetMetadata::new(12).unwrap();
+            if let AssetId::Asset(asset) = asset_id {
+                <Metadata<T>>::insert(asset, metadata);
+            }
+        }
     }
 }

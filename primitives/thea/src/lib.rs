@@ -30,6 +30,7 @@ use parity_scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
+use polkadex_primitives::AssetId;
 
 /// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
@@ -102,4 +103,8 @@ pub trait TheaOutgoingExecutor {
 
 impl TheaIncomingExecutor for () {
 	fn execute_deposits(_network: Network, _deposits: Vec<u8>) {}
+}
+
+pub trait TheaBenchmarkHelper {
+	fn set_metadata(asset_id: AssetId);
 }

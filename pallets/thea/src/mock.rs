@@ -144,6 +144,9 @@ impl crate::Config for Test {
 	type NativeCurrency = Balances;
 	type TheaGovernanceOrigin = EnsureRoot<u64>;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type TheaBenchmarkHelper = TheaExecutor;
 }
 
 frame_support::ord_parameter_types! {

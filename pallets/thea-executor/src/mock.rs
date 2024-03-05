@@ -38,7 +38,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Balances: pallet_balances,
 		Assets: pallet_assets,
-		Thea: thea,
+		Thea: thea::pallet,
 		TheaExecutor: thea_executor,
 		AssetConversion: pallet_asset_conversion
 	}
@@ -131,21 +131,6 @@ impl pallet_assets::Config for Test {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MaxAuthorities: u32 = 10;
-}
-
-impl thea::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type TheaId = AuthorityId;
-	type Signature = AuthoritySignature;
-	type MaxAuthorities = MaxAuthorities;
-	type Currency = Balances;
-	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
-	type Executor = TheaExecutor;
-	type WeightInfo = thea::weights::WeightInfo<Test>;
-}
-
 ord_parameter_types! {
 	pub const AssetConversionOrigin: u32 = 1;
 }
@@ -190,23 +175,41 @@ use polkadex_primitives::AssetId;
 use sp_core::ConstU32;
 use sp_runtime::Permill;
 
+parameter_types! {
+	pub const MaxAuthorities: u32 = 10;
+}
+
+impl thea::pallet::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type TheaId = AuthorityId;
+	type Signature = AuthoritySignature;
+	type MaxAuthorities = crate::mock::MaxAuthorities;
+	type NativeCurrency = Balances;
+	type TheaGovernanceOrigin = EnsureRoot<Self::AccountId>;
+	type Executor = TheaExecutor;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	type TheaBenchmarkHelper = TheaExecutor;
+	type WeightInfo = thea::weights::WeightInfo<Test>;
+}
+
 impl thea_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type Assets = Assets;
 	type AssetId = u128;
+	type MultiAssetIdAdapter = AssetId;
+	type AssetBalanceAdapter = u128;
 	type AssetCreateUpdateOrigin = EnsureRoot<Self::AccountId>;
 	type Executor = Thea;
 	type NativeAssetId = PolkadexAssetId;
 	type TheaPalletId = TheaPalletId;
-	type WithdrawalSize = WithdrawalSize;
-	type ParaId = ParaId;
-	type TheaExecWeightInfo = crate::weights::WeightInfo<Test>;
 	type Swap = AssetConversion;
-	type MultiAssetIdAdapter = AssetId;
-	type AssetBalanceAdapter = u128;
+	type WithdrawalSize = WithdrawalSize;
 	type ExistentialDeposit = ExistentialDeposit;
+	type ParaId = ParaId;
 	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
+	type TheaExecWeightInfo = crate::weights::WeightInfo<Test>;
 }
 
 impl<C> frame_system::offchain::SendTransactionTypes<C> for Test

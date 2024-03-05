@@ -31,6 +31,8 @@ use thea_primitives::types::{
 	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
 };
 use thea_primitives::types::AssetMetadata;
+use thea_primitives::TheaBenchmarkHelper;
+use polkadex_primitives::AssetId;
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
@@ -213,9 +215,7 @@ benchmarks! {
 			networks.insert(i);
 		}
 		<ActiveNetworks<T>>::put(networks.clone());
-		let metadata = AssetMetadata::new(12).unwrap();
-		<thea_executor::Metadata<T>>::insert(0, metadata);
-		// Update IncomingMessagesQueue
+		T::TheaBenchmarkHelper::set_metadata(AssetId::Asset(0));
 		let nonce = 1;
 		for network in networks.iter() {
 			let message = Message {

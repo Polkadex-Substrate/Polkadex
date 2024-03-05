@@ -30,7 +30,6 @@ pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-asset-conversion = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
-thea-executor = { path = "../thea-executor", features = ["std"] }
 env_logger = { workspace = true }
 
 

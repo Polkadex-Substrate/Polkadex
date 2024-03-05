@@ -1343,6 +1343,8 @@ impl thea::Config for Runtime {
 	type Executor = TheaExecutor;
 	type NativeCurrency = Balances;
 	type TheaGovernanceOrigin = EnsureRootOrHalfCouncil;
+	#[cfg(feature = "runtime-benchmarks")]
+	type TheaBenchmarkHelper = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 

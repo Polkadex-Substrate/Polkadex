@@ -109,7 +109,7 @@ pub mod pallet {
 	};
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> + thea_executor::Config{
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>>{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
@@ -141,6 +141,9 @@ pub mod pallet {
 
 		/// Governance Origin
 		type TheaGovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+
+		#[cfg(feature = "runtime-benchmarks")]
+		type TheaBenchmarkHelper: thea_primitives::TheaBenchmarkHelper;
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: TheaWeightInfo;
