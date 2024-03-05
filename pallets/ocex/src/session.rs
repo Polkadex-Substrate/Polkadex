@@ -1,3 +1,21 @@
+// This file is part of Polkadex.
+//
+// Copyright (c) 2022-2023 Polkadex oü.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::pallet::IngressMessages;
 use crate::{
 	pallet::{Config, ExpectedLMPConfig, LMPConfig, Pallet},
@@ -7,7 +25,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 use sp_runtime::SaturatedConversion;
 
-const EPOCH_LENGTH: u32 = 200u32; // 28 days in blocks //FIXME: Change it back
+const EPOCH_LENGTH: u32 = 201600u32; // 28 days in blocks
 
 impl<T: Config> Pallet<T> {
 	pub(crate) fn should_start_new_epoch(n: BlockNumberFor<T>) -> bool {

@@ -141,7 +141,7 @@ pub trait OcexWeightInfo {
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
-#[frame_support::pallet(dev_mode)]
+#[frame_support::pallet]
 pub mod pallet {
 	use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 	use sp_std::collections::btree_map::BTreeMap;
@@ -663,7 +663,7 @@ pub mod pallet {
 				None => false,
 			};
 			ensure!(!is_pair_in_operation, Error::<T>::TradingPairIsNotClosed);
-			// Va
+			// Validate trading pair config
 			Self::validate_trading_pair_config(
 				min_volume,
 				max_volume,
@@ -1026,71 +1026,6 @@ pub mod pallet {
 			});
 			Ok(())
 		}
-
-		// /// Set Incentivised markets
-		// #[pallet::call_index(20)]
-		// #[pallet::weight(10_000)]
-		// pub fn set_lmp_epoch_config(
-		// 	origin: OriginFor<T>,
-		// 	total_liquidity_mining_rewards: Option<Compact<u128>>,
-		// 	total_trading_rewards: Option<Compact<u128>>,
-		// 	market_weightage: Option<BTreeMap<TradingPair, u128>>,
-		// 	min_fees_paid: Option<BTreeMap<TradingPair, u128>>,
-		// 	min_maker_volume: Option<BTreeMap<TradingPair, u128>>,
-		// 	max_accounts_rewarded: Option<u16>,
-		// 	claim_safety_period: Option<u32>,
-		// ) -> DispatchResult {
-		// 	T::GovernanceOrigin::ensure_origin(origin)?;
-		// 	let mut config = <ExpectedLMPConfig<T>>::get();
-		// 	let unit: Decimal = Decimal::from(UNIT_BALANCE);
-		// 	if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
-		// 		config.total_liquidity_mining_rewards =
-		// 			Decimal::from(total_liquidity_mining_rewards.0).div(unit);
-		// 	}
-		// 	if let Some(total_trading_rewards) = total_trading_rewards {
-		// 		config.total_trading_rewards = Decimal::from(total_trading_rewards.0).div(unit);
-		// 	}
-		// 	if let Some(market_weightage) = market_weightage {
-		// 		let mut total_percent: u128 = 0u128;
-		// 		let mut weightage_map = BTreeMap::new();
-		// 		for (market, percent) in market_weightage {
-		// 			// Check if market is registered
-		// 			ensure!(
-		// 				<TradingPairs<T>>::get(market.base, market.quote).is_some(),
-		// 				Error::<T>::TradingPairNotRegistered
-		// 			);
-		// 			// Add market weightage to total percent
-		// 			total_percent = total_percent.saturating_add(percent);
-		// 			weightage_map.insert(market, Decimal::from(percent).div(unit));
-		// 		}
-		// 		ensure!(total_percent == UNIT_BALANCE, Error::<T>::InvalidMarketWeightage);
-		// 		config.market_weightage = weightage_map;
-		// 	}
-		// 	if let Some(min_fees_paid) = min_fees_paid {
-		// 		let mut fees_map = BTreeMap::new();
-		// 		for (market, fees_in_quote) in min_fees_paid {
-		// 			fees_map.insert(market, Decimal::from(fees_in_quote).div(unit));
-		// 		}
-		// 		config.min_fees_paid = fees_map;
-		// 	}
-		//
-		// 	if let Some(min_maker_volume) = min_maker_volume {
-		// 		let mut volume_map = BTreeMap::new();
-		// 		for (market, volume_in_quote) in min_maker_volume {
-		// 			volume_map.insert(market, Decimal::from(volume_in_quote).div(unit));
-		// 		}
-		// 		config.min_maker_volume = volume_map;
-		// 	}
-		// 	if let Some(max_accounts_rewarded) = max_accounts_rewarded {
-		// 		config.max_accounts_rewarded = max_accounts_rewarded;
-		// 	}
-		// 	if let Some(claim_safety_period) = claim_safety_period {
-		// 		config.claim_safety_period = claim_safety_period;
-		// 	}
-		// 	ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
-		// 	<ExpectedLMPConfig<T>>::put(config);
-		// 	Ok(())
-		// }
 
 		/// Set Fee Distribution
 		#[pallet::call_index(21)]
