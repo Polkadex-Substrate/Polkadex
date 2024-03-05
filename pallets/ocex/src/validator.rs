@@ -605,7 +605,6 @@ impl<T: Config> Pallet<T> {
 									.map_err(|_| "account id decode error")?,
 								asset,
 							)?;
-
 							if balance != *expected_balance {
 								log::error!(target:"ocex","Fees withdrawn from engine {:?} doesn't match with offchain worker balance: {:?}",
 									expected_balance,balance);

@@ -32,14 +32,15 @@ use sp_runtime::offchain::storage::StorageValueRef;
 use orderbook_primitives::SnapshotSummary;
 use orderbook_primitives::types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade, TradingPair, UserActionBatch};
 use orderbook_primitives::types::UserActions;
-use polkadex_primitives::{AssetId, UNIT_BALANCE};
+use polkadex_primitives::{AccountId, AssetId, UNIT_BALANCE};
 use orderbook_primitives::ocex::{AccountInfo, TradingPairConfig};
 use crate::aggregator::AggregatorClient;
 use crate::mock::*;
 use crate::mock::new_test_ext;
 use crate::pallet::{Accounts, TradingPairs, IngressMessages as IngressMessagesStorage};
-use orderbook_primitives::ingress::IngressMessages;
+use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
 use sequential_test::sequential;
+use orderbook_primitives::constants::FEE_POT_PALLET_ID;
 use orderbook_primitives::lmp::LMPMarketConfigWrapper;
 use polkadex_primitives::auction::FeeDistribution;
 use crate::Config;
@@ -47,6 +48,7 @@ use crate::snapshot::StateInfo;
 use crate::storage::{OffchainState, store_trie_root};
 use crate::tests::get_trading_pair;
 use crate::validator::{LAST_PROCESSED_SNAPSHOT, WORKER_STATUS};
+use frame_support::traits::fungibles::Mutate as FunMutate;
 
 
 #[test]
@@ -147,13 +149,19 @@ fn test_lmp_complete_flow() {
 #[sequential]
 fn test_on_chain_validation_with_auction() {
     new_test_ext().execute_with(|| {
-        let recipient_address = AccountId32::new([1; 32]);
+        let recipient_address = AccountId32::new([2; 32]);
+        let pot_account: AccountId32 = OCEX::get_pot_account();
+        let pallet_account: AccountId32 = OCEX::get_pallet_account();
+        Balances::mint_into(&pot_account, 10 * UNIT_BALANCE);
+        Balances::mint_into(&pallet_account, 20 * UNIT_BALANCE);
         let auction_duration = 100;
         let burn_ration = 50;
-        let fee_distribution = FeeDistribution { recipient_address, auction_duration, burn_ration };
+        let fee_distribution = FeeDistribution { recipient_address: recipient_address.clone(), auction_duration, burn_ration };
         assert_ok!(OCEX::set_fee_distribution(RuntimeOrigin::root(), fee_distribution));
         set_lmp_config();
+        Assets::mint_into(1u128, &pallet_account, 1000 * UNIT_BALANCE).unwrap();
         push_trade_user_actions(1, 1, 1);
+        assert_eq!(Balances::free_balance(&recipient_address), 0);
         assert_ok!(OCEX::run_on_chain_validation(1));
         let snapshot_id:u64 = 1;
         let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
@@ -173,6 +181,30 @@ fn test_on_chain_validation_with_auction() {
             },
             _ => panic!("Snapshot not found"),
         };
+        OCEX::start_new_epoch(2);
+        push_trade_user_actions_with_fee(2,1,2);
+        let s_info = StorageValueRef::persistent(&WORKER_STATUS);
+        s_info.set(&false);
+        assert_ok!(OCEX::run_on_chain_validation(2));
+        let snapshot_id:u64 = 2;
+        let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
+        key.append(&mut snapshot_id.encode());
+        let summay_ref = StorageValueRef::persistent(&key);
+        match summay_ref.get::<(
+            SnapshotSummary<AccountId32>,
+            crate::sr25519::AuthoritySignature,
+            u16,
+        )>() {
+            Ok(Some((summary, signature, index))) => {
+                println!("Summary {:?}", summary);
+                assert_eq!(summary.snapshot_id, 2);
+                assert_eq!(summary.state_change_id, 2);
+                assert_eq!(summary.last_processed_blk, 3);
+                assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), summary, Vec::new()));
+            },
+            _ => panic!("Snapshot not found"),
+        };
+        assert_eq!(Balances::free_balance(&recipient_address), 10000000000);
     })
 }
 
@@ -228,6 +260,37 @@ pub fn set_lmp_config() {
     OCEX::start_new_epoch(1);
 }
 
+fn push_trade_user_actions_with_fee(stid: u64, snapshot_id: u64, block_no: u64) {
+    let (maker_trade, taker_trade) = get_trades();
+
+    let trade = Trade {
+        maker: maker_trade,
+        taker: taker_trade,
+        price: Decimal::from_f64(0.8).unwrap(),
+        amount: Decimal::from(10),
+        time: 0,
+    };
+    let block_no = get_block_import(block_no);
+    let ingress_message = IngressMessages::WithdrawTradingFees;
+    let mut fees_map: BTreeMap<AssetId, Decimal> = BTreeMap::new();
+    fees_map.insert(AssetId::Polkadex, Decimal::from_f64(0.020).unwrap());
+    fees_map.insert(AssetId::Asset(1), Decimal::from_f64(0.0160).unwrap());
+    let egress_message = EgressMessages::TradingFees(fees_map);
+    let mut ie_map = BTreeMap::new();
+    ie_map.insert(ingress_message.clone(), egress_message);
+    <crate::pallet::IngressMessages<Test>>::insert(block_no.saturating_add(1), vec![ingress_message]);
+    let block_import_action = UserActions::BlockImport(block_no as u32, BTreeMap::new(), BTreeMap::new());
+    let block_import_with_tp = UserActions::BlockImport(block_no.saturating_add(1) as u32, ie_map, BTreeMap::new());
+    let trade_action = UserActions::Trade(vec![trade]);
+    let user_action_batch = UserActionBatch {
+        actions: vec![block_import_action, trade_action, block_import_with_tp],
+        stid: stid,
+        snapshot_id: snapshot_id,
+        signature: sp_core::ecdsa::Signature::from_raw([0;65]),
+    };
+    AggregatorClient::<Test>::mock_get_user_action_batch(user_action_batch);
+}
+
 fn push_trade_user_actions(stid: u64, snapshot_id: u64, block_no: u64) {
     let (maker_trade, taker_trade) = get_trades();
 
@@ -264,19 +327,6 @@ fn get_maker_and_taker__account() -> (AccountId32, AccountId32) {
     let (taker_user_pair, _) = sp_core::sr25519::Pair::from_phrase("ketchup route purchase humble harsh true glide chef buyer crane infant sponsor", None).unwrap();
     (AccountId32::from(maker_user_pair.public().0), AccountId32::from(taker_user_pair.public().0))
 }
-
-// fn update_offchain_storage_state() {
-//     let mut root = crate::storage::load_trie_root();
-//     let mut storage = crate::storage::State;
-//     let mut state = OffchainState::load(&mut storage, &mut root);
-//     let state_info = StateInfo {
-//         last_block: 0,
-//         worker_nonce: 0,
-//         stid: 1,
-//         snapshot_id: 0,
-//     };
-//     OCEX::store_state_info(state_info, &mut state);
-// }
 
 fn get_trades() -> (Order, Order) {
     let (maker_user_pair, _) = sp_core::sr25519::Pair::from_phrase("spider sell nice animal border success square soda stem charge caution echo", None).unwrap();
