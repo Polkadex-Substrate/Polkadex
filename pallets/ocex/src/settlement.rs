@@ -28,6 +28,7 @@ use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::ByteArray;
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::collections::btree_map::BTreeMap;
+use orderbook_primitives::types::Order;
 
 /// Returns the balance of an account and asset from state
 ///
@@ -75,7 +76,7 @@ pub fn add_balance(
 
 	balances
 		.entry(asset)
-		.and_modify(|total| *total = total.saturating_add(balance))
+		.and_modify(|total| *total = Order::rounding_off(total.saturating_add(balance)))
 		.or_insert(balance);
 
 	state.insert(account.to_raw_vec(), balances.encode());
@@ -112,7 +113,7 @@ pub fn sub_balance(
 		log::error!(target:"ocex","Asset found but balance low for asset: {:?}, of account: {:?}",asset, account);
 		return Err("NotEnoughBalance");
 	}
-	*account_balance = account_balance.saturating_sub(balance);
+	*account_balance = Order::rounding_off(account_balance.saturating_sub(balance));
 
 	state.insert(account.to_raw_vec(), balances.encode());
 

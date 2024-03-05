@@ -54,6 +54,7 @@ use sp_runtime::{
 };
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use trie_db::{TrieError, TrieMut};
+use orderbook_primitives::types::Order;
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -595,12 +596,13 @@ impl<T: Config> Pallet<T> {
 								log::error!(target:"ocex","Withdrawing fees for asset: {:?} cannot be zero, check engine code!",asset);
 								return Err("InvalidTradingFeesValue");
 							}
-							let balance = get_balance(
+							let balance = Order::rounding_off(get_balance(
 								state,
 								&Decode::decode(&mut &pot_account.encode()[..])
 									.map_err(|_| "account id decode error")?,
 								asset,
-							)?;
+							)?);
+
 							if balance != *expected_balance {
 								log::error!(target:"ocex","Fees withdrawn from engine {:?} doesn't match with offchain worker balance: {:?}",
 									expected_balance,balance);
