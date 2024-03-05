@@ -40,7 +40,7 @@ pub trait TheaExecutorWeightInfo {
     fn update_asset_metadata(_r: u32) -> Weight;
     fn withdraw(r: u32) -> Weight;
     fn parachain_withdraw(_r: u32) -> Weight;
-    fn ethereum_withdraw(_r: u32) -> Weight;
+    fn evm_withdraw(_r: u32) -> Weight;
     fn on_initialize(x: u32, y: u32) -> Weight;
     fn burn_native_tokens() -> Weight;
     fn claim_deposit(_r: u32) -> Weight;
@@ -386,7 +386,7 @@ pub mod pallet {
         /// * `pay_for_remaining`: Pay for remaining pending withdrawals.
         /// * `pay_with_tokens`: Pay with withdrawing tokens.
         #[pallet::call_index(5)]
-        #[pallet::weight(< T as Config >::TheaExecWeightInfo::ethereum_withdraw(1))]
+        #[pallet::weight(< T as Config >::TheaExecWeightInfo::evm_withdraw(1))]
         pub fn evm_withdraw(
             origin: OriginFor<T>,
             asset_id: u128,
