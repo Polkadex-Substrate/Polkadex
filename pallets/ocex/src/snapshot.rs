@@ -22,23 +22,18 @@ use polkadex_primitives::BlockNumber;
 // Accounts storage
 #[derive(Encode, Decode, PartialEq, Debug, Clone, Copy)]
 pub struct StateInfo {
-    /// Last block processed
-    pub last_block: BlockNumber,
-    /// Last processed worker nonce
-    pub worker_nonce: u64,
-    /// Last processed stid
-    pub stid: u64,
-    /// Last processed snapshot id
-    pub snapshot_id: u64,
+	/// Last block processed
+	pub last_block: BlockNumber,
+	/// Last processed worker nonce
+	pub worker_nonce: u64,
+	/// Last processed stid
+	pub stid: u64,
+	/// Last processed snapshot id
+	pub snapshot_id: u64,
 }
 
 impl Default for StateInfo {
-    fn default() -> Self {
-        Self {
-            last_block: 4768083,
-            worker_nonce: 0,
-            stid: 0,
-            snapshot_id: 0,
-        }
-    }
+	fn default() -> Self {
+		Self { last_block: 4768083, worker_nonce: 0, stid: 0, snapshot_id: 0 }
+	}
 }

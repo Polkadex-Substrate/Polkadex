@@ -27,66 +27,66 @@ use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
 
 const KEY: [u8; 33] = [
-    2, 10, 16, 145, 52, 31, 229, 102, 75, 250, 23, 130, 213, 224, 71, 121, 104, 144, 104, 201, 22,
-    176, 76, 179, 101, 236, 49, 83, 117, 86, 132, 217, 161,
+	2, 10, 16, 145, 52, 31, 229, 102, 75, 250, 23, 130, 213, 224, 71, 121, 104, 144, 104, 201, 22,
+	176, 76, 179, 101, 236, 49, 83, 117, 86, 132, 217, 161,
 ];
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
-    sp_std::vec![Deposit {
-        id: H256::zero().0.to_vec(),
-        recipient: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
-        asset_id: 0,
-        amount: 0,
-        extra: Vec::new(),
-    }]
+	sp_std::vec![Deposit {
+		id: H256::zero().0.to_vec(),
+		recipient: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
+		asset_id: 0,
+		amount: 0,
+		extra: Vec::new(),
+	}]
 }
 
 benchmarks! {
-    insert_authorities {
-        let b in 0 .. u32::MAX;
-        let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
-        let authorities = BoundedVec::truncate_from(vec![public]);
-        let b = b as u64;
-    }: _(RawOrigin::Root, authorities.clone(), b)
-    verify {
-        assert_eq!(<Authorities<T>>::get(b), authorities);
-        assert_eq!(<ValidatorSetId<T>>::get(), b);
-    }
+	insert_authorities {
+		let b in 0 .. u32::MAX;
+		let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
+		let authorities = BoundedVec::truncate_from(vec![public]);
+		let b = b as u64;
+	}: _(RawOrigin::Root, authorities.clone(), b)
+	verify {
+		assert_eq!(<Authorities<T>>::get(b), authorities);
+		assert_eq!(<ValidatorSetId<T>>::get(), b);
+	}
 
-    incoming_message {
-        let message = Message { block_no: 11, nonce: 1, data: generate_deposit_payload::<T>().encode(),
-            network: 1, payload_type: PayloadType::L1Deposit };
-        let signature: T::Signature = sp_core::ecdsa::Signature::default().into();
-        let signed_message = SignedMessage::new(message,0,0,signature.into());
-    }: _(RawOrigin::None, signed_message)
-    verify {
-        assert_eq!(1, <IncomingNonce<T>>::get());
-    }
+	incoming_message {
+		let message = Message { block_no: 11, nonce: 1, data: generate_deposit_payload::<T>().encode(),
+			network: 1, payload_type: PayloadType::L1Deposit };
+		let signature: T::Signature = sp_core::ecdsa::Signature::default().into();
+		let signed_message = SignedMessage::new(message,0,0,signature.into());
+	}: _(RawOrigin::None, signed_message)
+	verify {
+		assert_eq!(1, <IncomingNonce<T>>::get());
+	}
 
-    update_incoming_nonce {
-        let b in 1 .. u32::MAX;
-        let b = b as u64;
-    }: _(RawOrigin::Root, b)
-    verify {
-        assert_eq!(b, <IncomingNonce<T>>::get());
-    }
+	update_incoming_nonce {
+		let b in 1 .. u32::MAX;
+		let b = b as u64;
+	}: _(RawOrigin::Root, b)
+	verify {
+		assert_eq!(b, <IncomingNonce<T>>::get());
+	}
 
-    update_outgoing_nonce {
-        let b in 1 .. u32::MAX;
-        let b = b as u64;
-    }: _(RawOrigin::Root, b)
-    verify {
-        assert_eq!(b, <OutgoingNonce<T>>::get());
-    }
+	update_outgoing_nonce {
+		let b in 1 .. u32::MAX;
+		let b = b as u64;
+	}: _(RawOrigin::Root, b)
+	verify {
+		assert_eq!(b, <OutgoingNonce<T>>::get());
+	}
 
-    send_thea_message {
-        let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
-        let authorities = BoundedVec::truncate_from(vec![public]);
-        let validator_set_id = 1;
-        <ValidatorSetId<T>>::put(validator_set_id);
-        <Authorities<T>>::insert(validator_set_id, authorities);
-        let message = vec![1u8;10];
-    }: _(RawOrigin::Root, message)
+	send_thea_message {
+		let public = <T as Config>::TheaId::decode(&mut KEY.as_ref()).unwrap();
+		let authorities = BoundedVec::truncate_from(vec![public]);
+		let validator_set_id = 1;
+		<ValidatorSetId<T>>::put(validator_set_id);
+		<Authorities<T>>::insert(validator_set_id, authorities);
+		let message = vec![1u8;10];
+	}: _(RawOrigin::Root, message)
 }
 
 #[cfg(test)]

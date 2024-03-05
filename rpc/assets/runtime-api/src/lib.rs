@@ -20,7 +20,7 @@
 use parity_scale_codec::Codec;
 use sp_std::vec::Vec;
 sp_api::decl_runtime_apis! {
-    pub trait PolkadexAssetHandlerRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
-        fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128>;
-    }
+	pub trait PolkadexAssetHandlerRuntimeApi<AccountId,Hash> where AccountId: Codec, Hash : Codec{
+		fn account_balances(assets : Vec<u128>, account_id : AccountId) ->  Vec<u128>;
+	}
 }
