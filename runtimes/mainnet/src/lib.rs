@@ -1717,6 +1717,13 @@ impl_runtime_apis! {
 		fn get_volume_by_user_per_epoch(epoch: u32, market: TradingPair, main: AccountId) -> Decimal{
 			OCEX::get_volume_by_user_per_epoch(epoch,market, main)
 		}
+
+		fn get_total_score(epoch: u16, market: TradingPair) -> (Decimal, Decimal) {
+			OCEX::get_total_score(epoch,market)
+		}
+		fn get_trader_metrics(epoch: u16, market: TradingPair, main: AccountId) -> (Decimal, Decimal, bool){
+			OCEX::get_trader_metrics(epoch,market,main)
+		}
 	}
 
 	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {

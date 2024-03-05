@@ -140,6 +140,7 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	// Import various types used to declare pallet in scope.
 	use super::*;
+	use crate::lmp::get_fees_paid_by_main_account_in_quote;
 	use crate::storage::OffchainState;
 	use crate::validator::WORKER_STATUS;
 	use frame_support::traits::WithdrawReasons;
@@ -1957,6 +1958,62 @@ pub mod pallet {
 				&main,
 			)
 			.unwrap_or_default()
+		}
+
+		pub fn get_total_score(epoch: u16, market: TradingPair) -> (Decimal, Decimal) {
+			let mut total_score: Decimal = Decimal::zero();
+			let mut total_trading_fees: Decimal = Decimal::zero();
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+
+			for (main, _) in <Accounts<T>>::iter() {
+				let (score, fees, _) =
+					Self::get_trader_metrics_inner(&mut state, market, main, epoch);
+				total_score = total_score.saturating_add(score);
+				total_trading_fees = total_trading_fees.saturating_add(fees);
+			}
+			(total_score, total_trading_fees)
+		}
+
+		pub fn get_trader_metrics(
+			epoch: u16,
+			market: TradingPair,
+			main: T::AccountId,
+		) -> (Decimal, Decimal, bool) {
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+			Self::get_trader_metrics_inner(&mut state, market, main, epoch)
+		}
+
+		pub fn get_trader_metrics_inner(
+			state: &mut OffchainState,
+			market: TradingPair,
+			main: T::AccountId,
+			epoch: u16,
+		) -> (Decimal, Decimal, bool) {
+			let current_epoch = <LMPEpoch<T>>::get();
+			if epoch <= current_epoch {
+				let main_concrete: AccountId = Decode::decode(&mut &main.encode()[..]).unwrap();
+				// Read from offchain storage
+				let current_score = Self::compute_score(state, &main_concrete, market, epoch)
+					.map_err(
+						|err| log::error!(target:"ocex","Error while computing score for RPC call: {:?}",err),
+					)
+					.unwrap_or_default();
+				let fees_paid =
+					get_fees_paid_by_main_account_in_quote(state, epoch, &market, &main_concrete)
+						.map_err(
+							|err| log::error!(target:"ocex","Error while computing trading fees for RPC call: {:?}",err),
+						)
+						.unwrap_or_default();
+				let (_, _, is_claimed) = <TraderMetrics<T>>::get((epoch, market, main));
+				(current_score, fees_paid, is_claimed)
+			} else {
+				// Future epoch
+				(Decimal::zero(), Decimal::zero(), false)
+			}
 		}
 
 		pub fn create_auction() -> DispatchResult {
