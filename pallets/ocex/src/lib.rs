@@ -1552,9 +1552,7 @@ pub mod pallet {
         ) -> DispatchResult {
             // Remove  and process FinalizeLMPScore flag.
             if let Some(finalizing_epoch) = <FinalizeLMPScore<T>>::take() {
-                if finalizing_epoch == 0 {
-                    return Ok(());
-                }
+
                 let config =
                     <LMPConfig<T>>::get(finalizing_epoch).ok_or(Error::<T>::LMPConfigNotFound)?;
                 let mut max_account_counter = config.max_accounts_rewarded;

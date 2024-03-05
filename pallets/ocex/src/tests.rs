@@ -2724,7 +2724,7 @@ fn test_do_claim_lmp_rewards_happy_path() {
         add_lmp_config();
         update_lmp_score();
         let main_account = AccountId32::new([1; 32]);
-        let epoch = 1;
+        let epoch = 0;
         let base_asset = AssetId::Polkadex;
         let quote_asset = AssetId::Asset(1);
         let trading_pair = TradingPair {
