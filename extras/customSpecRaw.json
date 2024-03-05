@@ -3,7 +3,7 @@
   "id": "polkadex_main_network",
   "chainType": "Live",
   "bootNodes": [
-      "/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWBkf4SQe38JS3RQx9RsDuYfA1PpVMMjjE4d23wPfGGVa1",
+      "/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWBkf4SQe38JS3RQx9RsDuYfA1PpVMMjjE4d23wPfGGVa1"
   ],
   "telemetryEndpoints": [
   ],
