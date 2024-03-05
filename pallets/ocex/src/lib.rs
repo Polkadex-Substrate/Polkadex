@@ -141,7 +141,7 @@ pub trait OcexWeightInfo {
 // Definition of the pallet logic, to be aggregated at runtime definition through
 // `construct_runtime`.
 #[allow(clippy::too_many_arguments)]
-#[frame_support::pallet(dev_mode)]
+#[frame_support::pallet]
 pub mod pallet {
 	use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 	use sp_std::collections::btree_map::BTreeMap;
@@ -663,7 +663,7 @@ pub mod pallet {
 				None => false,
 			};
 			ensure!(!is_pair_in_operation, Error::<T>::TradingPairIsNotClosed);
-			// Va
+			// Validate trading pair config
 			Self::validate_trading_pair_config(
 				min_volume,
 				max_volume,

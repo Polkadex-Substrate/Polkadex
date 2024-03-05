@@ -68,8 +68,8 @@ benchmarks! {
 		let data = [b as u8; 1_048_576].to_vec(); // 10MB
 	}: _(RawOrigin::Root, data, network)
 	verify {
-		assert!(<OutgoingNonce::<T>>::get(network) == 1);
-		assert!(<OutgoingMessages::<T>>::iter().count() == 1);
+		assert_eq!(<OutgoingNonce::<T>>::get(network), 1);
+		assert_eq!(<OutgoingMessages::<T>>::iter().count(), 1);
 	}
 
 	update_incoming_nonce {
@@ -78,7 +78,7 @@ benchmarks! {
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(<IncomingNonce::<T>>::get(network) == nonce);
+		assert_eq!(<IncomingNonce::<T>>::get(network), nonce);
 	}
 
 	update_outgoing_nonce {
@@ -87,7 +87,7 @@ benchmarks! {
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(<OutgoingNonce::<T>>::get(network) == nonce);
+		assert_eq!(<OutgoingNonce::<T>>::get(network), nonce);
 	}
 
 	add_thea_network {
