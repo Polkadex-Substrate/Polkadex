@@ -31,10 +31,12 @@ use std::{collections::BTreeMap, ops::DivAssign};
 
 use crate::pallet::Pools;
 use frame_support::traits::fungibles::Inspect;
+use parity_scale_codec::Compact;
 use orderbook_primitives::traits::LiquidityMiningCrowdSourcePallet;
 use pallet_ocex_lmp::pallet::PriceOracle;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use sp_runtime::{traits::One, ArithmeticError::Underflow};
+use orderbook_primitives::lmp::LMPMarketConfigWrapper;
 
 #[test]
 fn test_register_pool_happy_path() {
@@ -420,7 +422,7 @@ fn test_claim_rewards_by_lp_happy_path_and_error() {
 			(
 				TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
 				market_maker.clone(),
-				1,
+				0,
 			),
 			(score_map, total_score),
 		);
@@ -429,14 +431,14 @@ fn test_claim_rewards_by_lp_happy_path_and_error() {
 			RuntimeOrigin::signed(trader.clone()),
 			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
 			market_maker.clone(),
-			1
+			0
 		));
 		assert_noop!(
 			LiqudityMining::claim_rewards_by_lp(
 				RuntimeOrigin::signed(trader.clone()),
 				TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
 				market_maker.clone(),
-				1
+				0
 			),
 			crate::pallet::Error::<Test>::AlreadyClaimed
 		);
@@ -474,13 +476,13 @@ fn test_claim_rewards_by_mm_happy_path_and_error() {
 		assert_ok!(LiqudityMining::claim_rewards_by_mm(
 			RuntimeOrigin::signed(market_maker.clone()),
 			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
-			1
+			0
 		));
 		assert_noop!(
 			LiqudityMining::claim_rewards_by_mm(
 				RuntimeOrigin::signed(market_maker.clone()),
 				TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
-				1
+				0
 			),
 			crate::pallet::Error::<Test>::AlreadyClaimed
 		);
@@ -533,30 +535,28 @@ pub fn update_lmp_score() {
 }
 
 pub fn add_lmp_config() {
-	let total_liquidity_mining_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
-	let total_trading_rewards: Option<u128> = Some(1000 * UNIT_BALANCE);
+	let total_liquidity_mining_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+	let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
 	let base_asset = AssetId::Polkadex;
 	let quote_asset = AssetId::Asset(1);
 	let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
 	// Register trading pair
-	let mut market_weightage = BTreeMap::new();
-	market_weightage.insert(trading_pair.clone(), UNIT_BALANCE);
-	let market_weightage: Option<BTreeMap<TradingPair, u128>> = Some(market_weightage);
-	let mut min_fees_paid = BTreeMap::new();
-	min_fees_paid.insert(trading_pair.clone(), UNIT_BALANCE);
-	let min_fees_paid: Option<BTreeMap<TradingPair, u128>> = Some(min_fees_paid);
-	let mut min_maker_volume = BTreeMap::new();
-	min_maker_volume.insert(trading_pair, UNIT_BALANCE);
-	let min_maker_volume: Option<BTreeMap<TradingPair, u128>> = Some(min_maker_volume);
+
 	let max_accounts_rewarded: Option<u16> = Some(10);
 	let claim_safety_period: Option<u32> = Some(0);
+	let lmp_config = LMPMarketConfigWrapper {
+		trading_pair,
+		market_weightage: polkadex_primitives::UNIT_BALANCE,
+		min_fees_paid: polkadex_primitives::UNIT_BALANCE,
+		min_maker_volume: polkadex_primitives::UNIT_BALANCE,
+		max_spread: polkadex_primitives::UNIT_BALANCE,
+		min_depth: polkadex_primitives::UNIT_BALANCE,
+	};
 	assert_ok!(OCEX::set_lmp_epoch_config(
 		RuntimeOrigin::root(),
 		total_liquidity_mining_rewards,
 		total_trading_rewards,
-		market_weightage,
-		min_fees_paid,
-		min_maker_volume,
+		vec![lmp_config],
 		max_accounts_rewarded,
 		claim_safety_period
 	));
@@ -623,6 +623,8 @@ fn register_test_pool(public_fund_allowed: bool) {
 	let trading_account = AccountId32::new([1; 32]);
 	let market_maker = AccountId32::new([2; 32]);
 	register_test_trading_pair();
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), base_asset));
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), quote_asset));
 	mint_base_quote_asset_for_user(market_maker.clone());
 	assert_ok!(LiqudityMining::register_pool(
 		RuntimeOrigin::signed(market_maker.clone()),
@@ -643,6 +645,8 @@ fn register_test_trading_pair() {
 	let price_tick_size: u128 = UNIT_BALANCE;
 	let qty_step_size: u128 = UNIT_BALANCE;
 	assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), base));
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), quote));
 	assert_ok!(OCEX::register_trading_pair(
 		RuntimeOrigin::root(),
 		base,
