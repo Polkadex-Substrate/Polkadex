@@ -38,7 +38,7 @@ fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
 		id: H256::zero().0.to_vec(),
 		recipient: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
-		asset_id: 0,
+		asset_id: 1,
 		amount: 0,
 		extra: Vec::new(),
 	}]
@@ -215,7 +215,7 @@ benchmarks! {
 			networks.insert(i);
 		}
 		<ActiveNetworks<T>>::put(networks.clone());
-		T::TheaBenchmarkHelper::set_metadata(AssetId::Asset(0));
+		T::TheaBenchmarkHelper::set_metadata(AssetId::Asset(1));
 		let nonce = 1;
 		for network in networks.iter() {
 			let message = Message {
