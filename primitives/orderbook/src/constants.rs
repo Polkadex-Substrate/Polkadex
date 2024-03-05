@@ -21,6 +21,7 @@
 use frame_support::PalletId;
 use polkadex_primitives::{Balance};
 
+
 /// The designated SS58 prefix of this chain.
 pub const POLKADEX_MAINNET_SS58: u16 = 88;
 
@@ -35,14 +36,23 @@ pub const MAX_PRICE: Balance = 10000000 * UNIT_BALANCE;
 
 pub const FEE_POT_PALLET_ID: PalletId = PalletId(*b"ocexfees");
 
-#[test]
-pub fn test_overflow_check() {
-	assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
+mod test {
+	use frame_support::PalletId;
+	use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
+	use sp_runtime::traits::AccountIdConversion;
+	use polkadex_primitives::AccountId;
+	use crate::constants::{MAX_PRICE, MAX_QTY, POLKADEX_MAINNET_SS58};
+
+	#[test]
+	pub fn test_overflow_check() {
+		assert!(MAX_PRICE.checked_mul(MAX_QTY).is_some());
+	}
+
+	#[test]
+	pub fn test_fee_pot_address() {
+		pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
+		let pot: AccountId = LMPRewardsPalletId.into_account_truncating();
+		println!("{:?}", pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)))
+	}
 }
 
-#[test]
-pub fn test_fee_pot_address() {
-	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
-	let pot: AccountId = LMPRewardsPalletId.into_account_truncating();
-	println!("{:?}", pot.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)))
-}
