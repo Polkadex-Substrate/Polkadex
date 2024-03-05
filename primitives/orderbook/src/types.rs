@@ -20,9 +20,7 @@
 #[cfg(feature = "std")]
 use crate::constants::*;
 use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
-use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
-};
+use polkadex_primitives::{withdrawal::Withdrawal, AccountId, AssetId, Signature};
 use rust_decimal::Decimal;
 #[cfg(feature = "std")]
 use rust_decimal::{
@@ -30,6 +28,7 @@ use rust_decimal::{
 	RoundingStrategy,
 };
 use scale_info::TypeInfo;
+use serde_with::serde_as;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
@@ -44,7 +43,6 @@ use std::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
-
 pub type OrderId = H256;
 
 /// Defined account information required for the "Orderbook" client.
@@ -236,6 +234,7 @@ impl ObMessage {
 }
 
 /// Defines user specific operations variants.
+#[serde_as]
 #[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
@@ -245,15 +244,20 @@ pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Block import requested.
 	BlockImport(
 		u32,
+		#[serde_as(as = "Vec<(_, _)>")]
 		BTreeMap<IngressMessages<AccountId>, EgressMessages<AccountId>>,
-		BTreeMap<(AssetId, AssetId), Decimal>,
+		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<(AssetId, AssetId), Decimal>,
 	),
 	/// Reset Flag
 	Reset,
 	/// Withdraw operation requested.( request, stid)
 	WithdrawV1(WithdrawalRequest<AccountId>, u64),
 	/// One min LMP Report ( market, epoch, index, total_score, Q_scores)
-	OneMinLMPReport(TradingPair, u16, u16, Decimal, BTreeMap<AccountId, Decimal>),
+	OneMinLMPReport(
+		TradingPair,
+		Decimal,
+		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<AccountId, Decimal>,
+	),
 }
 
 /// Defines withdraw request DTO.
@@ -301,6 +305,8 @@ impl<AccountId: Codec + Clone + TypeInfo> WithdrawalRequest<AccountId> {
 		Decimal::from_str(&self.payload.amount)
 	}
 }
+use crate::ingress::{EgressMessages, IngressMessages};
+use crate::ocex::TradingPairConfig;
 #[cfg(not(feature = "std"))]
 use core::{
 	ops::{Mul, Rem},
@@ -308,7 +314,6 @@ use core::{
 };
 use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
-use polkadex_primitives::ingress::{EgressMessages, IngressMessages};
 use scale_info::prelude::string::String;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -621,8 +626,7 @@ impl Order {
 			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
-					is_market_same
-						&& self.qty.rem(config.qty_step_size).is_zero()
+					is_market_same && self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
 					is_market_same
@@ -981,10 +985,26 @@ pub struct ApprovedSnapshot {
 	pub signature: Vec<u8>,
 }
 
-#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, Serialize, Deserialize, TypeInfo)]
-pub struct LmpConfig {
-	pub trading_pair: TradingPair,
-	pub market_weightage: u128,
-	pub min_fees_paid: u128,
-	pub min_maker_volume: u128
+#[cfg(test)]
+mod tests {
+	use crate::ingress::{EgressMessages, IngressMessages};
+	use crate::types::UserActions;
+	use polkadex_primitives::{AccountId, AssetId};
+	use rust_decimal::Decimal;
+	use std::collections::BTreeMap;
+
+	#[test]
+	pub fn test_serialize_deserialize_user_actions() {
+		let alice = AccountId::new([1; 32]);
+		let action = UserActions::BlockImport(
+			0,
+			BTreeMap::from([(
+				IngressMessages::Deposit(alice.clone(), AssetId::Asset(u128::MAX), Decimal::MAX),
+				EgressMessages::PriceOracle(Default::default()),
+			)]),
+			BTreeMap::from([(((AssetId::Polkadex, AssetId::Asset(u128::MAX)), Decimal::MAX))]),
+		);
+
+		serde_json::to_vec(&action).unwrap();
+	}
 }

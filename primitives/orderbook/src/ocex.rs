@@ -18,15 +18,15 @@
 
 //! This module contains "OCEX" pallet related primitives.
 
-use crate::assets::AssetId;
-use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use polkadex_primitives::fees::FeeConfig;
+use polkadex_primitives::withdrawal::Withdrawal;
+use polkadex_primitives::AssetId;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
-
-use crate::{fees::FeeConfig, withdrawal::Withdrawal};
 
 /// Account related information structure definition required for users registration and storage.
 #[derive(Clone, Encode, Decode, TypeInfo, Debug)]
