@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::lmp::{get_lmp_config, store_lmp_config};
+use crate::lmp::{get_lmp_config, get_total_maker_volume, store_lmp_config};
 use crate::{
 	aggregator::AggregatorClient,
 	lmp::{
@@ -31,6 +31,7 @@ use crate::{
 };
 use core::ops::Div;
 use frame_system::pallet_prelude::BlockNumberFor;
+use num_traits::FromPrimitive;
 use num_traits::pow::Pow;
 use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
@@ -813,9 +814,16 @@ impl<T: Config> Pallet<T> {
 		pair: TradingPair,
 		epoch: u16,
 	) -> Result<Decimal, &'static str> {
-		// TODO: Check if the maker volume of this main is greater than 0.25% of the
-		// total maker volume in the previous epoch, otherwise ignore this account
 		let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair, main)?;
+
+		let total_maker_volume_in_last_epoch = get_total_maker_volume(state,epoch.saturating_sub(1),&pair)?;
+
+		//  Check if the maker volume of this main is greater than 0.25% of the
+		// total maker volume in the previous epoch, otherwise ignore this account
+		if maker_volume <= Decimal::from_f64(0.0025).unwrap().saturating_mul(total_maker_volume_in_last_epoch) {
+			return Ok(Decimal::zero())
+		}
+
 		// Get Q_score and uptime information from offchain state
 		let (q_score, uptime) = get_q_score_and_uptime(state, epoch, &pair, main)?;
 		let uptime = Decimal::from(uptime);
