@@ -470,7 +470,7 @@ impl pallet_sudo::Config for Runtime {
 
 parameter_types! {
 	pub const AssetHandlerPalletId: PalletId = PalletId(*b"XcmHandl");
-	pub const WithdrawalExecutionBlockDiff: u32 = 1000;
+	pub const WithdrawalExecutionBlockDiff: u32 = 1;
 	pub ParachainId: u32 = ParachainInfo::get().into();
 	pub const ParachainNetworkId: u8 = 1; // Our parachain's thea id is one.
 	pub const PolkadexAssetid: u128 = POLKADEX_NATIVE_ASSET_ID;
