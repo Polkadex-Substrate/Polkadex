@@ -45,9 +45,7 @@ pub trait LiquidityMiningCrowdSourcePallet<AccountId> {
 }
 
 impl<AccountId> LiquidityMiningCrowdSourcePallet<AccountId> for () {
-	fn new_epoch(_n: u16) {
-		return;
-	}
+	fn new_epoch(_n: u16) {}
 
 	fn add_liquidity_success(
 		_market: TradingPair,
@@ -93,7 +91,5 @@ impl<AccountId> LiquidityMiningCrowdSourcePallet<AccountId> for () {
 		Ok(())
 	}
 
-	fn stop_accepting_lmp_withdrawals(_epoch: u16) {
-		return;
-	}
+	fn stop_accepting_lmp_withdrawals(_epoch: u16) {}
 }

@@ -28,7 +28,6 @@ use parity_scale_codec::Decode;
 use polkadex_primitives::AssetId;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
-use thea_primitives::types::AssetMetadata;
 use thea_primitives::types::{
 	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
 };
