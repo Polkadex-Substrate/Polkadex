@@ -823,7 +823,6 @@ impl Order {
 		}
 	}
 
-	// TODO: how to gate this only for testing
 	#[cfg(feature = "std")]
 	pub fn random_order_for_testing(
 		pair: TradingPair,
