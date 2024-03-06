@@ -31,8 +31,8 @@ use crate::{
 };
 use core::ops::Div;
 use frame_system::pallet_prelude::BlockNumberFor;
-use num_traits::FromPrimitive;
 use num_traits::pow::Pow;
+use num_traits::FromPrimitive;
 use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
 use orderbook_primitives::types::Order;
@@ -816,12 +816,17 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Decimal, &'static str> {
 		let maker_volume = get_maker_volume_by_main_account(state, epoch, &pair, main)?;
 
-		let total_maker_volume_in_last_epoch = get_total_maker_volume(state,epoch.saturating_sub(1),&pair)?;
+		let total_maker_volume_in_last_epoch =
+			get_total_maker_volume(state, epoch.saturating_sub(1), &pair)?;
 
 		//  Check if the maker volume of this main is greater than 0.25% of the
 		// total maker volume in the previous epoch, otherwise ignore this account
-		if maker_volume <= Decimal::from_f64(0.0025).unwrap().saturating_mul(total_maker_volume_in_last_epoch) {
-			return Ok(Decimal::zero())
+		if maker_volume
+			<= Decimal::from_f64(0.0025)
+				.unwrap()
+				.saturating_mul(total_maker_volume_in_last_epoch)
+		{
+			return Ok(Decimal::zero());
 		}
 
 		// Get Q_score and uptime information from offchain state
