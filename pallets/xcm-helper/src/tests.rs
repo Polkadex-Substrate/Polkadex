@@ -46,7 +46,7 @@ fn test_remove_whitelisted_token_returns_ok() {
 	new_test_ext().execute_with(|| {
 		let asset_location = MultiLocation::parent();
 		let token: AssetId = AssetId::Concrete(asset_location);
-		assert_ok!(XcmHelper::whitelist_token(RuntimeOrigin::z(), token));
+		assert_ok!(XcmHelper::whitelist_token(RuntimeOrigin::root(), token));
 		assert_ok!(XcmHelper::remove_whitelisted_token(RuntimeOrigin::root(), token));
 	});
 }
