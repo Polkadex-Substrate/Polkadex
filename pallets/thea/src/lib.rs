@@ -109,7 +109,7 @@ pub mod pallet {
 	};
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>>{
+	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Authority identifier type
@@ -422,7 +422,11 @@ pub mod pallet {
 							existing_payload.stake.saturated_into(),
 							Precision::BestEffort,
 						)?;
-						T::NativeCurrency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+						T::NativeCurrency::hold(
+							&THEA_HOLD_REASON,
+							&signer,
+							stake.saturated_into(),
+						)?;
 						existing_payload.message = payload;
 						existing_payload.relayer = signer;
 						existing_payload.stake = stake;
@@ -578,8 +582,11 @@ pub mod pallet {
 			let fisherman = ensure_signed(origin)?;
 			let config = <NetworkConfig<T>>::get(network);
 			//  Check if min stake is given
-			if T::NativeCurrency::reducible_balance(&fisherman, Preservation::Preserve, Fortitude::Polite)
-				< config.fisherman_stake.saturated_into()
+			if T::NativeCurrency::reducible_balance(
+				&fisherman,
+				Preservation::Preserve,
+				Fortitude::Polite,
+			) < config.fisherman_stake.saturated_into()
 			{
 				return Err(Error::<T>::NotEnoughStake.into());
 			}

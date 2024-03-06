@@ -79,6 +79,7 @@ pub struct LMPMarketConfig {
 	// refer: https://en.wikipedia.org/wiki/Bid–ask_spread
 	pub max_spread: Decimal,
 	// Minimum depth an Order must have to be eligible for LMP
+	// In Quote asset. ( it is basically volume of that order )
 	pub min_depth: Decimal,
 }
 

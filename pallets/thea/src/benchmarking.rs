@@ -25,14 +25,14 @@ use frame_benchmarking::v1::benchmarks;
 use frame_support::traits::fungible::{hold::Mutate as HoldMutate, Mutate};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
+use polkadex_primitives::AssetId;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
+use thea_primitives::types::AssetMetadata;
 use thea_primitives::types::{
 	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
 };
-use thea_primitives::types::AssetMetadata;
 use thea_primitives::TheaBenchmarkHelper;
-use polkadex_primitives::AssetId;
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
