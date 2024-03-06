@@ -25,17 +25,19 @@ use frame_benchmarking::v1::benchmarks;
 use frame_support::traits::fungible::{hold::Mutate as HoldMutate, Mutate};
 use frame_system::RawOrigin;
 use parity_scale_codec::Decode;
+use polkadex_primitives::AssetId;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 use thea_primitives::types::{
 	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
 };
+use thea_primitives::TheaBenchmarkHelper;
 
 fn generate_deposit_payload<T: Config>() -> Vec<Deposit<T::AccountId>> {
 	sp_std::vec![Deposit {
 		id: H256::zero().0.to_vec(),
 		recipient: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
-		asset_id: 0,
+		asset_id: 1,
 		amount: 0,
 		extra: Vec::new(),
 	}]
@@ -53,7 +55,7 @@ benchmarks! {
 		};
 		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
 		<AllowListTestingRelayers<T>>::insert(0u8, relayer.clone());
-		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 	}: _(RawOrigin::Signed(relayer), message, 10000*UNIT_BALANCE)
 	verify {
 		// Nonce is updated only after execute_at number of blocks
@@ -67,8 +69,8 @@ benchmarks! {
 		let data = [b as u8; 1_048_576].to_vec(); // 10MB
 	}: _(RawOrigin::Root, data, network)
 	verify {
-		assert!(<OutgoingNonce::<T>>::get(network) == 1);
-		assert!(<OutgoingMessages::<T>>::iter().count() == 1);
+		assert_eq!(<OutgoingNonce::<T>>::get(network), 1);
+		assert_eq!(<OutgoingMessages::<T>>::iter().count(), 1);
 	}
 
 	update_incoming_nonce {
@@ -77,7 +79,7 @@ benchmarks! {
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(<IncomingNonce::<T>>::get(network) == nonce);
+		assert_eq!(<IncomingNonce::<T>>::get(network), nonce);
 	}
 
 	update_outgoing_nonce {
@@ -86,7 +88,7 @@ benchmarks! {
 		let nonce: u64 = b.into();
 	}: _(RawOrigin::Root, nonce, network)
 	verify {
-		assert!(<OutgoingNonce::<T>>::get(network) == nonce);
+		assert_eq!(<OutgoingNonce::<T>>::get(network), nonce);
 	}
 
 	add_thea_network {
@@ -140,7 +142,7 @@ benchmarks! {
 	report_misbehaviour {
 		// Create fisherman account with some balance
 		let fisherman: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
-		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let network_id: u8 = 2;
 		let nonce: u64 = 0;
 		let message = Message {
@@ -166,17 +168,17 @@ benchmarks! {
 	handle_misbehaviour {
 		// Add MisbehaviourReports
 		let relayer: T::AccountId = T::AccountId::decode(&mut &[0u8; 32][..]).unwrap();
-		<T as pallet::Config>::Currency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&relayer, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let fisherman: T::AccountId = T::AccountId::decode(&mut &[1u8; 32][..]).unwrap();
-		<T as pallet::Config>::Currency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
+		<T as pallet::Config>::NativeCurrency::mint_into(&fisherman, (100000*UNIT_BALANCE).saturated_into()).unwrap();
 		let relayer_stake_amount = 1 * UNIT_BALANCE;
 		let fisherman_stake_amount = 1 * UNIT_BALANCE;
-		T::Currency::hold(
+		T::NativeCurrency::hold(
 				&THEA_HOLD_REASON,
 				&relayer,
 				relayer_stake_amount.saturated_into(),
 			)?;
-		T::Currency::hold(
+		T::NativeCurrency::hold(
 				&THEA_HOLD_REASON,
 				&fisherman,
 				fisherman_stake_amount.saturated_into(),
@@ -212,7 +214,7 @@ benchmarks! {
 			networks.insert(i);
 		}
 		<ActiveNetworks<T>>::put(networks.clone());
-		// Update IncomingMessagesQueue
+		T::TheaBenchmarkHelper::set_metadata(AssetId::Asset(1));
 		let nonce = 1;
 		for network in networks.iter() {
 			let message = Message {

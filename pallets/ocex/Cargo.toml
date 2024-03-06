@@ -21,19 +21,19 @@ frame-system = { default-features = false, workspace = true }
 sp-runtime = { default-features = false, workspace = true }
 sp-std = { workspace = true, default-features = false }
 polkadex-primitives = { workspace = true, default-features = false }
-rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
+orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
+rust_decimal = { workspace = true, features = ["scale-codec", "maths-nopanic"], default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
-liquidity = { path = "../liquidity", default-features = false }
-orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 sp-application-crypto = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 hash-db = { workspace = true, default-features = false }
 trie-db = { workspace = true, default-features = false }
 sp-trie = { workspace = true, default-features = false }
+num-traits = { version = "0.2.17", default-features = false }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
@@ -41,6 +41,9 @@ pallet-balances = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true }
 sp-keystore = { workspace = true }
 sp-io = { workspace = true }
+pallet-lmp = { path = "../liquidity-mining", default-features = false }
+lazy_static = "1.4.0"
+sequential-test = "0.2.4"
 
 [features]
 default = ["std"]
@@ -61,16 +64,16 @@ std = [
   "hash-db/std",
   "trie-db/std",
   "polkadex-primitives/std",
+  "frame-benchmarking?/std",
   "rust_decimal/std",
   "pallet-timestamp/std",
-  "liquidity/std",
   "sp-core/std",
+  "pallet-lmp/std",
 ]
 runtime-benchmarks = [
   "sp-runtime/runtime-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "liquidity/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]

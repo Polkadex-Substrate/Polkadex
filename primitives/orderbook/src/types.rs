@@ -17,16 +17,16 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! In this module defined "Orderbook" specific operations and types.
+#[cfg(feature = "std")]
 use crate::constants::*;
-use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{
-	ocex::TradingPairConfig, withdrawal::Withdrawal, AccountId, AssetId, Signature,
-};
-use rust_decimal::{
-	prelude::{FromPrimitive, Zero},
-	Decimal, RoundingStrategy,
-};
+use parity_scale_codec::{Codec, Decode, Encode, MaxEncodedLen};
+use polkadex_primitives::{withdrawal::Withdrawal, AccountId, AssetId, Signature};
+#[cfg(feature = "std")]
+use rust_decimal::prelude::{FromPrimitive, Zero};
+use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
 use scale_info::TypeInfo;
+use serde_with::serde_as;
 use sp_core::H256;
 use sp_runtime::traits::Verify;
 use sp_std::cmp::Ordering;
@@ -41,20 +41,19 @@ use std::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
-
 pub type OrderId = H256;
 
 /// Defined account information required for the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Serialize, Deserialize)]
 pub struct AccountInfo {
 	/// Collection of the proxy accounts.
 	pub proxies: Vec<AccountId>,
 }
 
 /// Defines account to asset map DTO to be used in the "Orderbook" client.
-#[derive(Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+	Clone, Debug, Encode, Decode, Ord, PartialOrd, PartialEq, Eq, TypeInfo, Serialize, Deserialize,
+)]
 pub struct AccountAsset {
 	/// Main account identifier.
 	pub main: AccountId,
@@ -75,8 +74,7 @@ impl AccountAsset {
 }
 
 /// Defines trade related structure DTO.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct Trade {
 	/// Market order.
 	pub maker: Order,
@@ -163,11 +161,17 @@ impl Trade {
             self.maker.verify_config(&config) &
             self.taker.verify_config(&config)
 	}
+
+	/// Returns the unique trade id for given trade.
+	pub fn trade_id(&self) -> H256 {
+		let mut data = self.maker.id.as_bytes().to_vec();
+		data.append(&mut self.taker.id.as_bytes().to_vec());
+		sp_io::hashing::blake2_256(&data).into()
+	}
 }
 
 /// Defines "Orderbook" message structure DTO.
-#[derive(Clone, Debug, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Serialize, Deserialize)]
 #[cfg(feature = "std")]
 pub struct ObMessage {
 	/// State change identifier.
@@ -183,9 +187,8 @@ pub struct ObMessage {
 }
 
 /// A batch of user actions
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Serialize, Deserialize)]
+pub struct UserActionBatch<AccountId: Ord + Clone + Codec + TypeInfo> {
 	/// Vector of user actions from engine in this batch
 	pub actions: Vec<UserActions<AccountId>>,
 	/// State change id
@@ -196,7 +199,7 @@ pub struct UserActionBatch<AccountId: Clone + Codec + TypeInfo> {
 	pub signature: sp_core::ecdsa::Signature,
 }
 
-impl<AccountId: Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
+impl<AccountId: Ord + Clone + Codec + TypeInfo> UserActionBatch<AccountId> {
 	/// Returns the data used for signing a snapshot summary
 	pub fn sign_data(&self) -> [u8; 32] {
 		let mut data: Vec<u8> = self.actions.encode();
@@ -229,24 +232,34 @@ impl ObMessage {
 }
 
 /// Defines user specific operations variants.
-#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-pub enum UserActions<AccountId: Codec + Clone + TypeInfo> {
+#[serde_as]
+#[derive(Clone, Debug, Encode, Decode, TypeInfo, PartialEq, Serialize, Deserialize)]
+pub enum UserActions<AccountId: Ord + Codec + Clone + TypeInfo> {
 	/// Trade operation requested.
 	Trade(Vec<Trade>),
 	/// Withdraw operation requested. ( payload, stid)
 	Withdraw(WithdrawalRequest<AccountId>),
 	/// Block import requested.
-	BlockImport(u32),
+	BlockImport(
+		u32,
+		#[serde_as(as = "Vec<(_, _)>")]
+		BTreeMap<IngressMessages<AccountId>, EgressMessages<AccountId>>,
+		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<(AssetId, AssetId), Decimal>,
+	),
 	/// Reset Flag
 	Reset,
 	/// Withdraw operation requested.( request, stid)
 	WithdrawV1(WithdrawalRequest<AccountId>, u64),
+	/// One min LMP Report ( market, epoch, index, total_score, Q_scores)
+	OneMinLMPReport(
+		TradingPair,
+		Decimal,
+		#[serde_as(as = "Vec<(_, _)>")] BTreeMap<AccountId, Decimal>,
+	),
 }
 
 /// Defines withdraw request DTO.
-#[derive(Clone, Debug, Decode, Encode, TypeInfo, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Decode, Encode, TypeInfo, PartialEq, Serialize, Deserialize)]
 pub struct WithdrawalRequest<AccountId: Codec + Clone + TypeInfo> {
 	/// Signature.
 	pub signature: Signature,
@@ -290,17 +303,20 @@ impl<AccountId: Codec + Clone + TypeInfo> WithdrawalRequest<AccountId> {
 		Decimal::from_str(&self.payload.amount)
 	}
 }
+use crate::ingress::{EgressMessages, IngressMessages};
+use crate::ocex::TradingPairConfig;
 #[cfg(not(feature = "std"))]
 use core::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
+use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
 use scale_info::prelude::string::String;
+use sp_std::collections::btree_map::BTreeMap;
 
 /// Withdraw payload requested by user.
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct WithdrawPayloadCallByUser {
 	/// Asset identifier.
 	pub asset_id: AssetId,
@@ -311,8 +327,21 @@ pub struct WithdrawPayloadCallByUser {
 }
 
 /// Defines possible order sides variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Ord, PartialOrd, Debug, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Clone,
+	Hash,
+	Ord,
+	PartialOrd,
+	Debug,
+	Eq,
+	PartialEq,
+	TypeInfo,
+	Serialize,
+	Deserialize,
+)]
 pub enum OrderSide {
 	/// Asking order side.
 	Ask,
@@ -344,8 +373,9 @@ impl TryFrom<String> for OrderSide {
 }
 
 /// Defines possible order types variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+	Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize,
+)]
 pub enum OrderType {
 	/// Order limit type.
 	LIMIT,
@@ -367,8 +397,9 @@ impl TryFrom<String> for OrderType {
 }
 
 /// Defines possible order statuses variants.
-#[derive(Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+	Encode, Decode, Copy, Clone, Hash, Debug, Eq, PartialEq, TypeInfo, Serialize, Deserialize,
+)]
 pub enum OrderStatus {
 	/// Order open.
 	OPEN,
@@ -404,8 +435,22 @@ impl From<OrderStatus> for String {
 }
 
 /// Defines trading pair structure.
-#[derive(Encode, Decode, Copy, Hash, Ord, PartialOrd, Clone, PartialEq, Debug, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+	Encode,
+	Decode,
+	Copy,
+	Hash,
+	Ord,
+	PartialOrd,
+	Clone,
+	PartialEq,
+	Debug,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+	Serialize,
+	Deserialize,
+)]
 pub struct TradingPair {
 	/// Base asset identifier.
 	pub base: AssetId,
@@ -518,8 +563,7 @@ impl Display for TradingPair {
 }
 
 /// Order structure definition.
-#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize)]
 pub struct Order {
 	/// State change identifier.
 	pub stid: u64,
@@ -568,28 +612,24 @@ impl Order {
 	pub fn verify_config(&self, config: &TradingPairConfig) -> bool {
 		let is_market_same =
 			self.pair.base == config.base_asset && self.pair.quote == config.quote_asset;
+		let volume = self.price.saturating_mul(self.qty);
 		let result = match self.order_type {
 			OrderType::LIMIT => {
 				is_market_same
-					&& self.price >= config.min_price
-					&& self.price <= config.max_price
-					&& self.qty >= config.min_qty
-					&& self.qty <= config.max_qty
+					&& volume >= config.min_volume
+					&& volume <= config.max_volume
 					&& self.price.rem(config.price_tick_size).is_zero()
 					&& self.qty.rem(config.qty_step_size).is_zero()
 			},
 			OrderType::MARKET => {
 				if self.side == OrderSide::Ask {
 					// for ask order we are checking base order qty
-					is_market_same
-						&& self.qty >= config.min_qty
-						&& self.qty <= config.max_qty
-						&& self.qty.rem(config.qty_step_size).is_zero()
+					is_market_same && self.qty.rem(config.qty_step_size).is_zero()
 				} else {
 					// for bid order we are checking quote order qty
 					is_market_same
-						&& self.quote_order_qty >= (config.min_qty * config.min_price)
-						&& self.quote_order_qty <= (config.max_qty * config.max_price)
+						&& self.quote_order_qty >= config.min_volume
+						&& self.quote_order_qty <= config.max_volume
 						&& self.quote_order_qty.rem(config.price_tick_size).is_zero()
 				}
 			},
@@ -608,6 +648,64 @@ impl Order {
 			log::error!(target:"orderbook","Order signature check failed");
 		}
 		result
+	}
+
+	/// Returns the key used for storing in orderbook
+	pub fn key(&self) -> OrderKey {
+		OrderKey { price: self.price, timestamp: self.timestamp, side: self.side }
+	}
+}
+
+#[derive(PartialEq, Eq)]
+pub struct OrderKey {
+	pub price: Decimal,
+	pub timestamp: i64,
+	pub side: OrderSide,
+}
+
+impl PartialOrd for OrderKey {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for OrderKey {
+	fn cmp(&self, other: &Self) -> Ordering {
+		assert_eq!(self.side, other.side, "Comparison cannot work for opposite order sides");
+		if self.side == OrderSide::Bid {
+			// Buy side
+			match self.price.cmp(&other.price) {
+				// A.price < B.price => [B, A] (in buy side, the first prices should be the highest)
+				Ordering::Less => Ordering::Less,
+				// A.price == B.price => Order based on timestamp
+				Ordering::Equal => {
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					}
+				},
+				// A.price > B.price => [A, B]
+				Ordering::Greater => Ordering::Greater,
+			}
+		} else {
+			// Sell side
+			match self.price.cmp(&other.price) {
+				// A.price < B.price => [A, B] (in sell side, the first prices should be the lowest)
+				Ordering::Less => Ordering::Greater,
+				// A.price == B.price => Order based on timestamp
+				Ordering::Equal => {
+					// If price is equal, we follow the FIFO priority
+					if self.timestamp < other.timestamp {
+						Ordering::Greater
+					} else {
+						Ordering::Less
+					}
+				},
+				// A.price > B.price => [B, A]
+				Ordering::Greater => Ordering::Less,
+			}
+		}
 	}
 }
 
@@ -657,6 +755,14 @@ impl Ord for Order {
 	}
 }
 
+impl Order {
+	pub fn rounding_off(a: Decimal) -> Decimal {
+		// if we want to operate with a precision of 8 decimal places,
+		// all calculations should be done with latest 9 decimal places
+		a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
+	}
+}
+
 #[cfg(feature = "std")]
 impl Order {
 	/// Computes the new avg_price and adds qty to filled_qty. If returned is false - then underflow
@@ -672,7 +778,8 @@ impl Order {
 		self.filled_quantity = self.filled_quantity.saturating_add(amount);
 		println!("self.filled_quantity: {:?}\ntemp: {:?}", self.filled_quantity, temp);
 		match temp.checked_div(self.filled_quantity) {
-			Some(quotient) => {
+			Some(mut quotient) => {
+				quotient = Self::rounding_off(quotient);
 				println!("Quotient: {quotient:?}");
 				self.avg_filled_price = quotient;
 				true
@@ -716,13 +823,6 @@ impl Order {
 		}
 	}
 
-	pub fn rounding_off(a: Decimal) -> Decimal {
-		// if we want to operate with a precision of 8 decimal places,
-		// all calculations should be done with latest 9 decimal places
-		a.round_dp_with_strategy(9, RoundingStrategy::ToZero)
-	}
-
-	// TODO: how to gate this only for testing
 	#[cfg(feature = "std")]
 	pub fn random_order_for_testing(
 		pair: TradingPair,
@@ -763,8 +863,7 @@ pub struct OrderDetails {
 }
 
 /// Defines payload of the order.
-#[derive(Encode, Decode, Clone, Debug)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, Debug, Serialize, Deserialize)]
 pub struct OrderPayload {
 	/// Client order identifier.
 	pub client_order_id: H256,
@@ -861,8 +960,7 @@ impl TryFrom<OrderDetails> for Order {
 }
 
 /// Defines withdraw details DTO.
-#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq)]
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, Serialize, Deserialize)]
 pub struct WithdrawalDetails {
 	/// Withdraw payload.
 	pub payload: WithdrawPayloadCallByUser,
@@ -884,4 +982,28 @@ pub struct ApprovedSnapshot {
 	pub index: u16,
 	/// sr25519 signature of the authority
 	pub signature: Vec<u8>,
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::ingress::{EgressMessages, IngressMessages};
+	use crate::types::UserActions;
+	use polkadex_primitives::{AccountId, AssetId};
+	use rust_decimal::Decimal;
+	use std::collections::BTreeMap;
+
+	#[test]
+	pub fn test_serialize_deserialize_user_actions() {
+		let alice = AccountId::new([1; 32]);
+		let action = UserActions::BlockImport(
+			0,
+			BTreeMap::from([(
+				IngressMessages::Deposit(alice.clone(), AssetId::Asset(u128::MAX), Decimal::MAX),
+				EgressMessages::PriceOracle(Default::default()),
+			)]),
+			BTreeMap::from([(((AssetId::Polkadex, AssetId::Asset(u128::MAX)), Decimal::MAX))]),
+		);
+
+		serde_json::to_vec(&action).unwrap();
+	}
 }

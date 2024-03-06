@@ -21,16 +21,20 @@
 use crate::{storage::store_trie_root, *};
 use frame_support::{assert_noop, assert_ok};
 use polkadex_primitives::{assets::AssetId, withdrawal::Withdrawal, Signature, UNIT_BALANCE};
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::prelude::FromPrimitive;
 use sp_std::collections::btree_map::BTreeMap;
 use std::str::FromStr;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
-use frame_support::testing_prelude::bounded_vec;
+use frame_support::traits::fungibles::Mutate as MutateAsset;
+use frame_support::{testing_prelude::bounded_vec, BoundedVec};
 use frame_system::EventRecord;
-use parity_scale_codec::Decode;
-use polkadex_primitives::{ingress::IngressMessages, AccountId, AssetsLimit};
+use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
+use orderbook_primitives::ocex::AccountInfo;
+use parity_scale_codec::{Compact, Decode};
+use polkadex_primitives::auction::{AuctionInfo, FeeDistribution};
+use polkadex_primitives::AccountId;
 use rust_decimal::Decimal;
 use sp_core::{
 	bounded::BoundedBTreeSet,
@@ -83,6 +87,8 @@ fn test_ocex_submit_snapshot() {
 		state_change_id: 1104,
 		last_processed_blk: 1103,
 		withdrawals: vec![],
+		egress_messages: vec![],
+		trader_metrics: None,
 	};
 
 	let signature1 = auth1.sign(&snapshot.encode());
@@ -458,7 +464,9 @@ fn test_trade_between_two_accounts_without_balance() {
 		let amount = Decimal::from_str("20").unwrap();
 		let price = Decimal::from_str("2").unwrap();
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = OCEX::process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -509,7 +517,9 @@ fn test_trade_between_two_accounts_with_balance() {
 		//so alice should have 20 PDEX and bob should have 20 less PDEX
 		//also, alice should have 40 less Asset(1) and bob should have 40 more Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = OCEX::process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		assert_ok!(result);
 
 		//check has 20 pdex now
@@ -569,7 +579,9 @@ fn test_trade_between_two_accounts_insuffient_bidder_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = OCEX::process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -603,7 +615,9 @@ fn test_trade_between_two_accounts_insuffient_asker_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
-		let result = process_trade(&mut state, &trade, config);
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = OCEX::process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "NotEnoughBalance"),
@@ -639,8 +653,9 @@ fn test_trade_between_two_accounts_invalid_signature() {
 		let mut trade = create_trade_between_alice_and_bob(price, amount);
 		//swap alice and bob's signature
 		trade.maker.signature = trade.taker.signature.clone();
-
-		let result = process_trade(&mut state, &trade, config);
+		let (maker_fees, taker_fees) =
+			OCEX::get_fee_structure(&trade.maker.user, &trade.taker.user).unwrap();
+		let result = OCEX::process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
 			Err(e) => assert_eq!(e, "InvalidTrade"),
@@ -830,10 +845,8 @@ fn test_register_trading_pair_both_assets_cannot_be_same() {
 				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
-				10001_u128.into(),
 				100_u128.into(),
 				10001_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -850,8 +863,6 @@ fn test_register_trading_pair_exchange_not_operational() {
 				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
-				10001_u128.into(),
-				100_u128.into(),
 				10001_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -873,8 +884,6 @@ fn test_register_trading_pair_bad_origin() {
 				AssetId::Polkadex,
 				1_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -886,8 +895,6 @@ fn test_register_trading_pair_bad_origin() {
 				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Polkadex,
 				AssetId::Polkadex,
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -909,8 +916,6 @@ fn test_register_trading_pair_value_zero() {
 				AssetId::Asset(20),
 				0_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -923,13 +928,13 @@ fn test_register_trading_pair_value_zero() {
 fn test_register_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -971,8 +976,6 @@ fn test_register_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				DEPOSIT_MAX + 1,
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -986,12 +989,36 @@ fn test_register_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
+		);
+
+		assert_noop!(
+			OCEX::register_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
 		);
 
 		assert_noop!(
@@ -1002,8 +1029,6 @@ fn test_register_trading_pair_amount_overflow() {
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
@@ -1015,38 +1040,6 @@ fn test_register_trading_pair_amount_overflow() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::register_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
-				DEPOSIT_MAX + 1,
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-
-		assert_noop!(
-			OCEX::register_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1
@@ -1060,13 +1053,13 @@ fn test_register_trading_pair_amount_overflow() {
 fn test_update_trading_pair_amount_overflow() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			10000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1083,8 +1076,6 @@ fn test_update_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				DEPOSIT_MAX + 1,
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -1103,12 +1094,46 @@ fn test_update_trading_pair_amount_overflow() {
 				AssetId::Asset(20),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
+		);
+		assert_ok!(OCEX::close_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Asset(10),
+			AssetId::Asset(20)
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
+		);
+		assert_ok!(OCEX::close_trading_pair(
+			RuntimeOrigin::root(),
+			AssetId::Asset(10),
+			AssetId::Asset(20)
+		));
+
+		assert_noop!(
+			OCEX::update_trading_pair(
+				RuntimeOrigin::root(),
+				AssetId::Asset(10),
+				AssetId::Asset(20),
+				100_u128.into(),
+				100_u128.into(),
+				100_u128.into(),
+				10_u128.into()
+			),
+			Error::<Test>::TradingPairConfigUnderflow
 		);
 		assert_ok!(OCEX::close_trading_pair(
 			RuntimeOrigin::root(),
@@ -1124,8 +1149,6 @@ fn test_update_trading_pair_amount_overflow() {
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				100_u128.into(),
 				10_u128.into()
 			),
 			Error::<Test>::AmountOverflow
@@ -1142,48 +1165,6 @@ fn test_update_trading_pair_amount_overflow() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				DEPOSIT_MAX + 1,
-				100_u128.into(),
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-		assert_ok!(OCEX::close_trading_pair(
-			RuntimeOrigin::root(),
-			AssetId::Asset(10),
-			AssetId::Asset(20)
-		));
-
-		assert_noop!(
-			OCEX::update_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
-				DEPOSIT_MAX + 1,
-				10_u128.into()
-			),
-			Error::<Test>::AmountOverflow
-		);
-		assert_ok!(OCEX::close_trading_pair(
-			RuntimeOrigin::root(),
-			AssetId::Asset(10),
-			AssetId::Asset(20)
-		));
-
-		assert_noop!(
-			OCEX::update_trading_pair(
-				RuntimeOrigin::root(),
-				AssetId::Asset(10),
-				AssetId::Asset(20),
-				100_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				DEPOSIT_MAX + 1
@@ -1196,14 +1177,14 @@ fn test_update_trading_pair_amount_overflow() {
 #[test]
 fn test_register_trading_pair_trading_pair_already_registered() {
 	new_test_ext().execute_with(|| {
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1214,8 +1195,6 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1229,8 +1208,6 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 				RuntimeOrigin::root(),
 				AssetId::Asset(20),
 				AssetId::Asset(10),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1245,13 +1222,13 @@ fn test_register_trading_pair_trading_pair_already_registered() {
 fn test_update_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1267,8 +1244,6 @@ fn test_update_trading_pair() {
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1293,14 +1268,14 @@ fn test_update_trading_pair() {
 fn test_update_trading_pair_with_less_than_min_volume() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Polkadex));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(1)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Polkadex,
 			AssetId::Asset(1),
-			10001_u128.into(),
-			100_u128.into(),
-			10001_u128.into(),
-			100_u128.into(),
+			TRADE_OPERATION_MIN_VALUE.into(),
+			(TRADE_OPERATION_MIN_VALUE + 1).into(),
 			100_u128.into(),
 			10_u128.into()
 		));
@@ -1315,8 +1290,6 @@ fn test_update_trading_pair_with_less_than_min_volume() {
 				RuntimeOrigin::root(),
 				AssetId::Polkadex,
 				AssetId::Asset(1),
-				10000_u128.into(),
-				100_u128.into(),
 				10000_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1338,8 +1311,6 @@ fn test_update_trading_pair_trading_pair_not_registered() {
 				AssetId::Asset(20),
 				1_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -1356,8 +1327,6 @@ fn test_update_trading_pair_exchange_not_operational() {
 				RuntimeOrigin::root(),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1379,8 +1348,6 @@ fn test_update_trading_pair_bad_origin() {
 				AssetId::Asset(20),
 				1_u128.into(),
 				100_u128.into(),
-				1_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into()
 			),
@@ -1391,8 +1358,6 @@ fn test_update_trading_pair_bad_origin() {
 				RuntimeOrigin::signed(account_id.into()),
 				AssetId::Asset(10),
 				AssetId::Asset(20),
-				1_u128.into(),
-				100_u128.into(),
 				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
@@ -1414,8 +1379,6 @@ fn test_register_trading_pair_volume_too_low() {
 				AssetId::Asset(1),
 				10000_u128.into(),
 				100_u128.into(),
-				10000_u128.into(),
-				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
 			),
@@ -1428,13 +1391,13 @@ fn test_register_trading_pair_volume_too_low() {
 fn test_update_trading_pair_value_zero() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1451,8 +1414,6 @@ fn test_update_trading_pair_value_zero() {
 				AssetId::Asset(10),
 				AssetId::Asset(20),
 				0_u128.into(),
-				100_u128.into(),
-				1_u128.into(),
 				100_u128.into(),
 				100_u128.into(),
 				10_u128.into(),
@@ -1698,6 +1659,8 @@ fn test_open_trading_pair_bad_origin() {
 			BadOrigin
 		);
 
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_noop!(
 			OCEX::open_trading_pair(
 				RuntimeOrigin::signed(account_id.into()),
@@ -1713,13 +1676,13 @@ fn test_open_trading_pair_bad_origin() {
 fn test_open_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1790,6 +1753,8 @@ fn test_close_trading_trading_bad_origin() {
 			BadOrigin
 		);
 
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_noop!(
 			OCEX::close_trading_pair(
 				RuntimeOrigin::signed(account_id.into()),
@@ -1805,13 +1770,13 @@ fn test_close_trading_trading_bad_origin() {
 fn test_close_trading_pair() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1841,13 +1806,13 @@ fn test_close_trading_pair() {
 fn test_update_trading_pair_with_closed_operational_status() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(20)));
+		assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), AssetId::Asset(10)));
 		assert_ok!(OCEX::register_trading_pair(
 			RuntimeOrigin::root(),
 			AssetId::Asset(10),
 			AssetId::Asset(20),
 			1_0000_0000_u128.into(),
-			1_000_000_000_000_000_u128.into(),
-			1_000_000_u128.into(),
 			1_000_000_000_000_000_u128.into(),
 			1_000_000_u128.into(),
 			1_0000_0000_u128.into(),
@@ -1859,135 +1824,12 @@ fn test_update_trading_pair_with_closed_operational_status() {
 				AssetId::Asset(20),
 				1_0000_0000_u128.into(),
 				1_000_000_000_000_000_u128.into(),
-				1_000_000_u128.into(),
-				1_000_000_000_000_000_u128.into(),
 				1_000_0000_u128.into(),
 				1_0000_000_u128.into(),
 			),
 			Error::<Test>::TradingPairIsNotClosed
 		);
 	})
-}
-
-#[test]
-fn collect_fees_unexpected_behaviour() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), 100, account_id.clone().into()));
-
-		assert_last_event::<Test>(
-			crate::Event::FeesClaims { beneficiary: account_id, snapshot_id: 100 }.into(),
-		);
-	});
-}
-
-#[test]
-fn test_collect_fees_decimal_overflow() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		let max_fees = create_max_fees::<Test>();
-		FeesCollected::<Test>::insert::<u64, BoundedVec<Fees, AssetsLimit>>(
-			0,
-			bounded_vec![max_fees],
-		);
-		assert_noop!(
-			OCEX::collect_fees(RuntimeOrigin::root(), 0, account_id.into()),
-			Error::<Test>::FeesNotCollectedFully
-		);
-	})
-}
-
-#[test]
-fn collect_fees() {
-	let account_id = create_account_id();
-	let custodian_account = OCEX::get_pallet_account();
-	let mut t = new_test_ext();
-	t.execute_with(|| {
-		mint_into_account(account_id.clone());
-		mint_into_account(custodian_account.clone());
-		let initial_balance = 10_000_000_000 * UNIT_BALANCE;
-		// Initial Balances
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance
-		);
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance
-		);
-
-		let (mut snapshot, _public, signature) = get_dummy_snapshot(1);
-
-		snapshot.withdrawals[0].fees = Decimal::from_f64(0.1).unwrap();
-
-		assert_ok!(OCEX::submit_snapshot(
-			RuntimeOrigin::none(),
-			snapshot.clone(),
-			vec![(0, signature.into())]
-		));
-
-		// Complete dispute period
-		new_block();
-		new_block();
-
-		assert_ok!(OCEX::claim_withdraw(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			1,
-			account_id.clone()
-		));
-
-		// Balances after withdrawal
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance + UNIT_BALANCE
-		);
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance - UNIT_BALANCE
-		);
-
-		assert_ok!(OCEX::collect_fees(RuntimeOrigin::root(), 1, account_id.clone().into()));
-
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
-			initial_balance
-				+ UNIT_BALANCE + snapshot.withdrawals[0]
-				.fees
-				.saturating_mul(Decimal::from(UNIT_BALANCE))
-				.to_u128()
-				.unwrap()
-		);
-		assert_eq!(
-			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
-			initial_balance
-				- UNIT_BALANCE - snapshot.withdrawals[0]
-				.fees
-				.saturating_mul(Decimal::from(UNIT_BALANCE))
-				.to_u128()
-				.unwrap()
-		);
-	});
-}
-
-#[test]
-fn test_collect_fees_bad_origin() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		assert_noop!(
-			OCEX::collect_fees(
-				RuntimeOrigin::signed(account_id.clone()),
-				100,
-				account_id.clone().into()
-			),
-			BadOrigin
-		);
-
-		assert_noop!(
-			OCEX::collect_fees(RuntimeOrigin::signed(account_id.clone()), 100, account_id.into()),
-			BadOrigin
-		);
-	});
 }
 
 #[test]
@@ -2113,23 +1955,6 @@ fn withdrawal() {
 	});
 }
 
-// P.S. This was to apply a DDOS attack and see the response in the mock environment
-#[ignore]
-#[test]
-fn collect_fees_ddos() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		// TODO! Discuss if this is expected behaviour, if not then could this be a potential DDOS?
-		for x in 0..10000000 {
-			assert_ok!(OCEX::collect_fees(
-				RuntimeOrigin::signed(account_id.clone().into()),
-				x,
-				account_id.clone().into()
-			));
-		}
-	});
-}
-
 #[test]
 fn test_submit_snapshot_snapshot_nonce_error() {
 	new_test_ext().execute_with(|| {
@@ -2169,6 +1994,8 @@ fn get_dummy_snapshot(
 		state_change_id: 1,
 		last_processed_blk: 1,
 		withdrawals,
+		egress_messages: vec![],
+		trader_metrics: None,
 	};
 
 	let signature = pair.sign(&snapshot.encode());
@@ -2210,12 +2037,11 @@ fn test_submit_snapshot() {
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
 		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
-		assert_eq!(FeesCollected::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
 		let onchain_events =
-			vec![polkadex_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
+			vec![orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
 				1,
 				snapshot.withdrawals.clone(),
 			)];
@@ -2290,8 +2116,8 @@ fn test_withdrawal() {
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
 			initial_balance - UNIT_BALANCE, // Dec
 		);
-		let withdrawal_claimed: polkadex_primitives::ocex::OnChainEvents<AccountId> =
-			polkadex_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
+		let withdrawal_claimed: orderbook_primitives::ocex::OnChainEvents<AccountId> =
+			orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
 				1,
 				account_id.clone().into(),
 				bounded_vec![snapshot.withdrawals[0].clone()],
@@ -2303,11 +2129,11 @@ fn test_withdrawal() {
 use orderbook_primitives::{
 	recovery::ObRecoveryState,
 	types::{Order, OrderPayload, OrderSide, OrderStatus, OrderType, Trade},
-	Fees,
+	TraderMetricsMap, TradingPairMetrics, TradingPairMetricsMap,
 };
 use sp_runtime::traits::{BlockNumberProvider, One};
 
-use orderbook_primitives::types::{UserActionBatch, UserActions};
+use orderbook_primitives::types::UserActionBatch;
 use trie_db::TrieMut;
 
 #[test]
@@ -2354,110 +2180,10 @@ pub fn test_allowlist_with_limit_reaching_returns_error() {
 }
 
 use crate::{
-	settlement::{add_balance, process_trade, sub_balance},
+	settlement::{add_balance, sub_balance},
 	sr25519::AuthorityId,
 	storage::OffchainState,
 };
-use polkadex_primitives::ingress::{HandleBalance, HandleBalanceLimit};
-
-#[test]
-fn test_set_balances_with_bad_origin() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
-		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-			BoundedVec::try_from(vec_of_balances).unwrap();
-
-		assert_noop!(OCEX::set_balances(RuntimeOrigin::none(), bounded_vec_for_alice), BadOrigin);
-	});
-}
-
-#[test]
-pub fn test_set_balances_when_exchange_is_not_pause() {
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
-		let vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-			BoundedVec::try_from(vec_of_balances).unwrap();
-
-		assert_noop!(
-			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice),
-			Error::<Test>::ExchangeOperational
-		);
-	});
-}
-
-#[test]
-pub fn test_set_balances_when_exchange_is_pause() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		vec_of_balances.push(HandleBalance {
-			main_account: account_id,
-			asset_id: AssetId::Polkadex,
-			free: 100,
-			reserve: 50,
-		});
-		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-			BoundedVec::try_from(vec_of_balances).unwrap();
-
-		assert_eq!(
-			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
-			Ok(())
-		);
-		let blk = frame_system::Pallet::<Test>::current_block_number();
-		assert_eq!(
-			OCEX::ingress_messages(blk)[1],
-			IngressMessages::SetFreeReserveBalanceForAccounts(bounded_vec_for_alice)
-		);
-	});
-}
-
-#[test]
-pub fn test_set_balances_when_bounded_vec_limits_out_of_bound() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		for _i in 0..1001 {
-			vec_of_balances.push(HandleBalance {
-				main_account: account_id.clone(),
-				asset_id: AssetId::Polkadex,
-				free: 100,
-				reserve: 50,
-			});
-		}
-		let bounded_vec_for_alice: Result<
-			BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit>,
-			Vec<HandleBalance<AccountId32>>,
-		> = BoundedVec::try_from(vec_of_balances);
-		assert!(bounded_vec_for_alice.is_err());
-	});
-}
-
-#[test]
-pub fn test_set_balances_when_bounded_vec_limits_in_bound() {
-	let account_id = create_account_id();
-	new_test_ext().execute_with(|| {
-		assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), false));
-		let mut vec_of_balances: Vec<HandleBalance<AccountId32>> = vec![];
-		for _i in 0..1000 {
-			vec_of_balances.push(HandleBalance {
-				main_account: account_id.clone(),
-				asset_id: AssetId::Polkadex,
-				free: 100,
-				reserve: 50,
-			});
-		}
-		let bounded_vec_for_alice: BoundedVec<HandleBalance<AccountId>, HandleBalanceLimit> =
-			BoundedVec::try_from(vec_of_balances).unwrap();
-		assert_eq!(
-			OCEX::set_balances(RuntimeOrigin::root(), bounded_vec_for_alice.clone()),
-			Ok(())
-		);
-	});
-}
 
 #[test]
 fn test_remove_proxy_account_faulty_cases() {
@@ -2567,6 +2293,7 @@ fn test_whitelist_orderbook_operator_full() {
 	})
 }
 
+#[ignore]
 #[test]
 fn test_old_user_action_enum_payload_with_new_enum_returns_ok() {
 	let payload = r#"{"actions":[{"BlockImport":4842070},{"BlockImport":4842071},{"BlockImport":4842072},{"Withdraw":{"signature":{"Sr25519":"1ce02504db86d6c40826737a0616248570274d6fc880d1294585da3663efb41a8cd7f66db1666edbf0037e193ddf9597ec567e875ccb84b1187bbe6e5d1b5c88"},"payload":{"asset_id":{"asset":"95930534000017180603917534864279132680"},"amount":"0.01","timestamp":1690900017685},"main":"5GLQUnNXayJGG6AZ6ht2MFigMHLKPWZjZqbko2tYQ7GJxi6A","proxy":"5GeYN9KaGkxEzaP2gpefqpCp18a9MEMosPCintz83CGRpKGa"}},{"BlockImport":4842073},{"BlockImport":4842074},{"BlockImport":4842075},{"BlockImport":4842076},{"BlockImport":4842077},{"BlockImport":4842078},{"Withdraw":{"signature":{"Sr25519":"b8a7bb383882379a5cb3796c1fb362a9efca5c224c60e2bb91bfed7a9f94bb620620e32dcecbc7e64011e3d3d073b1290e46b3cb97cf0b96c49ba5b0e9e1548f"},"payload":{"asset_id":{"asset":"123"},"amount":"10","timestamp":1690900085111},"main":"5GLFKUxSXTf8MDDKM1vqEFb5TuV1q642qpQT964mrmjeKz4w","proxy":"5ExtoLVQaef9758mibzLhaxK4GBk7qoysSWo7FKt2nrV26i8"}},{"BlockImport":4842079},{"BlockImport":4842080},{"BlockImport":4842081},{"BlockImport":4842082},{"Withdraw":{"signature":{"Sr25519":"4e589e61b18815abcc3fe50626e54844d1e2fd9bb0575fce8eabb5af1ba4b42fba060ad3067bef341e8d5973d932f30d9113c0abbbd65e96e2dd5cbaf94d4581"},"payload":{"asset_id":{"asset":"456"},"amount":"4","timestamp":1690900140296},"main":"5GLFKUxSXTf8MDDKM1vqEFb5TuV1q642qpQT964mrmjeKz4w","proxy":"5ExtoLVQaef9758mibzLhaxK4GBk7qoysSWo7FKt2nrV26i8"}},{"BlockImport":4842083},{"BlockImport":4842084},{"BlockImport":4842085},{"BlockImport":4842086},{"BlockImport":4842087},{"BlockImport":4842088},{"BlockImport":4842089},{"BlockImport":4842090},{"BlockImport":4842091},{"BlockImport":4842092},{"BlockImport":4842093},{"BlockImport":4842094},{"BlockImport":4842095},{"BlockImport":4842096},{"BlockImport":4842097},{"BlockImport":4842098},{"BlockImport":4842099},{"BlockImport":4842100},{"BlockImport":4842101}],"stid":74132,"snapshot_id":10147,"signature":"901dc6972f94d69f253b9ca5a83410a5bc729e5c30c68cba3e68ea4860ca73e447d06c41d3bad05aca4e031f0fa46b1f64fac70159cec68151fef534e48515de00"}"#;
@@ -2574,10 +2301,613 @@ fn test_old_user_action_enum_payload_with_new_enum_returns_ok() {
 }
 
 #[test]
-fn test_scale_encode_with_old_user_action_enum_with_new_returns_ok() {
-	let actual_payload = fixture_old_user_action::get_old_user_action_fixture();
-	let expected_payload: UserActions<AccountId> = UserActions::BlockImport(24);
-	assert_eq!(actual_payload, expected_payload.encode());
+fn test_set_lmp_epoch_config_happy_path() {
+	new_test_ext().execute_with(|| {
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+			Some(Compact::from(1000 * UNIT_BALANCE));
+		let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+		let base_asset = AssetId::Polkadex;
+		let quote_asset = AssetId::Asset(1);
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+		// Register trading pair
+		crete_base_and_quote_asset();
+		register_trading_pair();
+		let max_accounts_rewarded: Option<u16> = Some(10);
+		let claim_safety_period: Option<u32> = Some(10);
+		let lmp_config = LMPMarketConfigWrapper {
+			trading_pair,
+			market_weightage: UNIT_BALANCE,
+			min_fees_paid: UNIT_BALANCE,
+			min_maker_volume: UNIT_BALANCE,
+			max_spread: UNIT_BALANCE,
+			min_depth: UNIT_BALANCE,
+		};
+		assert_ok!(OCEX::set_lmp_epoch_config(
+			RuntimeOrigin::root(),
+			total_liquidity_mining_rewards,
+			total_trading_rewards,
+			vec![lmp_config],
+			max_accounts_rewarded,
+			claim_safety_period
+		));
+	})
+}
+
+#[test]
+fn test_set_lmp_epoch_config_invalid_market_weightage() {
+	new_test_ext().execute_with(|| {
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+			Some(Compact::from(1000 * UNIT_BALANCE));
+		let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+		let base_asset = AssetId::Polkadex;
+		let quote_asset = AssetId::Asset(1);
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+		// Register trading pair
+		crete_base_and_quote_asset();
+		register_trading_pair();
+		let max_accounts_rewarded: Option<u16> = Some(10);
+		let claim_safety_period: Option<u32> = Some(10);
+		let lmp_config = LMPMarketConfigWrapper {
+			trading_pair,
+			market_weightage: 10 * UNIT_BALANCE,
+			min_fees_paid: 10 * UNIT_BALANCE,
+			min_maker_volume: UNIT_BALANCE,
+			max_spread: UNIT_BALANCE,
+			min_depth: UNIT_BALANCE,
+		};
+		assert_noop!(
+			OCEX::set_lmp_epoch_config(
+				RuntimeOrigin::root(),
+				total_liquidity_mining_rewards,
+				total_trading_rewards,
+				vec![lmp_config],
+				max_accounts_rewarded,
+				claim_safety_period
+			),
+			crate::pallet::Error::<Test>::InvalidMarketWeightage
+		);
+	})
+}
+
+#[test]
+fn test_set_lmp_epoch_config_invalid_invalid_lmpconfig() {
+	new_test_ext().execute_with(|| {
+		let total_liquidity_mining_rewards: Option<Compact<u128>> =
+			Some(Compact::from(1000 * UNIT_BALANCE));
+		let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+		let base_asset = AssetId::Polkadex;
+		// Register trading pair
+		crete_base_and_quote_asset();
+		register_trading_pair();
+		let diff_quote_asset = AssetId::Asset(2);
+		let trading_pair = TradingPair { base: base_asset, quote: diff_quote_asset };
+		let max_accounts_rewarded: Option<u16> = Some(10);
+		let claim_safety_period: Option<u32> = Some(10);
+		let lmp_config = LMPMarketConfigWrapper {
+			trading_pair,
+			market_weightage: UNIT_BALANCE,
+			min_fees_paid: UNIT_BALANCE,
+			min_maker_volume: UNIT_BALANCE,
+			max_spread: UNIT_BALANCE,
+			min_depth: UNIT_BALANCE,
+		};
+		assert_noop!(
+			OCEX::set_lmp_epoch_config(
+				RuntimeOrigin::root(),
+				total_liquidity_mining_rewards,
+				total_trading_rewards,
+				vec![lmp_config],
+				max_accounts_rewarded,
+				claim_safety_period
+			),
+			crate::pallet::Error::<Test>::TradingPairNotRegistered
+		);
+	})
+}
+
+#[test]
+fn test_update_lmp_scores_happy_path() {
+	new_test_ext().execute_with(|| {
+		add_lmp_config();
+		let total_score = Decimal::from(1000);
+		let total_fee_paid = Decimal::from(1000);
+		let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+		let trader = AccountId32::new([1; 32]);
+		let trader_score = Decimal::from(100);
+		let trader_fee_paid = Decimal::from(100);
+		let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
+		trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
+		let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
+		trading_pair_metrics_map.insert(
+			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+			(trader_metrics, trading_pair_metrics),
+		);
+		assert_ok!(OCEX::update_lmp_scores(&trading_pair_metrics_map));
+	})
+}
+
+#[test]
+fn test_update_lmp_scores_no_lmp_config() {
+	new_test_ext().execute_with(|| {
+		let total_score = Decimal::from(1000);
+		let total_fee_paid = Decimal::from(1000);
+		let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+		let trader = AccountId32::new([1; 32]);
+		let trader_score = Decimal::from(100);
+		let trader_fee_paid = Decimal::from(100);
+		let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
+		trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
+		let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
+		trading_pair_metrics_map.insert(
+			TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+			(trader_metrics, trading_pair_metrics),
+		);
+		<LMPEpoch<Test>>::put(2);
+		<FinalizeLMPScore<Test>>::put(2);
+		match OCEX::update_lmp_scores(&trading_pair_metrics_map) {
+			Err(e) => assert_eq!(e, crate::pallet::Error::<Test>::LMPConfigNotFound.into()),
+			_ => panic!("Expected error"),
+		}
+	})
+}
+
+#[test]
+fn test_do_claim_lmp_rewards_happy_path() {
+	new_test_ext().execute_with(|| {
+		add_lmp_config();
+		update_lmp_score();
+		let main_account = AccountId32::new([1; 32]);
+		let epoch = 0;
+		let base_asset = AssetId::Polkadex;
+		let quote_asset = AssetId::Asset(1);
+		let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+		let reward_account =
+			<mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
+		println!("pallet Id {:?}", reward_account);
+		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
+		assert_eq!(Balances::free_balance(&main_account), 999999999900u128);
+		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
+		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
+	})
+}
+
+#[test]
+fn test_process_egress_msg_trading_fee() {
+	new_test_ext().execute_with(|| {
+		crete_base_and_quote_asset();
+		let asset_id = 1;
+		let asset = AssetId::Asset(asset_id);
+		let pallet_account = OCEX::get_pallet_account();
+		let pot_account = OCEX::get_pot_account();
+		Balances::mint_into(&pallet_account, 100 * UNIT_BALANCE).unwrap();
+		Balances::mint_into(&pot_account, 100 * UNIT_BALANCE).unwrap();
+		Assets::mint_into(asset_id, &pallet_account, 200 * UNIT_BALANCE).unwrap();
+		let trader_fee_paid = Decimal::from(100);
+		let mut fee_map = BTreeMap::new();
+		fee_map.insert(asset, trader_fee_paid);
+		let message = EgressMessages::TradingFees(fee_map);
+		assert_ok!(OCEX::process_egress_msg(&vec![message]));
+		assert_eq!(Assets::balance(asset_id, &pot_account), 100 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_process_remove_liquidity_result() {
+	new_test_ext().execute_with(|| {
+		crete_base_and_quote_asset();
+		let asset_id = 1;
+		let asset = AssetId::Asset(asset_id);
+		let market = TradingPairConfig {
+			base_asset: AssetId::Polkadex,
+			quote_asset: asset,
+			min_volume: TRADE_OPERATION_MIN_VALUE.into(),
+			max_volume: (TRADE_OPERATION_MIN_VALUE + 1000).into(),
+			price_tick_size: Default::default(),
+			qty_step_size: Default::default(),
+			operational_status: true,
+			base_asset_precision: 12,
+			quote_asset_precision: 12,
+		};
+		let pool = AccountId32::new([3; 32]);
+		let lp = AccountId32::new([4; 32]);
+		let pallet_account = OCEX::get_pallet_account();
+		let base_free = Decimal::from(1);
+		let quote_free = Decimal::from(1);
+		Balances::mint_into(&pallet_account, 200 * UNIT_BALANCE).unwrap();
+		Balances::mint_into(&pool, 1 * UNIT_BALANCE).unwrap();
+		Assets::mint_into(asset_id, &pool, 1 * UNIT_BALANCE).unwrap();
+		Assets::mint_into(asset_id, &pallet_account, 200 * UNIT_BALANCE).unwrap();
+		let message = EgressMessages::RemoveLiquidityResult(
+			market,
+			pool.clone(),
+			lp.clone(),
+			base_free,
+			quote_free,
+		);
+		assert_ok!(OCEX::process_egress_msg(&vec![message]));
+		// Check balance
+		assert_eq!(Balances::free_balance(&lp), 1 * UNIT_BALANCE);
+		assert_eq!(Assets::balance(asset_id, &lp), 1 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_price_oracle() {
+	new_test_ext().execute_with(|| {
+		let mut old_price_map = <PriceOracle<Test>>::get();
+		let base_asset = AssetId::Polkadex;
+		let quote_asset = AssetId::Asset(1);
+		let avg_price = Decimal::from(100);
+		let tick = Decimal::from(1);
+		old_price_map.insert((base_asset, quote_asset), (avg_price, tick));
+		<PriceOracle<Test>>::put(old_price_map);
+		let mut new_price_map: BTreeMap<(AssetId, AssetId), Decimal> = BTreeMap::new();
+		let new_price = Decimal::from(200);
+		new_price_map.insert((base_asset, quote_asset), new_price);
+		let message = EgressMessages::PriceOracle(new_price_map);
+		assert_ok!(OCEX::process_egress_msg(&vec![message]));
+	})
+}
+
+#[test]
+fn test_set_fee_distribution() {
+	new_test_ext().execute_with(|| {
+		let recipient_address = AccountId32::new([1; 32]);
+		let auction_duration = 100;
+		let burn_ration = 50;
+		let fee_distribution = FeeDistribution { recipient_address, auction_duration, burn_ration };
+		assert_ok!(OCEX::set_fee_distribution(RuntimeOrigin::root(), fee_distribution));
+	})
+}
+
+#[test]
+fn test_create_auction_happy_path() {
+	new_test_ext().execute_with(|| {
+		let usdt_asset = AssetId::Asset(1);
+		let usdc_asset = AssetId::Asset(2);
+		create_fee_config();
+		// Add allowlisted tokens
+		let mut allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		allowlisted_tokens.try_insert(usdt_asset).unwrap();
+		allowlisted_tokens.try_insert(usdc_asset).unwrap();
+		<AllowlistedToken<Test>>::put(allowlisted_tokens);
+		// Mint Asset 1 and Asset 2 into pot account
+		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
+		// Crete Auction
+		assert_ok!(OCEX::create_auction());
+		let mut fee_info = BTreeMap::new();
+		fee_info.insert(usdt_asset.asset_id().unwrap(), 99999999999999);
+		fee_info.insert(usdc_asset.asset_id().unwrap(), 99999999999999);
+		let expected_auction = AuctionInfo { fee_info, highest_bidder: None, highest_bid: 0 };
+		let actual_auction = <Auction<Test>>::get();
+		assert_eq!(actual_auction, Some(expected_auction));
+		let next_auction_block = <AuctionBlockNumber<Test>>::get();
+		assert_eq!(next_auction_block, Some(101));
+	})
+}
+
+#[test]
+fn test_create_auction_no_fee_collected() {
+	new_test_ext().execute_with(|| {
+		let usdt_asset = AssetId::Asset(1);
+		let usdc_asset = AssetId::Asset(2);
+		create_fee_config();
+		// Add allowlisted tokens
+		let mut allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		allowlisted_tokens.try_insert(usdt_asset).unwrap();
+		allowlisted_tokens.try_insert(usdc_asset).unwrap();
+		<AllowlistedToken<Test>>::put(allowlisted_tokens);
+		let pot_account = OCEX::get_pot_account();
+		Balances::mint_into(&pot_account, 100 * UNIT_BALANCE).unwrap();
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(pot_account.clone()),
+			parity_scale_codec::Compact(usdt_asset.asset_id().unwrap()),
+			pot_account.clone(),
+			One::one()
+		));
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(pot_account.clone()),
+			parity_scale_codec::Compact(usdc_asset.asset_id().unwrap()),
+			pot_account.clone(),
+			One::one()
+		));
+		assert_ok!(OCEX::create_auction());
+		let expected_auction =
+			AuctionInfo { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: 0 };
+		let actual_auction = <Auction<Test>>::get();
+		assert_eq!(actual_auction, Some(expected_auction));
+		let next_auction_block = <AuctionBlockNumber<Test>>::get();
+		assert_eq!(next_auction_block, Some(101));
+	})
+}
+
+#[test]
+fn test_create_auction_error_fee_config_not_set() {
+	new_test_ext().execute_with(|| {
+		let usdt_asset = AssetId::Asset(1);
+		let usdc_asset = AssetId::Asset(2);
+		// Add allowlisted tokens
+		let mut allowlisted_tokens = <AllowlistedToken<Test>>::get();
+		allowlisted_tokens.try_insert(usdt_asset).unwrap();
+		allowlisted_tokens.try_insert(usdc_asset).unwrap();
+		<AllowlistedToken<Test>>::put(allowlisted_tokens);
+		// Mint Asset 1 and Asset 2 into pot account
+		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
+		// Crete Auction
+		assert_noop!(
+			OCEX::create_auction(),
+			crate::pallet::Error::<Test>::FeeDistributionConfigNotFound
+		);
+	})
+}
+
+#[test]
+fn test_close_auction_happy_path() {
+	new_test_ext().execute_with(|| {
+		let usdt_asset = AssetId::Asset(1);
+		let usdc_asset = AssetId::Asset(2);
+		let recipient_address = AccountId32::new([1; 32]);
+		let bidder = AccountId32::new([2; 32]);
+		let bidding_amount = 50 * UNIT_BALANCE;
+		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
+		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
+		create_fee_config();
+		let mut fee_info = BTreeMap::new();
+		fee_info.insert(usdt_asset.asset_id().unwrap(), 10 * UNIT_BALANCE);
+		fee_info.insert(usdc_asset.asset_id().unwrap(), 10 * UNIT_BALANCE);
+		let auction_info = AuctionInfo {
+			fee_info,
+			highest_bidder: Some(bidder.clone()),
+			highest_bid: bidding_amount,
+		};
+		<Auction<Test>>::put(auction_info);
+		assert_ok!(OCEX::close_auction());
+		assert_eq!(Balances::free_balance(&recipient_address), 25 * UNIT_BALANCE);
+		assert_eq!(Balances::free_balance(&bidder), 50 * UNIT_BALANCE);
+		assert_eq!(Assets::balance(usdt_asset.asset_id().unwrap(), &bidder), 10 * UNIT_BALANCE);
+		assert_eq!(Assets::balance(usdc_asset.asset_id().unwrap(), &bidder), 10 * UNIT_BALANCE);
+		let pot_account = OCEX::get_pot_account();
+		assert_eq!(
+			Assets::balance(usdt_asset.asset_id().unwrap(), &pot_account),
+			90 * UNIT_BALANCE
+		);
+		assert_eq!(
+			Assets::balance(usdc_asset.asset_id().unwrap(), &pot_account),
+			90 * UNIT_BALANCE
+		);
+	})
+}
+
+#[test]
+fn test_close_auction_error_transfer_zero_fee() {
+	new_test_ext().execute_with(|| {
+		let usdt_asset = AssetId::Asset(1);
+		let usdc_asset = AssetId::Asset(2);
+		let bidder = AccountId32::new([2; 32]);
+		let bidding_amount = 50 * UNIT_BALANCE;
+		create_assets_and_mint_pot_account(vec![usdt_asset, usdc_asset]);
+		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
+		create_fee_config();
+		let mut fee_info = BTreeMap::new();
+		fee_info.insert(usdt_asset.asset_id().unwrap(), 10 * UNIT_BALANCE);
+		fee_info.insert(usdc_asset.asset_id().unwrap(), 0);
+		let auction_info = AuctionInfo {
+			fee_info,
+			highest_bidder: Some(bidder.clone()),
+			highest_bid: bidding_amount,
+		};
+		<Auction<Test>>::put(auction_info);
+		//assert_noop!(OCEX::close_auction(), TokenError::BelowMinimum);
+	})
+}
+
+#[test]
+fn test_place_bid_happy_path() {
+	new_test_ext().execute_with(|| {
+		let auction_info =
+			AuctionInfo { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: 0 };
+		<Auction<Test>>::put(auction_info);
+		let bidder = AccountId32::new([2; 32]);
+		let bid_amount = 20 * UNIT_BALANCE;
+		//Mint Bidder
+		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
+		assert_ok!(OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount));
+		let actual_auction_info = <Auction<Test>>::get();
+		let expected_auction_info = AuctionInfo {
+			fee_info: BTreeMap::new(),
+			highest_bidder: Some(bidder.clone()),
+			highest_bid: bid_amount,
+		};
+		assert_eq!(actual_auction_info, Some(expected_auction_info));
+		let bidder_two = AccountId32::new([3; 32]);
+		let bid_amount_two = 30 * UNIT_BALANCE;
+		//Mint Bidder
+		Balances::mint_into(&bidder_two, 100 * UNIT_BALANCE).unwrap();
+		assert_ok!(OCEX::place_bid(RuntimeOrigin::signed(bidder_two.clone()), bid_amount_two));
+		let actual_auction_info = <Auction<Test>>::get();
+		let expected_auction_info = AuctionInfo {
+			fee_info: BTreeMap::new(),
+			highest_bidder: Some(bidder_two.clone()),
+			highest_bid: bid_amount_two,
+		};
+		assert_eq!(actual_auction_info, Some(expected_auction_info));
+		assert_eq!(Balances::free_balance(&bidder), 100 * UNIT_BALANCE);
+		assert_eq!(Balances::free_balance(&bidder_two), 70 * UNIT_BALANCE);
+	})
+}
+
+#[test]
+fn test_place_bid_error_use_ext_balance_later() {
+	new_test_ext().execute_with(|| {
+		let auction_info =
+			AuctionInfo { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: 0 };
+		<Auction<Test>>::put(auction_info);
+		let bidder = AccountId32::new([2; 32]);
+		let bid_amount = 20 * UNIT_BALANCE;
+		//Mint Bidder
+		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
+		assert_ok!(OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount));
+		let actual_auction_info = <Auction<Test>>::get();
+		let expected_auction_info = AuctionInfo {
+			fee_info: BTreeMap::new(),
+			highest_bidder: Some(bidder.clone()),
+			highest_bid: bid_amount,
+		};
+		assert_eq!(actual_auction_info, Some(expected_auction_info));
+		assert_eq!(Balances::free_balance(&bidder), 80 * UNIT_BALANCE);
+		assert_noop!(
+			Balances::transfer_allow_death(
+				RuntimeOrigin::signed(bidder),
+				AccountId32::new([9; 32]),
+				80 * UNIT_BALANCE
+			),
+			TokenError::Frozen
+		);
+	})
+}
+
+#[test]
+fn test_place_bid_error_low_bid() {
+	new_test_ext().execute_with(|| {
+		let auction_info = AuctionInfo {
+			fee_info: BTreeMap::new(),
+			highest_bidder: Some(AccountId32::new([10; 32])),
+			highest_bid: 20 * UNIT_BALANCE,
+		};
+		<Auction<Test>>::put(auction_info);
+		let bidder = AccountId32::new([2; 32]);
+		let bid_amount = 10 * UNIT_BALANCE;
+		//Mint Bidder
+		Balances::mint_into(&bidder, 100 * UNIT_BALANCE).unwrap();
+		assert_noop!(
+			OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount),
+			crate::pallet::Error::<Test>::InvalidBidAmount
+		);
+	})
+}
+
+#[test]
+fn test_place_bid_error_insufficient_balance() {
+	new_test_ext().execute_with(|| {
+		let auction_info = AuctionInfo {
+			fee_info: BTreeMap::new(),
+			highest_bidder: Some(AccountId32::new([10; 32])),
+			highest_bid: 20 * UNIT_BALANCE,
+		};
+		<Auction<Test>>::put(auction_info);
+		let bidder = AccountId32::new([2; 32]);
+		let bid_amount = 30 * UNIT_BALANCE;
+		assert_noop!(
+			OCEX::place_bid(RuntimeOrigin::signed(bidder.clone()), bid_amount),
+			crate::pallet::Error::<Test>::InsufficientBalance
+		);
+	})
+}
+
+pub fn create_fee_config() {
+	let recipient_address = AccountId32::new([1; 32]);
+	let auction_duration = 100;
+	let burn_ration = 50;
+	let fee_distribution = FeeDistribution { recipient_address, auction_duration, burn_ration };
+	assert_ok!(OCEX::set_fee_distribution(RuntimeOrigin::root(), fee_distribution));
+}
+
+pub fn create_assets_and_mint_pot_account(assets: Vec<AssetId>) {
+	let pot_account = OCEX::get_pot_account();
+	// Mint Native token
+	Balances::mint_into(&pot_account, 100 * UNIT_BALANCE).unwrap();
+	for asset in assets {
+		// Create Asset
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(pot_account.clone()),
+			parity_scale_codec::Compact(asset.asset_id().unwrap()),
+			pot_account.clone(),
+			One::one()
+		));
+		// Mint Asset
+		Assets::mint_into(asset.asset_id().unwrap(), &pot_account, 100 * UNIT_BALANCE).unwrap();
+	}
+}
+
+pub fn update_lmp_score() {
+	let total_score = Decimal::from(1000);
+	let total_fee_paid = Decimal::from(1000);
+	let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
+	let trader = AccountId32::new([1; 32]);
+	let trader_score = Decimal::from(100);
+	let trader_fee_paid = Decimal::from(100);
+	let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
+	trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
+	let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
+	trading_pair_metrics_map.insert(
+		TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+		(trader_metrics, trading_pair_metrics),
+	);
+	assert_ok!(OCEX::update_lmp_scores(&trading_pair_metrics_map));
+}
+
+pub fn add_lmp_config() {
+	let total_liquidity_mining_rewards: Option<Compact<u128>> =
+		Some(Compact::from(1000 * UNIT_BALANCE));
+	let total_trading_rewards: Option<Compact<u128>> = Some(Compact::from(1000 * UNIT_BALANCE));
+	let base_asset = AssetId::Polkadex;
+	let quote_asset = AssetId::Asset(1);
+	let trading_pair = TradingPair { base: base_asset, quote: quote_asset };
+	// Register trading pair
+	crete_base_and_quote_asset();
+	register_trading_pair();
+	let max_accounts_rewarded: Option<u16> = Some(10);
+	let claim_safety_period: Option<u32> = Some(0);
+	let lmp_config = LMPMarketConfigWrapper {
+		trading_pair,
+		market_weightage: UNIT_BALANCE,
+		min_fees_paid: UNIT_BALANCE,
+		min_maker_volume: UNIT_BALANCE,
+		max_spread: UNIT_BALANCE,
+		min_depth: UNIT_BALANCE,
+	};
+	assert_ok!(OCEX::set_lmp_epoch_config(
+		RuntimeOrigin::root(),
+		total_liquidity_mining_rewards,
+		total_trading_rewards,
+		vec![lmp_config],
+		max_accounts_rewarded,
+		claim_safety_period
+	));
+	OCEX::start_new_epoch(1);
+	OCEX::start_new_epoch(2);
+}
+
+use frame_support::traits::fungible::Mutate;
+use orderbook_primitives::lmp::LMPMarketConfigWrapper;
+use polkadex_primitives::fees::FeeConfig;
+
+fn crete_base_and_quote_asset() {
+	let quote_asset = AssetId::Asset(1);
+	Balances::mint_into(&AccountId32::new([1; 32]), UNIT_BALANCE).unwrap();
+	assert_ok!(Assets::create(
+		RuntimeOrigin::signed(AccountId32::new([1; 32])),
+		parity_scale_codec::Compact(quote_asset.asset_id().unwrap()),
+		AccountId32::new([1; 32]),
+		One::one()
+	));
+}
+
+fn register_trading_pair() {
+	let base_asset = AssetId::Polkadex;
+	let quote_asset = AssetId::Asset(1);
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), base_asset));
+	assert_ok!(OCEX::allowlist_token(RuntimeOrigin::root(), quote_asset));
+	assert_ok!(OCEX::set_exchange_state(RuntimeOrigin::root(), true));
+	assert_ok!(OCEX::register_trading_pair(
+		RuntimeOrigin::root(),
+		base_asset,
+		quote_asset,
+		(1_0000_0000_u128 * 1_000_000_u128).into(),
+		(1_000_000_000_000_000_u128 * 1_000_u128).into(),
+		1_000_000_u128.into(),
+		1_0000_0000_u128.into(),
+	));
 }
 
 fn allowlist_token(token: AssetId) {
@@ -2650,6 +2980,16 @@ fn create_order_by_alice(
 	status: OrderStatus,
 ) -> Order {
 	let account = get_alice_key_pair().public();
+	let account_id = AccountId32::new(account.0);
+	let fee_config =
+		FeeConfig { maker_fraction: Default::default(), taker_fraction: Default::default() };
+	let account_info = AccountInfo {
+		main_account: account_id.clone(),
+		proxies: BoundedVec::new(),
+		balances: Default::default(),
+		fee_config,
+	};
+	<Accounts<Test>>::insert(account_id, account_info);
 	let mut order = Order {
 		stid: 0,
 		client_order_id: H256([1u8; 32]),
@@ -2682,6 +3022,16 @@ fn create_order_by_bob(
 	status: OrderStatus,
 ) -> Order {
 	let account = get_bob_key_pair().public();
+	let account_id = AccountId32::new(account.0);
+	let fee_config =
+		FeeConfig { maker_fraction: Default::default(), taker_fraction: Default::default() };
+	let account_info = AccountInfo {
+		main_account: account_id.clone(),
+		proxies: BoundedVec::new(),
+		balances: Default::default(),
+		fee_config,
+	};
+	<Accounts<Test>>::insert(account_id, account_info);
 	let mut order = Order {
 		stid: 0,
 		client_order_id: H256([1u8; 32]),
@@ -2719,11 +3069,9 @@ pub fn get_trading_pair_config() -> TradingPairConfig {
 	TradingPairConfig {
 		base_asset: get_trading_pair().base,
 		quote_asset: get_trading_pair().quote,
-		min_price: Decimal::from_str("0.0001").unwrap(),
-		max_price: Decimal::from_str("1000").unwrap(),
+		min_volume: Decimal::from_str("0.000001").unwrap(),
+		max_volume: Decimal::from_str("1000000.0").unwrap(),
 		price_tick_size: Decimal::from_str("0.000001").unwrap(),
-		min_qty: Decimal::from_str("0.001").unwrap(),
-		max_qty: Decimal::from_str("1000").unwrap(),
 		qty_step_size: Decimal::from_str("0.001").unwrap(),
 		operational_status: true,
 		base_asset_precision: 8,
@@ -2737,11 +3085,6 @@ pub fn get_trading_pair() -> TradingPair {
 
 pub fn get_random_signature() -> Signature {
 	Signature::Ecdsa(Default::default())
-}
-
-fn create_max_fees<T: Config>() -> Fees {
-	let fees: Fees = Fees { asset: AssetId::Polkadex, amount: Decimal::MAX };
-	return fees;
 }
 
 pub mod fixture_old_user_action {

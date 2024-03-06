@@ -27,6 +27,7 @@ pub mod types;
 
 pub use crate::types::Message;
 use parity_scale_codec::{Decode, Encode};
+use polkadex_primitives::AssetId;
 use scale_info::TypeInfo;
 use sp_runtime::DispatchResult;
 use sp_std::vec::Vec;
@@ -102,4 +103,8 @@ pub trait TheaOutgoingExecutor {
 
 impl TheaIncomingExecutor for () {
 	fn execute_deposits(_network: Network, _deposits: Vec<u8>) {}
+}
+
+pub trait TheaBenchmarkHelper {
+	fn set_metadata(asset_id: AssetId);
 }

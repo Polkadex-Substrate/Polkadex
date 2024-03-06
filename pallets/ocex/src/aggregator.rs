@@ -16,26 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(not(test))]
+use crate::validator::JSONRPCResponse;
 use crate::{
-	validator::{JSONRPCResponse, AGGREGATOR, LAST_PROCESSED_SNAPSHOT},
+	validator::{AGGREGATOR, LAST_PROCESSED_SNAPSHOT},
 	Config,
 };
-use orderbook_primitives::{
-	types::{ApprovedSnapshot, UserActionBatch},
-	ObCheckpointRaw, SnapshotSummary,
-};
+#[cfg(not(test))]
+use orderbook_primitives::types::UserActionBatch;
+use orderbook_primitives::{types::ApprovedSnapshot, ObCheckpointRaw, SnapshotSummary};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use sp_application_crypto::RuntimeAppPublic;
+#[cfg(not(test))]
 use sp_core::offchain::{Duration, HttpError};
-use sp_runtime::{
-	offchain::{
-		http,
-		http::{Error, PendingRequest, Response},
-		storage::StorageValueRef,
-	},
-	SaturatedConversion,
+#[cfg(not(test))]
+use sp_runtime::offchain::{
+	http,
+	http::{Error, PendingRequest, Response},
 };
-use sp_std::{marker::PhantomData, prelude::ToOwned, vec::Vec};
+use sp_runtime::{offchain::storage::StorageValueRef, SaturatedConversion};
+#[cfg(not(test))]
+use sp_std::vec::Vec;
+
+use sp_std::{marker::PhantomData, prelude::ToOwned};
 
 pub struct AggregatorClient<T: Config>(PhantomData<T>);
 
@@ -87,6 +90,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `id`: Batch id to load
 	/// # Returns
 	/// * `Option<UserActionBatch<T::AccountId>>`: Loaded batch or None if error occured
+	#[cfg(not(test))]
 	pub fn get_user_action_batch(id: u64) -> Option<UserActionBatch<T::AccountId>> {
 		let body = serde_json::json!({ "id": id }).to_string();
 		let result = match Self::send_request(
@@ -143,6 +147,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `body`: Body of the request
 	/// # Returns
 	/// * `Result<Vec<u8>, &'static str>`: Response body or error message
+	#[cfg(not(test))]
 	pub fn send_request(log_target: &str, url: &str, body: &str) -> Result<Vec<u8>, &'static str> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(12_000));
 
@@ -187,6 +192,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `err`: Http error to map
 	/// # Returns
 	/// * `&'static str`: Mapped error
+	#[cfg(not(test))]
 	fn map_http_err(err: HttpError) -> &'static str {
 		match err {
 			HttpError::DeadlineReached => "Deadline Reached",
@@ -200,6 +206,7 @@ impl<T: Config> AggregatorClient<T> {
 	/// * `err`: Http error to map
 	/// # Returns
 	/// * `&'static str`: Mapped error
+	#[cfg(not(test))]
 	fn map_sp_runtime_http_err(err: sp_runtime::offchain::http::Error) -> &'static str {
 		match err {
 			Error::DeadlineReached => "Deadline Reached",

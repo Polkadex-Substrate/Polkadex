@@ -16,30 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! In this module defined operations fee related types.
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::pallet_prelude::TypeInfo;
+use frame_support::{Deserialize, Serialize};
+use sp_std::collections::btree_map::BTreeMap;
 
-use codec::{Decode, Encode};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-use scale_info::TypeInfo;
-
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
-/// Defines structure of the fee configuration.
-#[derive(Copy, Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct FeeConfig {
-	/// Market fee fraction.
-	pub maker_fraction: Decimal,
-	/// Trade fee fraction.
-	pub taker_fraction: Decimal,
+#[derive(
+	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
+)]
+pub struct FeeDistribution<AccountId, BlockNo> {
+	pub recipient_address: AccountId,
+	pub auction_duration: BlockNo,
+	pub burn_ration: u8,
 }
 
-impl Default for FeeConfig {
+#[derive(Clone, Encode, Decode, TypeInfo, Debug, PartialEq)]
+pub struct AuctionInfo<AccountId, Balance> {
+	pub fee_info: BTreeMap<u128, Balance>,
+	pub highest_bidder: Option<AccountId>,
+	pub highest_bid: Balance,
+}
+
+impl<AccountId, Balance: Default> Default for AuctionInfo<AccountId, Balance> {
 	fn default() -> Self {
-		Self {
-			maker_fraction: Decimal::from_f64(0.001).unwrap(),
-			taker_fraction: Decimal::from_f64(0.001).unwrap(),
-		}
+		Self { fee_info: BTreeMap::new(), highest_bidder: None, highest_bid: Balance::default() }
 	}
 }

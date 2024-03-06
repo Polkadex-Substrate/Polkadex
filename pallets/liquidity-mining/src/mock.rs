@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 //
-// Copyright (c) 2023 Polkadex oü.
+// Copyright (c) 2022-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,9 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Tests for liquidity pallet
+//! Tests for pallet-ocex
 
-use crate::{pallet as liquidity, LiquidityModifier, *};
 use frame_support::{
 	pallet_prelude::Weight,
 	parameter_types,
@@ -26,15 +25,18 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
-use polkadex_primitives::{AccountId, AssetId, Moment, Signature};
-use sp_core::H256;
+use polkadex_primitives::{Moment, Signature};
+use sp_application_crypto::sp_core::H256;
+use sp_std::cell::RefCell;
+// The testing primitives are very useful for avoiding having to work with signatures
+// or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
+use pallet_ocex_lmp as ocex;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
-use sp_std::cell::RefCell;
-// use pallet_ocex_lmp;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+// Reexport crate as its pallet name for construct_runtime.
+
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // For testing the pallet, we construct a mock runtime.
@@ -44,8 +46,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		Assets: pallet_assets,
 		Timestamp: pallet_timestamp,
-		OCEX: pallet_ocex_lmp,
-		Liquidity: liquidity,
+		LiqudityMining: crate::pallet,
+		OCEX: ocex,
 	}
 );
 
@@ -61,7 +63,7 @@ impl frame_system::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId;
+	type AccountId = sp_runtime::AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
@@ -75,7 +77,7 @@ impl frame_system::Config for Test {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type Nonce = u32;
+	type Nonce = u64;
 	type Block = Block;
 }
 
@@ -116,52 +118,31 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
 	pub const ProxyLimit: u32 = 2;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const TresuryPalletId: PalletId = PalletId(*b"OCEX_TRE");
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"OCEX_TMP");
 	pub const MsPerDay: u64 = 86_400_000;
 }
 
-impl pallet_ocex_lmp::Config for Test {
+impl crate::pallet::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type PalletId = OcexPalletId;
-	type GovernanceOrigin = EnsureRoot<AccountId>;
+	type OCEX = OCEX;
+	type PalletId = LMPRewardsPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
-	type EnclaveOrigin = EnsureRoot<AccountId>;
-	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
-	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Test>;
 }
 
-//defined trait for Session Change
-impl<Test> LiquidityModifier for pallet_ocex_lmp::Pallet<Test> {
-	type AssetId = AssetId;
-	type AccountId = AccountId;
-
-	fn on_deposit(
-		_account: Self::AccountId,
-		_asset: Self::AssetId,
-		_balance: u128,
-	) -> DispatchResult {
-		Ok(())
-	}
-	fn on_withdraw(
-		_account: Self::AccountId,
-		_proxy_account: Self::AccountId,
-		_asset: Self::AssetId,
-		_balance: u128,
-		_do_force_withdraw: bool,
-	) -> DispatchResult {
-		Ok(())
-	}
-	fn on_register(_main_account: Self::AccountId, _proxy: Self::AccountId) -> DispatchResult {
-		Ok(())
-	}
-	#[cfg(feature = "runtime-benchmarks")]
-	fn set_exchange_state_to_true() -> DispatchResult {
-		Ok(())
-	}
-	#[cfg(feature = "runtime-benchmarks")]
-	fn allowlist_and_create_token(_account: Self::AccountId, _token: u128) -> DispatchResult {
-		Ok(())
-	}
+impl ocex::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type PalletId = OcexPalletId;
+	type TreasuryPalletId = TresuryPalletId;
+	type LMPRewardsPalletId = LMPRewardsPalletId;
+	type NativeCurrency = Balances;
+	type OtherAssets = Assets;
+	type EnclaveOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type AuthorityId = ocex::sr25519::AuthorityId;
+	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
+	type CrowdSourceLiqudityMining = LiqudityMining;
+	type WeightInfo = ocex::weights::WeightInfo<Test>;
 }
 
 parameter_types! {
@@ -175,9 +156,12 @@ parameter_types! {
 impl pallet_assets::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = u128;
+	type RemoveItemsLimit = ();
 	type AssetId = u128;
+	type AssetIdParameter = parity_scale_codec::Compact<u128>;
 	type Currency = Balances;
-	type ForceOrigin = EnsureRoot<AccountId>;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<sp_runtime::AccountId32>>;
+	type ForceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type AssetDeposit = AssetDeposit;
 	type AssetAccountDeposit = AssetDeposit;
 	type MetadataDepositBase = MetadataDepositBase;
@@ -186,26 +170,8 @@ impl pallet_assets::Config for Test {
 	type StringLimit = StringLimit;
 	type Freezer = ();
 	type Extra = ();
-	type WeightInfo = ();
-	type AssetIdParameter = parity_scale_codec::Compact<u128>;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type CallbackHandle = ();
-	type RemoveItemsLimit = ();
-}
-
-parameter_types! {
-	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQUIDID");
-}
-
-impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type PalletId = LiquidityPalletId;
-	type NativeCurrency = Balances;
-	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
-	type Signature = Signature;
-	type GovernanceOrigin = EnsureRoot<AccountId>;
-	type CallOcex = OCEX;
-	type WeightInfo = super::weights::WeightInfo<Test>;
+	type WeightInfo = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -215,10 +181,37 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+use sp_runtime::{
+	testing::TestXt,
+	traits::{Extrinsic as ExtrinsicT, IdentifyAccount, Verify},
+};
+
+type Extrinsic = TestXt<RuntimeCall, ()>;
+type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+impl frame_system::offchain::SigningTypes for Test {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
 where
-	RuntimeCall: From<C>,
+	RuntimeCall: From<LocalCall>,
 {
-	type Extrinsic = UncheckedExtrinsic;
+	type Extrinsic = Extrinsic;
 	type OverarchingCall = RuntimeCall;
+}
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+		_public: <Signature as Verify>::Signer,
+		_account: AccountId,
+		nonce: u64,
+	) -> Option<(RuntimeCall, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
+		Some((call, (nonce, ())))
+	}
 }
