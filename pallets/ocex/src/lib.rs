@@ -1342,6 +1342,11 @@ pub mod pallet {
 				total_in_u128,
 				ExistenceRequirement::AllowDeath,
 			)?;
+
+			// Update the is_claimed flag
+			<TraderMetrics<T>>::mutate((epoch, market, main.clone()), |(_, _, is_claimed)| {
+				*is_claimed = true;
+			});
 			Ok(total_in_u128)
 		}
 
