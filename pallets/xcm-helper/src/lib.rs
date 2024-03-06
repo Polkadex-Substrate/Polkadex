@@ -393,7 +393,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::whitelist_token(1))]
 		pub fn whitelist_token(origin: OriginFor<T>, token: AssetId) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
+			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			let token = Self::generate_asset_id_for_parachain(token);
 			let mut whitelisted_tokens = <WhitelistedTokens<T>>::get();
 			ensure!(!whitelisted_tokens.contains(&token), Error::<T>::TokenIsAlreadyWhitelisted);
