@@ -33,9 +33,10 @@ benchmarks! {
 	whitelist_token {
 		let b in 1 .. 1000;
 		let token = b as u128;
+		let account = account::<T::AccountId>("alice", 1, b);
 		let asset_location = MultiLocation::new(1, Junctions::X1(Junction::Parachain(b)));
 		let token: AssetId = AssetId::Concrete(asset_location);
-	}: _(RawOrigin::Root, token)
+	}: _(RawOrigin::Signed(account), token)
 	verify {
 		let token = XcmHelper::<T>::generate_asset_id_for_parachain(token);
 		let whitelisted_tokens = <WhitelistedTokens<T>>::get();
