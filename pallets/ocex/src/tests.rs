@@ -2468,7 +2468,10 @@ fn test_do_claim_lmp_rewards_happy_path() {
 		assert_eq!(Balances::free_balance(&main_account), 999999999900u128);
 		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
 		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
-		assert_noop!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair), Error::<Test>::RewardAlreadyClaimed);
+		assert_noop!(
+			OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair),
+			Error::<Test>::RewardAlreadyClaimed
+		);
 	})
 }
 

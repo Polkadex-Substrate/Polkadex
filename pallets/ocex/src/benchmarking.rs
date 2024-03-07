@@ -461,14 +461,14 @@ benchmarks! {
 		let auction_duration: BlockNumberFor<T> = 100u32.into();
 		let burn_ration = 10u8;
 		let fee_distribution = FeeDistribution {
-			recipient_address,
+			recipient_address: recipient_address.clone(),
 			auction_duration,
 			burn_ration,
 		};
 	}: _(RawOrigin::Root, fee_distribution)
 // After executing the benchmark, verify the fee distribution configuration
 verify {
-   let current_fee_distribution = FeeDistribution::<T>::get();
+   let current_fee_distribution = <FeeDistributionConfig<T>>::get().unwrap();
    assert_eq!(current_fee_distribution.recipient_address, recipient_address);
    assert_eq!(current_fee_distribution.auction_duration, auction_duration);
    assert_eq!(current_fee_distribution.burn_ration, burn_ration);
