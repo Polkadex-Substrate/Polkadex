@@ -66,7 +66,7 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
 
-pub const AGGREGATOR: &str = "https://test.aggregator.polkadex.trade"; //FIXME: Shold be changed back to aggregator.polkadex.trade
+pub const AGGREGATOR: &str = "https://aggregator.polkadex.trade"; // Updated to production URL
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 type TraderMetricsType<T> = BTreeMap<
