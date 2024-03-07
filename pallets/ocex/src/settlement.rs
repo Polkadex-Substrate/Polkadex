@@ -46,7 +46,7 @@ pub fn get_balance(
 	let balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
 		None => BTreeMap::new(),
 		Some(encoded) => BTreeMap::decode(&mut &encoded[..])
-			.map_err(|_| "Unable to decode balances for account")?,
+			.map_err(|e| { log::error!("Failed to decode balances for account {:?}: {:?}", account, e); "Unable to decode balances for account" })?,
 	};
 
 	Ok(balances.get(&asset).copied().unwrap_or_default())
