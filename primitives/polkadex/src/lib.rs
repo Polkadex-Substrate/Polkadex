@@ -25,7 +25,6 @@
 pub mod assets;
 pub mod auction;
 pub mod fees;
-pub mod ingress;
 pub mod rewards;
 pub mod withdrawal;
 
