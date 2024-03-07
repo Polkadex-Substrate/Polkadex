@@ -259,7 +259,7 @@ fn test_add_liquidity_error_not_enough_quote_amount() {
 }
 
 #[test]
-fn test_add_liquidity_not_enough_token_to_trasnfer() {
+fn test_add_liquidity_not_enough_token_to_transfer() {
 	new_test_ext().execute_with(|| {
 		register_test_pool(true);
 		// Set snapshot flag
