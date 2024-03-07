@@ -466,6 +466,13 @@ benchmarks! {
 			burn_ration,
 		};
 	}: _(RawOrigin::Root, fee_distribution)
+// After executing the benchmark, verify the fee distribution configuration
+verify {
+   let current_fee_distribution = FeeDistribution::<T>::get();
+   assert_eq!(current_fee_distribution.recipient_address, recipient_address);
+   assert_eq!(current_fee_distribution.auction_duration, auction_duration);
+   assert_eq!(current_fee_distribution.burn_ration, burn_ration);
+}
 
 	place_bid {
 		let old_bidder = T::AccountId::decode(&mut &[1; 32][..]).unwrap();
