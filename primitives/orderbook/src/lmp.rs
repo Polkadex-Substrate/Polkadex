@@ -35,15 +35,6 @@ pub struct LMPConfig {
 	pub index: u16,
 }
 
-/// All metrics used for calculating the LMP score of a main account
-#[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct TraderMetric {
-	pub maker_volume: Decimal, // Trading volume generated where main acc is a maker
-	pub fees_paid: Decimal,    // defined in terms of quote asset
-	pub q_score: Decimal,      // Market making performance score
-	pub uptime: u16,           // Uptime of market maker
-}
-
 /// One minute LMP Q Score report
 #[derive(Decode, Encode, TypeInfo, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LMPOneMinuteReport<AccountId: Ord> {
