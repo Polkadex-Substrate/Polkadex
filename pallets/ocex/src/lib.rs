@@ -243,6 +243,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type LMPRewardsPalletId: Get<PalletId>;
 
+		/// Orderbook withdrawal Limit
+		#[pallet::constant]
+		type OBWithdrawalLimit: Get<u32>;
+
 		/// Balances Pallet
 		type NativeCurrency: Currency<Self::AccountId>
 			+ ReservableCurrency<Self::AccountId>
@@ -2130,6 +2134,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		// Verify if snapshot is already processed
 		if <SnapshotNonce<T>>::get().saturating_add(1) != snapshot_summary.snapshot_id {
 			return InvalidTransaction::Custom(10).into();
+		}
+
+		if T::OBWithdrawalLimit::get() < snapshot_summary.withdrawals.len() as u32 {
+			return InvalidTransaction::Custom(13).into();
 		}
 
 		// Check if this validator was part of that authority set
