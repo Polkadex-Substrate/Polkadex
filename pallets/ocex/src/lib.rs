@@ -821,24 +821,16 @@ pub mod pallet {
 				// Get mutable reference to the withdrawals vector
 				if let Some(withdrawal_vector) = btree_map.remove(&account) {
 					let (failed_withdrawals, processed_withdrawals) =
-						Self::do_withdraw(withdrawal_vector);
+						Self::do_withdraw(snapshot_id, withdrawal_vector);
 					// Not removing key from BtreeMap so that failed withdrawals can still be
 					// tracked
 					btree_map.insert(account.clone(), failed_withdrawals);
 
 					if !processed_withdrawals.is_empty() {
 						Self::deposit_event(Event::WithdrawalClaimed {
+							snapshot_id,
 							main: account.clone(),
 							withdrawals: processed_withdrawals.clone(),
-						});
-						<OnChainEvents<T>>::mutate(|onchain_events| {
-							onchain_events.push(
-								orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-									snapshot_id,
-									account.clone(),
-									processed_withdrawals,
-								),
-							);
 						});
 					}
 					Ok(())
@@ -898,21 +890,16 @@ pub mod pallet {
 				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
 				let mut failed_withdrawal_map = crate::pallet::WithdrawalsMap::<T>::new();
 				for (account, withdrawals) in withdrawal_map {
-					let (failed_withdraws, successful_withdraws) = Self::do_withdraw(withdrawals);
-					failed_withdrawal_map.insert(account.clone(), failed_withdraws);
+					let (failed_withdraws, successful_withdraws) =
+						Self::do_withdraw(snapshot_id, withdrawals);
+					if !failed_withdraws.is_empty() {
+						failed_withdrawal_map.insert(account.clone(), failed_withdraws);
+					}
 					if !successful_withdraws.is_empty() {
 						Self::deposit_event(Event::WithdrawalClaimed {
+							snapshot_id,
 							main: account.clone(),
 							withdrawals: successful_withdraws.clone(),
-						});
-						<OnChainEvents<T>>::mutate(|onchain_events| {
-							onchain_events.push(
-								orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-									snapshot_id,
-									account.clone(),
-									successful_withdraws,
-								),
-							);
 						});
 					}
 				}
@@ -921,14 +908,6 @@ pub mod pallet {
 				}
 				let fees = summary.get_fees();
 				Self::settle_withdrawal_fees(fees)?;
-				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events.push(
-						orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
-							summary.snapshot_id,
-							summary.withdrawals.clone(),
-						),
-					);
-				});
 			}
 			let id = summary.snapshot_id;
 			<SnapshotNonce<T>>::put(id);
@@ -1109,6 +1088,7 @@ pub mod pallet {
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
+			snapshot_id: u64,
 			main: T::AccountId,
 			withdrawals: Vec<Withdrawal<T::AccountId>>,
 		},
@@ -1125,7 +1105,7 @@ pub mod pallet {
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
 		/// Withdrawal failed
-		WithdrawalFailed(Withdrawal<T::AccountId>),
+		WithdrawalFailed(u64, Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
 		/// DisputePeriod has been updated
@@ -1318,6 +1298,7 @@ pub mod pallet {
 
 	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
 		pub fn do_withdraw(
+			snapshot_id: u64,
 			mut withdrawal_vector: Vec<Withdrawal<T::AccountId>>,
 		) -> (Vec<Withdrawal<T::AccountId>>, Vec<Withdrawal<T::AccountId>>) {
 			let mut failed_withdrawals = Vec::new();
@@ -1331,7 +1312,10 @@ pub mod pallet {
 					} else {
 						// Storing the failed withdrawals back into the storage item
 						failed_withdrawals.push(withdrawal.to_owned());
-						Self::deposit_event(Event::WithdrawalFailed(withdrawal.to_owned()));
+						Self::deposit_event(Event::WithdrawalFailed(
+							snapshot_id,
+							withdrawal.to_owned(),
+						));
 					}
 				}
 			}

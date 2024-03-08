@@ -28,7 +28,7 @@ use std::str::FromStr;
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 use crate::mock::*;
 use frame_support::traits::fungibles::Mutate as MutateAsset;
-use frame_support::{testing_prelude::bounded_vec, BoundedVec};
+use frame_support::BoundedVec;
 use frame_system::EventRecord;
 use orderbook_primitives::ingress::{EgressMessages, IngressMessages};
 use orderbook_primitives::ocex::AccountInfo;
@@ -2036,16 +2036,10 @@ fn test_submit_snapshot() {
 		assert_ok!(OCEX::submit_snapshot(RuntimeOrigin::none(), snapshot.clone(), Vec::new()));
 
 		assert_eq!(Withdrawals::<Test>::contains_key(1), true);
-		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map.clone());
+		assert_eq!(Withdrawals::<Test>::get(1), withdrawal_map);
 		assert_eq!(Snapshots::<Test>::contains_key(1), true);
 		assert_eq!(Snapshots::<Test>::get(1).unwrap(), snapshot.clone());
 		assert_eq!(SnapshotNonce::<Test>::get(), 1);
-		let onchain_events =
-			vec![orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
-				1,
-				snapshot.withdrawals.clone(),
-			)];
-		assert_eq!(OnChainEvents::<Test>::get(), onchain_events);
 		// Checking for redundant data inside snapshot
 		assert_eq!(Snapshots::<Test>::get(1).unwrap().withdrawals, snapshot.withdrawals);
 	})
@@ -2102,11 +2096,14 @@ fn test_withdrawal() {
 		new_block();
 		new_block();
 
-		assert_ok!(OCEX::claim_withdraw(
-			RuntimeOrigin::signed(account_id.clone().into()),
-			1,
-			account_id.clone()
-		));
+		assert_noop!(
+			OCEX::claim_withdraw(
+				RuntimeOrigin::signed(account_id.clone().into()),
+				1,
+				account_id.clone()
+			),
+			Error::<Test>::InvalidWithdrawalIndex
+		);
 		// Balances after withdrawal
 		assert_eq!(
 			<Test as Config>::NativeCurrency::free_balance(account_id.clone()),
@@ -2116,13 +2113,6 @@ fn test_withdrawal() {
 			<Test as Config>::NativeCurrency::free_balance(custodian_account.clone()),
 			initial_balance - UNIT_BALANCE, // Dec
 		);
-		let withdrawal_claimed: orderbook_primitives::ocex::OnChainEvents<AccountId> =
-			orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-				1,
-				account_id.clone().into(),
-				bounded_vec![snapshot.withdrawals[0].clone()],
-			);
-		assert_eq!(OnChainEvents::<Test>::get()[1], withdrawal_claimed);
 	});
 }
 
