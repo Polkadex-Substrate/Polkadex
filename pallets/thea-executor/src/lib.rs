@@ -40,7 +40,7 @@ pub trait TheaExecutorWeightInfo {
 	fn update_asset_metadata(_r: u32) -> Weight;
 	fn withdraw(r: u32) -> Weight;
 	fn parachain_withdraw(_r: u32) -> Weight;
-	fn ethereum_withdraw(_r: u32) -> Weight;
+	fn evm_withdraw(_r: u32) -> Weight;
 	fn on_initialize(x: u32, y: u32) -> Weight;
 	fn burn_native_tokens() -> Weight;
 	fn claim_deposit(_r: u32) -> Weight;
@@ -67,7 +67,7 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use thea_primitives::{
 		types::{AssetMetadata, Deposit, Withdraw},
-		Network, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
+		Network, TheaBenchmarkHelper, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
 
@@ -170,7 +170,7 @@ pub mod pallet {
 	/// Stores the metadata ( asset_id => Metadata )
 	#[pallet::storage]
 	#[pallet::getter(fn asset_metadata)]
-	pub(super) type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
+	pub type Metadata<T: Config> = StorageMap<_, Identity, u128, AssetMetadata, OptionQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
@@ -383,7 +383,7 @@ pub mod pallet {
 		/// * `pay_for_remaining`: Pay for remaining pending withdrawals.
 		/// * `pay_with_tokens`: Pay with withdrawing tokens.
 		#[pallet::call_index(5)]
-		#[pallet::weight(< T as Config >::TheaExecWeightInfo::ethereum_withdraw(1))]
+		#[pallet::weight(< T as Config >::TheaExecWeightInfo::evm_withdraw(1))]
 		pub fn evm_withdraw(
 			origin: OriginFor<T>,
 			asset_id: u128,
@@ -652,5 +652,14 @@ pub mod pallet {
 			<T as Config>::NativeAssetId,
 		> for Pallet<T>
 	{
+	}
+
+	impl<T: Config> TheaBenchmarkHelper for Pallet<T> {
+		fn set_metadata(asset_id: AssetId) {
+			let metadata = AssetMetadata::new(12).unwrap();
+			if let AssetId::Asset(asset) = asset_id {
+				<Metadata<T>>::insert(asset, metadata);
+			}
+		}
 	}
 }

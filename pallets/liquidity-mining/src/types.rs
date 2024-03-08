@@ -1,6 +1,6 @@
 // This file is part of Polkadex.
 //
-// Copyright (c) 2023 Polkadex oü.
+// Copyright (c) 2022-2023 Polkadex oü.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,30 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! In this module defined operations fee related types.
-
-use codec::{Decode, Encode};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
-/// Defines structure of the fee configuration.
-#[derive(Copy, Clone, Encode, Decode, PartialEq, Debug, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct FeeConfig {
-	/// Market fee fraction.
-	pub maker_fraction: Decimal,
-	/// Trade fee fraction.
-	pub taker_fraction: Decimal,
+#[derive(Encode, Decode, MaxEncodedLen, TypeInfo)]
+pub struct MarketMakerConfig<AccountId> {
+	pub pool_id: AccountId,
+	pub commission: Decimal,
+	pub exit_fee: Decimal,
+	pub public_funds_allowed: bool,
+	pub name: [u8; 10],
+	pub share_id: u128,
+	pub force_closed: bool,
 }
 
-impl Default for FeeConfig {
-	fn default() -> Self {
-		Self {
-			maker_fraction: Decimal::from_f64(0.001).unwrap(),
-			taker_fraction: Decimal::from_f64(0.001).unwrap(),
-		}
-	}
-}
+pub type EpochNumber = u32;

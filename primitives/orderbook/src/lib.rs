@@ -23,12 +23,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use crate::ingress::EgressMessages;
 #[cfg(feature = "std")]
 use crate::recovery::ObCheckpoint;
-use crate::types::AccountAsset;
+use crate::types::{AccountAsset, TradingPair};
+use frame_support::dispatch::DispatchResult;
 use parity_scale_codec::{Codec, Decode, Encode};
-use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber};
+use polkadex_primitives::{withdrawal::Withdrawal, AssetId, BlockNumber, UNIT_BALANCE};
 pub use primitive_types::H128;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -38,8 +41,12 @@ use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 pub mod constants;
 pub mod types;
 
+pub mod ingress;
+pub mod lmp;
+pub mod ocex;
 #[cfg(feature = "std")]
 pub mod recovery;
+pub mod traits;
 
 /// Authority set id starts with zero at genesis.
 pub const GENESIS_AUTHORITY_SET_ID: u64 = 0;
@@ -100,9 +107,28 @@ pub struct Fees {
 	pub amount: Decimal,
 }
 
+impl Fees {
+	pub fn amount(&self) -> u128 {
+		self.amount
+			.saturating_mul(Decimal::from(UNIT_BALANCE))
+			.to_u128()
+			.unwrap_or_default() // this shouldn't fail.
+	}
+}
+
+pub type TotalScore = Decimal;
+pub type TotalFeePaid = Decimal;
+pub type Score = Decimal;
+pub type FeePaid = Decimal;
+pub type TraderMetrics = (Score, FeePaid);
+pub type TraderMetricsMap<AccountId> = BTreeMap<AccountId, TraderMetrics>;
+pub type TradingPairMetrics = (TotalScore, TotalFeePaid);
+pub type TradingPairMetricsMap<AccountId> =
+	BTreeMap<TradingPair, (TraderMetricsMap<AccountId>, TradingPairMetrics)>;
+
 /// Defines the structure of snapshot DTO.
 #[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotSummary<AccountId: Clone + Codec> {
+pub struct SnapshotSummary<AccountId: Clone + Codec + Ord> {
 	/// Validator set identifier.
 	pub validator_set_id: u64,
 	/// Snapshot identifier.
@@ -115,9 +141,13 @@ pub struct SnapshotSummary<AccountId: Clone + Codec> {
 	pub last_processed_blk: BlockNumber,
 	/// Collections of withdrawals.
 	pub withdrawals: Vec<Withdrawal<AccountId>>,
+	/// List of Egress messages
+	pub egress_messages: Vec<EgressMessages<AccountId>>,
+	/// Trader Metrics
+	pub trader_metrics: Option<TradingPairMetricsMap<AccountId>>,
 }
 
-impl<AccountId: Clone + Codec> SnapshotSummary<AccountId> {
+impl<AccountId: Clone + Codec + Ord> SnapshotSummary<AccountId> {
 	/// Collects and returns the collection of fees fro for all withdrawals.
 	pub fn get_fees(&self) -> Vec<Fees> {
 		let mut fees = Vec::new();
@@ -170,4 +200,46 @@ impl ObCheckpointRaw {
 			state_change_id: self.state_change_id,
 		}
 	}
+}
+
+pub trait LiquidityMining<AccountId, Balance> {
+	/// Registers the pool_id as main account, trading account.
+	fn register_pool(pool_id: AccountId, trading_account: AccountId) -> DispatchResult;
+
+	/// Returns the Current Average price
+	fn average_price(market: TradingPair) -> Option<Decimal>;
+	/// Returns if its a registered market in OCEX pallet
+	fn is_registered_market(market: &TradingPair) -> bool;
+
+	/// Deposits the given amounts to Orderbook and Adds an ingress message requesting engine to
+	/// calculate the exact shares and return it as an egress message
+	fn add_liquidity(
+		market: TradingPair,
+		pool: AccountId,
+		lp: AccountId,
+		total_shares_issued: Decimal,
+		base_amount: Decimal,
+		quote_amount: Decimal,
+	) -> DispatchResult;
+
+	/// Adds an ingress message to initiate withdrawal request and queue it for execution at the end
+	/// of cycle.
+	fn remove_liquidity(
+		market: TradingPair,
+		pool: AccountId,
+		lp: AccountId,
+		given: Balance,
+		total: Balance,
+	);
+
+	/// Adds an ingress message to force close all open orders from this main account and initiate
+	/// complete withdrawal
+	fn force_close_pool(market: TradingPair, main: AccountId);
+
+	/// Claim rewards for this main account. Return False if reward is already claimed, else True.
+	fn claim_rewards(
+		main: AccountId,
+		epoch: u16,
+		market: TradingPair,
+	) -> Result<Balance, sp_runtime::DispatchError>;
 }

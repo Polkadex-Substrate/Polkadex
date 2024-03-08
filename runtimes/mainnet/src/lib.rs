@@ -32,9 +32,9 @@ use frame_support::{
 	pallet_prelude::{ConstU32, RuntimeDebug},
 	parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin, EqualPrivilegeOnly,
-		Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
-		OnUnbalanced,
+		fungible::Inspect, AsEnsureOriginWithArg, Currency, EitherOfDiverse, EnsureOrigin,
+		EqualPrivilegeOnly, Everything, Get, Imbalance, InstanceFilter, KeyOwnerProofSystem,
+		LockIdentifier, OnUnbalanced,
 	},
 	weights::{
 		constants::{
@@ -51,6 +51,7 @@ use frame_system::{
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
 
+use orderbook_primitives::types::TradingPair;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
 use pallet_grandpa::{
@@ -86,7 +87,6 @@ use sp_runtime::{
 	ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::{prelude::*, vec};
-use sp_storage as _;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 330,
+	spec_version: 339,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -844,11 +844,6 @@ type EnsureRootOrHalfCouncil = EitherOfDiverse<
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
 
-type EnsureRootOrHalfOrderbookCouncil = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, OrderbookCollective, 1, 2>,
->;
-
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AddOrigin = EnsureRootOrHalfCouncil;
@@ -1288,17 +1283,21 @@ parameter_types! {
 parameter_types! {
 	pub const ProxyLimit: u32 = 3;
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
+	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
 	pub const MsPerDay: u64 = 86_400_000;
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type PalletId = OcexPalletId;
+	type TreasuryPalletId = TreasuryPalletId;
+	type LMPRewardsPalletId = LMPRewardsPalletId;
 	type NativeCurrency = Balances;
 	type OtherAssets = Assets;
 	type EnclaveOrigin = EnsureSigned<AccountId>;
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfCouncil;
+	type CrowdSourceLiqudityMining = ();
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
@@ -1318,18 +1317,15 @@ impl pallet_rewards::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LiquidityPalletId: PalletId = PalletId(*b"LIQU/IDI");
+	pub const CrowdSourcingRewardsPalletId: PalletId = PalletId(*b"CROWSOUR");
 }
 
-impl liquidity::Config for Runtime {
+impl pallet_lmp::pallet::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type PalletId = LiquidityPalletId;
+	type OCEX = OCEX;
+	type PalletId = CrowdSourcingRewardsPalletId;
 	type NativeCurrency = Balances;
-	type Public = <Signature as traits::Verify>::Signer;
-	type Signature = Signature;
-	type GovernanceOrigin = EnsureRootOrHalfOrderbookCouncil;
-	type CallOcex = OCEX;
-	type WeightInfo = liquidity::weights::WeightInfo<Runtime>;
+	type OtherAssets = Assets;
 }
 
 use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
@@ -1345,8 +1341,10 @@ impl thea::Config for Runtime {
 	type Signature = thea::ecdsa::AuthoritySignature;
 	type MaxAuthorities = MaxAuthorities;
 	type Executor = TheaExecutor;
-	type Currency = Balances;
-	type GovernanceOrigin = EnsureRootOrHalfCouncil;
+	type NativeCurrency = Balances;
+	type TheaGovernanceOrigin = EnsureRootOrHalfCouncil;
+	#[cfg(feature = "runtime-benchmarks")]
+	type TheaBenchmarkHelper = TheaExecutor;
 	type WeightInfo = thea::weights::WeightInfo<Runtime>;
 }
 
@@ -1501,13 +1499,13 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3> = 36,
 		Thea: thea::pallet = 39,
 		Rewards: pallet_rewards = 40,
-		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
 		TheaMH: thea_message_handler::pallet = 45,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 		Statement: pallet_statement = 48,
 		AssetTxPayment: pallet_asset_tx_payment = 49,
+		CrowdSourceLMP: pallet_lmp::pallet = 50,
 	}
 );
 
@@ -1553,12 +1551,12 @@ construct_runtime!(
 		OrderbookCommittee: pallet_collective::<Instance3> = 36,
 		Thea: thea::pallet = 39,
 		Rewards: pallet_rewards = 40,
-		Liquidity: liquidity = 41,
 		TheaExecutor: thea_executor::pallet = 44,
 		AssetConversion: pallet_asset_conversion = 46,
 		AssetConversionTxPayment: pallet_asset_conversion_tx_payment = 47,
 		Statement: pallet_statement = 48,
 		AssetTxPayment: pallet_asset_tx_payment = 49,
+		CrowdSourceLMP: pallet_lmp::pallet = 50,
 	}
 );
 /// Digest item type.
@@ -1606,10 +1604,7 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-use crate::{
-	impls::CreditToBlockAuthor,
-	sp_api_hidden_includes_construct_runtime::hidden_include::traits::fungible::Inspect,
-};
+use crate::impls::CreditToBlockAuthor;
 use orderbook_primitives::ObCheckpointRaw;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -1707,6 +1702,29 @@ impl_runtime_apis! {
 		fn calculate_inventory_deviation() -> Result<sp_std::collections::btree_map::BTreeMap<AssetId,Decimal>,
 		DispatchError> {
 			OCEX::calculate_inventory_deviation()
+		}
+
+		fn top_lmp_accounts(epoch: u16, market: TradingPair, sorted_by_mm_score: bool, limit: u16) -> Vec<AccountId> {
+			OCEX::top_lmp_accounts(epoch.saturated_into(), market, sorted_by_mm_score, limit as usize)
+		}
+
+		fn calculate_lmp_rewards(main: AccountId, epoch: u16, market: TradingPair) -> (Decimal, Decimal, bool) {
+			OCEX::get_lmp_rewards(&main, epoch.saturated_into(), market)
+		}
+
+		fn get_fees_paid_by_user_per_epoch(epoch: u32,market: TradingPair, main: AccountId) -> Decimal {
+			OCEX::get_fees_paid_by_user_per_epoch(epoch.saturated_into(),market,main)
+		}
+
+		fn get_volume_by_user_per_epoch(epoch: u32, market: TradingPair, main: AccountId) -> Decimal{
+			OCEX::get_volume_by_user_per_epoch(epoch,market, main)
+		}
+
+		fn get_total_score(epoch: u16, market: TradingPair) -> (Decimal, Decimal) {
+			OCEX::get_total_score(epoch,market)
+		}
+		fn get_trader_metrics(epoch: u16, market: TradingPair, main: AccountId) -> (Decimal, Decimal, bool){
+			OCEX::get_trader_metrics(epoch,market,main)
 		}
 	}
 
@@ -1895,7 +1913,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_ocex_lmp, OCEX);
 			list_benchmark!(list, extra, pdex_migration, PDEXMigration);
 			list_benchmark!(list, extra, pallet_rewards, Rewards);
-			list_benchmark!(list, extra, liquidity, Liquidity);
 			list_benchmark!(list, extra, thea_executor, TheaExecutor);
 			list_benchmark!(list, extra, thea, Thea);
 			list_benchmark!(list, extra, thea_message_handler, TheaMH);
@@ -1932,7 +1949,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_ocex_lmp, OCEX);
 			add_benchmark!(params, batches, pdex_migration, PDEXMigration);
 			add_benchmark!(params, batches, pallet_rewards, Rewards);
-			add_benchmark!(params, batches, liquidity, Liquidity);
 			add_benchmark!(params, batches, thea_executor, TheaExecutor); //TheaExecutor: thea_executor
 			add_benchmark!(params, batches, thea, Thea);
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);

@@ -4265,6 +4265,7 @@ checksum = "233cf39063f058ea2caae4091bf4a3ef70a653afbc026f5c4a4135d114e3c177"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
+ "serde",
 ]
 
 [[package]]
@@ -5207,26 +5208,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01cda141df6706de531b6c46c3a33ecca755538219bd484262fa09410c13539c"
 
 [[package]]
-name = "liquidity"
-version = "1.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-assets",
- "pallet-balances",
- "pallet-ocex-lmp",
- "pallet-timestamp",
- "parity-scale-codec",
- "polkadex-primitives",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "load-testing"
 version = "0.1.0"
 dependencies = [
@@ -5766,7 +5747,7 @@ checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "5.5.0"
+version = "6.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -5777,7 +5758,6 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal 0.3.4",
- "liquidity",
  "log",
  "orderbook-primitives",
  "orml-vesting",
@@ -5799,6 +5779,7 @@ dependencies = [
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-lmp",
  "pallet-membership",
  "pallet-multisig",
  "pallet-ocex-lmp",
@@ -6052,6 +6033,7 @@ version = "1.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "frame-support",
  "log",
  "parity-scale-codec",
  "polkadex-primitives",
@@ -6642,6 +6624,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-lmp"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "orderbook-primitives",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-ocex-lmp",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "polkadex-primitives",
+ "rust_decimal",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-membership"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
@@ -6779,22 +6784,25 @@ dependencies = [
 
 [[package]]
 name = "pallet-ocex-lmp"
-version = "5.4.1"
+version = "6.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hash-db",
- "liquidity",
+ "lazy_static",
  "log",
+ "num-traits",
  "orderbook-primitives",
  "pallet-assets",
  "pallet-balances",
+ "pallet-lmp",
  "pallet-timestamp",
  "parity-scale-codec",
  "polkadex-primitives",
  "rust_decimal",
  "scale-info",
+ "sequential-test",
  "serde",
  "serde_json",
  "sp-application-crypto",
@@ -6818,6 +6826,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.1",
  "polkadex-primitives",
+ "rust_decimal",
  "sc-rpc",
  "sc-rpc-api",
  "serde",
@@ -7466,7 +7475,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-polkadex-runtime"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -7867,7 +7876,7 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "5.5.0"
+version = "6.0.0"
 dependencies = [
  "clap 4.5.0",
  "frame-benchmarking-cli",
@@ -7960,6 +7969,7 @@ dependencies = [
  "scale-info",
  "serde",
  "serde_json",
+ "serde_with",
  "sp-application-crypto",
  "sp-core",
  "sp-runtime",
@@ -11645,6 +11655,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
+name = "sequential-macro"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb5facc5f409a55d25bf271c853402a00e1187097d326757043f5dd711944d07"
+
+[[package]]
+name = "sequential-test"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0d9c0d773bc7e7733264f460e5dfa00b2510421ddd6284db0749eef8dfb79e9"
+dependencies = [
+ "sequential-macro",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.196"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11686,15 +11711,17 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "2.3.3"
+version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07ff71d2c147a7b57362cead5e22f772cd52f6ab31cfcd9edcd7f6aeb2a0afbe"
+checksum = "15d167997bd841ec232f5b2b8e0e26606df2e7caa4c31b95ea9ca52b200bd270"
 dependencies = [
- "base64 0.13.1",
+ "base64 0.21.7",
  "chrono",
  "hex",
  "indexmap 1.9.3",
+ "indexmap 2.2.3",
  "serde",
+ "serde_derive",
  "serde_json",
  "serde_with_macros",
  "time",
@@ -11702,9 +11729,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "2.3.3"
+version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
+checksum = "865f9743393e638991566a8b7a479043c2c8da94a33e0a31f18214c9cae0a64d"
 dependencies = [
  "darling",
  "proc-macro2",

@@ -22,14 +22,14 @@ thea-primitives = { path = "../../primitives/thea", default-features = false }
 sp-application-crypto = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 hex = { workspace = true, default-features = false, features = ["alloc"] }
-libsecp256k1 = { version = "0.7.1", default-features = false}
+libsecp256k1 = { version = "0.7.1", default-features = false }
+thea-executor = { path = "../thea-executor", default-features = false }
 
 [dev-dependencies]
 pallet-assets = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-asset-conversion = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
-thea-executor = { path = "../thea-executor", features = ["std"] }
 env_logger = { workspace = true }
 
 
@@ -54,7 +54,8 @@ std = [
   "pallet-balances/std",
   "sp-core/std",
   "frame-benchmarking?/std",
-  "libsecp256k1/std"
+  "libsecp256k1/std",
+  "thea-executor/std",
 ]
 runtime-benchmarks = [
   "pallet-balances/runtime-benchmarks",

@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "5.5.0"
+version = "6.0.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -71,7 +71,7 @@ sp-transaction-pool = { default-features = false, workspace = true }
 sp-version = { default-features = false, workspace = true }
 sp-io = { workspace = true, default-features = false }
 sp-statement-store = { workspace = true, default-features = false }
-sp-storage = { workspace = true, default-features = false }
+sp-storage = { workspace = true, default-features = false, optional = true }
 
 #added
 sp-authority-discovery = { default-features = false, workspace = true }
@@ -103,14 +103,12 @@ pdex-migration = { path = "../../pallets/pdex-migration", default-features = fal
 
 # Orderbook 
 pallet-ocex-lmp = { path = "../../pallets/ocex", default-features = false }
+pallet-lmp = { path = "../../pallets/liquidity-mining", default-features = false }
 
 # Thea
 thea = { path = "../../pallets/thea", default-features = false }
 thea-executor = { path = "../../pallets/thea-executor", default-features = false }
 thea-message-handler = { path = "../../pallets/thea-message-handler", default-features = false, optional = true }
-
-# Liquidity Pallet
-liquidity = { path = "../../pallets/liquidity", default-features = false }
 
 # Parachain Rewards
 pallet-rewards = { path = "../../pallets/rewards", default-features = false }
@@ -190,7 +188,6 @@ std = [
   "rpc-assets-runtime-api/std",
   "pallet-rewards-runtime-api/std",
   "thea/std",
-  "liquidity/std",
   "pallet-rewards/std",
   "thea-executor/std",
   "frame-try-runtime?/std",
@@ -202,10 +199,11 @@ std = [
   "pallet-asset-tx-payment/std",
   "pallet-statement/std",
   "sp-statement-store/std",
-  "sp-storage/std",
+  "sp-storage?/std",
 ]
 runtime-benchmarks = [
   #theirs
+  "sp-storage",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
@@ -218,9 +216,9 @@ runtime-benchmarks = [
   "pallet-ocex-lmp/runtime-benchmarks",
   "pdex-migration/runtime-benchmarks",
   "pallet-rewards/runtime-benchmarks",
-  "liquidity/runtime-benchmarks",
   "thea/runtime-benchmarks",
   "thea-executor/runtime-benchmarks",
+  "pallet-lmp/runtime-benchmarks",
   "thea-message-handler/runtime-benchmarks",
   "pallet-asset-conversion/runtime-benchmarks",
   "pallet-asset-tx-payment/runtime-benchmarks",
@@ -264,10 +262,10 @@ try-runtime = [
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",
+  "pallet-lmp/try-runtime",
   "pallet-collective/try-runtime",
   "thea/try-runtime",
   "pallet-rewards/try-runtime",
-  "liquidity/try-runtime",
   "thea-executor/try-runtime",
   "pallet-asset-conversion/try-runtime",
   "pallet-asset-conversion-tx-payment/try-runtime",

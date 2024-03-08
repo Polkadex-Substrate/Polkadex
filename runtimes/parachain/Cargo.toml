@@ -1,6 +1,6 @@
 [package]
 name = "parachain-polkadex-runtime"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Anonymous"]
 description = "A new Cumulus FRAME-based Substrate Runtime, ready for hacking together a parachain."
 license = "Unlicense"

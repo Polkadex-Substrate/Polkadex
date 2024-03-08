@@ -24,3 +24,4 @@ parking_lot = { workspace = true }
 hash-db = { workspace = true }
 trie-db = { workspace = true }
 sp-trie = { workspace = true }
+rust_decimal = { workspace = true, features = ["scale-codec"] }
