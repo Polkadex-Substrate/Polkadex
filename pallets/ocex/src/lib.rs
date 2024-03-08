@@ -1104,8 +1104,8 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
-		/// Withdrawal failed
-		WithdrawalFailed(u64, Withdrawal<T::AccountId>),
+		/// Withdrawal ready to claim
+		WithdrawalReady(u64, Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
 		/// DisputePeriod has been updated
@@ -1312,7 +1312,7 @@ pub mod pallet {
 					} else {
 						// Storing the failed withdrawals back into the storage item
 						failed_withdrawals.push(withdrawal.to_owned());
-						Self::deposit_event(Event::WithdrawalFailed(
+						Self::deposit_event(Event::WithdrawalReady(
 							snapshot_id,
 							withdrawal.to_owned(),
 						));
