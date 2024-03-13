@@ -574,7 +574,10 @@ fn create_trade_metrics<T: Config>() -> TradingPairMetricsMap<T::AccountId> {
 fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
 	let mut withdrawals = Vec::new();
 	let pallet_account = Ocex::<T>::get_pallet_account();
-	let _imbalance = T::NativeCurrency::deposit_creating(&pallet_account, (1000u128 * UNIT_BALANCE).saturated_into());
+	let _imbalance = T::NativeCurrency::deposit_creating(
+		&pallet_account,
+		(1000u128 * UNIT_BALANCE).saturated_into(),
+	);
 	for _ in 0..50 {
 		withdrawals.push(Withdrawal {
 			main_account: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
