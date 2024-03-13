@@ -1145,6 +1145,13 @@ pub mod pallet {
 		},
 		/// LMP Scores updated
 		LMPScoresUpdated(u16),
+		/// LMP Reward Claimed
+		LMPRewardClaimed{
+			epoch: u16,
+			market: TradingPair,
+			main: T::AccountId,
+			reward: u128
+		}
 	}
 
 	///Allowlisted tokens
@@ -1346,6 +1353,13 @@ pub mod pallet {
 			// Update the is_claimed flag
 			<TraderMetrics<T>>::mutate((epoch, market, main.clone()), |(_, _, is_claimed)| {
 				*is_claimed = true;
+			});
+			Self::deposit_event(Event::<T>::LMPRewardClaimed{
+				epoch,
+				main,
+				market,
+				reward: total_in_u128.saturated_into()
+
 			});
 			Ok(total_in_u128)
 		}
