@@ -1334,7 +1334,6 @@ use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
 
 parameter_types! {
 	pub const PolkadexAssetId: u128 = POLKADEX_NATIVE_ASSET_ID;
-	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
 }
 
 impl thea::Config for Runtime {
