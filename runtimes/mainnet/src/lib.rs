@@ -1285,6 +1285,7 @@ parameter_types! {
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
 	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
 	pub const MsPerDay: u64 = 86_400_000;
+	pub const OBWithdrawalLimit: u32 = 50;
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
@@ -1298,6 +1299,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type CrowdSourceLiqudityMining = ();
+	type OBWithdrawalLimit = OBWithdrawalLimit;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 

@@ -311,6 +311,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(main.clone()), x as u64, main.clone())
 	verify {
 		assert_last_event::<T>(Event::WithdrawalClaimed {
+			snapshot_id: x as u64,
 			main,
 			withdrawals: vec_withdrawals,
 		}.into());
@@ -572,7 +573,9 @@ fn create_trade_metrics<T: Config>() -> TradingPairMetricsMap<T::AccountId> {
 
 fn get_dummy_snapshot<T: Config>() -> SnapshotSummary<T::AccountId> {
 	let mut withdrawals = Vec::new();
-	for _ in 0..20 {
+	let pallet_account = Ocex::<T>::get_pallet_account();
+	T::NativeCurrency::deposit_creating(&pallet_account, (1000u128 * UNIT_BALANCE).saturated_into());
+	for _ in 0..50 {
 		withdrawals.push(Withdrawal {
 			main_account: T::AccountId::decode(&mut &[0u8; 32][..]).unwrap(),
 			amount: Decimal::one(),
