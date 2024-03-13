@@ -1145,6 +1145,13 @@ pub mod pallet {
 		},
 		/// LMP Scores updated
 		LMPScoresUpdated(u16),
+		/// LMP Reward Claimed
+		LMPRewardClaimed{
+			epoch: u16,
+			market: TradingPair,
+			main: T::AccountId,
+			reward: u128
+		}
 	}
 
 	///Allowlisted tokens
@@ -1347,6 +1354,13 @@ pub mod pallet {
 			<TraderMetrics<T>>::mutate((epoch, market, main.clone()), |(_, _, is_claimed)| {
 				*is_claimed = true;
 			});
+			Self::deposit_event(Event::<T>::LMPRewardClaimed{
+				epoch,
+				main,
+				market,
+				reward: total_in_u128.saturated_into()
+
+			});
 			Ok(total_in_u128)
 		}
 
@@ -1458,6 +1472,10 @@ pub mod pallet {
 
 		pub fn get_pot_account() -> T::AccountId {
 			FEE_POT_PALLET_ID.into_account_truncating()
+		}
+
+		pub fn get_system_accounts() -> Vec<T::AccountId> {
+			vec![Self::get_pallet_account(), Self::get_pot_account()]
 		}
 
 		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult {
@@ -1803,11 +1821,17 @@ pub mod pallet {
 			),
 			DispatchError,
 		> {
-			let account_id =
+			let mut account_id =
 				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
 					ids_accum.push((acc.clone(), acc_info.proxies));
 					ids_accum
 				});
+
+			let system_accounts = Self::get_system_accounts();
+
+			for account in system_accounts {
+				account_id.push((account, BoundedVec::new()));
+			}
 
 			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
 			let mut account_ids: BTreeMap<AccountId, Vec<AccountId>> = BTreeMap::new();
