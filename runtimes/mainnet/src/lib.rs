@@ -258,7 +258,6 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
-use sp_core::crypto::AccountId32;
 use sp_npos_elections::ExtendedBalance;
 
 /// The type used to represent the kinds of proxying allowed.
