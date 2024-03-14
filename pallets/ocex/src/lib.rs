@@ -243,6 +243,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type LMPRewardsPalletId: Get<PalletId>;
 
+		/// Orderbook withdrawal Limit
+		#[pallet::constant]
+		type OBWithdrawalLimit: Get<u32>;
+
 		/// Balances Pallet
 		type NativeCurrency: Currency<Self::AccountId>
 			+ ReservableCurrency<Self::AccountId>
@@ -810,9 +814,6 @@ pub mod pallet {
 			// Anyone can claim the withdrawal for any user
 			// This is to build services that can enable free withdrawals similar to CEXes.
 			let _ = ensure_signed(origin)?;
-			// This vector will keep track of withdrawals processed already
-			let mut processed_withdrawals = vec![];
-			let mut failed_withdrawals = vec![];
 			ensure!(
 				<Withdrawals<T>>::contains_key(snapshot_id),
 				Error::<T>::InvalidWithdrawalIndex
@@ -822,50 +823,28 @@ pub mod pallet {
 			// return Err
 			<Withdrawals<T>>::mutate(snapshot_id, |btree_map| {
 				// Get mutable reference to the withdrawals vector
-				if let Some(withdrawal_vector) = btree_map.get_mut(&account) {
-					while !withdrawal_vector.is_empty() {
-						// Perform pop operation to ensure we do not leave any withdrawal left
-						// for a double spend
-						if let Some(withdrawal) = withdrawal_vector.pop() {
-							if Self::on_idle_withdrawal_processor(withdrawal.clone()) {
-								processed_withdrawals.push(withdrawal.to_owned());
-							} else {
-								// Storing the failed withdrawals back into the storage item
-								failed_withdrawals.push(withdrawal.to_owned());
-								Self::deposit_event(Event::WithdrawalFailed(withdrawal.to_owned()));
-							}
-						} else {
-							return Err(Error::<T>::InvalidWithdrawalAmount);
-						}
-					}
+				if let Some(withdrawal_vector) = btree_map.remove(&account) {
+					let (failed_withdrawals, processed_withdrawals) =
+						Self::do_withdraw(snapshot_id, withdrawal_vector);
 					// Not removing key from BtreeMap so that failed withdrawals can still be
 					// tracked
 					btree_map.insert(account.clone(), failed_withdrawals);
+
+					if !processed_withdrawals.is_empty() {
+						Self::deposit_event(Event::WithdrawalClaimed {
+							snapshot_id,
+							main: account.clone(),
+							withdrawals: processed_withdrawals.clone(),
+						});
+					}
 					Ok(())
 				} else {
 					// This allows us to ensure we do not have someone with an invalid account
 					Err(Error::<T>::InvalidWithdrawalIndex)
 				}
 			})?;
-			if !processed_withdrawals.is_empty() {
-				Self::deposit_event(Event::WithdrawalClaimed {
-					main: account.clone(),
-					withdrawals: processed_withdrawals.clone(),
-				});
-				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events.push(
-						orderbook_primitives::ocex::OnChainEvents::OrderBookWithdrawalClaimed(
-							snapshot_id,
-							account.clone(),
-							processed_withdrawals,
-						),
-					);
-				});
-				Ok(Pays::No.into())
-			} else {
-				// If someone withdraws nothing successfully - should pay for such transaction
-				Ok(Pays::Yes.into())
-			}
+
+			Ok(Pays::Yes.into())
 		}
 
 		/// Allowlist Token
@@ -904,6 +883,7 @@ pub mod pallet {
 			_signatures: Vec<(u16, <T::AuthorityId as RuntimeAppPublic>::Signature)>,
 		) -> DispatchResult {
 			ensure_none(origin)?;
+			let snapshot_id = summary.snapshot_id;
 			// Update the trader's performance on-chain
 			if let Some(ref metrics) = summary.trader_metrics {
 				Self::update_lmp_scores(metrics)?;
@@ -912,17 +892,26 @@ pub mod pallet {
 			Self::process_egress_msg(summary.egress_messages.as_ref())?;
 			if !summary.withdrawals.is_empty() {
 				let withdrawal_map = Self::create_withdrawal_tree(&summary.withdrawals);
-				<Withdrawals<T>>::insert(summary.snapshot_id, withdrawal_map);
+				let mut failed_withdrawal_map = crate::pallet::WithdrawalsMap::<T>::new();
+				for (account, withdrawals) in withdrawal_map {
+					let (failed_withdraws, successful_withdraws) =
+						Self::do_withdraw(snapshot_id, withdrawals);
+					if !failed_withdraws.is_empty() {
+						failed_withdrawal_map.insert(account.clone(), failed_withdraws);
+					}
+					if !successful_withdraws.is_empty() {
+						Self::deposit_event(Event::WithdrawalClaimed {
+							snapshot_id,
+							main: account.clone(),
+							withdrawals: successful_withdraws.clone(),
+						});
+					}
+				}
+				if !failed_withdrawal_map.is_empty() {
+					<Withdrawals<T>>::insert(summary.snapshot_id, failed_withdrawal_map);
+				}
 				let fees = summary.get_fees();
 				Self::settle_withdrawal_fees(fees)?;
-				<OnChainEvents<T>>::mutate(|onchain_events| {
-					onchain_events.push(
-						orderbook_primitives::ocex::OnChainEvents::OrderbookWithdrawalProcessed(
-							summary.snapshot_id,
-							summary.withdrawals.clone(),
-						),
-					);
-				});
 			}
 			let id = summary.snapshot_id;
 			<SnapshotNonce<T>>::put(id);
@@ -1019,11 +1008,6 @@ pub mod pallet {
 			}
 			ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
 			<ExpectedLMPConfig<T>>::put(config.clone());
-			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages
-					.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
-			});
 			Ok(())
 		}
 
@@ -1059,6 +1043,16 @@ pub mod pallet {
 			auction_info.highest_bid = bid_amount;
 			auction_info.highest_bidder = Some(bidder);
 			<Auction<T>>::put(auction_info);
+			Ok(())
+		}
+
+		/// Starts a new liquidity mining epoch
+		#[pallet::call_index(23)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_fee_distribution())]
+		pub fn start_new_epoch_lmp(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			Self::start_new_epoch(current_blk);
 			Ok(())
 		}
 	}
@@ -1103,6 +1097,7 @@ pub mod pallet {
 		EnclaveCleanup(Vec<T::AccountId>),
 		TradingPairIsNotOperational,
 		WithdrawalClaimed {
+			snapshot_id: u64,
 			main: T::AccountId,
 			withdrawals: Vec<Withdrawal<T::AccountId>>,
 		},
@@ -1118,8 +1113,8 @@ pub mod pallet {
 		TokenAllowlisted(AssetId),
 		/// AllowlistedTokenRemoved
 		AllowlistedTokenRemoved(AssetId),
-		/// Withdrawal failed
-		WithdrawalFailed(Withdrawal<T::AccountId>),
+		/// Withdrawal ready to claim
+		WithdrawalReady(u64, Withdrawal<T::AccountId>),
 		/// Exchange state has been updated
 		ExchangeStateUpdated(bool),
 		/// DisputePeriod has been updated
@@ -1145,6 +1140,13 @@ pub mod pallet {
 		},
 		/// LMP Scores updated
 		LMPScoresUpdated(u16),
+		/// LMP Reward Claimed
+		LMPRewardClaimed {
+			epoch: u16,
+			market: TradingPair,
+			main: T::AccountId,
+			reward: u128,
+		},
 	}
 
 	///Allowlisted tokens
@@ -1311,6 +1313,32 @@ pub mod pallet {
 		StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
+		pub fn do_withdraw(
+			snapshot_id: u64,
+			mut withdrawal_vector: Vec<Withdrawal<T::AccountId>>,
+		) -> (Vec<Withdrawal<T::AccountId>>, Vec<Withdrawal<T::AccountId>>) {
+			let mut failed_withdrawals = Vec::new();
+			let mut processed_withdrawals = Vec::new();
+			while !withdrawal_vector.is_empty() {
+				// Perform pop operation to ensure we do not leave any withdrawal left
+				// for a double spend
+				if let Some(withdrawal) = withdrawal_vector.pop() {
+					if Self::on_idle_withdrawal_processor(withdrawal.clone()) {
+						processed_withdrawals.push(withdrawal.to_owned());
+					} else {
+						// Storing the failed withdrawals back into the storage item
+						failed_withdrawals.push(withdrawal.to_owned());
+						Self::deposit_event(Event::WithdrawalReady(
+							snapshot_id,
+							withdrawal.to_owned(),
+						));
+					}
+				}
+			}
+
+			(failed_withdrawals, processed_withdrawals)
+		}
+
 		pub fn do_claim_lmp_rewards(
 			main: T::AccountId,
 			epoch: u16,
@@ -1346,6 +1374,12 @@ pub mod pallet {
 			// Update the is_claimed flag
 			<TraderMetrics<T>>::mutate((epoch, market, main.clone()), |(_, _, is_claimed)| {
 				*is_claimed = true;
+			});
+			Self::deposit_event(Event::<T>::LMPRewardClaimed {
+				epoch,
+				main,
+				market,
+				reward: total_in_u128.saturated_into(),
 			});
 			Ok(total_in_u128)
 		}
@@ -1458,6 +1492,10 @@ pub mod pallet {
 
 		pub fn get_pot_account() -> T::AccountId {
 			FEE_POT_PALLET_ID.into_account_truncating()
+		}
+
+		pub fn get_system_accounts() -> Vec<T::AccountId> {
+			vec![Self::get_pallet_account(), Self::get_pot_account()]
 		}
 
 		pub fn process_egress_msg(msgs: &Vec<EgressMessages<T::AccountId>>) -> DispatchResult {
@@ -1803,11 +1841,17 @@ pub mod pallet {
 			),
 			DispatchError,
 		> {
-			let account_id =
+			let mut account_id =
 				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
 					ids_accum.push((acc.clone(), acc_info.proxies));
 					ids_accum
 				});
+
+			let system_accounts = Self::get_system_accounts();
+
+			for account in system_accounts {
+				account_id.push((account, BoundedVec::new()));
+			}
 
 			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
 			let mut account_ids: BTreeMap<AccountId, Vec<AccountId>> = BTreeMap::new();
@@ -2118,6 +2162,10 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 		// Verify if snapshot is already processed
 		if <SnapshotNonce<T>>::get().saturating_add(1) != snapshot_summary.snapshot_id {
 			return InvalidTransaction::Custom(10).into();
+		}
+
+		if T::OBWithdrawalLimit::get() < snapshot_summary.withdrawals.len() as u32 {
+			return InvalidTransaction::Custom(13).into();
 		}
 
 		// Check if this validator was part of that authority set

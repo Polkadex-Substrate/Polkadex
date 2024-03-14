@@ -45,14 +45,16 @@ impl<T: Config> Pallet<T> {
 			}
 			current_epoch = current_epoch.saturating_add(1);
 			<LMPEpoch<T>>::put(current_epoch);
-			<LMPConfig<T>>::insert(current_epoch, config);
+			<LMPConfig<T>>::insert(current_epoch, config.clone());
 			// Notify Liquidity Crowd sourcing pallet about new epoch
 			T::CrowdSourceLiqudityMining::new_epoch(current_epoch);
 
 			<IngressMessages<T>>::mutate(n, |ingress_messages| {
 				ingress_messages.push(orderbook_primitives::ingress::IngressMessages::NewLMPEpoch(
 					current_epoch,
-				))
+				));
+				ingress_messages
+					.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
 			});
 		}
 	}

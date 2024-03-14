@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::lmp::{get_lmp_config, get_total_maker_volume, store_lmp_config};
+use crate::pallet::LMPEpoch;
 use crate::{
 	aggregator::AggregatorClient,
 	lmp::{
@@ -66,7 +67,7 @@ pub const LAST_PROCESSED_SNAPSHOT: [u8; 26] = *b"offchain-ocex::snapshot_id";
 /// As a future improvment, we can make it decentralized, by having the community run
 /// such aggregation endpoints
 
-pub const AGGREGATOR: &str = "https://aggregator.polkadex.trade"; // Updated to production URL
+pub const AGGREGATOR: &str = "https://ob.aggregator.polkadex.trade"; // Updated to production URL
 pub const CHECKPOINT_BLOCKS: u64 = 1260;
 
 type TraderMetricsType<T> = BTreeMap<
@@ -634,7 +635,7 @@ impl<T: Config> Pallet<T> {
 	/// Reset the offchain state's LMP index and set the epoch
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
 		let mut config = if epoch > 1 {
-			get_lmp_config(state)?
+			get_lmp_config(state, epoch)?
 		} else {
 			// To Handle the corner case of zero
 			orderbook_primitives::lmp::LMPConfig { epoch, index: 0 }
@@ -731,7 +732,8 @@ impl<T: Config> Pallet<T> {
 					withdrawals.push(withdrawal);
 				},
 				UserActions::OneMinLMPReport(market, _total, scores) => {
-					Self::store_q_scores(state, *market, scores)?;
+					let current_on_chain_epoch = <LMPEpoch<T>>::get();
+					Self::store_q_scores(state, *market, scores, current_on_chain_epoch)?;
 				},
 			}
 		}
@@ -744,8 +746,9 @@ impl<T: Config> Pallet<T> {
 		state: &mut OffchainState,
 		market: TradingPair,
 		scores: &BTreeMap<T::AccountId, Decimal>,
+		current_on_chain_epoch: u16,
 	) -> Result<(), &'static str> {
-		let mut config = get_lmp_config(state)?;
+		let mut config = get_lmp_config(state, current_on_chain_epoch)?;
 		let next_index = config.index.saturating_add(1);
 		for (main, score) in scores {
 			store_q_score_and_uptime(
@@ -921,21 +924,11 @@ impl<T: Config> Pallet<T> {
 
 	/// Returns the FeeConfig from runtime for maker and taker
 	pub fn get_fee_structure(
-		maker: &T::AccountId,
-		taker: &T::AccountId,
+		_maker: &T::AccountId,
+		_taker: &T::AccountId,
 	) -> Option<(FeeConfig, FeeConfig)> {
 		// TODO: Read this from offchain state to avoid a race condition
-		let maker_config = match <Accounts<T>>::get(maker) {
-			None => return None,
-			Some(x) => x.fee_config,
-		};
-
-		let taker_config = match <Accounts<T>>::get(taker) {
-			None => return None,
-			Some(x) => x.fee_config,
-		};
-
-		Some((maker_config, taker_config))
+		Some((Default::default(), Default::default()))
 	}
 
 	fn convert_account_id(acc: &AccountId) -> Result<T::AccountId, &'static str> {

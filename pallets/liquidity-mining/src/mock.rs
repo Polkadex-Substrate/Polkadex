@@ -121,6 +121,7 @@ parameter_types! {
 	pub const TresuryPalletId: PalletId = PalletId(*b"OCEX_TRE");
 	pub const LMPRewardsPalletId: PalletId = PalletId(*b"OCEX_TMP");
 	pub const MsPerDay: u64 = 86_400_000;
+	pub const OBWithdrawalLimit: u32 = 50;
 }
 
 impl crate::pallet::Config for Test {
@@ -142,6 +143,7 @@ impl ocex::Config for Test {
 	type AuthorityId = ocex::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRoot<sp_runtime::AccountId32>;
 	type CrowdSourceLiqudityMining = LiqudityMining;
+	type OBWithdrawalLimit = OBWithdrawalLimit;
 	type WeightInfo = ocex::weights::WeightInfo<Test>;
 }
 

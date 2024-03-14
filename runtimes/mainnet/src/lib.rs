@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 339,
+	spec_version: 334,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -258,7 +258,6 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 use scale_info::TypeInfo;
-use sp_core::crypto::AccountId32;
 use sp_npos_elections::ExtendedBalance;
 
 /// The type used to represent the kinds of proxying allowed.
@@ -1285,6 +1284,7 @@ parameter_types! {
 	pub const OcexPalletId: PalletId = PalletId(*b"OCEX_LMP");
 	pub const LMPRewardsPalletId: PalletId = PalletId(*b"LMPREWAR");
 	pub const MsPerDay: u64 = 86_400_000;
+	pub const OBWithdrawalLimit: u32 = 50;
 }
 
 impl pallet_ocex_lmp::Config for Runtime {
@@ -1298,6 +1298,7 @@ impl pallet_ocex_lmp::Config for Runtime {
 	type AuthorityId = pallet_ocex_lmp::sr25519::AuthorityId;
 	type GovernanceOrigin = EnsureRootOrHalfCouncil;
 	type CrowdSourceLiqudityMining = ();
+	type OBWithdrawalLimit = OBWithdrawalLimit;
 	type WeightInfo = pallet_ocex_lmp::weights::WeightInfo<Runtime>;
 }
 
@@ -1332,7 +1333,6 @@ use polkadex_primitives::POLKADEX_NATIVE_ASSET_ID;
 
 parameter_types! {
 	pub const PolkadexAssetId: u128 = POLKADEX_NATIVE_ASSET_ID;
-	pub const PDEXHolderAccount: AccountId32 = AccountId32::new([1u8;32]); //TODO Chnage Holder Account
 }
 
 impl thea::Config for Runtime {
