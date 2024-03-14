@@ -209,10 +209,17 @@ pub fn get_fees_paid_by_main_account_in_quote(
 }
 
 /// Returns the LMP configuration from offchain work state trie
-pub fn get_lmp_config(state: &mut OffchainState) -> Result<LMPConfig, &'static str> {
+pub fn get_lmp_config(state: &mut OffchainState, current_on_chain_epoch: u16) -> Result<LMPConfig, &'static str> {
 	let key = LMP_CONFIG_KEY.encode();
 	Ok(match state.get(&key)? {
-		None => return Err("LMPConfigNotFound"),
+		None => {
+			if current_on_chain_epoch == 0 {
+				let config = LMPConfig{ epoch: current_on_chain_epoch, index: 0 };
+				store_lmp_config(state,config);
+				return Ok(config)
+			}
+			return Err("LMPConfigNotFound");
+		},
 		Some(encoded_config) => LMPConfig::decode(&mut &encoded_config[..])
 			.map_err(|_| "Unable to decode LMP config")?,
 	})

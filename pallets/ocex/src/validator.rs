@@ -56,6 +56,7 @@ use sp_runtime::{
 };
 use sp_std::{borrow::ToOwned, boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use trie_db::{TrieError, TrieMut};
+use crate::pallet::LMPEpoch;
 
 /// Key of the storage that stores the status of an offchain worker
 pub const WORKER_STATUS: [u8; 28] = *b"offchain-ocex::worker_status";
@@ -634,7 +635,7 @@ impl<T: Config> Pallet<T> {
 	/// Reset the offchain state's LMP index and set the epoch
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
 		let mut config = if epoch > 1 {
-			get_lmp_config(state)?
+			get_lmp_config(state, epoch)?
 		} else {
 			// To Handle the corner case of zero
 			orderbook_primitives::lmp::LMPConfig { epoch, index: 0 }
@@ -731,7 +732,8 @@ impl<T: Config> Pallet<T> {
 					withdrawals.push(withdrawal);
 				},
 				UserActions::OneMinLMPReport(market, _total, scores) => {
-					Self::store_q_scores(state, *market, scores)?;
+					let current_on_chain_epoch = <LMPEpoch<T>>::get();
+					Self::store_q_scores(state, *market, scores,current_on_chain_epoch)?;
 				},
 			}
 		}
@@ -744,8 +746,9 @@ impl<T: Config> Pallet<T> {
 		state: &mut OffchainState,
 		market: TradingPair,
 		scores: &BTreeMap<T::AccountId, Decimal>,
+		current_on_chain_epoch: u16
 	) -> Result<(), &'static str> {
-		let mut config = get_lmp_config(state)?;
+		let mut config = get_lmp_config(state,current_on_chain_epoch)?;
 		let next_index = config.index.saturating_add(1);
 		for (main, score) in scores {
 			store_q_score_and_uptime(
@@ -921,21 +924,11 @@ impl<T: Config> Pallet<T> {
 
 	/// Returns the FeeConfig from runtime for maker and taker
 	pub fn get_fee_structure(
-		maker: &T::AccountId,
-		taker: &T::AccountId,
+		_maker: &T::AccountId,
+		_taker: &T::AccountId,
 	) -> Option<(FeeConfig, FeeConfig)> {
 		// TODO: Read this from offchain state to avoid a race condition
-		let maker_config = match <Accounts<T>>::get(maker) {
-			None => return None,
-			Some(x) => x.fee_config,
-		};
-
-		let taker_config = match <Accounts<T>>::get(taker) {
-			None => return None,
-			Some(x) => x.fee_config,
-		};
-
-		Some((maker_config, taker_config))
+		Some((Default::default(), Default::default()))
 	}
 
 	fn convert_account_id(acc: &AccountId) -> Result<T::AccountId, &'static str> {

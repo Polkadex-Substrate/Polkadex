@@ -1008,11 +1008,6 @@ pub mod pallet {
 			}
 			ensure!(config.verify(), Error::<T>::InvalidLMPConfig);
 			<ExpectedLMPConfig<T>>::put(config.clone());
-			let current_blk = frame_system::Pallet::<T>::current_block_number();
-			<IngressMessages<T>>::mutate(current_blk, |ingress_messages| {
-				ingress_messages
-					.push(orderbook_primitives::ingress::IngressMessages::LMPConfig(config))
-			});
 			Ok(())
 		}
 
@@ -1048,6 +1043,17 @@ pub mod pallet {
 			auction_info.highest_bid = bid_amount;
 			auction_info.highest_bidder = Some(bidder);
 			<Auction<T>>::put(auction_info);
+			Ok(())
+		}
+
+
+		/// Starts a new liquidity mining epoch
+		#[pallet::call_index(23)]
+		#[pallet::weight(< T as Config >::WeightInfo::set_fee_distribution())]
+		pub fn start_new_epoch_lmp(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			Self::start_new_epoch(current_blk);
 			Ok(())
 		}
 	}
