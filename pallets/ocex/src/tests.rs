@@ -487,8 +487,8 @@ fn test_trade_between_two_accounts_with_balance() {
 
 		// add balance to alice
 		let alice_account_id = get_alice_key_pair().public();
-		let initial_asset_1_alice_has = 40;
-		let _initial_pdex_alice_has = 0;
+		let initial_asset_1_alice_has: Decimal = 40.into();
+		let _initial_pdex_alice_has: Decimal = 0.into();
 		assert_ok!(add_balance(
 			&mut state,
 			&alice_account_id.into(),
@@ -498,8 +498,8 @@ fn test_trade_between_two_accounts_with_balance() {
 
 		//add balance to bob
 		let bob_account_id = get_bob_key_pair().public();
-		let initial_pdex_bob_has = 20;
-		let initial_asset_1_bob_has = 0;
+		let initial_pdex_bob_has: Decimal = 20.into();
+		let initial_asset_1_bob_has: Decimal = 0.into();
 		assert_ok!(add_balance(
 			&mut state,
 			&bob_account_id.into(),
@@ -514,7 +514,7 @@ fn test_trade_between_two_accounts_with_balance() {
 
 		//alice bought 20 PDEX from bob for a price of 2 PDEX per Asset(1)
 		// total trade value = 20 PDEX and 40 Asset(1)
-		//so alice should have 20 PDEX and bob should have 20 less PDEX
+		//so alice should have 20-0.001*20 = 19.98 PDEX and bob should have 20 less PDEX
 		//also, alice should have 40 less Asset(1) and bob should have 40 more Asset(1)
 		let trade = create_trade_between_alice_and_bob(price, amount);
 		let (maker_fees, taker_fees) =
@@ -525,22 +525,22 @@ fn test_trade_between_two_accounts_with_balance() {
 		//check has 20 pdex now
 		let encoded = state.get(&alice_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
-		assert_eq!(account_info.get(&AssetId::Polkadex).unwrap(), &20.into());
+		assert_eq!(account_info.get(&AssetId::Polkadex).unwrap(), &Decimal::from_f64(19.98).unwrap());
 
 		//check if bob has 20 less pdex
 		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Polkadex).unwrap(),
-			&(initial_pdex_bob_has - 20).into()
+			&(initial_pdex_bob_has - Decimal::from(20)).into()
 		);
 
-		//check if bob has 40 more asset_1
+		//check if bob has 40-0.001*40 = 39.96 more asset_1
 		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Asset(1)).unwrap(),
-			&(initial_asset_1_bob_has + 40).into()
+			&(initial_asset_1_bob_has.saturating_add(Decimal::from_f64(39.96).unwrap())).into()
 		);
 
 		//check if alice has 40 less asset_1
@@ -548,7 +548,7 @@ fn test_trade_between_two_accounts_with_balance() {
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(
 			account_info.get(&AssetId::Asset(1)).unwrap(),
-			&(initial_asset_1_alice_has - 40).into()
+			&(initial_asset_1_alice_has - Decimal::from_f64(40.0).unwrap()).into()
 		);
 	});
 }
