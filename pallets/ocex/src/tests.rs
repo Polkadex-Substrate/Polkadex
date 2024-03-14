@@ -525,7 +525,10 @@ fn test_trade_between_two_accounts_with_balance() {
 		//check has 20 pdex now
 		let encoded = state.get(&alice_account_id.0.to_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
-		assert_eq!(account_info.get(&AssetId::Polkadex).unwrap(), &Decimal::from_f64(19.98).unwrap());
+		assert_eq!(
+			account_info.get(&AssetId::Polkadex).unwrap(),
+			&Decimal::from_f64(19.98).unwrap()
+		);
 
 		//check if bob has 20 less pdex
 		let encoded = state.get(&bob_account_id.0.to_vec()).unwrap().unwrap();
