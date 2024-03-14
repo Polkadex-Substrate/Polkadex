@@ -1046,7 +1046,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		/// Starts a new liquidity mining epoch
 		#[pallet::call_index(23)]
 		#[pallet::weight(< T as Config >::WeightInfo::set_fee_distribution())]
