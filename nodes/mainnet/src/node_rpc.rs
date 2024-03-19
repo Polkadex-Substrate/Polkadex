@@ -189,7 +189,6 @@ where
 			backend
 				.offchain_storage()
 				.ok_or("Backend doesn't provide an offchain storage")?,
-			deny_unsafe,
 		)
 		.into_rpc(),
 	)?;

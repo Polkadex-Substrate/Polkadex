@@ -35,7 +35,6 @@ pub use pallet_ocex_runtime_api::PolkadexOcexRuntimeApi;
 use parity_scale_codec::{Codec, Decode};
 use polkadex_primitives::AssetId;
 use rust_decimal::Decimal;
-use sc_rpc_api::DenyUnsafe;
 use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
@@ -141,7 +140,6 @@ pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 
 	/// Offchain storage
 	offchain_db: OffchainDb<T>,
-	deny_unsafe: DenyUnsafe,
 
 	/// A marker for the `Block` type parameter, used to ensure the struct
 	/// is covariant with respect to the block type.
@@ -149,11 +147,10 @@ pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 }
 
 impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
-	pub fn new(client: Arc<Client>, storage: T, deny_unsafe: DenyUnsafe) -> Self {
+	pub fn new(client: Arc<Client>, storage: T) -> Self {
 		Self {
 			client,
 			offchain_db: OffchainDb::new(storage),
-			deny_unsafe,
 			_marker: Default::default(),
 		}
 	}
@@ -218,7 +215,6 @@ where
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<String> {
-		self.deny_unsafe.check_if_safe()?;
 		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,
@@ -250,7 +246,6 @@ where
 		&self,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<ObCheckpoint> {
-		//self.deny_unsafe.check_if_safe()?; //As it is used by the aggregator, we need to allow it
 		let mut api = self.client.runtime_api();
 		let at = match at {
 			Some(at) => at,

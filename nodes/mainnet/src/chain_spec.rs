@@ -335,7 +335,7 @@ fn mainnet_genesis_constuctor() -> RuntimeGenesisConfig {
 }
 
 pub fn mainnet_testnet_config() -> ChainSpec {
-	let bootnodes = vec![];
+	let bootnodes = vec![String::from("/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWBkf4SQe38JS3RQx9RsDuYfA1PpVMMjjE4d23wPfGGVa1").try_into().unwrap()];
 	const POLKADEX_PROTOCOL_ID: &str = "pdex";
 	ChainSpec::from_genesis(
 		"Polkadex Main Network",
