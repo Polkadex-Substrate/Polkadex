@@ -99,6 +99,7 @@ pub trait TheaIncomingExecutor {
 /// Thea outgoing message executor abstraction which should be implemented by the "Thea" pallet.
 pub trait TheaOutgoingExecutor {
 	fn execute_withdrawals(network: Network, withdrawals: Vec<u8>) -> DispatchResult;
+	fn get_outgoing_nonce(network: Network) -> u64;
 }
 
 impl TheaIncomingExecutor for () {
