@@ -2118,11 +2118,12 @@ pub mod pallet {
 				let _ = T::NativeCurrency::unreserve(&bidder, total_bidder_reserve_balance);
 				let amount_to_be_burnt =
 					Percent::from_percent(fee_config.burn_ration) * total_bidder_reserve_balance;
-				let trasnferable_amount = total_bidder_reserve_balance - amount_to_be_burnt;
+				let transferable_amount =
+					total_bidder_reserve_balance.saturating_sub(amount_to_be_burnt);
 				T::NativeCurrency::transfer(
 					&bidder,
 					&fee_config.recipient_address,
-					trasnferable_amount,
+					transferable_amount,
 					ExistenceRequirement::KeepAlive,
 				)?;
 
@@ -2139,7 +2140,7 @@ pub mod pallet {
 				Self::deposit_event(Event::<T>::AuctionClosed {
 					bidder,
 					burned: Compact::from(amount_to_be_burnt),
-					paid_to_operator: Compact::from(trasnferable_amount),
+					paid_to_operator: Compact::from(transferable_amount),
 				})
 			}
 			Ok(())
