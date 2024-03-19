@@ -1530,7 +1530,8 @@ pub mod pallet {
 										);
 										let fee_to_be_burnt =
 											Percent::from_percent(distribution.burn_ration) * fees;
-										let fee_to_be_distributed = fees.saturating_sub(fee_to_be_burnt);
+										let fee_to_be_distributed =
+											fees.saturating_sub(fee_to_be_burnt);
 										// Burn the fee
 										let imbalance = T::NativeCurrency::burn(
 											fee_to_be_burnt.saturated_into(),
