@@ -148,11 +148,7 @@ pub struct PolkadexOcexRpc<Client, Block, T: OffchainStorage + 'static> {
 
 impl<Client, Block, T: OffchainStorage> PolkadexOcexRpc<Client, Block, T> {
 	pub fn new(client: Arc<Client>, storage: T) -> Self {
-		Self {
-			client,
-			offchain_db: OffchainDb::new(storage),
-			_marker: Default::default(),
-		}
+		Self { client, offchain_db: OffchainDb::new(storage), _marker: Default::default() }
 	}
 }
 
