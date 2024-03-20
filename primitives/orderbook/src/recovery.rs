@@ -23,7 +23,9 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
 use std::collections::BTreeMap;
+use sp_core::crypto::AccountId32;
 use crate::lmp::LMPConfig;
+use crate::types::TradingPair;
 
 /// A struct representing the recovery state of an Order Book.
 #[serde_as]
@@ -58,7 +60,17 @@ pub struct ObCheckpoint {
 	/// State change id
 	pub state_change_id: u64,
 	/// LMP COnfig
-	pub config: LMPConfig
+	pub config: LMPConfig,
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	pub q_scores_uptime_map: BTreeMap<(u16, TradingPair, AccountId32), BTreeMap<u16, Decimal>>,
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	pub maker_volume_map: BTreeMap<(u16, TradingPair, AccountId32), Decimal>,
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	pub taker_volume_map: BTreeMap<(u16, TradingPair, AccountId32), Decimal>,
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	pub fees_paid_map: BTreeMap<(u16, TradingPair, AccountId32), Decimal>,
+	#[serde_as(as = "JsonString<Vec<(JsonString, _)>>")]
+	pub total_maker_volume_map: BTreeMap<(u16, TradingPair), Decimal>,
 }
 
 impl ObCheckpoint {
@@ -69,7 +81,12 @@ impl ObCheckpoint {
 			balances: self.balances.clone(),
 			last_processed_block_number: self.last_processed_block_number,
 			state_change_id: self.state_change_id,
-			config: self.config
+			config: self.config,
+			q_scores_uptime_map: self.q_scores_uptime_map.clone(),
+			maker_volume_map: self.maker_volume_map.clone(),
+			taker_volume_map: self.taker_volume_map.clone(),
+			fees_paid_map: self.fees_paid_map.clone(),
+			total_maker_volume_map: self.total_maker_volume_map.clone(),
 		}
 	}
 }

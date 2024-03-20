@@ -99,11 +99,10 @@ pub mod keys {
 pub fn update_trade_volume_by_main_account(
 	state: &mut OffchainState,
 	epoch: u16,
-	market: &TradingPairConfig,
+	trading_pair: TradingPair,
 	volume: Decimal,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = get_trade_volume_by_main_account_key(epoch, trading_pair, &main);
 	Ok(match state.get(&key)? {
 		None => {
@@ -156,11 +155,10 @@ pub fn get_maker_volume_by_main_account(
 pub fn update_maker_volume_by_main_account(
 	state: &mut OffchainState,
 	epoch: u16,
-	market: &TradingPairConfig,
+	trading_pair: TradingPair,
 	volume: Decimal,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = get_maker_volume_by_main_account_key(epoch, trading_pair, &main);
 	Ok(match state.get(&key)? {
 		None => {
@@ -200,10 +198,9 @@ pub fn get_total_maker_volume(
 pub fn update_total_maker_volume(
 	state: &mut OffchainState,
 	epoch: u16,
-	market: &TradingPairConfig,
+	trading_pair: TradingPair,
 	volume: Decimal,
 ) -> Result<Decimal, &'static str> {
-	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = get_total_maker_volume_key(epoch, trading_pair);
 	Ok(match state.get(&key)? {
 		None => {
@@ -224,11 +221,10 @@ pub fn update_total_maker_volume(
 pub fn store_fees_paid_by_main_account_in_quote(
 	state: &mut OffchainState,
 	epoch: u16,
-	market: &TradingPairConfig,
+	trading_pair: TradingPair,
 	fees_in_quote_terms: Decimal,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let trading_pair = TradingPair::from(market.quote_asset, market.base_asset);
 	let key = get_fees_paid_by_main_account(epoch, trading_pair, main);
 	Ok(match state.get(&key)? {
 		None => {
@@ -340,6 +336,28 @@ pub fn get_q_score_and_uptime(
 	}
 }
 
+/// Returns the individial Q score and uptime indexe
+pub fn get_q_score_and_uptime_for_checkpoint(
+	state: &mut OffchainState,
+	epoch: u16,
+	trading_pair: &TradingPair,
+	main: &AccountId,
+) -> Result<BTreeMap<u16, Decimal>, &'static str> {
+	let key = get_q_score_uptime_by_main_account(epoch, *trading_pair, main);
+	match state.get(&key)? {
+		None => {
+			log::warn!(target:"ocex","q_score&uptime not found for: main: {:?}, market: {:?}",main.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)), trading_pair.to_string());
+			// If the q_score is not found, zero will be returned.
+			Ok(Default::default())
+		},
+		Some(encoded_q_scores_map) => {
+			let map = BTreeMap::<u16, Decimal>::decode(&mut &encoded_q_scores_map[..])
+				.map_err(|_| "Unable to decode decimal")?;
+			Ok(map)
+		},
+	}
+}
+
 impl<T: Config> Pallet<T> {
 	/// Updates the respective offchain DB trie keys for LMP metrics from given trade
 	pub fn update_lmp_storage_from_trade(
@@ -350,35 +368,18 @@ impl<T: Config> Pallet<T> {
 		taker_fees: Decimal,
 	) -> Result<(), &'static str> {
 		let epoch: u16 = <LMPEpoch<T>>::get();
+		let pair = TradingPair::from(config.quote_asset, config.base_asset);
 
 		// Store trade.price * trade.volume as maker volume for this epoch
 		let volume = trade.price.saturating_mul(trade.amount);
 		// Update the trade volume generated to maker account
-		update_trade_volume_by_main_account(
-			state,
-			epoch,
-			&config,
-			volume,
-			&trade.maker.main_account,
-		)?;
+		update_trade_volume_by_main_account(state, epoch, pair, volume, &trade.maker.main_account)?;
 		// Update the trade volume generated to taker account
-		update_trade_volume_by_main_account(
-			state,
-			epoch,
-			&config,
-			volume,
-			&trade.taker.main_account,
-		)?;
+		update_trade_volume_by_main_account(state, epoch, pair, volume, &trade.taker.main_account)?;
 		// Update the maker volume generated to account
-		update_maker_volume_by_main_account(
-			state,
-			epoch,
-			&config,
-			volume,
-			&trade.maker.main_account,
-		)?;
+		update_maker_volume_by_main_account(state, epoch, pair, volume, &trade.maker.main_account)?;
 		// Update the total maker volume generated
-		update_total_maker_volume(state, epoch, &config, volume)?;
+		update_total_maker_volume(state, epoch, pair, volume)?;
 
 		// Store maker_fees and taker_fees for the corresponding main account for this epoch
 		match trade.maker.side {
@@ -387,7 +388,7 @@ impl<T: Config> Pallet<T> {
 				store_fees_paid_by_main_account_in_quote(
 					state,
 					epoch,
-					&config,
+					pair,
 					fees,
 					&trade.maker.main_account,
 				)?;
@@ -397,7 +398,7 @@ impl<T: Config> Pallet<T> {
 				store_fees_paid_by_main_account_in_quote(
 					state,
 					epoch,
-					&config,
+					pair,
 					fees,
 					&trade.taker.main_account,
 				)?;
@@ -408,7 +409,7 @@ impl<T: Config> Pallet<T> {
 				store_fees_paid_by_main_account_in_quote(
 					state,
 					epoch,
-					&config,
+					pair,
 					fees,
 					&trade.maker.main_account,
 				)?;
@@ -418,7 +419,7 @@ impl<T: Config> Pallet<T> {
 				store_fees_paid_by_main_account_in_quote(
 					state,
 					epoch,
-					&config,
+					pair,
 					fees,
 					&trade.taker.main_account,
 				)?;

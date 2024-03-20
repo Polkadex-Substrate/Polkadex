@@ -1931,39 +1931,39 @@ pub mod pallet {
 					for (account, _) in &account_ids {
 						let main = Self::transform_account(account.clone())?;
 						// Get Q scores
-						let (q_scores, uptime) =
-							crate::lmp::get_q_score_and_uptime(&mut state, epoch, &pair, &main)?;
+						let q_scores_map = crate::lmp::get_q_score_and_uptime_for_checkpoint(
+							&mut state, epoch, &pair, &main,
+						)?;
 
-						if !q_scores.is_zero() || !uptime.is_zero() {
-							q_scores_uptime_map.insert((epoch,pair,main.clone()),(q_scores,uptime));
+						if !q_scores_map.is_empty() {
+							q_scores_uptime_map.insert((epoch, pair, main.clone()), q_scores_map);
 						}
 
 						let fees_paid = crate::lmp::get_fees_paid_by_main_account_in_quote(
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						fees_paid_map.insert((epoch,pair,main.clone()),fees_paid);
+						fees_paid_map.insert((epoch, pair, main.clone()), fees_paid);
 
 						let maker_volume = crate::lmp::get_maker_volume_by_main_account(
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						maker_volume_map.insert((epoch,pair,main.clone()),maker_volume);
+						maker_volume_map.insert((epoch, pair, main.clone()), maker_volume);
 
 						let trade_volume = crate::lmp::get_trade_volume_by_main_account(
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						taker_volume_map.insert((epoch, pair, main.clone()),trade_volume);
+						taker_volume_map.insert((epoch, pair, main.clone()), trade_volume);
 					}
 					let total_maker_volume =
 						crate::lmp::get_total_maker_volume(&mut state, epoch, &pair)?;
-					total_maker_volume_map.insert((epoch,pair), total_maker_volume);
+					total_maker_volume_map.insert((epoch, pair), total_maker_volume);
 				}
 			}
 
 			let config = crate::lmp::get_lmp_config(&mut state, current_epoch)?;
-
 
 			log::debug!(target:"ocex", "fetch_checkpoint returning");
 			Ok(ObCheckpointRaw::new(
@@ -1971,7 +1971,12 @@ pub mod pallet {
 				balances,
 				last_processed_block_number,
 				state_change_id,
-				config
+				config,
+				q_scores_uptime_map,
+				maker_volume_map,
+				taker_volume_map,
+				fees_paid_map,
+				total_maker_volume_map,
 			))
 		}
 
