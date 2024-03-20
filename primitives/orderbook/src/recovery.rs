@@ -23,6 +23,7 @@ use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
 use std::collections::BTreeMap;
+use crate::lmp::LMPConfig;
 
 /// A struct representing the recovery state of an Order Book.
 #[serde_as]
@@ -56,6 +57,8 @@ pub struct ObCheckpoint {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
+	/// LMP COnfig
+	pub config: LMPConfig
 }
 
 impl ObCheckpoint {
@@ -66,6 +69,7 @@ impl ObCheckpoint {
 			balances: self.balances.clone(),
 			last_processed_block_number: self.last_processed_block_number,
 			state_change_id: self.state_change_id,
+			config: self.config
 		}
 	}
 }
