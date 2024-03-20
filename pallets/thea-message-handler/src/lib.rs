@@ -338,4 +338,9 @@ impl<T: Config> thea_primitives::TheaOutgoingExecutor for Pallet<T> {
 
 		Ok(())
 	}
+
+	fn get_outgoing_nonce(network: Network) -> u64 {
+		let nonce = <OutgoingNonce<T>>::get();
+		nonce.saturating_add(1)
+	}
 }
