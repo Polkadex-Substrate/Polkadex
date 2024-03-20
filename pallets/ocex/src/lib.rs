@@ -1966,7 +1966,7 @@ pub mod pallet {
 			let config = crate::lmp::get_lmp_config(&mut state, current_epoch)?;
 
 			log::debug!(target:"ocex", "fetch_checkpoint returning");
-			Ok(ObCheckpointRaw::new(
+			Ok(ObCheckpointRaw {
 				snapshot_id,
 				balances,
 				last_processed_block_number,
@@ -1977,7 +1977,7 @@ pub mod pallet {
 				taker_volume_map,
 				fees_paid_map,
 				total_maker_volume_map,
-			))
+			})
 		}
 
 		/// Fetches balance of given `AssetId` for given `AccountId` from offchain storage

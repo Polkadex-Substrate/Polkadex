@@ -16,16 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::lmp::LMPConfig;
+use crate::types::TradingPair;
 use crate::{types::AccountAsset, ObCheckpointRaw};
 use parity_scale_codec::{Decode, Encode};
 use polkadex_primitives::{AccountId, AssetId, BlockNumber};
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde_with::{json::JsonString, serde_as};
-use std::collections::BTreeMap;
 use sp_core::crypto::AccountId32;
-use crate::lmp::LMPConfig;
-use crate::types::TradingPair;
+use std::collections::BTreeMap;
 
 /// A struct representing the recovery state of an Order Book.
 #[serde_as]

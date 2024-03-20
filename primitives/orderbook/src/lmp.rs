@@ -29,7 +29,9 @@ use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
 /// LMP Epoch config
-#[derive(Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(
+	Decode, Encode, TypeInfo, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default,
+)]
 pub struct LMPConfig {
 	pub epoch: u16,
 	pub index: u16,

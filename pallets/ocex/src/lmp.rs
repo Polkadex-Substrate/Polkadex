@@ -52,6 +52,7 @@ pub mod keys {
 	use orderbook_primitives::types::TradingPair;
 	use parity_scale_codec::Encode;
 	use polkadex_primitives::AccountId;
+	use sp_std::vec::Vec;
 
 	pub fn get_trade_volume_by_main_account_key(
 		epoch: u16,
@@ -103,7 +104,7 @@ pub fn update_trade_volume_by_main_account(
 	volume: Decimal,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let key = get_trade_volume_by_main_account_key(epoch, trading_pair, &main);
+	let key = get_trade_volume_by_main_account_key(epoch, trading_pair, main);
 	Ok(match state.get(&key)? {
 		None => {
 			state.insert(key, volume.encode());
@@ -126,7 +127,7 @@ pub fn get_trade_volume_by_main_account(
 	trading_pair: &TradingPair,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let key = get_trade_volume_by_main_account_key(epoch, *trading_pair, &main);
+	let key = get_trade_volume_by_main_account_key(epoch, *trading_pair, main);
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
 		Some(encoded_volume) => {
@@ -142,7 +143,7 @@ pub fn get_maker_volume_by_main_account(
 	trading_pair: &TradingPair,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let key = get_maker_volume_by_main_account_key(epoch, *trading_pair, &main);
+	let key = get_maker_volume_by_main_account_key(epoch, *trading_pair, main);
 	Ok(match state.get(&key)? {
 		None => Decimal::zero(),
 		Some(encoded_volume) => {
@@ -159,7 +160,7 @@ pub fn update_maker_volume_by_main_account(
 	volume: Decimal,
 	main: &AccountId,
 ) -> Result<Decimal, &'static str> {
-	let key = get_maker_volume_by_main_account_key(epoch, trading_pair, &main);
+	let key = get_maker_volume_by_main_account_key(epoch, trading_pair, main);
 	Ok(match state.get(&key)? {
 		None => {
 			state.insert(key, volume.encode());
