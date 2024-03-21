@@ -675,6 +675,7 @@ fn arbitrary_f32(randomness: &mut Unstructured, min: u128, max: u128) -> arbitra
 	// Scaling factor ranges from 0...=1
 	// Scaling, x = a + scaling_factor*(b-a)
 	let amount = min + amount.div(f32::MAX).mul(max.sub(min));
+	println!("amount: {:?}", amount);
 	Ok(amount)
 }
 #[cfg(feature = "std")]
