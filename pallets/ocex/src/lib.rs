@@ -1959,7 +1959,7 @@ pub mod pallet {
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						if !trade_volume.is_zero(){
+						if !trade_volume.is_zero() {
 							taker_volume_map.insert((epoch, pair, main.clone()), trade_volume);
 						}
 					}
