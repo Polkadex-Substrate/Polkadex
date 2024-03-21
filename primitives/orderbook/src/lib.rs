@@ -24,6 +24,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::ingress::EgressMessages;
+use crate::lmp::LMPConfig;
 #[cfg(feature = "std")]
 use crate::recovery::ObCheckpoint;
 use crate::types::{AccountAsset, TradingPair};
@@ -35,6 +36,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
+use sp_core::crypto::AccountId32;
 use sp_core::H256;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
@@ -168,26 +170,16 @@ pub struct ObCheckpointRaw {
 	pub last_processed_block_number: BlockNumber,
 	/// State change id
 	pub state_change_id: u64,
+	/// LMPConfig
+	pub config: LMPConfig,
+	pub q_scores_uptime_map: BTreeMap<(u16, TradingPair, AccountId32), BTreeMap<u16, Decimal>>,
+	pub maker_volume_map: BTreeMap<(u16, TradingPair, AccountId32), Decimal>,
+	pub taker_volume_map: BTreeMap<(u16, TradingPair, AccountId32), Decimal>,
+	pub fees_paid_map: BTreeMap<(u16, TradingPair, AccountId32), Decimal>,
+	pub total_maker_volume_map: BTreeMap<(u16, TradingPair), Decimal>,
 }
 
 impl ObCheckpointRaw {
-	/// Create a new `ObCheckpointRaw` instance.
-	/// # Parameters
-	/// * `snapshot_id`: The snapshot ID of the order book recovery state.
-	/// * `balances`: A `BTreeMap` that maps `AccountAsset`s to `Decimal` balances.
-	/// * `last_processed_block_number`: The last block number that was processed by validator.
-	/// * `state_change_id`: State change id
-	/// # Returns
-	/// * `ObCheckpointRaw`: A new `ObCheckpointRaw` instance.
-	pub fn new(
-		snapshot_id: u64,
-		balances: BTreeMap<AccountAsset, Decimal>,
-		last_processed_block_number: BlockNumber,
-		state_change_id: u64,
-	) -> Self {
-		Self { snapshot_id, balances, last_processed_block_number, state_change_id }
-	}
-
 	/// Convert `ObCheckpointRaw` to `ObCheckpoint`.
 	/// # Returns
 	/// * `ObCheckpoint`: A new `ObCheckpoint` instance.
@@ -198,6 +190,12 @@ impl ObCheckpointRaw {
 			balances: self.balances,
 			last_processed_block_number: self.last_processed_block_number,
 			state_change_id: self.state_change_id,
+			config: self.config,
+			q_scores_uptime_map: self.q_scores_uptime_map,
+			maker_volume_map: self.maker_volume_map,
+			taker_volume_map: self.taker_volume_map,
+			fees_paid_map: self.fees_paid_map,
+			total_maker_volume_map: self.total_maker_volume_map,
 		}
 	}
 }

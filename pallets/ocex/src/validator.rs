@@ -859,6 +859,47 @@ impl<T: Config> Pallet<T> {
 			value.insert(account_asset.asset, *balance);
 			state.insert(key, value.encode());
 		}
+		// Store LMP Config
+		crate::lmp::store_lmp_config(state, checkpoint.config);
+		// Restore Q scores and Uptime map
+		for ((epoch, pair, main), map) in &checkpoint.q_scores_uptime_map {
+			for (index, q_score) in map {
+				crate::lmp::store_q_score_and_uptime(state, *epoch, *index, *q_score, pair, main)?;
+			}
+		}
+		// Restore maker volume
+		for ((epoch, pair, main), maker_volume) in &checkpoint.maker_volume_map {
+			crate::lmp::update_maker_volume_by_main_account(
+				state,
+				*epoch,
+				*pair,
+				*maker_volume,
+				main,
+			)?;
+		}
+
+		// Restore taker volume
+		for ((epoch, pair, main), maker_volume) in &checkpoint.taker_volume_map {
+			crate::lmp::update_trade_volume_by_main_account(
+				state,
+				*epoch,
+				*pair,
+				*maker_volume,
+				main,
+			)?;
+		}
+
+		// Restore taker volume
+		for ((epoch, pair, main), fees_paid) in &checkpoint.fees_paid_map {
+			crate::lmp::store_fees_paid_by_main_account_in_quote(
+				state, *epoch, *pair, *fees_paid, main,
+			)?;
+		}
+
+		for ((epoch, pair), total_maker_volume) in &checkpoint.total_maker_volume_map {
+			crate::lmp::update_total_maker_volume(state, *epoch, *pair, *total_maker_volume)?;
+		}
+
 		Ok(())
 	}
 
