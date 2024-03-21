@@ -310,11 +310,13 @@ use core::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
+use std::ops::{Div, Sub};
 
 #[cfg(feature = "std")]
 use arbitrary::Unstructured;
 use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
+use rust_decimal::prelude::ToPrimitive;
 use scale_info::prelude::string::String;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -658,11 +660,30 @@ impl Order {
 		OrderKey { price: self.price, timestamp: self.timestamp, side: self.side }
 	}
 }
+#[cfg(feature = "std")]
+fn arbitrary_f32(randomness: &mut Unstructured, min: u128, max: u128) -> arbitrary::Result<f32> {
+	let amount: f32 = randomness.arbitrary()?;
 
+	let min = Decimal::from(min).div(Decimal::from(UNIT_BALANCE)).to_f32().unwrap();
+
+	let max = Decimal::from(max).div(Decimal::from(UNIT_BALANCE)).to_f32().unwrap();
+
+	if amount >= min && amount <= max {
+		return Ok(amount);
+	}
+	// Scaling, x = a + inverted_random_value*(b-a)
+	let amount = min + 1.0f32.div(amount).mul(max.sub(min));
+	Ok(amount)
+}
 #[cfg(feature = "std")]
 impl<'a> arbitrary::Arbitrary<'a> for Order {
 	fn arbitrary(randomness: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
 		let account = AccountId::new([1; 32]);
+		let price: f32 = arbitrary_f32(randomness, MIN_PRICE, MAX_PRICE)?;
+		let price: Decimal = Decimal::from_f32(price).unwrap().round_dp(8);
+		let qty: f32 = arbitrary_f32(randomness, MIN_QTY, MAX_QTY)?;
+		let qty: Decimal = Decimal::from_f32(qty).unwrap().round_dp(8);
+
 		Ok(Order {
 			stid: 0,
 			client_order_id: Default::default(),
@@ -676,18 +697,8 @@ impl<'a> arbitrary::Arbitrary<'a> for Order {
 			pair: TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
 			side: *randomness.choose(&[OrderSide::Bid, OrderSide::Ask])?,
 			order_type: OrderType::LIMIT,
-			qty: Decimal::from_parts_raw(
-				randomness.int_in_range(0..=u32::MAX)?,
-				randomness.int_in_range(0..=u32::MAX)?,
-				randomness.int_in_range(0..=u32::MAX)?,
-				randomness.int_in_range(0..=u32::MAX)?,
-			),
-			price: Decimal::from_parts_raw(
-				randomness.int_in_range(0..=u32::MAX)?,
-				randomness.int_in_range(0..=u32::MAX)?,
-				randomness.int_in_range(0..=u32::MAX)?,
-				randomness.int_in_range(0..=u32::MAX)?,
-			),
+			qty,
+			price,
 			quote_order_qty: Default::default(),
 			timestamp: 0,
 			overall_unreserved_volume: Default::default(),
