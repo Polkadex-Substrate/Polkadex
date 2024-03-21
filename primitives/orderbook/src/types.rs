@@ -310,6 +310,9 @@ use core::{
 	ops::{Mul, Rem},
 	str::FromStr,
 };
+
+#[cfg(feature = "std")]
+use arbitrary::Unstructured;
 use frame_support::{Deserialize, Serialize};
 use parity_scale_codec::alloc::string::ToString;
 use scale_info::prelude::string::String;
@@ -653,6 +656,43 @@ impl Order {
 	/// Returns the key used for storing in orderbook
 	pub fn key(&self) -> OrderKey {
 		OrderKey { price: self.price, timestamp: self.timestamp, side: self.side }
+	}
+}
+
+#[cfg(feature = "std")]
+impl<'a> arbitrary::Arbitrary<'a> for Order {
+	fn arbitrary(randomness: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+		let account = AccountId::new([1; 32]);
+		Ok(Order {
+			stid: 0,
+			client_order_id: Default::default(),
+			avg_filled_price: Default::default(),
+			fee: Default::default(),
+			filled_quantity: Default::default(),
+			status: OrderStatus::OPEN,
+			id: Default::default(),
+			user: account.clone(),
+			main_account: account,
+			pair: TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
+			side: *randomness.choose(&[OrderSide::Bid, OrderSide::Ask])?,
+			order_type: OrderType::LIMIT,
+			qty: Decimal::from_parts_raw(
+				randomness.int_in_range(0..=u32::MAX)?,
+				randomness.int_in_range(0..=u32::MAX)?,
+				randomness.int_in_range(0..=u32::MAX)?,
+				randomness.int_in_range(0..=u32::MAX)?,
+			),
+			price: Decimal::from_parts_raw(
+				randomness.int_in_range(0..=u32::MAX)?,
+				randomness.int_in_range(0..=u32::MAX)?,
+				randomness.int_in_range(0..=u32::MAX)?,
+				randomness.int_in_range(0..=u32::MAX)?,
+			),
+			quote_order_qty: Default::default(),
+			timestamp: 0,
+			overall_unreserved_volume: Default::default(),
+			signature: Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0; 64])),
+		})
 	}
 }
 
