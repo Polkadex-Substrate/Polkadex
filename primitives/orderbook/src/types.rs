@@ -680,8 +680,10 @@ impl<'a> arbitrary::Arbitrary<'a> for Order {
 	fn arbitrary(randomness: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
 		let account = AccountId::new([1; 32]);
 		let price: f32 = arbitrary_f32(randomness, MIN_PRICE, MAX_PRICE)?;
+		println!("price: {:?}",price);
 		let price: Decimal = Decimal::from_f32(price).unwrap().round_dp(8);
 		let qty: f32 = arbitrary_f32(randomness, MIN_QTY, MAX_QTY)?;
+		println!("qty: {:?}",qty);
 		let qty: Decimal = Decimal::from_f32(qty).unwrap().round_dp(8);
 
 		Ok(Order {
