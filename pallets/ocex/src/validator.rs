@@ -896,6 +896,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 		}
 
+		// Restore total maker volume
 		for ((epoch, pair), total_maker_volume) in &checkpoint.total_maker_volume_map {
 			crate::lmp::update_total_maker_volume(state, *epoch, *pair, *total_maker_volume)?;
 		}

@@ -1889,11 +1889,14 @@ pub mod pallet {
 		/// Fetch checkpoint for recovery
 		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
 			log::debug!(target:"ocex", "fetch_checkpoint called");
-			let account_ids =
+			let mut account_ids =
 				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
 					ids_accum.push((acc.clone(), acc_info.proxies));
 					ids_accum
 				});
+
+			// Add pot account to it
+			account_ids.push((Self::get_pot_account(), Default::default()));
 
 			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
 			let mut q_scores_uptime_map = BTreeMap::new();
