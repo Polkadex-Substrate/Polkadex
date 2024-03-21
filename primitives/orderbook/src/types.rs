@@ -664,6 +664,7 @@ impl Order {
 fn arbitrary_f32(randomness: &mut Unstructured, min: u128, max: u128) -> arbitrary::Result<f32> {
 	let amount: f32 = randomness.arbitrary()?;
 
+	let amount = amount.abs(); // We only want positive values
 	let min = Decimal::from(min).div(Decimal::from(UNIT_BALANCE)).to_f32().unwrap();
 
 	let max = Decimal::from(max).div(Decimal::from(UNIT_BALANCE)).to_f32().unwrap();
