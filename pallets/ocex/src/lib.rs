@@ -1943,23 +1943,31 @@ pub mod pallet {
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						fees_paid_map.insert((epoch, pair, main.clone()), fees_paid);
+						if !fees_paid.is_zero() {
+							fees_paid_map.insert((epoch, pair, main.clone()), fees_paid);
+						}
 
 						let maker_volume = crate::lmp::get_maker_volume_by_main_account(
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						maker_volume_map.insert((epoch, pair, main.clone()), maker_volume);
+						if !maker_volume.is_zero() {
+							maker_volume_map.insert((epoch, pair, main.clone()), maker_volume);
+						}
 
 						let trade_volume = crate::lmp::get_trade_volume_by_main_account(
 							&mut state, epoch, &pair, &main,
 						)?;
 
-						taker_volume_map.insert((epoch, pair, main.clone()), trade_volume);
+						if !trade_volume.is_zero(){
+							taker_volume_map.insert((epoch, pair, main.clone()), trade_volume);
+						}
 					}
 					let total_maker_volume =
 						crate::lmp::get_total_maker_volume(&mut state, epoch, &pair)?;
-					total_maker_volume_map.insert((epoch, pair), total_maker_volume);
+					if !total_maker_volume.is_zero() {
+						total_maker_volume_map.insert((epoch, pair), total_maker_volume);
+					}
 				}
 			}
 

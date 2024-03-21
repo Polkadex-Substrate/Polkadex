@@ -889,7 +889,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 		}
 
-		// Restore taker volume
+		// Restore trading fees
 		for ((epoch, pair, main), fees_paid) in &checkpoint.fees_paid_map {
 			crate::lmp::store_fees_paid_by_main_account_in_quote(
 				state, *epoch, *pair, *fees_paid, main,
