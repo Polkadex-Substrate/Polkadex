@@ -676,11 +676,9 @@ fn arbitrary_f32(randomness: &mut Unstructured, min: u128, max: u128) -> arbitra
 	if amount.is_nan() || amount.is_infinite() {
 		return Err(arbitrary::Error::IncorrectFormat)
 	}
-	println!("before amount: {:?}", amount);
 	// Scaling factor ranges from 0...=1
 	// Scaling, x = a + scaling_factor*(b-a)
 	let amount = min + amount.div(f32::MAX).mul(max.sub(min));
-	println!("after amount: {:?}", amount);
 	Ok(amount)
 }
 #[cfg(feature = "std")]
