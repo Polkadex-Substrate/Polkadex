@@ -692,6 +692,11 @@ impl<'a> arbitrary::Arbitrary<'a> for Order {
 		let qty: f32 = arbitrary_f32(randomness, MIN_QTY, MAX_QTY)?;
 		let qty: Decimal = Decimal::from_f32(qty).unwrap().round_dp(8);
 
+		// Vol cannot be less than min limit
+		if price.mul(qty) < Decimal::from_f64(0.00000001).unwrap(){
+			return Err(arbitrary::Error::IncorrectFormat)
+		}
+
 		Ok(Order {
 			stid: 0,
 			client_order_id: Default::default(),
