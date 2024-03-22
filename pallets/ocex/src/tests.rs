@@ -2449,7 +2449,8 @@ fn test_do_claim_lmp_rewards_happy_path() {
 	new_test_ext().execute_with(|| {
 		add_lmp_config();
 		update_lmp_score();
-		let main_account = AccountId32::new([1; 32]);
+		let alice_account = AccountId32::new([1; 32]);
+		let bob_account = AccountId32::new([2; 32]);
 		let epoch = 0;
 		let base_asset = AssetId::Polkadex;
 		let quote_asset = AssetId::Asset(1);
@@ -2457,12 +2458,15 @@ fn test_do_claim_lmp_rewards_happy_path() {
 		let reward_account =
 			<mock::Test as pallet::Config>::LMPRewardsPalletId::get().into_account_truncating();
 		println!("pallet Id {:?}", reward_account);
-		Balances::mint_into(&reward_account, 300 * UNIT_BALANCE).unwrap();
-		assert_eq!(Balances::free_balance(&main_account), 999999999900u128);
-		assert_ok!(OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair));
-		assert_eq!(Balances::free_balance(&main_account), 200999999999900u128);
+		Balances::mint_into(&reward_account, 3000 * UNIT_BALANCE).unwrap();
+		assert_eq!(Balances::free_balance(&alice_account), 999_999_999_900u128);
+		assert_eq!(Balances::free_balance(&bob_account), 0u128);
+		assert_ok!(OCEX::do_claim_lmp_rewards(alice_account.clone(), epoch, trading_pair));
+		assert_eq!(Balances::free_balance(&alice_account), 1_001_899_999_999_900u128);
+		assert_ok!(OCEX::do_claim_lmp_rewards(bob_account.clone(), epoch, trading_pair));
+		assert_eq!(Balances::free_balance(&bob_account), 999_100_000_000_000u128);
 		assert_noop!(
-			OCEX::do_claim_lmp_rewards(main_account.clone(), epoch, trading_pair),
+			OCEX::do_claim_lmp_rewards(alice_account.clone(), epoch, trading_pair),
 			Error::<Test>::RewardAlreadyClaimed
 		);
 	})
@@ -2825,16 +2829,22 @@ pub fn create_assets_and_mint_pot_account(assets: Vec<AssetId>) {
 		Assets::mint_into(asset.asset_id().unwrap(), &pot_account, 100 * UNIT_BALANCE).unwrap();
 	}
 }
-
+// (mm_score/total_mm_score) x total_liquidity_mining_rewards + (trader_fee/total_trading_fee) x total_trading_rewards
+//Alice = (600.5/1000) * 1000 * UNIT + 400.4/1000 * 1000
+//Bob = (399.5/1000)
 pub fn update_lmp_score() {
 	let total_score = Decimal::from(1000);
 	let total_fee_paid = Decimal::from(1000);
 	let trading_pair_metrics: TradingPairMetrics = (total_score, total_fee_paid);
-	let trader = AccountId32::new([1; 32]);
-	let trader_score = Decimal::from(100);
-	let trader_fee_paid = Decimal::from(100);
+	let alice_trader = AccountId32::new([1; 32]);
+	let bob_trader = AccountId32::new([2; 32]);
+	let alice_trader_score = Decimal::from_f64(600.5).unwrap();
+	let alice_trader_fee_paid = Decimal::from_f64(400.4).unwrap();
+	let bob_trader_score = Decimal::from_f64(399.5).unwrap();
+	let bob_trader_fee_paid = Decimal::from_f64(599.6).unwrap();
 	let mut trader_metrics: TraderMetricsMap<AccountId32> = BTreeMap::new();
-	trader_metrics.insert(trader.clone(), (trader_score, trader_fee_paid));
+	trader_metrics.insert(alice_trader.clone(), (alice_trader_score, alice_trader_fee_paid));
+	trader_metrics.insert(bob_trader.clone(), (bob_trader_score, bob_trader_fee_paid));
 	let mut trading_pair_metrics_map: TradingPairMetricsMap<AccountId32> = BTreeMap::new();
 	trading_pair_metrics_map.insert(
 		TradingPair { base: AssetId::Polkadex, quote: AssetId::Asset(1) },
