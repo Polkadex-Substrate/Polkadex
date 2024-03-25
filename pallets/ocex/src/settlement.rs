@@ -19,14 +19,17 @@
 //! Helper functions for updating the balance
 
 use crate::{storage::OffchainState, Config, Pallet};
+use core::ops::Sub;
 use log::{error, info};
+use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::types::Order;
 use orderbook_primitives::{constants::FEE_POT_PALLET_ID, types::Trade};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use polkadex_primitives::{fees::FeeConfig, AccountId, AssetId};
+use rust_decimal::RoundingStrategy::ToZero;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
-use sp_core::crypto::ByteArray;
+use sp_core::crypto::{ByteArray, Ss58AddressFormat, Ss58Codec};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -88,7 +91,7 @@ pub fn add_balance(
 /// Updates provided trie db with reducing balance of account asset if it exists in the db.
 ///
 /// If account asset balance does not exists in the db `AccountBalanceNotFound` error will be
-/// returned.
+/// returned. Balance returned is the acutal balance that was deduced accounting for rounding errors/deviation.
 ///
 /// # Parameters
 ///
@@ -100,8 +103,8 @@ pub fn sub_balance(
 	state: &mut OffchainState,
 	account: &AccountId,
 	asset: AssetId,
-	balance: Decimal,
-) -> Result<(), &'static str> {
+	mut balance: Decimal,
+) -> Result<Decimal, &'static str> {
 	log::info!(target:"ocex", "subtracting {:?} asset {:?} from account {:?}", balance.to_f64().unwrap(), asset.to_string(), account);
 	let mut balances: BTreeMap<AssetId, Decimal> = match state.get(&account.to_raw_vec())? {
 		None => return Err("Account not found in trie"),
@@ -109,17 +112,24 @@ pub fn sub_balance(
 			.map_err(|_| "Unable to decode balances for account")?,
 	};
 
-	let account_balance = balances.get_mut(&asset).ok_or("NotEnoughBalance")?;
+	let account_balance = balances.get_mut(&asset).ok_or("NotEnoughBalance: zero balance")?;
 
 	if *account_balance < balance {
-		log::error!(target:"ocex","Asset found but balance low for asset: {:?}, of account: {:?}",asset, account);
-		return Err("NotEnoughBalance");
+		// If the deviation is smaller that system limit, then we can allow what's stored in the offchain balance
+		let deviation = balance.sub(&*account_balance);
+		if !deviation.round_dp_with_strategy(8, ToZero).is_zero() {
+			log::error!(target:"ocex","Asset found but balance low for asset: {:?}, of account: {:?}",asset, account);
+			return Err("NotEnoughBalance");
+		} else {
+			log::warn!(target:"ocex","Asset found but minor balance deviation of {:?} for asset: {:?}, of account: {:?}",deviation,asset.to_string(), account.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)));
+			balance = *account_balance;
+		}
 	}
 	*account_balance = Order::rounding_off(account_balance.saturating_sub(balance));
 
 	state.insert(account.to_raw_vec(), balances.encode());
 
-	Ok(())
+	Ok(balance)
 }
 
 impl<T: Config> Pallet<T> {
