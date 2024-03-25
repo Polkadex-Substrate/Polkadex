@@ -837,6 +837,7 @@ impl_runtime_apis! {
 	}
 }
 
+#[allow(dead_code)]
 struct CheckInherents;
 
 impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
