@@ -299,10 +299,7 @@ pub fn store_q_score_and_uptime(
 		Some(encoded_q_scores_map) => {
 			let mut map = BTreeMap::<u16, Decimal>::decode(&mut &encoded_q_scores_map[..])
 				.map_err(|_| "Unable to decode decimal")?;
-			if map.insert(index, score).is_some() {
-				log::error!(target:"ocex","Overwriting q score with index: {:?}, epoch: {:?}, main: {:?}, market: {:?}",index,epoch,main,trading_pair);
-				return Err("Overwriting q score");
-			}
+			map.insert(index, score); // We overwrite on wrapping around
 			log::info!(target: "ocex","Writing Q score and uptime for main: {:?}",main);
 			state.insert(key, map.encode());
 		},
