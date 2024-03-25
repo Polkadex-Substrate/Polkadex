@@ -18,20 +18,20 @@
 
 //! Helper functions for updating the balance
 
-use core::ops::Sub;
 use crate::{storage::OffchainState, Config, Pallet};
+use core::ops::Sub;
 use log::{error, info};
+use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 use orderbook_primitives::ocex::TradingPairConfig;
 use orderbook_primitives::types::Order;
 use orderbook_primitives::{constants::FEE_POT_PALLET_ID, types::Trade};
 use parity_scale_codec::{alloc::string::ToString, Decode, Encode};
 use polkadex_primitives::{fees::FeeConfig, AccountId, AssetId};
-use rust_decimal::{prelude::ToPrimitive, Decimal};
 use rust_decimal::RoundingStrategy::ToZero;
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sp_core::crypto::{ByteArray, Ss58AddressFormat, Ss58Codec};
 use sp_runtime::traits::AccountIdConversion;
 use sp_std::collections::btree_map::BTreeMap;
-use orderbook_primitives::constants::POLKADEX_MAINNET_SS58;
 
 /// Returns the balance of an account and asset from state
 ///
@@ -114,14 +114,13 @@ pub fn sub_balance(
 
 	let account_balance = balances.get_mut(&asset).ok_or("NotEnoughBalance: zero balance")?;
 
-
 	if *account_balance < balance {
 		// If the deviation is smaller that system limit, then we can allow what's stored in the offchain balance
 		let deviation = balance.sub(&*account_balance);
 		if !deviation.round_dp_with_strategy(8, ToZero).is_zero() {
 			log::error!(target:"ocex","Asset found but balance low for asset: {:?}, of account: {:?}",asset, account);
 			return Err("NotEnoughBalance");
-		}else{
+		} else {
 			log::warn!(target:"ocex","Asset found but minor balance deviation of {:?} for asset: {:?}, of account: {:?}",deviation,asset.to_string(), account.to_ss58check_with_version(Ss58AddressFormat::from(POLKADEX_MAINNET_SS58)));
 			balance = *account_balance;
 		}
