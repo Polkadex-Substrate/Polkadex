@@ -750,7 +750,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), &'static str> {
 		let mut config = get_lmp_config(state, current_on_chain_epoch)?;
 		// We wrap around the index if we overflow
-		let next_index = config.index.checked_add(1).unwrap_or_else(|| 0);
+		let next_index = config.index.checked_add(1).unwrap_or(0);
 		for (main, score) in scores {
 			store_q_score_and_uptime(
 				state,
