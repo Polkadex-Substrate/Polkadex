@@ -34,6 +34,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 pub mod weights;
+mod migration;
 
 pub trait TheaExecutorWeightInfo {
 	fn set_withdrawal_fee(_r: u32) -> Weight;
@@ -71,8 +72,11 @@ pub mod pallet {
 	};
 	use xcm::VersionedMultiLocation;
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -289,6 +293,8 @@ pub mod pallet {
 				asset_id,
 				amount,
 				beneficiary,
+				None,
+				None,
 				pay_for_remaining,
 				network,
 				pay_with_tokens,
@@ -323,6 +329,8 @@ pub mod pallet {
 			asset_id: u128,
 			amount: u128,
 			beneficiary: sp_std::boxed::Box<VersionedMultiLocation>,
+			fee_asset_id: Option<u128>,
+			fee_amount: Option<u128>,
 			pay_for_remaining: bool,
 			pay_with_tokens: bool,
 		) -> DispatchResult {
@@ -333,6 +341,8 @@ pub mod pallet {
 				asset_id,
 				amount,
 				beneficiary.encode(),
+				fee_asset_id,
+				fee_amount,
 				pay_for_remaining,
 				network,
 				pay_with_tokens,
@@ -410,6 +420,8 @@ pub mod pallet {
 				asset_id,
 				amount,
 				beneficiary.encode(),
+				None,
+				None,
 				pay_for_remaining,
 				network,
 				pay_with_tokens,
@@ -480,6 +492,8 @@ pub mod pallet {
 			asset_id: u128,
 			mut amount: u128,
 			beneficiary: Vec<u8>,
+			fee_asset_id: Option<u128>,
+			fee_amount: Option<u128>,
 			pay_for_remaining: bool,
 			network: Network,
 			pay_with_tokens: bool,
@@ -488,6 +502,9 @@ pub mod pallet {
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+			if let Some(fee_asset_id) = fee_asset_id {
+				let metadata = <crate::pallet::Metadata<T>>::get(fee_asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
+			}
 			ensure!(
 				pending_withdrawals.len() < T::WithdrawalSize::get() as usize,
 				Error::<T>::WithdrawalNotAllowed
@@ -535,11 +552,17 @@ pub mod pallet {
 			// Withdraw assets
 			Self::resolver_withdraw(asset_id.into(), amount, &user, Self::thea_account())?;
 
+			if let (Some(fee_asset_id),Some(fee_amount)) = (fee_asset_id, fee_amount) {
+				Self::resolver_withdraw(fee_asset_id.into(), fee_amount, &user, Self::thea_account())?;
+			}
+
 			let mut withdraw = Withdraw {
 				id: Self::new_random_id(),
 				asset_id,
 				amount,
 				destination: beneficiary.clone(),
+				fee_asset_id,
+				fee_amount: fee_amount,
 				is_blocked: false,
 				extra: Vec::new(),
 			};

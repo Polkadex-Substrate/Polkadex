@@ -324,44 +324,101 @@ pub mod pallet {
 							},
 						};
 						if !Self::is_polkadex_parachain_destination(&destination) {
-							if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
-								let multi_asset = MultiAsset {
-									id: asset,
-									fun: Fungibility::Fungible(withdrawal.amount),
-								};
-								let pallet_account: T::AccountId =
-									T::AssetHandlerPalletId::get().into_account_truncating();
-								// Mint
-								if Self::resolver_deposit(
-									withdrawal.asset_id.into(),
-									withdrawal.amount,
-									&pallet_account,
-									pallet_account.clone(),
-									1u128,
-									pallet_account.clone(),
-								)
-								.is_err()
-								{
-									failed_withdrawal.push(withdrawal.clone());
-									log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
-								};
-								if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
-									RawOrigin::Signed(
-										T::AssetHandlerPalletId::get().into_account_truncating(),
+							if let (Some(fee_asset_id), Some(fee_amount)) = (withdrawal.fee_asset_id, withdrawal.fee_amount) {
+								if let (Some(asset), Some(fee_asset)) = (Self::assets_mapping(withdrawal.asset_id), Self::assets_mapping(fee_asset_id)) {
+									let multi_asset = MultiAsset {
+										id: asset,
+										fun: Fungibility::Fungible(withdrawal.amount),
+									};
+									let fee_multi_asset = MultiAsset {
+										id: fee_asset,
+										fun: Fungibility::Fungible(fee_amount),
+									};
+									let pallet_account: T::AccountId =
+										T::AssetHandlerPalletId::get().into_account_truncating();
+									if Self::resolver_deposit(
+										withdrawal.asset_id.into(),
+										withdrawal.amount,
+										&pallet_account,
+										pallet_account.clone(),
+										1u128,
+										pallet_account.clone(),
 									)
-									.into(),
-									Box::new(multi_asset.into()),
-									0,
-									Box::new(destination.clone()),
-									cumulus_primitives_core::WeightLimit::Unlimited,
-								)
-								.is_err()
-								{
-									failed_withdrawal.push(withdrawal.clone());
-									log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
+										.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+									};
+									// Deposit Fee
+									if Self::resolver_deposit(
+										fee_asset_id.into(),
+										fee_amount,
+										&pallet_account,
+										pallet_account.clone(),
+										1u128,
+										pallet_account.clone(),
+									)
+										.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+									};
+									if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
+										RawOrigin::Signed(
+											T::AssetHandlerPalletId::get().into_account_truncating(),
+										)
+											.into(),
+										Box::new(vec![multi_asset, fee_multi_asset].into()),
+										1,
+										Box::new(destination.clone()),
+										cumulus_primitives_core::WeightLimit::Unlimited,
+									)
+										.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
+									}
 								}
 							} else {
-								failed_withdrawal.push(withdrawal)
+								if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
+									let multi_asset = MultiAsset {
+										id: asset,
+										fun: Fungibility::Fungible(withdrawal.amount),
+									};
+									let pallet_account: T::AccountId =
+										T::AssetHandlerPalletId::get().into_account_truncating();
+									// Mint
+									if Self::resolver_deposit(
+										withdrawal.asset_id.into(),
+										withdrawal.amount,
+										&pallet_account,
+										pallet_account.clone(),
+										1u128,
+										pallet_account.clone(),
+									)
+										.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+									};
+									if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
+										RawOrigin::Signed(
+											T::AssetHandlerPalletId::get().into_account_truncating(),
+										)
+											.into(),
+										Box::new(multi_asset.into()),
+										0,
+										Box::new(destination.clone()),
+										cumulus_primitives_core::WeightLimit::Unlimited,
+									)
+										.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
+									}
+								} else {
+									failed_withdrawal.push(withdrawal)
+								}
 							}
 						} else if Self::handle_deposit(withdrawal.clone(), destination).is_err() {
 							failed_withdrawal.push(withdrawal);

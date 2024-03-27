@@ -263,6 +263,10 @@ pub struct Withdraw {
 	pub amount: u128,
 	/// Receiver of the withdrawal.
 	pub destination: Vec<u8>,
+	/// Fee Asset Id
+	pub fee_asset_id: Option<u128>,
+	/// Fee amount
+	pub fee_amount: Option<u128>,
 	/// Defines if withdraw operation is blocked.
 	pub is_blocked: bool,
 	/// Extra data.

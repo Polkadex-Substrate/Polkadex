@@ -98,6 +98,64 @@ fn test_transfer_native_asset() {
 			asset_id,
 			amount: 10_000_000_000_000u128,
 			destination: vec![1; 32],
+			fee_asset_id: None,
+			fee_amount: None,
+			is_blocked: false,
+			extra: vec![],
+		};
+		assert_eq!(pending_withdrawal.to_vec().pop().unwrap(), approved_withdraw);
+	})
+}
+
+#[test]
+fn test_withdrawal_with_fee() {
+	new_test_ext().execute_with(|| {
+		let asset_id = 1000u128;
+		let fee_asset_id = 1001u128;
+		let admin = 1u64;
+		let user = 2u64;
+		Balances::set_balance(&admin, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(Assets::create(
+			RuntimeOrigin::signed(admin),
+			parity_scale_codec::Compact(fee_asset_id),
+			admin,
+			1u128
+		));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), asset_id, 12));
+		assert_ok!(TheaExecutor::update_asset_metadata(RuntimeOrigin::root(), fee_asset_id, 12));
+		// Set balance for User
+		Balances::set_balance(&user, 1_000_000_000_000_000_000);
+		assert_ok!(Assets::mint_into(asset_id, &user, 1_000_000_000_000_000_000));
+		assert_ok!(Assets::mint_into(fee_asset_id, &user, 1_000_000_000_000_000_000));
+		// Set withdrawal Fee
+		assert_ok!(TheaExecutor::set_withdrawal_fee(RuntimeOrigin::root(), 1, 0));
+		let multilocation = MultiLocation { parents: 1, interior: Junctions::Here };
+		let beneficiary = Box::new(VersionedMultiLocation::V3(multilocation));
+		assert_ok!(TheaExecutor::parachain_withdraw(
+			RuntimeOrigin::signed(user),
+			asset_id,
+			10_000_000_000_000u128,
+			beneficiary.clone(),
+			Some(fee_asset_id),
+			Some(1_000_000_000_000),
+			false,
+			false
+		));
+		// Verify
+		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
+		let approved_withdraw = Withdraw {
+			id: Vec::from([179, 96, 16, 235, 40, 92, 21, 74, 140, 214]),
+			asset_id,
+			amount: 10_000_000_000_000u128,
+			destination: beneficiary.encode(),
+			fee_asset_id: Some(fee_asset_id),
+			fee_amount: Some(1_000_000_000_000),
 			is_blocked: false,
 			extra: vec![],
 		};
@@ -208,6 +266,8 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -219,6 +279,8 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -231,6 +293,8 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -243,6 +307,8 @@ fn test_parachain_withdraw_full() {
 				asset_id,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -254,6 +320,8 @@ fn test_parachain_withdraw_full() {
 			asset_id,
 			1_000_000_000,
 			beneficiary.clone(),
+			None,
+			None,
 			false,
 			false
 		));
