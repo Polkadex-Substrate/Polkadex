@@ -67,7 +67,7 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use thea_primitives::types::NewWithdraw;
 	use thea_primitives::{
-		types::{AssetMetadata, Deposit, Withdraw},
+		types::{AssetMetadata, Deposit},
 		Network, TheaBenchmarkHelper, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
 	use xcm::VersionedMultiLocation;
