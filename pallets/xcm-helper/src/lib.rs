@@ -743,47 +743,44 @@ pub mod pallet {
 										log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
 									}
 								}
-							} else {
-								if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
-									let multi_asset = MultiAsset {
-										id: asset,
-										fun: Fungibility::Fungible(withdrawal.amount),
-									};
-									let pallet_account: T::AccountId =
-										T::AssetHandlerPalletId::get().into_account_truncating();
-									// Mint
-									if Self::resolver_deposit(
-										withdrawal.asset_id.into(),
-										withdrawal.amount,
-										&pallet_account,
-										pallet_account.clone(),
-										1u128,
-										pallet_account.clone(),
+							} else if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
+								let multi_asset = MultiAsset {
+									id: asset,
+									fun: Fungibility::Fungible(withdrawal.amount),
+								};
+								let pallet_account: T::AccountId =
+									T::AssetHandlerPalletId::get().into_account_truncating();
+								// Mint
+								if Self::resolver_deposit(
+									withdrawal.asset_id.into(),
+									withdrawal.amount,
+									&pallet_account,
+									pallet_account.clone(),
+									1u128,
+									pallet_account.clone(),
+								)
+								.is_err()
+								{
+									failed_withdrawal.push(withdrawal.clone());
+									log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+								};
+								if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
+									RawOrigin::Signed(
+										T::AssetHandlerPalletId::get().into_account_truncating(),
 									)
-									.is_err()
-									{
-										failed_withdrawal.push(withdrawal.clone());
-										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
-									};
-									if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
-										RawOrigin::Signed(
-											T::AssetHandlerPalletId::get()
-												.into_account_truncating(),
-										)
-										.into(),
-										Box::new(multi_asset.into()),
-										0,
-										Box::new(destination.clone()),
-										cumulus_primitives_core::WeightLimit::Unlimited,
-									)
-									.is_err()
-									{
-										failed_withdrawal.push(withdrawal.clone());
-										log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
-									}
-								} else {
-									failed_withdrawal.push(withdrawal)
+									.into(),
+									Box::new(multi_asset.into()),
+									0,
+									Box::new(destination.clone()),
+									cumulus_primitives_core::WeightLimit::Unlimited,
+								)
+								.is_err()
+								{
+									failed_withdrawal.push(withdrawal.clone());
+									log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
 								}
+							} else {
+								failed_withdrawal.push(withdrawal)
 							}
 						} else if Self::handle_deposit(withdrawal.clone().into(), destination)
 							.is_err()

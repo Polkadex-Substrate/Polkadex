@@ -46,6 +46,7 @@ pub trait TheaExecutorWeightInfo {
 	fn claim_deposit(_r: u32) -> Weight;
 }
 
+#[allow(clippy::too_many_arguments)]
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
