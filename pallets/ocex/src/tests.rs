@@ -316,16 +316,16 @@ fn test_sub_balance_existing_account_with_balance() {
 
 		//sub balance
 		let amount2 = 2000000;
-		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into());
-		assert_eq!(result, Ok(()));
+		let result = sub_balance(&mut state, &account_id, asset_id, amount2.into()).unwrap();
+		assert_eq!(result, amount2.into());
 		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(account_info.get(&asset_id).unwrap(), &(amount - amount2).into());
 
 		//sub balance till 0
 		let amount3 = amount - amount2;
-		let result = sub_balance(&mut state, &account_id, asset_id, amount3.into());
-		assert_eq!(result, Ok(()));
+		let result = sub_balance(&mut state, &account_id, asset_id, amount3.into()).unwrap();
+		assert_eq!(result, amount3.into());
 		let encoded = state.get(&account_id.to_raw_vec()).unwrap().unwrap();
 		let account_info: BTreeMap<AssetId, Decimal> = BTreeMap::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(amount - amount2 - amount3, 0);
@@ -416,8 +416,9 @@ fn test_balance_update_depost_first_then_trade() {
 
 		//sub balance till 0
 		let amount3 = Decimal::from_f64_retain(2.0).unwrap();
-		let result = sub_balance(&mut state, &account_id, AssetId::Polkadex, amount3.into());
-		assert_eq!(result, Ok(()));
+		let result =
+			sub_balance(&mut state, &account_id, AssetId::Polkadex, amount3.into()).unwrap();
+		assert_eq!(result, amount3);
 	});
 }
 
@@ -469,7 +470,7 @@ fn test_trade_between_two_accounts_without_balance() {
 		let result = OCEX::process_trade(&mut state, &trade, config, maker_fees, taker_fees);
 		match result {
 			Ok(_) => assert!(false),
-			Err(e) => assert_eq!(e, "NotEnoughBalance"),
+			Err(e) => assert_eq!(e, "NotEnoughBalance: zero balance"),
 		}
 	});
 }

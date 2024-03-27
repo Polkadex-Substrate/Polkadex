@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 334,
+	spec_version: 342,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1352,6 +1352,7 @@ parameter_types! {
 	pub const TheaPalletAccount: PalletId = PalletId(*b"th/accnt");
 	pub const WithdrawalSize: u32 = 10;
 	pub const ParaId: u32 = 2040;
+	pub const AutoSwapInitialNativeDeposit: Balance = 1500000000000;
 }
 
 impl thea_executor::Config for Runtime {
@@ -1370,7 +1371,7 @@ impl thea_executor::Config for Runtime {
 	type MultiAssetIdAdapter = AssetId;
 	type AssetBalanceAdapter = u128;
 	type GovernanceOrigin = EnsureRootOrHalfCouncil;
-	type ExistentialDeposit = ExistentialDeposit;
+	type ExistentialDeposit = AutoSwapInitialNativeDeposit;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

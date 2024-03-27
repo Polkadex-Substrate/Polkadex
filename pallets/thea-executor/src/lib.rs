@@ -197,6 +197,8 @@ pub mod pallet {
 		WithdrawalFeeSet(u8, u128),
 		/// Native Token Burn event
 		NativeTokenBurned(T::AccountId, u128),
+		/// Withdrawal Sent (Network, Withdrawal Id,Batch Outgoing Nonce, Withdrawal Index)
+		WithdrawalSent(Network, Vec<u8>, u64, u8),
 	}
 
 	// Errors inform users that something went wrong.
@@ -243,13 +245,22 @@ pub mod pallet {
 				<ReadyWithdrawals<T>>::iter_prefix(block_no.saturating_sub(1u8.into()));
 			let mut withdrawal_len = 0;
 			let mut network_len = 0;
-			for (network_id, withdrawal) in pending_withdrawals {
-				withdrawal_len += withdrawal.len();
+			for (network_id, withdrawals) in pending_withdrawals {
+				withdrawal_len += withdrawals.len();
+				let batch_nonce = T::Executor::get_outgoing_nonce(network_id);
+				for (index, withdrawal) in withdrawals.iter().enumerate() {
+					Self::deposit_event(Event::<T>::WithdrawalSent(
+						network_id,
+						withdrawal.id.clone(),
+						batch_nonce,
+						index as u8,
+					));
+				}
 				// This is fine as this trait is not supposed to fail
-				if T::Executor::execute_withdrawals(network_id, withdrawal.clone().encode())
+				if T::Executor::execute_withdrawals(network_id, withdrawals.clone().encode())
 					.is_err()
 				{
-					Self::deposit_event(Event::<T>::WithdrawalFailed(network_id, withdrawal))
+					Self::deposit_event(Event::<T>::WithdrawalFailed(network_id, withdrawals))
 				}
 				network_len += 1;
 			}
@@ -342,7 +353,7 @@ pub mod pallet {
 			asset_id: u128,
 			decimal: u8,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::GovernanceOrigin::ensure_origin(origin)?;
 			let metadata = AssetMetadata::new(decimal).ok_or(Error::<T>::InvalidDecimal)?;
 			<Metadata<T>>::insert(asset_id, metadata);
 			Self::deposit_event(Event::<T>::AssetMetadataSet(metadata));

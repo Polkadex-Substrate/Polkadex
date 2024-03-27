@@ -681,15 +681,15 @@ impl<T: Config> Pallet<T> {
 		if !request.verify() {
 			return Err("SignatureVerificationFailed");
 		}
-		sub_balance(
+		let actual_deducted = sub_balance(
 			state,
 			&Decode::decode(&mut &request.main.encode()[..])
 				.map_err(|_| "account id decode error")?,
 			request.asset(),
 			amount,
 		)?;
-		let withdrawal = request.convert(stid).map_err(|_| "Withdrawal conversion error")?;
-
+		let mut withdrawal = request.convert(stid).map_err(|_| "Withdrawal conversion error")?;
+		withdrawal.amount = actual_deducted; // The acutal deducted balance
 		Ok(withdrawal)
 	}
 
@@ -749,7 +749,8 @@ impl<T: Config> Pallet<T> {
 		current_on_chain_epoch: u16,
 	) -> Result<(), &'static str> {
 		let mut config = get_lmp_config(state, current_on_chain_epoch)?;
-		let next_index = config.index.saturating_add(1);
+		// We wrap around the index if we overflow
+		let next_index = config.index.checked_add(1).unwrap_or(0);
 		for (main, score) in scores {
 			store_q_score_and_uptime(
 				state,
@@ -859,6 +860,48 @@ impl<T: Config> Pallet<T> {
 			value.insert(account_asset.asset, *balance);
 			state.insert(key, value.encode());
 		}
+		// Store LMP Config
+		crate::lmp::store_lmp_config(state, checkpoint.config);
+		// Restore Q scores and Uptime map
+		for ((epoch, pair, main), map) in &checkpoint.q_scores_uptime_map {
+			for (index, q_score) in map {
+				crate::lmp::store_q_score_and_uptime(state, *epoch, *index, *q_score, pair, main)?;
+			}
+		}
+		// Restore maker volume
+		for ((epoch, pair, main), maker_volume) in &checkpoint.maker_volume_map {
+			crate::lmp::update_maker_volume_by_main_account(
+				state,
+				*epoch,
+				*pair,
+				*maker_volume,
+				main,
+			)?;
+		}
+
+		// Restore taker volume
+		for ((epoch, pair, main), maker_volume) in &checkpoint.taker_volume_map {
+			crate::lmp::update_trade_volume_by_main_account(
+				state,
+				*epoch,
+				*pair,
+				*maker_volume,
+				main,
+			)?;
+		}
+
+		// Restore trading fees
+		for ((epoch, pair, main), fees_paid) in &checkpoint.fees_paid_map {
+			crate::lmp::store_fees_paid_by_main_account_in_quote(
+				state, *epoch, *pair, *fees_paid, main,
+			)?;
+		}
+
+		// Restore total maker volume
+		for ((epoch, pair), total_maker_volume) in &checkpoint.total_maker_volume_map {
+			crate::lmp::update_total_maker_volume(state, *epoch, *pair, *total_maker_volume)?;
+		}
+
 		Ok(())
 	}
 

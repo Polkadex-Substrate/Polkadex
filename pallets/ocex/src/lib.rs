@@ -1530,7 +1530,8 @@ pub mod pallet {
 										);
 										let fee_to_be_burnt =
 											Percent::from_percent(distribution.burn_ration) * fees;
-										let fee_to_be_distributed = fees - fee_to_be_burnt;
+										let fee_to_be_distributed =
+											fees.saturating_sub(fee_to_be_burnt);
 										// Burn the fee
 										let imbalance = T::NativeCurrency::burn(
 											fee_to_be_burnt.saturated_into(),
@@ -1888,32 +1889,106 @@ pub mod pallet {
 		/// Fetch checkpoint for recovery
 		pub fn fetch_checkpoint() -> Result<ObCheckpointRaw, DispatchError> {
 			log::debug!(target:"ocex", "fetch_checkpoint called");
-			let account_id =
+			let mut account_ids =
 				<Accounts<T>>::iter().fold(vec![], |mut ids_accum, (acc, acc_info)| {
 					ids_accum.push((acc.clone(), acc_info.proxies));
 					ids_accum
 				});
 
+			// Add pot account to it
+			account_ids.push((Self::get_pot_account(), Default::default()));
+
 			let mut balances: BTreeMap<AccountAsset, Decimal> = BTreeMap::new();
+			let mut q_scores_uptime_map = BTreeMap::new();
+			let mut maker_volume_map = BTreeMap::new();
+			let mut taker_volume_map = BTreeMap::new();
+			let mut fees_paid_map = BTreeMap::new();
+			let mut total_maker_volume_map = BTreeMap::new();
 			// all offchain balances for main accounts
-			for account in account_id {
-				let main = Self::transform_account(account.0)?;
+			for (account, _) in &account_ids {
+				let main = Self::transform_account(account.clone())?;
 				let b = Self::get_offchain_balance(&main)?;
 				for (asset, balance) in b.into_iter() {
 					balances.insert(AccountAsset { main: main.clone(), asset }, balance);
 				}
 			}
+
 			let state_info = Self::get_state_info().map_err(|_err| DispatchError::Corruption)?;
 			let last_processed_block_number = state_info.last_block;
 			let snapshot_id = state_info.snapshot_id;
 			let state_change_id = state_info.stid;
+
+			let mut root = crate::storage::load_trie_root();
+			let mut storage = crate::storage::State;
+			let mut state = OffchainState::load(&mut storage, &mut root);
+
+			let registered_tradingpairs = <TradingPairs<T>>::iter()
+				.map(|(base, quote, _)| (base, quote))
+				.collect::<Vec<(AssetId, AssetId)>>();
+
+			let current_epoch = <LMPEpoch<T>>::get();
+
+			for epoch in 0..=current_epoch {
+				for (base, quote) in &registered_tradingpairs {
+					let pair = TradingPair::from(*quote, *base);
+					for (account, _) in &account_ids {
+						let main = Self::transform_account(account.clone())?;
+						// Get Q scores
+						let q_scores_map = crate::lmp::get_q_score_and_uptime_for_checkpoint(
+							&mut state, epoch, &pair, &main,
+						)?;
+
+						if !q_scores_map.is_empty() {
+							q_scores_uptime_map.insert((epoch, pair, main.clone()), q_scores_map);
+						}
+
+						let fees_paid = crate::lmp::get_fees_paid_by_main_account_in_quote(
+							&mut state, epoch, &pair, &main,
+						)?;
+
+						if !fees_paid.is_zero() {
+							fees_paid_map.insert((epoch, pair, main.clone()), fees_paid);
+						}
+
+						let maker_volume = crate::lmp::get_maker_volume_by_main_account(
+							&mut state, epoch, &pair, &main,
+						)?;
+
+						if !maker_volume.is_zero() {
+							maker_volume_map.insert((epoch, pair, main.clone()), maker_volume);
+						}
+
+						let trade_volume = crate::lmp::get_trade_volume_by_main_account(
+							&mut state, epoch, &pair, &main,
+						)?;
+
+						if !trade_volume.is_zero() {
+							taker_volume_map.insert((epoch, pair, main.clone()), trade_volume);
+						}
+					}
+					let total_maker_volume =
+						crate::lmp::get_total_maker_volume(&mut state, epoch, &pair)?;
+					if !total_maker_volume.is_zero() {
+						total_maker_volume_map.insert((epoch, pair), total_maker_volume);
+					}
+				}
+			}
+
+			let config = crate::lmp::get_lmp_config(&mut state, current_epoch)?;
+
 			log::debug!(target:"ocex", "fetch_checkpoint returning");
-			Ok(ObCheckpointRaw::new(
+			Ok(ObCheckpointRaw {
 				snapshot_id,
 				balances,
 				last_processed_block_number,
 				state_change_id,
-			))
+				config,
+				q_scores_uptime_map,
+				maker_volume_map,
+				taker_volume_map,
+				fees_paid_map,
+				total_maker_volume_map,
+			})
 		}
 
 		/// Fetches balance of given `AssetId` for given `AccountId` from offchain storage
@@ -2118,11 +2193,12 @@ pub mod pallet {
 				let _ = T::NativeCurrency::unreserve(&bidder, total_bidder_reserve_balance);
 				let amount_to_be_burnt =
 					Percent::from_percent(fee_config.burn_ration) * total_bidder_reserve_balance;
-				let trasnferable_amount = total_bidder_reserve_balance - amount_to_be_burnt;
+				let transferable_amount =
+					total_bidder_reserve_balance.saturating_sub(amount_to_be_burnt);
 				T::NativeCurrency::transfer(
 					&bidder,
 					&fee_config.recipient_address,
-					trasnferable_amount,
+					transferable_amount,
 					ExistenceRequirement::KeepAlive,
 				)?;
 
@@ -2139,7 +2215,7 @@ pub mod pallet {
 				Self::deposit_event(Event::<T>::AuctionClosed {
 					bidder,
 					burned: Compact::from(amount_to_be_burnt),
-					paid_to_operator: Compact::from(trasnferable_amount),
+					paid_to_operator: Compact::from(transferable_amount),
 				})
 			}
 			Ok(())
