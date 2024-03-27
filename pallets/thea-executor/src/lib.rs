@@ -502,7 +502,7 @@ pub mod pallet {
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
 			let metadata = <Metadata<T>>::get(asset_id).ok_or(Error::<T>::AssetNotRegistered)?;
 			if let Some(fee_asset_id) = fee_asset_id {
-				let metadata = <crate::pallet::Metadata<T>>::get(fee_asset_id)
+				let _metadata = <crate::pallet::Metadata<T>>::get(fee_asset_id)
 					.ok_or(Error::<T>::FeeAssetNotRegistered)?;
 			}
 			ensure!(
