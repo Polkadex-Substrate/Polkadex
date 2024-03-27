@@ -138,7 +138,7 @@ pub mod pallet {
 	use crate::MAXIMUM_BLOCK_WEIGHT;
 	use sp_std::{boxed::Box, vec, vec::Vec};
 	use thea_primitives::{
-		types::{Deposit, Withdraw},
+		types::{Deposit, NewWithdraw, Withdraw},
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
 	use xcm::{
@@ -225,11 +225,23 @@ pub mod pallet {
 	pub(super) type PendingWithdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Vec<Withdraw>, ValueQuery>;
 
+	/// Pending Withdrawals
+	#[pallet::storage]
+	#[pallet::getter(fn get_new_pending_withdrawals)]
+	pub(super) type NewPendingWithdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Vec<NewWithdraw>, ValueQuery>;
+
 	/// Failed Withdrawals
 	#[pallet::storage]
 	#[pallet::getter(fn get_failed_withdrawals)]
 	pub(super) type FailedWithdrawals<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Vec<Withdraw>, ValueQuery>;
+
+	/// Failed Withdrawals
+	#[pallet::storage]
+	#[pallet::getter(fn get_new_failed_withdrawals)]
+	pub(super) type NewFailedWithdrawals<T: Config> =
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, Vec<NewWithdraw>, ValueQuery>;
 
 	/// Asset mapping from u128 asset to multi asset.
 	#[pallet::storage]
@@ -309,74 +321,9 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
-			let mut failed_withdrawal: Vec<Withdraw> = Vec::default();
-			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
-				while let Some(withdrawal) = withdrawals.pop() {
-					if !withdrawal.is_blocked {
-						let destination = match VersionedMultiLocation::decode(
-							&mut &withdrawal.destination[..],
-						) {
-							Ok(dest) => dest,
-							Err(_) => {
-								failed_withdrawal.push(withdrawal);
-								log::error!(target:"xcm-helper","Withdrawal failed: Not able to decode destination");
-								continue;
-							},
-						};
-						if !Self::is_polkadex_parachain_destination(&destination) {
-							if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
-								let multi_asset = MultiAsset {
-									id: asset,
-									fun: Fungibility::Fungible(withdrawal.amount),
-								};
-								let pallet_account: T::AccountId =
-									T::AssetHandlerPalletId::get().into_account_truncating();
-								// Mint
-								if Self::resolver_deposit(
-									withdrawal.asset_id.into(),
-									withdrawal.amount,
-									&pallet_account,
-									pallet_account.clone(),
-									1u128,
-									pallet_account.clone(),
-								)
-								.is_err()
-								{
-									failed_withdrawal.push(withdrawal.clone());
-									log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
-								};
-								if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
-									RawOrigin::Signed(
-										T::AssetHandlerPalletId::get().into_account_truncating(),
-									)
-									.into(),
-									Box::new(multi_asset.into()),
-									0,
-									Box::new(destination.clone()),
-									cumulus_primitives_core::WeightLimit::Unlimited,
-								)
-								.is_err()
-								{
-									failed_withdrawal.push(withdrawal.clone());
-									log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
-								}
-							} else {
-								failed_withdrawal.push(withdrawal)
-							}
-						} else if Self::handle_deposit(withdrawal.clone(), destination).is_err() {
-							failed_withdrawal.push(withdrawal);
-							log::error!(target:"xcm-helper","Withdrawal failed: Not able to handle dest");
-						}
-					} else {
-						failed_withdrawal.push(withdrawal);
-						log::error!(target:"xcm-helper","Withdrawal failed: Withdrawal is blocked");
-					}
-				}
-			});
+			Self::handle_old_pending_withdrawals(n);
+			Self::handle_new_pending_withdrawals(n);
 			// Only update the storage if vector is not empty
-			if !failed_withdrawal.is_empty() {
-				<FailedWithdrawals<T>>::insert(n, failed_withdrawal);
-			}
 			// TODO: We are currently over estimating the weight here to 1/4th of total block time
 			// 	Need a better way to estimate this hook
 			MAXIMUM_BLOCK_WEIGHT.saturating_div(4)
@@ -648,6 +595,213 @@ pub mod pallet {
 		pub fn insert_pending_withdrawal(block_no: BlockNumberFor<T>, withdrawal: Withdraw) {
 			<PendingWithdrawals<T>>::insert(block_no, vec![withdrawal]);
 		}
+
+		pub fn handle_old_pending_withdrawals(n: BlockNumberFor<T>) {
+			let mut failed_withdrawal: Vec<Withdraw> = Vec::default();
+			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
+				while let Some(withdrawal) = withdrawals.pop() {
+					if !withdrawal.is_blocked {
+						let destination = match VersionedMultiLocation::decode(
+							&mut &withdrawal.destination[..],
+						) {
+							Ok(dest) => dest,
+							Err(_) => {
+								failed_withdrawal.push(withdrawal);
+								log::error!(target:"xcm-helper","Withdrawal failed: Not able to decode destination");
+								continue;
+							},
+						};
+						if !Self::is_polkadex_parachain_destination(&destination) {
+							if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
+								let multi_asset = MultiAsset {
+									id: asset,
+									fun: Fungibility::Fungible(withdrawal.amount),
+								};
+								let pallet_account: T::AccountId =
+									T::AssetHandlerPalletId::get().into_account_truncating();
+								// Mint
+								if Self::resolver_deposit(
+									withdrawal.asset_id.into(),
+									withdrawal.amount,
+									&pallet_account,
+									pallet_account.clone(),
+									1u128,
+									pallet_account.clone(),
+								)
+								.is_err()
+								{
+									failed_withdrawal.push(withdrawal.clone());
+									log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+								};
+								if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
+									RawOrigin::Signed(
+										T::AssetHandlerPalletId::get().into_account_truncating(),
+									)
+									.into(),
+									Box::new(multi_asset.into()),
+									0,
+									Box::new(destination.clone()),
+									cumulus_primitives_core::WeightLimit::Unlimited,
+								)
+								.is_err()
+								{
+									failed_withdrawal.push(withdrawal.clone());
+									log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
+								}
+							} else {
+								failed_withdrawal.push(withdrawal)
+							}
+						} else if Self::handle_deposit(withdrawal.clone(), destination).is_err() {
+							failed_withdrawal.push(withdrawal);
+							log::error!(target:"xcm-helper","Withdrawal failed: Not able to handle dest");
+						}
+					} else {
+						failed_withdrawal.push(withdrawal);
+						log::error!(target:"xcm-helper","Withdrawal failed: Withdrawal is blocked");
+					}
+				}
+			});
+			if !failed_withdrawal.is_empty() {
+				<FailedWithdrawals<T>>::insert(n, failed_withdrawal);
+			}
+		}
+
+		pub fn handle_new_pending_withdrawals(n: BlockNumberFor<T>) {
+			let mut failed_withdrawal: Vec<NewWithdraw> = Vec::default();
+			<NewPendingWithdrawals<T>>::mutate(n, |withdrawals| {
+				while let Some(withdrawal) = withdrawals.pop() {
+					if !withdrawal.is_blocked {
+						let destination = match VersionedMultiLocation::decode(
+							&mut &withdrawal.destination[..],
+						) {
+							Ok(dest) => dest,
+							Err(_) => {
+								failed_withdrawal.push(withdrawal);
+								log::error!(target:"xcm-helper","Withdrawal failed: Not able to decode destination");
+								continue;
+							},
+						};
+						if !Self::is_polkadex_parachain_destination(&destination) {
+							if let (Some(fee_asset_id), Some(fee_amount)) =
+								(withdrawal.fee_asset_id, withdrawal.fee_amount)
+							{
+								if let (Some(asset), Some(fee_asset)) = (
+									Self::assets_mapping(withdrawal.asset_id),
+									Self::assets_mapping(fee_asset_id),
+								) {
+									let multi_asset = MultiAsset {
+										id: asset,
+										fun: Fungibility::Fungible(withdrawal.amount),
+									};
+									let fee_multi_asset = MultiAsset {
+										id: fee_asset,
+										fun: Fungibility::Fungible(fee_amount),
+									};
+									let pallet_account: T::AccountId =
+										T::AssetHandlerPalletId::get().into_account_truncating();
+									if Self::resolver_deposit(
+										withdrawal.asset_id.into(),
+										withdrawal.amount,
+										&pallet_account,
+										pallet_account.clone(),
+										1u128,
+										pallet_account.clone(),
+									)
+									.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+									};
+									// Deposit Fee
+									if Self::resolver_deposit(
+										fee_asset_id.into(),
+										fee_amount,
+										&pallet_account,
+										pallet_account.clone(),
+										1u128,
+										pallet_account.clone(),
+									)
+									.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+									};
+									if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
+										RawOrigin::Signed(
+											T::AssetHandlerPalletId::get()
+												.into_account_truncating(),
+										)
+										.into(),
+										Box::new(vec![multi_asset, fee_multi_asset].into()),
+										1,
+										Box::new(destination.clone()),
+										cumulus_primitives_core::WeightLimit::Unlimited,
+									)
+									.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
+									}
+								}
+							} else {
+								if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
+									let multi_asset = MultiAsset {
+										id: asset,
+										fun: Fungibility::Fungible(withdrawal.amount),
+									};
+									let pallet_account: T::AccountId =
+										T::AssetHandlerPalletId::get().into_account_truncating();
+									// Mint
+									if Self::resolver_deposit(
+										withdrawal.asset_id.into(),
+										withdrawal.amount,
+										&pallet_account,
+										pallet_account.clone(),
+										1u128,
+										pallet_account.clone(),
+									)
+									.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to mint token");
+									};
+									if orml_xtokens::module::Pallet::<T>::transfer_multiassets(
+										RawOrigin::Signed(
+											T::AssetHandlerPalletId::get()
+												.into_account_truncating(),
+										)
+										.into(),
+										Box::new(multi_asset.into()),
+										0,
+										Box::new(destination.clone()),
+										cumulus_primitives_core::WeightLimit::Unlimited,
+									)
+									.is_err()
+									{
+										failed_withdrawal.push(withdrawal.clone());
+										log::error!(target:"xcm-helper","Withdrawal failed: Not able to make xcm calls");
+									}
+								} else {
+									failed_withdrawal.push(withdrawal)
+								}
+							}
+						} else if Self::handle_deposit(withdrawal.clone().into(), destination)
+							.is_err()
+						{
+							failed_withdrawal.push(withdrawal);
+							log::error!(target:"xcm-helper","Withdrawal failed: Not able to handle dest");
+						}
+					} else {
+						failed_withdrawal.push(withdrawal);
+						log::error!(target:"xcm-helper","Withdrawal failed: Withdrawal is blocked");
+					}
+				}
+			});
+			// Only update the storage if vector is not empty
+			if !failed_withdrawal.is_empty() {
+				<NewFailedWithdrawals<T>>::insert(n, failed_withdrawal);
+			}
+		}
 	}
 
 	impl<T: Config> AssetIdConverter for Pallet<T> {
@@ -669,7 +823,7 @@ pub mod pallet {
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
 		fn execute_deposits(_: Network, deposits: Vec<u8>) {
-			let deposits = Vec::<Withdraw>::decode(&mut &deposits[..]).unwrap_or_default();
+			let deposits = Vec::<NewWithdraw>::decode(&mut &deposits[..]).unwrap_or_default();
 			for deposit in deposits {
 				// Calculate the withdrawal execution delay
 				let withdrawal_execution_block: BlockNumberFor<T> =
@@ -680,7 +834,7 @@ pub mod pallet {
 						)
 						.into();
 				// Queue the withdrawal for execution
-				<PendingWithdrawals<T>>::mutate(
+				<NewPendingWithdrawals<T>>::mutate(
 					withdrawal_execution_block,
 					|pending_withdrawals| {
 						pending_withdrawals.push(deposit);
