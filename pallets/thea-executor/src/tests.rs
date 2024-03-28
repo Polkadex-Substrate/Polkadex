@@ -31,7 +31,8 @@ use sp_runtime::{
 	traits::{AccountIdConversion, BadOrigin},
 	SaturatedConversion,
 };
-use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
+use thea_primitives::types::NewWithdraw;
+use thea_primitives::types::{AssetMetadata, Deposit};
 use xcm::{opaque::lts::Junctions, v3::MultiLocation, VersionedMultiLocation};
 
 fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
@@ -93,11 +94,13 @@ fn test_transfer_native_asset() {
 		));
 		// Verify
 		let pending_withdrawal = <PendingWithdrawals<Test>>::get(1);
-		let approved_withdraw = Withdraw {
+		let approved_withdraw = NewWithdraw {
 			id: Vec::from([179, 96, 16, 235, 40, 92, 21, 74, 140, 214]),
 			asset_id,
 			amount: 10_000_000_000_000u128,
 			destination: vec![1; 32],
+			fee_asset_id: None,
+			fee_amount: None,
 			is_blocked: false,
 			extra: vec![],
 		};
@@ -208,6 +211,8 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -219,6 +224,8 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -231,6 +238,8 @@ fn test_parachain_withdraw_full() {
 				u128::MAX,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -243,6 +252,8 @@ fn test_parachain_withdraw_full() {
 				asset_id,
 				1_000_000_000,
 				beneficiary.clone(),
+				None,
+				None,
 				false,
 				false
 			),
@@ -254,6 +265,8 @@ fn test_parachain_withdraw_full() {
 			asset_id,
 			1_000_000_000,
 			beneficiary.clone(),
+			None,
+			None,
 			false,
 			false
 		));

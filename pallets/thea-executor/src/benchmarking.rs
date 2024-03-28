@@ -30,7 +30,8 @@ use parity_scale_codec::Decode;
 use polkadex_primitives::UNIT_BALANCE;
 use sp_runtime::{traits::AccountIdConversion, SaturatedConversion};
 use sp_std::{boxed::Box, collections::btree_set::BTreeSet, vec, vec::Vec};
-use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
+use thea_primitives::types::NewWithdraw;
+use thea_primitives::types::{AssetMetadata, Deposit};
 use xcm::VersionedMultiLocation;
 
 fn create_deposit<T: Config>(recipient: T::AccountId) -> Vec<Deposit<T::AccountId>> {
@@ -107,7 +108,7 @@ benchmarks! {
 		<WithdrawalFees<T>>::insert(network_id, 1_000);
 		let multilocation = MultiLocation { parents: 1, interior: Junctions::Here };
 		let benificary = VersionedMultiLocation::V3(multilocation);
-	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, Box::new(benificary), true, false)
+	}: _(RawOrigin::Signed(account.clone()), 100, 1_000_000_000_000, Box::new(benificary), None, None, true, false)
 	verify {
 		let ready_withdrawal = <ReadyWithdrawals<T>>::get(<frame_system::Pallet<T>>::block_number(), network_id);
 		assert_eq!(ready_withdrawal.len(), 1);
@@ -139,11 +140,13 @@ benchmarks! {
 		let y in 1 .. 1_000;
 		let network_len: usize = x as usize;
 		let network_len: u8 = network_len as u8;
-		let withdrawal = Withdraw {
+		let withdrawal = NewWithdraw {
 			id: vec![],
 			asset_id: 100,
 			amount: 1_000_000_000_000,
 			destination: vec![],
+			fee_asset_id: None,
+			fee_amount: None,
 			is_blocked: false,
 			extra: vec![],
 		};

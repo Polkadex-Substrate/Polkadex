@@ -269,6 +269,40 @@ pub struct Withdraw {
 	pub extra: Vec<u8>,
 }
 
+impl From<NewWithdraw> for Withdraw {
+	fn from(value: NewWithdraw) -> Self {
+		Self {
+			id: value.id,
+			asset_id: value.asset_id,
+			amount: value.amount,
+			destination: value.destination,
+			is_blocked: value.is_blocked,
+			extra: value.extra,
+		}
+	}
+}
+
+#[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug)]
+pub struct NewWithdraw {
+	/// Identifier of the withdrawal.
+	pub id: Vec<u8>,
+	// Unique identifier
+	/// Asset identifier.
+	pub asset_id: u128,
+	/// Amount of the withdrawal.
+	pub amount: u128,
+	/// Receiver of the withdrawal.
+	pub destination: Vec<u8>,
+	/// Fee Asset Id
+	pub fee_asset_id: Option<u128>,
+	/// Fee Amount
+	pub fee_amount: Option<u128>,
+	/// Defines if withdraw operation is blocked.
+	pub is_blocked: bool,
+	/// Extra data.
+	pub extra: Vec<u8>,
+}
+
 /// Metadata of asset's decimals
 #[derive(Encode, Decode, Clone, TypeInfo, PartialEq, Debug, Copy)]
 pub struct AssetMetadata {
