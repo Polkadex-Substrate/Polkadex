@@ -32,7 +32,7 @@ use sp_runtime::{
 	SaturatedConversion,
 };
 use thea_primitives::types::NewWithdraw;
-use thea_primitives::types::{AssetMetadata, Deposit, Withdraw};
+use thea_primitives::types::{AssetMetadata, Deposit};
 use xcm::{opaque::lts::Junctions, v3::MultiLocation, VersionedMultiLocation};
 
 fn assert_last_event<T: crate::Config>(generic_event: <T as crate::Config>::RuntimeEvent) {
