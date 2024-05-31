@@ -22,10 +22,10 @@
 pub mod offchain;
 
 use jsonrpsee::{
-	core::{async_trait, Error as JsonRpseeError, RpcResult},
+	core::{async_trait,  RpcResult},
 	proc_macros::rpc,
 	tracing::log,
-	types::error::{CallError, ErrorObject},
+	types::error::{ErrorObject},
 };
 use orderbook_primitives::{
 	recovery::{DeviationMap, ObCheckpoint, ObRecoveryState},
@@ -40,6 +40,7 @@ use sp_blockchain::HeaderBackend;
 use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
+use jsonrpsee::types::ErrorObjectOwned;
 
 const RUNTIME_ERROR: i32 = 1;
 const RETRIES: u8 = 3;
@@ -423,8 +424,7 @@ where
 }
 
 /// Converts a runtime trap into an RPC error.
-fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
+fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> ErrorObjectOwned {
 	log::error!(target:"ocex","runtime rpc error: {:?} ",err);
-	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
-		.into()
+	ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}")))
 }

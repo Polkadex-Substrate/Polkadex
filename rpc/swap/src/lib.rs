@@ -20,11 +20,12 @@
 //! recovery data.
 
 use jsonrpsee::{
-	core::{async_trait, Error as JsonRpseeError, RpcResult},
+	core::{async_trait, RpcResult},
 	proc_macros::rpc,
 	tracing::log,
-	types::error::{CallError, ErrorObject},
+	types::error::{ ErrorObject},
 };
+use jsonrpsee::types::error::ErrorObjectOwned;
 pub use pallet_asset_conversion::AssetConversionApi;
 use polkadex_primitives::AssetId;
 use sp_api::ProvideRuntimeApi;
@@ -89,7 +90,7 @@ impl<Client, Block> PolkadexSwapRpcApiServer<<Block as BlockT>::Hash>
 where
 	Block: BlockT,
 	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
-	Client::Api: pallet_asset_conversion::AssetConversionApi<Block, u128, u128, AssetId>,
+	Client::Api: pallet_asset_conversion::AssetConversionApi<Block, u128, AssetId>,
 {
 	async fn quote_price_exact_tokens_for_tokens(
 		&self,
@@ -149,8 +150,7 @@ where
 }
 
 /// Converts a runtime trap into an RPC error.
-fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
+fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> ErrorObjectOwned {
 	log::error!(target:"ocex","runtime rpc error: {:?} ",err);
-	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
-		.into()
+	ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}")))
 }

@@ -1,8 +1,9 @@
 use frame_support::pallet_prelude::TypeInfo;
 use parity_scale_codec::{Decode, Encode};
-use xcm::latest::MultiLocation;
-use xcm::prelude::{AccountId32, PalletInstance, X1, X2};
+use xcm::v3::MultiLocation;
+use xcm::v3::prelude::{AccountId32, PalletInstance};
 use xcm::v3::NetworkId;
+use xcm::v3::prelude::{X1, X2};
 
 /// Extra data fields in Thea message, this can be extended
 /// with new variants for future features
@@ -14,7 +15,7 @@ pub enum ExtraData {
 }
 
 pub fn extract_data_from_multilocation(
-	multi_location: xcm::latest::MultiLocation,
+	multi_location: xcm::v3::MultiLocation,
 ) -> Option<([u8; 32], ExtraData)> {
 	match multi_location {
 		// Normal deposit

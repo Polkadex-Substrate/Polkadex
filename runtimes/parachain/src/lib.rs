@@ -492,16 +492,6 @@ impl xcm_helper::Config for Runtime {
 	type WeightInfo = xcm_helper::weights::WeightInfo<Runtime>;
 }
 
-parameter_types! {
-	pub const MinimumActiveCouncilSize: u8 = 2;
-}
-
-impl thea_council::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MinimumActiveCouncilSize = MinimumActiveCouncilSize;
-	type RetainPeriod = ConstU64<7200>;
-	type TheaCouncilWeightInfo = thea_council::weights::WeightInfo<Runtime>;
-}
 
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * DOLLARS;
@@ -589,7 +579,6 @@ construct_runtime!(
 
 		// Custom Pallets
 		XcmHelper: xcm_helper  = 40,
-		TheaCouncil: thea_council = 41,
 		Sudo: pallet_sudo = 45,
 
 		// Thea Pallet
@@ -610,7 +599,6 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[pallet_collator_selection, CollatorSelection]
 		[cumulus_pallet_xcmp_queue, XcmpQueue]
-		[thea_council, TheaCouncil]
 		[xcm_helper, XcmHelper]
 	);
 }
@@ -785,7 +773,6 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmark!(list, extra, xcm_helper, XcmHelper);
-			list_benchmark!(list, extra, thea_council, TheaCouncil);
 			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
@@ -827,7 +814,6 @@ impl_runtime_apis! {
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
-			add_benchmark!(params, batches, thea_council, TheaCouncil);
 			add_benchmark!(params, batches, xcm_helper, XcmHelper);
 			add_benchmarks!(params, batches);
 

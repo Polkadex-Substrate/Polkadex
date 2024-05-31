@@ -38,6 +38,7 @@ use polkadot_parachain_primitives::primitives::{
 	DmpMessageHandler, Id as ParaId, Sibling, XcmpMessageFormat, XcmpMessageHandler,
 };
 use xcm::{latest::prelude::*, VersionedXcm};
+use xcm::v3::MultiLocation;
 use xcm_builder::{
 	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, ConvertedConcreteId,
 	CurrencyAdapter as XcmCurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds,
@@ -87,6 +88,12 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = ();
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<16>;
+	type RuntimeTask = ();
+	type SingleBlockMigrations = ();
+	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -96,18 +103,18 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = MaxLocks;
-	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = ();
+	type WeightInfo = ();
+	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type FreezeIdentifier = ();
-	type MaxHolds = ConstU32<0>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
 	type MaxFreezes = ConstU32<0>;
 }
 
@@ -128,8 +135,9 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = MultiLocation;
 	type ItemId = AssetInstance;
 	type Currency = Balances;
-	type CreateOrigin = ForeignCreators;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type CreateOrigin = ForeignCreators;
+	type Locker = ();
 	type CollectionDeposit = frame_support::traits::ConstU128<1_000>;
 	type ItemDeposit = frame_support::traits::ConstU128<1_000>;
 	type MetadataDepositBase = frame_support::traits::ConstU128<1_000>;
@@ -138,10 +146,9 @@ impl pallet_uniques::Config for Runtime {
 	type StringLimit = ConstU32<64>;
 	type KeyLimit = ConstU32<64>;
 	type ValueLimit = ConstU32<128>;
-	type Locker = ();
-	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type Helper = UniquesHelper;
+	type WeightInfo = ();
 }
 
 // `EnsureOriginWithArg` impl for `CreateOrigin` which allows only XCM origins

@@ -480,6 +480,7 @@ pub mod pallet {
 				config.share_id,
 				&lp,
 				shares,
+				Preservation::Expendable,
 				Precision::Exact,
 				Fortitude::Polite,
 			)?;
@@ -718,6 +719,7 @@ pub mod pallet {
 				pool_config.share_id,
 				&lp,
 				lp_shares,
+				Preservation::Expendable,
 				Precision::Exact,
 				Fortitude::Force,
 			)?;

@@ -26,13 +26,13 @@ use sp_core::H160;
 
 use crate::{AccountId, Balance};
 use serde::{Deserialize, Serialize};
-use xcm::latest::MultiLocation;
+use xcm::latest::Location;
 
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, Debug, PartialEq, Eq, TypeInfo, Serialize, Deserialize,
 )]
 pub enum WithdrawalDestination {
-	Polkadot(MultiLocation, Option<(AssetId, Balance)>),
+	Polkadot(Location, Option<(AssetId, Balance)>),
 }
 
 /// Defines withdrawal structure.

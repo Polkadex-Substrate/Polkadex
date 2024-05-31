@@ -142,14 +142,15 @@ pub mod pallet {
 		types::{Deposit, Withdraw},
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
+	use xcm::prelude::Location;
 	use xcm::{
-		latest::{
+		prelude::Parachain,
+		v3::AssetId,
+		v3::{
 			Error as XcmError, Fungibility, Junction, Junctions, MultiAsset, MultiAssets,
 			MultiLocation, XcmContext,
 		},
-		prelude::Parachain,
-		v3::AssetId,
-		VersionedMultiAssets, VersionedMultiLocation,
+		VersionedAsset, VersionedLocation,
 	};
 	use xcm_executor::{
 		traits::{ConvertLocation as MoreConvert, TransactAsset},
@@ -187,21 +188,29 @@ pub mod pallet {
 		/// Multilocation to AccountId Convert
 		type AccountIdConvert: MoreConvert<Self::AccountId>;
 		/// Assets
-		type Assets: frame_support::traits::tokens::fungibles::Mutate<Self::AccountId>
-			+ frame_support::traits::tokens::fungibles::Create<Self::AccountId>
-			+ frame_support::traits::tokens::fungibles::Inspect<Self::AccountId>
-			+ frame_support::traits::tokens::fungibles::metadata::Mutate<Self::AccountId>;
+		type Assets: frame_support::traits::tokens::fungibles::Mutate<
+				<Self as frame_system::Config>::AccountId,
+			> + frame_support::traits::tokens::fungibles::Create<
+				<Self as frame_system::Config>::AccountId,
+			> + frame_support::traits::tokens::fungibles::Inspect<
+				<Self as frame_system::Config>::AccountId,
+			> + frame_support::traits::tokens::fungibles::metadata::Mutate<
+				<Self as frame_system::Config>::AccountId,
+			>;
 		/// Asset Id
 		type AssetId: Member
 			+ Parameter
 			+ Copy
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
-			+ Into<<<Self as Config>::Assets as Inspect<Self::AccountId>>::AssetId>
+			+ Into<<<Self as Config>::Assets as Inspect<<Self as frame_system::Config>::AccountId>>::AssetId>
 			+ From<polkadex_primitives::AssetId>;
 		/// Balances Pallet
-		type Currency: frame_support::traits::tokens::fungible::Mutate<Self::AccountId>
-			+ frame_support::traits::tokens::fungible::Inspect<Self::AccountId>;
+		type Currency: frame_support::traits::tokens::fungible::Mutate<
+				<Self as frame_system::Config>::AccountId,
+			> + frame_support::traits::tokens::fungible::Inspect<
+				<Self as frame_system::Config>::AccountId,
+			>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		/// Message Executor
@@ -281,7 +290,7 @@ pub mod pallet {
 		/// Token Whitelisted For Xcm [token]
 		TokenWhitelistedForXcm(polkadex_primitives::AssetId),
 		/// Xcm Fee Transferred [recipient, amount]
-		XcmFeeTransferred(T::AccountId, u128),
+		XcmFeeTransferred(<T as frame_system::Config>::AccountId, u128),
 		/// Native asset id mapping is registered
 		NativeAssetIdMappingRegistered(polkadex_primitives::AssetId, Box<AssetId>),
 		/// Whitelisted Token removed
@@ -348,7 +357,7 @@ pub mod pallet {
 			let token = Self::generate_asset_id_for_parachain(token);
 			let mut whitelisted_tokens = <WhitelistedTokens<T>>::get();
 			ensure!(!whitelisted_tokens.contains(&token), Error::<T>::TokenIsAlreadyWhitelisted);
-			let pallet_account: T::AccountId =
+			let pallet_account: <T as frame_system::Config>::AccountId =
 				T::AssetHandlerPalletId::get().into_account_truncating();
 			Self::resolve_create(token.into(), pallet_account, 1u128)?;
 			whitelisted_tokens.push(token);
@@ -378,7 +387,10 @@ pub mod pallet {
 
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::transfer_fee(1))]
-		pub fn transfer_fee(origin: OriginFor<T>, to: T::AccountId) -> DispatchResult {
+		pub fn transfer_fee(
+			origin: OriginFor<T>,
+			to: <T as frame_system::Config>::AccountId,
+		) -> DispatchResult {
 			T::AssetCreateUpdateOrigin::ensure_origin(origin)?;
 			let from = T::AssetHandlerPalletId::get().into_account_truncating();
 			let amount =
@@ -401,8 +413,8 @@ pub mod pallet {
 	{
 		/// Generate Ingress Message for new Deposit
 		fn deposit_asset(
-			what: &MultiAsset,
-			who: &MultiLocation,
+			what: &Asset,
+			who: &Location,
 			_context: &XcmContext,
 		) -> xcm::latest::Result {
 			// Create approved deposit
@@ -413,7 +425,7 @@ pub mod pallet {
 
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
 			let asset_id = Self::generate_asset_id_for_parachain(*id);
-			let deposit: Deposit<T::AccountId> = Deposit {
+			let deposit: Deposit<<T as frame_system::Config>::AccountId> = Deposit {
 				id: Self::new_random_id(None),
 				recipient: recipient.into(),
 				asset_id,
@@ -446,7 +458,7 @@ pub mod pallet {
 			let who = T::AccountIdConvert::convert_location(who).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
 			let asset_id = Self::generate_asset_id_for_parachain(what.id);
-			let pallet_account: T::AccountId =
+			let pallet_account: <T as frame_system::Config>::AccountId =
 				T::AssetHandlerPalletId::get().into_account_truncating();
 			Self::resolver_withdraw(asset_id.into(), amount.saturated_into(), &who, pallet_account)
 				.map_err(|_| XcmError::Trap(25))?;
@@ -489,20 +501,17 @@ pub mod pallet {
 		}
 
 		/// Get Pallet Id
-		pub fn get_pallet_account() -> T::AccountId {
+		pub fn get_pallet_account() -> <T as frame_system::Config>::AccountId {
 			T::AssetHandlerPalletId::get().into_account_truncating()
 		}
 
 		/// Route deposit to destined function
-		pub fn handle_deposit(
-			withdrawal: Withdraw,
-			location: VersionedMultiLocation,
-		) -> DispatchResult {
+		pub fn handle_deposit(withdrawal: Withdraw, location: VersionedLocation) -> DispatchResult {
 			let destination_account = Self::get_destination_account(
 				location.try_into().map_err(|_| Error::<T>::UnableToConvertToMultiLocation)?,
 			)
 			.ok_or(Error::<T>::UnableToConvertToAccount)?;
-			let pallet_account: T::AccountId =
+			let pallet_account: <T as frame_system::Config>::AccountId =
 				T::AssetHandlerPalletId::get().into_account_truncating();
 			Self::resolver_deposit(
 				withdrawal.asset_id.into(),
@@ -516,11 +525,15 @@ pub mod pallet {
 		}
 
 		/// Converts Multi-Location to AccountId
-		pub fn get_destination_account(location: MultiLocation) -> Option<T::AccountId> {
+		pub fn get_destination_account(
+			location: MultiLocation,
+		) -> Option<<T as frame_system::Config>::AccountId> {
 			match location {
 				MultiLocation { parents: 0, interior } => {
 					if let Junctions::X1(Junction::AccountId32 { network: _, id }) = interior {
-						if let Ok(account) = T::AccountId::decode(&mut &id[..]) {
+						if let Ok(account) =
+							<T as frame_system::Config>::AccountId::decode(&mut &id[..])
+						{
 							Some(account)
 						} else {
 							None
@@ -534,7 +547,7 @@ pub mod pallet {
 		}
 
 		/// Check if location is meant for Native Parachain
-		pub fn is_polkadex_parachain_destination(destination: &VersionedMultiLocation) -> bool {
+		pub fn is_polkadex_parachain_destination(destination: &VersionedLocation) -> bool {
 			let destination: Option<MultiLocation> = destination.clone().try_into().ok();
 			if let Some(destination) = destination {
 				destination.parents == 0
@@ -544,7 +557,7 @@ pub mod pallet {
 		}
 
 		/// Checks if asset is meant for Parachain
-		pub fn is_parachain_asset(versioned_asset: &VersionedMultiAssets) -> bool {
+		pub fn is_parachain_asset(versioned_asset: &VersionedAsset) -> bool {
 			let native_asset = MultiLocation { parents: 0, interior: Junctions::Here };
 			let assets: Option<MultiAssets> = versioned_asset.clone().try_into().ok();
 			if let Some(assets) = assets {
@@ -623,16 +636,15 @@ pub mod pallet {
 			<PendingWithdrawals<T>>::mutate(n, |withdrawals| {
 				while let Some(withdrawal) = withdrawals.pop() {
 					if !withdrawal.is_blocked {
-						let destination = match VersionedMultiLocation::decode(
-							&mut &withdrawal.destination[..],
-						) {
-							Ok(dest) => dest,
-							Err(_) => {
-								failed_withdrawal.push(withdrawal);
-								log::error!(target:"xcm-helper","Withdrawal failed: Not able to decode destination");
-								continue;
-							},
-						};
+						let destination =
+							match VersionedLocation::decode(&mut &withdrawal.destination[..]) {
+								Ok(dest) => dest,
+								Err(_) => {
+									failed_withdrawal.push(withdrawal);
+									log::error!(target:"xcm-helper","Withdrawal failed: Not able to decode destination");
+									continue;
+								},
+							};
 						if !Self::is_polkadex_parachain_destination(&destination) {
 							if let (Some(fee_asset_id), Some(fee_amount)) =
 								(withdrawal.fee_asset_id, withdrawal.fee_amount)
@@ -649,7 +661,7 @@ pub mod pallet {
 										id: fee_asset,
 										fun: Fungibility::Fungible(fee_amount),
 									};
-									let pallet_account: T::AccountId =
+									let pallet_account: <T as frame_system::Config>::AccountId =
 										T::AssetHandlerPalletId::get().into_account_truncating();
 									if Self::resolver_deposit(
 										withdrawal.asset_id.into(),
@@ -706,7 +718,7 @@ pub mod pallet {
 									id: asset,
 									fun: Fungibility::Fungible(withdrawal.amount),
 								};
-								let pallet_account: T::AccountId =
+								let pallet_account: <T as frame_system::Config>::AccountId =
 									T::AssetHandlerPalletId::get().into_account_truncating();
 								// Mint
 								if Self::resolver_deposit(
@@ -809,7 +821,7 @@ pub mod pallet {
 
 	impl<T: Config>
 		polkadex_primitives::assets::Resolver<
-			T::AccountId,
+			<T as frame_system::Config>::AccountId,
 			T::Currency,
 			T::Assets,
 			T::AssetId,

@@ -59,10 +59,10 @@ benchmarks! {
 
 	transfer_fee {
 		let b in 1 .. 1000;
-		let pallet_account: T::AccountId = T::AssetHandlerPalletId::get().into_account_truncating();
+		let pallet_account: <T as frame_system::Config>::AccountId = T::AssetHandlerPalletId::get().into_account_truncating();
 		let asset = T::NativeAssetId::get();
 		T::Currency::mint_into(&pallet_account, 2_000_000_000_000_000u128.saturated_into()).unwrap();
-		let recipeint: T::AccountId = account("mem1", b, SEED);
+		let recipeint: <T as frame_system::Config>::AccountId = account("mem1", b, SEED);
 	}: _(RawOrigin::Root, recipeint.clone())
 	verify {
 		assert_eq!(T::Currency::balance(&recipeint), 1999000000000000u128.saturated_into());
@@ -70,7 +70,7 @@ benchmarks! {
 	// TODO: We need to adapt this benchmark to work in runtime context
 	// on_initialize {
 	// 	let x: T::BlockNumber = 1u64.saturated_into();
-	// 	let pallet_account: T::AccountId = T::AssetHandlerPalletId::get().into_account_truncating();
+	// 	let pallet_account: <T as frame_system::Config>::AccountId = T::AssetHandlerPalletId::get().into_account_truncating();
 	// 	let asset = T::NativeAssetId::get();
 	// 	let asset_id = AssetId::Concrete(MultiLocation::new(1, Junctions::X1(Junction::Parachain(1000))));
 	// 	let asset_id = XcmHelper::<T>::generate_asset_id_for_parachain(asset_id);

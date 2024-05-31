@@ -28,7 +28,7 @@ use frame_support::{
 		Get,
 	},
 };
-use pallet_asset_conversion::{MultiAssetIdConversionResult, MultiAssetIdConverter};
+
 #[cfg(not(feature = "std"))]
 use scale_info::prelude::{format, string::String};
 use scale_info::TypeInfo;
@@ -42,7 +42,7 @@ use sp_std::fmt::{Display, Formatter};
 
 /// Resolver trait for handling different types of assets for deposit and withdrawal operations
 pub trait Resolver<
-	AccountId,
+	AccountId: sp_std::cmp::Eq,
 	Native: frame_support::traits::tokens::fungible::Mutate<AccountId>
 		+ frame_support::traits::tokens::fungible::Inspect<AccountId>,
 	Others: frame_support::traits::tokens::fungibles::Mutate<AccountId>
@@ -99,6 +99,7 @@ pub trait Resolver<
 				asset.into(),
 				who,
 				amount.saturated_into(),
+				Preservation::Expendable,
 				Precision::Exact,
 				Fortitude::Polite,
 			)?;
@@ -213,24 +214,24 @@ impl From<AssetId> for u128 {
 	}
 }
 
-pub struct AssetIdConverter;
-
-impl MultiAssetIdConverter<AssetId, u128> for AssetIdConverter {
-	fn get_native() -> AssetId {
-		AssetId::Polkadex
-	}
-
-	fn is_native(asset: &AssetId) -> bool {
-		*asset == Self::get_native()
-	}
-
-	fn try_convert(asset: &AssetId) -> MultiAssetIdConversionResult<AssetId, u128> {
-		match asset {
-			AssetId::Polkadex => MultiAssetIdConversionResult::Native,
-			AssetId::Asset(id) => MultiAssetIdConversionResult::Converted(*id),
-		}
-	}
-}
+// pub struct AssetIdConverter;
+//
+// impl MultiAssetIdConverter<AssetId, u128> for AssetIdConverter {
+// 	fn get_native() -> AssetId {
+// 		AssetId::Polkadex
+// 	}
+//
+// 	fn is_native(asset: &AssetId) -> bool {
+// 		*asset == Self::get_native()
+// 	}
+//
+// 	fn try_convert(asset: &AssetId) -> MultiAssetIdConversionResult<AssetId, u128> {
+// 		match asset {
+// 			AssetId::Polkadex => MultiAssetIdConversionResult::Native,
+// 			AssetId::Asset(id) => MultiAssetIdConversionResult::Converted(*id),
+// 		}
+// 	}
+// }
 
 impl Serialize for AssetId {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

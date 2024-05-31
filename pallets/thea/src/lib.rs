@@ -662,6 +662,7 @@ pub mod pallet {
 						T::NativeCurrency::burn_from(
 							&report.fisherman,
 							report.stake.saturated_into(),
+							Preservation::Expendable,
 							Precision::BestEffort,
 							Fortitude::Force,
 						)?;

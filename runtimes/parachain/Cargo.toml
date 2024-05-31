@@ -81,7 +81,6 @@ orml-xcm-support = { workspace = true, default-features = false }
 
 # Local
 xcm-helper = { path = "../../pallets/xcm-helper", default-features = false }
-thea-council = { path = "../../pallets/thea-council", default-features = false }
 thea-message-handler = { path = "../../pallets/thea-message-handler", default-features = false }
 thea = { path = "../../pallets/thea", default-features = false }
 thea-primitives = { path = "../../primitives/thea", default-features = false }
@@ -137,7 +136,6 @@ std = [
   "xcm-helper/std",
   "orml-xtokens/std",
   "orml-traits/std",
-  "thea-council/std",
   "orml-xcm-support/std",
   "thea-message-handler/std",
   "thea-primitives/std",
@@ -160,7 +158,6 @@ runtime-benchmarks = [
   "cumulus-pallet-session-benchmarking/runtime-benchmarks",
   "cumulus-pallet-xcmp-queue/runtime-benchmarks",
   "xcm-helper/runtime-benchmarks",
-  "thea-council/runtime-benchmarks",
   "pallet-assets/runtime-benchmarks",
   "cumulus-pallet-parachain-system/runtime-benchmarks",
 ]
@@ -191,5 +188,4 @@ try-runtime = [
   "orml-xtokens/try-runtime",
   "thea-message-handler/try-runtime",
   "xcm-helper/try-runtime",
-  "thea-council/try-runtime",
 ]

@@ -25,7 +25,7 @@
 extern crate core;
 
 use frame_support::pallet_prelude::Weight;
-pub use pallet::*;
+
 use xcm::v3::AssetId as XcmAssetId;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -74,7 +74,6 @@ pub mod pallet {
 		types::{AssetMetadata, Deposit},
 		Network, TheaBenchmarkHelper, TheaIncomingExecutor, TheaOutgoingExecutor, NATIVE_NETWORK,
 	};
-	use xcm::VersionedMultiLocation;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -103,14 +102,12 @@ pub mod pallet {
 			+ Into<<<Self as pallet::Config>::Assets as Inspect<Self::AccountId>>::AssetId>
 			+ From<polkadex_primitives::AssetId>
 			+ From<u128>;
-		type MultiAssetIdAdapter: From<AssetId>
-			+ Into<<Self as pallet_asset_conversion::Config>::MultiAssetId>;
 
-		type AssetBalanceAdapter: Into<<Self as pallet_asset_conversion::Config>::AssetBalance>
-			+ Copy
-			+ From<<Self as pallet_asset_conversion::Config>::AssetBalance>
+		type AssetBalanceAdapter: Copy
 			+ From<u128>
-			+ Into<u128>;
+			+ Into<u128>
+			+ From<<<Self as pallet::Config>::Swap as Swap<<Self as frame_system::Config>::AccountId>>::Balance>
+			+ Into<<<Self as pallet::Config>::Swap as Swap<<Self as frame_system::Config>::AccountId>>::Balance>;
 		/// Asset Create/ Update Origin
 		type AssetCreateUpdateOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 		/// Something that executes the payload
@@ -121,11 +118,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type TheaPalletId: Get<frame_support::PalletId>;
 
-		type Swap: pallet_asset_conversion::Swap<
-			Self::AccountId,
-			u128,
-			polkadex_primitives::AssetId,
-		>;
+		type Swap: pallet_asset_conversion::Swap<Self::AccountId>;
 		type Orderbook: OrderbookOperations<Self::AccountId>;
 		/// Total Withdrawals
 		#[pallet::constant]
@@ -281,7 +274,9 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	{
 		#[pallet::call_index(0)]
 		#[pallet::weight(< T as Config >::TheaExecWeightInfo::withdraw(1))]
 		#[transactional]
@@ -337,7 +332,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_id: AssetId,
 			amount: u128,
-			beneficiary: sp_std::boxed::Box<VersionedMultiLocation>,
+			beneficiary: sp_std::boxed::Box<xcm::VersionedLocation>,
 			fee_asset_id: Option<AssetId>,
 			fee_amount: Option<u128>,
 			pay_for_remaining: bool,
@@ -397,6 +392,7 @@ pub mod pallet {
 			let burned_amt = <T as Config>::Currency::burn_from(
 				&who,
 				amount.saturated_into(),
+				Preservation::Expendable,
 				Precision::BestEffort,
 				Fortitude::Force,
 			)?;
@@ -509,7 +505,9 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	{
 		/// Generates a new random id for withdrawals with an optional prefix
 		fn new_random_id(prefix: Option<[u8; 4]>) -> H160 {
 			let mut nonce = <RandomnessNonce<T>>::get();
@@ -540,7 +538,9 @@ pub mod pallet {
 			network: Network,
 			pay_with_tokens: bool,
 			txid: Option<H160>,
-		) -> Result<(), DispatchError> {
+		) -> Result<(), DispatchError>
+
+		{
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
@@ -570,7 +570,7 @@ pub mod pallet {
 
 			if pay_with_tokens && asset_id != AssetId::Polkadex {
 				// User wants to pay with withdrawing tokens.
-				let path = sp_std::vec![asset_id, polkadex_primitives::AssetId::Polkadex];
+				let path = sp_std::vec![asset_id.into(), polkadex_primitives::AssetId::Polkadex.into()];
 				let token_taken = T::Swap::swap_tokens_for_exact_tokens(
 					user.clone(),
 					path,
@@ -680,23 +680,23 @@ pub mod pallet {
 					&& deposit.asset_id != AssetId::Polkadex
 				{
 					let path =
-						sp_std::vec![deposit.asset_id, polkadex_primitives::AssetId::Polkadex];
+						sp_std::vec![deposit.asset_id.into(), polkadex_primitives::AssetId::Polkadex.into()];
 					let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
 					Self::resolve_mint(
 						&Self::thea_account(),
 						deposit.asset_id.into(),
-						deposit_amount,
+						deposit_amount.into(),
 					)?;
 					// If swap doesn't work then it will in the system account - thea_account()
 					let fee_amount = T::Swap::swap_tokens_for_exact_tokens(
 						Self::thea_account(),
 						path,
 						amount_out.into(),
-						Some(deposit_amount),
+						Some(deposit_amount.saturated_into()),
 						deposit.recipient.clone(),
 						true,
 					)?;
-					let final_amount = deposit_amount.saturating_sub(fee_amount);
+					let final_amount = deposit_amount.saturating_sub(fee_amount.saturated_into());
 					Self::resolve_transfer(
 						deposit.asset_id.into(),
 						&Self::thea_account(),
@@ -739,7 +739,9 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> TheaIncomingExecutor for Pallet<T> {
+	impl<T: Config> TheaIncomingExecutor for Pallet<T>
+		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	{
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
 			if let Err(error) = Self::do_deposit(network, &deposits) {
 				Self::deposit_event(Event::<T>::DepositFailed(network, deposits));
@@ -767,18 +769,20 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> polkadex_primitives::traits::CrossChainWithdraw<T::AccountId> for Pallet<T> {
+	impl<T: Config> polkadex_primitives::traits::CrossChainWithdraw<T::AccountId> for Pallet<T>
+		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	{
 		fn parachain_withdraw(
 			user: T::AccountId,
 			asset_id: AssetId,
 			amount: u128,
-			beneficiary: xcm::latest::MultiLocation,
+			beneficiary: xcm::latest::Location,
 			fee_asset_id: Option<AssetId>,
 			fee_amount: Option<u128>,
 			id: H160,
 		) -> DispatchResult {
 			let network = 1;
-			let versioned_multilocation: xcm::VersionedMultiLocation = beneficiary.into();
+			let versioned_multilocation: xcm::VersionedLocation = beneficiary.into();
 			Self::do_withdraw(
 				user,
 				asset_id,

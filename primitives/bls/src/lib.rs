@@ -101,6 +101,10 @@ pub struct Public(pub [u8; 96]);
 pub struct Signature(pub [u8; 48]);
 
 impl Signature {
+
+	pub fn as_mut(&mut self) -> &mut [u8] {
+		&mut self.0
+	}
 	/// Aggregates two signatures.
 	///
 	/// # Parameters
@@ -252,6 +256,21 @@ impl CryptoType for Pair {
 	type Pair = Pair;
 }
 
+#[cfg(feature = "std")]
+impl CryptoType for Signature {
+	type Pair = Pair;
+}
+
+impl ByteArray for Signature {
+	const LEN: usize = 48;
+}
+
+impl AsMut<[u8]> for Signature {
+	fn as_mut(&mut self) -> &mut [u8]{
+		&mut self.0
+	}
+}
+
 impl ByteArray for Public {
 	const LEN: usize = 96;
 }
@@ -394,6 +413,11 @@ pub fn hash_to_curve_g1(message: &[u8]) -> Result<G1Projective, HashToCurveError
 		WBMap<G1Config>,
 	>::new(DST.as_ref())?;
 	Ok(wb_to_curve_hasher.hash(message)?.into())
+}
+
+#[cfg(feature = "std")]
+impl sp_application_crypto::Signature for Signature {
+
 }
 
 #[cfg(test)]

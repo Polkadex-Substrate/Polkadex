@@ -21,10 +21,11 @@
 use std::sync::Arc;
 
 use jsonrpsee::{
-	core::{async_trait, Error as JsonRpseeError, RpcResult},
+	core::{async_trait, RpcResult},
 	proc_macros::rpc,
-	types::error::{CallError, ErrorObject},
+	types::error::{ ErrorObject},
 };
+use jsonrpsee::types::error::ErrorObjectOwned;
 pub use pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi;
 use parity_scale_codec::Codec;
 use sp_api::ProvideRuntimeApi;
@@ -98,7 +99,6 @@ where
 }
 
 /// Converts a runtime trap into an RPC error.
-fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> JsonRpseeError {
-	CallError::Custom(ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}"))))
-		.into()
+fn runtime_error_into_rpc_err(err: impl std::fmt::Debug) -> ErrorObjectOwned {
+	ErrorObject::owned(RUNTIME_ERROR, "Runtime error", Some(format!("{err:?}")))
 }
