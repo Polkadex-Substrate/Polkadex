@@ -118,7 +118,6 @@ sp-statement-store = { git = "https://github.com/paritytech/polkadot-sdk", branc
 pallet-asset-conversion = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 pallet-asset-conversion-tx-payment = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 
-orml-vesting = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
@@ -189,9 +188,7 @@ trie-db = { version = "0.29.1", default-features = false }
 
 #Parachain Dependencies
 cumulus-primitives-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
-orml-xtokens = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }                                                  #FIXME: Remove rev
-orml-traits = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }                                                   #FIXME: Remove rev
-pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }                                             #FIXME: Remove rev
+pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
 xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
 xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
 parachain-info = {  package = "staging-parachain-info", git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
@@ -203,10 +200,14 @@ cumulus-pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", branc
 cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 cumulus-primitives-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
-#Here Oeml
-orml-xcm-support = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", branch = "master", default-features = false }                                                     #FIXME: Remove rev
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
 pallet-collator-selection = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 polkadot-parachain = { package = "polkadot-parachain-primitives", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
 sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "master" }
+
+# ORML
+orml-xtokens = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch = "polkadot-master", default-features = false }
+orml-traits = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch = "polkadot-master", default-features = false }
+orml-xcm-support = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch = "polkadot-master", default-features = false }
+orml-vesting = { git = "https://github.com/Polkadex-Substrate/open-runtime-module-library.git", branch = "polkadot-master", default-features = false }

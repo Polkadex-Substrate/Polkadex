@@ -117,6 +117,7 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use std::sync::Arc;
 	use frame_support::{
 		dispatch::RawOrigin,
 		pallet_prelude::*,
@@ -142,20 +143,8 @@ pub mod pallet {
 		types::{Deposit, Withdraw},
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
-	use xcm::prelude::Location;
-	use xcm::{
-		prelude::Parachain,
-		v3::AssetId,
-		v3::{
-			Error as XcmError, Fungibility, Junction, Junctions, MultiAsset, MultiAssets,
-			MultiLocation, XcmContext,
-		},
-		VersionedAsset, VersionedLocation,
-	};
-	use xcm_executor::{
-		traits::{ConvertLocation as MoreConvert, TransactAsset},
-		Assets,
-	};
+	use xcm::prelude::{*};
+	use xcm_executor::{AssetsInHolding, traits::{ConvertLocation as MoreConvert, TransactAsset}};
 
 	pub trait XcmHelperWeightInfo {
 		fn whitelist_token(_b: u32) -> Weight;
@@ -167,10 +156,10 @@ pub mod pallet {
 		/// Converts AssetId to MultiLocation
 		fn convert_asset_id_to_location(
 			asset_id: polkadex_primitives::AssetId,
-		) -> Option<MultiLocation>;
+		) -> Option<Location>;
 		/// Converts Location to AssetId
 		fn convert_location_to_asset_id(
-			location: MultiLocation,
+			location: Location,
 		) -> Option<polkadex_primitives::AssetId>;
 	}
 
@@ -253,7 +242,6 @@ pub mod pallet {
 		StorageMap<_, Identity, polkadex_primitives::AssetId, AssetId, OptionQuery>;
 
 	/// Whitelist Tokens
-	/// // TODO: @zktony migrate from u128 to AssetId
 	#[pallet::storage]
 	#[pallet::getter(fn get_whitelisted_tokens)]
 	pub type WhitelistedTokens<T: Config> =
@@ -277,8 +265,8 @@ pub mod pallet {
 		/// parameters. [id, recipient, multi-asset, asset_id, extradata]
 		AssetDeposited(
 			H160,
-			Box<MultiLocation>,
-			Box<MultiAsset>,
+			Box<Location>,
+			Box<Asset>,
 			polkadex_primitives::AssetId,
 			ExtraData,
 		),
@@ -401,8 +389,8 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Convert<polkadex_primitives::AssetId, Option<MultiLocation>> for Pallet<T> {
-		fn convert(asset_id: polkadex_primitives::AssetId) -> Option<MultiLocation> {
+	impl<T: Config> Convert<polkadex_primitives::AssetId, Option<Location>> for Pallet<T> {
+		fn convert(asset_id: polkadex_primitives::AssetId) -> Option<Location> {
 			Self::convert_asset_id_to_location(asset_id)
 		}
 	}
@@ -415,16 +403,16 @@ pub mod pallet {
 		fn deposit_asset(
 			what: &Asset,
 			who: &Location,
-			_context: &XcmContext,
+			_context: Option<&XcmContext>,
 		) -> xcm::latest::Result {
 			// Create approved deposit
-			let MultiAsset { id, fun } = what;
+			let Asset { id, fun } = what;
 
 			let (recipient, extra) =
-				extract_data_from_multilocation(*who).ok_or(XcmError::FailedToDecode)?;
+				extract_data_from_multilocation(who).ok_or(XcmError::FailedToDecode)?;
 
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
-			let asset_id = Self::generate_asset_id_for_parachain(*id);
+			let asset_id = Self::generate_asset_id_for_parachain(id.clone());
 			let deposit: Deposit<<T as frame_system::Config>::AccountId> = Deposit {
 				id: Self::new_random_id(None),
 				recipient: recipient.into(),
@@ -439,7 +427,7 @@ pub mod pallet {
 				.map_err(|_| XcmError::Trap(102))?;
 			Self::deposit_event(Event::<T>::AssetDeposited(
 				unique_id,
-				Box::new(*who),
+				Box::new(who.clone()),
 				Box::new(what.clone()),
 				asset_id,
 				extra,
@@ -450,14 +438,14 @@ pub mod pallet {
 		/// Burns/Lock asset from provided account.
 		//TODO: Check for context
 		fn withdraw_asset(
-			what: &MultiAsset,
-			who: &MultiLocation,
+			what: &Asset,
+			who: &Location,
 			_context: Option<&XcmContext>,
-		) -> sp_std::result::Result<Assets, XcmError> {
-			let MultiAsset { id: _, fun } = what;
+		) -> sp_std::result::Result<AssetsInHolding, XcmError> {
+			let Asset { id: _, fun } = what;
 			let who = T::AccountIdConvert::convert_location(who).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
-			let asset_id = Self::generate_asset_id_for_parachain(what.id);
+			let asset_id = Self::generate_asset_id_for_parachain(what.clone().id);
 			let pallet_account: <T as frame_system::Config>::AccountId =
 				T::AssetHandlerPalletId::get().into_account_truncating();
 			Self::resolver_withdraw(asset_id.into(), amount.saturated_into(), &who, pallet_account)
@@ -467,17 +455,17 @@ pub mod pallet {
 
 		/// Transfers Asset from source account to destination account
 		fn transfer_asset(
-			asset: &MultiAsset,
-			from: &MultiLocation,
-			to: &MultiLocation,
+			asset: &Asset,
+			from: &Location,
+			to: &Location,
 			_context: &XcmContext,
-		) -> sp_std::result::Result<Assets, XcmError> {
-			let MultiAsset { id, fun } = asset;
+		) -> sp_std::result::Result<AssetsInHolding, XcmError> {
+			let Asset { id, fun } = asset;
 			let from =
 				T::AccountIdConvert::convert_location(from).ok_or(XcmError::FailedToDecode)?;
 			let to = T::AccountIdConvert::convert_location(to).ok_or(XcmError::FailedToDecode)?;
 			let amount: u128 = Self::get_amount(fun).ok_or(XcmError::Trap(101))?;
-			let asset_id = Self::generate_asset_id_for_parachain(*id);
+			let asset_id = Self::generate_asset_id_for_parachain(id.clone());
 			Self::resolve_transfer(asset_id.into(), &from, &to, amount)
 				.map_err(|_| XcmError::Trap(102))?;
 			Ok(asset.clone().into())
@@ -526,17 +514,23 @@ pub mod pallet {
 
 		/// Converts Multi-Location to AccountId
 		pub fn get_destination_account(
-			location: MultiLocation,
+			location: Location,
 		) -> Option<<T as frame_system::Config>::AccountId> {
 			match location {
-				MultiLocation { parents: 0, interior } => {
-					if let Junctions::X1(Junction::AccountId32 { network: _, id }) = interior {
-						if let Ok(account) =
-							<T as frame_system::Config>::AccountId::decode(&mut &id[..])
-						{
-							Some(account)
-						} else {
-							None
+				Location { parents: 0, interior } => {
+					if let Junctions::X1(int) = interior {
+						let int = *int.clone();
+						match int {
+							[Junction::AccountId32 { network: _, id }] => {
+								if let Ok(account) =
+									<T as frame_system::Config>::AccountId::decode(&mut &id[..])
+								{
+									Some(account)
+								} else {
+									None
+								}
+							}
+							_ => None
 						}
 					} else {
 						None
@@ -548,7 +542,7 @@ pub mod pallet {
 
 		/// Check if location is meant for Native Parachain
 		pub fn is_polkadex_parachain_destination(destination: &VersionedLocation) -> bool {
-			let destination: Option<MultiLocation> = destination.clone().try_into().ok();
+			let destination: Option<Location> = destination.clone().try_into().ok();
 			if let Some(destination) = destination {
 				destination.parents == 0
 			} else {
@@ -558,14 +552,9 @@ pub mod pallet {
 
 		/// Checks if asset is meant for Parachain
 		pub fn is_parachain_asset(versioned_asset: &VersionedAsset) -> bool {
-			let native_asset = MultiLocation { parents: 0, interior: Junctions::Here };
-			let assets: Option<MultiAssets> = versioned_asset.clone().try_into().ok();
-			if let Some(assets) = assets {
-				if let Some(asset) = assets.get(0) {
-					matches!(asset.id, AssetId::Concrete(location) if location == native_asset)
-				} else {
-					false
-				}
+			let asset: Option<Asset> = versioned_asset.clone().try_into().ok();
+			if let Some(asset) = asset {
+				matches!(asset.id.0, Location { parents: 0, interior: Junctions::Here })
 			} else {
 				false
 			}
@@ -575,15 +564,15 @@ pub mod pallet {
 		pub fn generate_asset_id_for_parachain(asset: AssetId) -> polkadex_primitives::AssetId {
 			// Check if its native or not.
 			if asset
-				== AssetId::Concrete(MultiLocation {
+				== AssetId(Location {
 					parents: 1,
-					interior: Junctions::X1(Parachain(T::ParachainId::get())),
+					interior: Junctions::X1(Arc::new([Parachain(T::ParachainId::get())])),
 				}) {
 				return polkadex_primitives::AssetId::Polkadex;
 			}
 			// If it's not native, then hash and generate the asset id
 			let asset_id =
-				polkadex_primitives::assets::generate_asset_id_for_parachain(Box::new(asset));
+				polkadex_primitives::assets::generate_asset_id_for_parachain(Box::new(asset.clone()));
 			if !<ParachainAssets<T>>::contains_key(asset_id) {
 				// Store the mapping
 				<ParachainAssets<T>>::insert(asset_id, asset);
@@ -613,18 +602,15 @@ pub mod pallet {
 		/// Converts asset_id to XCM::MultiLocation
 		pub fn convert_asset_id_to_location(
 			asset_id: polkadex_primitives::AssetId,
-		) -> Option<MultiLocation> {
-			Self::assets_mapping(asset_id).and_then(|asset| match asset {
-				AssetId::Concrete(location) => Some(location),
-				AssetId::Abstract(_) => None,
-			})
+		) -> Option<Location> {
+			Self::assets_mapping(asset_id).and_then(|asset| Some(asset.0))
 		}
 
 		/// Converts Multilocation to u128
 		pub fn convert_location_to_asset_id(
-			location: MultiLocation,
+			location: Location,
 		) -> polkadex_primitives::AssetId {
-			Self::generate_asset_id_for_parachain(AssetId::Concrete(location))
+			Self::generate_asset_id_for_parachain(AssetId(location))
 		}
 
 		pub fn insert_pending_withdrawal(block_no: BlockNumberFor<T>, withdrawal: Withdraw) {
@@ -653,11 +639,11 @@ pub mod pallet {
 									Self::assets_mapping(withdrawal.asset_id),
 									Self::assets_mapping(fee_asset_id),
 								) {
-									let multi_asset = MultiAsset {
+									let multi_asset = Asset {
 										id: asset,
 										fun: Fungibility::Fungible(withdrawal.amount),
 									};
-									let fee_multi_asset = MultiAsset {
+									let fee_multi_asset = Asset {
 										id: fee_asset,
 										fun: Fungibility::Fungible(fee_amount),
 									};
@@ -714,7 +700,7 @@ pub mod pallet {
 									}
 								}
 							} else if let Some(asset) = Self::assets_mapping(withdrawal.asset_id) {
-								let multi_asset = MultiAsset {
+								let multi_asset = Asset {
 									id: asset,
 									fun: Fungibility::Fungible(withdrawal.amount),
 								};
@@ -778,12 +764,12 @@ pub mod pallet {
 	impl<T: Config> AssetIdConverter for Pallet<T> {
 		fn convert_asset_id_to_location(
 			asset_id: polkadex_primitives::AssetId,
-		) -> Option<MultiLocation> {
+		) -> Option<Location> {
 			Self::convert_asset_id_to_location(asset_id)
 		}
 
 		fn convert_location_to_asset_id(
-			location: MultiLocation,
+			location: Location,
 		) -> Option<polkadex_primitives::AssetId> {
 			Some(Self::convert_location_to_asset_id(location))
 		}

@@ -298,9 +298,8 @@ impl<'de> Visitor<'de> for AssetId {
 }
 
 pub fn generate_asset_id_for_parachain(
-	asset: sp_std::boxed::Box<xcm::v3::AssetId>,
+	asset: sp_std::boxed::Box<xcm::latest::AssetId>,
 ) -> crate::AssetId {
-	// TODO: @zktony handle PDEX multi asset
 	AssetId::Asset(u128::from_be_bytes(sp_io::hashing::blake2_128(&asset.encode()[..])))
 }
 
