@@ -26,7 +26,7 @@ extern crate core;
 
 use frame_support::pallet_prelude::Weight;
 
-use xcm::v3::AssetId as XcmAssetId;
+use xcm::latest::AssetId as XcmAssetId;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
