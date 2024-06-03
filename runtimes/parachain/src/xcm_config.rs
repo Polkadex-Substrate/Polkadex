@@ -34,6 +34,7 @@ use polkadot_runtime_common::impls::ToAuthor;
 use sp_core::{ConstU32, Get};
 use sp_runtime::{traits::Convert, SaturatedConversion};
 use xcm::latest::{prelude::*, Weight as XCMWeight, Weight};
+use xcm::latest::Junctions::X1;
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds,
@@ -251,20 +252,20 @@ impl cumulus_pallet_xcm::Config for Runtime {
 }
 
 pub struct AccountIdToMultiLocation;
-impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
-	fn convert(account: AccountId) -> MultiLocation {
-		X1(AccountId32 { network: None, id: account.into() }).into()
+impl Convert<AccountId, Location> for AccountIdToMultiLocation {
+	fn convert(account: AccountId) -> Location {
+		X1(sp_std::sync::Arc::new([AccountId32 { network: None, id: account.into() }])).into()
 	}
 }
 
 parameter_types! {
-	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::get().into())));
+	pub SelfLocation: Location = Location::new(1, X1(sp_std::sync::Arc::new([Parachain(ParachainInfo::get().into())])));
 	pub BaseXcmWeight: Weight =  XCMWeight::from_parts(100_000_000, 0);
 	pub const MaxAssetsForTransfer: usize = 2;
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+	pub ParachainMinFee: |_location: Location| -> Option<u128> {
 		Some(1u128)
 	};
 }
@@ -274,16 +275,18 @@ impl orml_xtokens::Config for Runtime {
 	type Balance = Balance;
 	type CurrencyId = polkadex_primitives::AssetId;
 	type CurrencyIdConvert = XcmHelper;
-	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
 	type MinXcmFee = ParachainMinFee;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type MultiLocationsFilter = Everything;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type BaseXcmWeight = BaseXcmWeight;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
 	type ReserveProvider = AbsoluteReserveProvider;
 	type UniversalLocation = UniversalLocation;
+	type AccountIdToLocation = AccountIdToMultiLocation;
+	type LocationsFilter = Everything;
+	type RateLimiter = ();
+	type RateLimiterId = ();
 }
 
 pub struct ForeignAssetFeeHandler<T, R, AC, WH>
@@ -328,8 +331,8 @@ where
 		_context: &XcmContext,
 	) -> sp_std::result::Result<Assets, XcmError> {
 		let _fee_in_native_token = T::weight_to_fee(&weight);
-		let payment_asset = payment.fungible_assets_iter().next().ok_or(XcmError::Trap(1000))?;
-		if let AssetId::Concrete(location) = payment_asset.id {
+		let payment_asset = payment.clone().into_inner().get(0).ok_or(XcmError::Trap(1000))?;
+		if let AssetId(location) = payment_asset.clone().id {
 			// let foreign_currency_asset_id =
 			// AC::convert_location_to_asset_id(location).ok_or(XcmError::Trap(1001))?;
 			// let _path = [PolkadexAssetid::get(), foreign_currency_asset_id.into()];

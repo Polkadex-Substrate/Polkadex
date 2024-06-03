@@ -117,7 +117,6 @@ pub use weights::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use std::sync::Arc;
 	use frame_support::{
 		dispatch::RawOrigin,
 		pallet_prelude::*,
@@ -566,7 +565,7 @@ pub mod pallet {
 			if asset
 				== AssetId(Location {
 					parents: 1,
-					interior: Junctions::X1(Arc::new([Parachain(T::ParachainId::get())])),
+					interior: Junctions::X1(sp_std::sync::Arc::new([Parachain(T::ParachainId::get())])),
 				}) {
 				return polkadex_primitives::AssetId::Polkadex;
 			}

@@ -55,6 +55,7 @@ exclude = ["scripts/check-off-on-deviation"]
 
 [workspace.dependencies]
 log = { version = "0.4.8", default-features = false }
+primitive-types = { version = "0.12.0", default-features = false, features = ["codec", "scale-info", "num-traits"] }
 anyhow = "1.0.56"
 smallvec = "1.6.1"
 jsonrpsee = "0.22.5"
@@ -68,7 +69,7 @@ rust_decimal = { git = "https://github.com/Polkadex-Substrate/rust-decimal.git",
 scale-info = { version = "2.1.2", default-features = false }
 thea-primitives = { path = "primitives/thea", default-features = false }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
-frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false, features = ["experimental"] }
 frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }

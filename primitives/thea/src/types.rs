@@ -123,7 +123,6 @@ impl<Signature> SignedMessage<Signature> {
 	}
 }
 
-pub const THEA_HOLD_REASON: [u8; 8] = *b"theaRela";
 
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum NetworkType {

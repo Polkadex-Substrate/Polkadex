@@ -57,7 +57,7 @@ pallet-asset-conversion = { default-features = false, workspace = true }
 pallet-asset-conversion-tx-payment = { default-features = false, workspace = true }
 
 #frame
-frame-support = { default-features = false, workspace = true }
+frame-support = { default-features = false, workspace = true, features = ["experimental"]}
 frame-system = { default-features = false, workspace = true }
 frame-executive = { default-features = false, workspace = true }
 
@@ -77,7 +77,8 @@ sp-storage = { workspace = true, default-features = false, optional = true }
 sp-authority-discovery = { default-features = false, workspace = true }
 sp-block-builder = { default-features = false, workspace = true }
 sp-consensus-babe = { default-features = false, workspace = true }
-sp-core = { default-features = false, workspace = true }
+sp-core = { default-features = false, workspace = true}
+primitive-types = { default-features = false, workspace = true, features = ["num-traits"]}
 sp-inherents = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 sp-npos-elections = { default-features = false, workspace = true }
@@ -125,6 +126,7 @@ substrate-wasm-builder = { workspace = true }
 [features]
 default = ["std"]
 std = [
+  "primitive-types/std",
   "rust_decimal/std",
   "parity-scale-codec/std",
   "scale-info/std",

@@ -37,7 +37,7 @@ use serde::{
 	Deserialize, Deserializer, Serialize, Serializer,
 };
 use sp_core::RuntimeDebug;
-use sp_runtime::{DispatchError, SaturatedConversion};
+use sp_runtime::{DispatchError, Either, SaturatedConversion};
 use sp_std::fmt::{Display, Formatter};
 
 /// Resolver trait for handling different types of assets for deposit and withdrawal operations
@@ -194,7 +194,7 @@ impl AssetId {
 	}
 }
 
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::{Convert, Zero};
 impl From<u128> for AssetId {
 	fn from(value: u128) -> Self {
 		if value.is_zero() {
@@ -214,24 +214,15 @@ impl From<AssetId> for u128 {
 	}
 }
 
-// pub struct AssetIdConverter;
-//
-// impl MultiAssetIdConverter<AssetId, u128> for AssetIdConverter {
-// 	fn get_native() -> AssetId {
-// 		AssetId::Polkadex
-// 	}
-//
-// 	fn is_native(asset: &AssetId) -> bool {
-// 		*asset == Self::get_native()
-// 	}
-//
-// 	fn try_convert(asset: &AssetId) -> MultiAssetIdConversionResult<AssetId, u128> {
-// 		match asset {
-// 			AssetId::Polkadex => MultiAssetIdConversionResult::Native,
-// 			AssetId::Asset(id) => MultiAssetIdConversionResult::Converted(*id),
-// 		}
-// 	}
-// }
+pub struct PolkadexNativeFromLeft;
+impl<AssetId: Ord + From<crate::AssetId>> Convert<crate::AssetId, Either<(), AssetId>> for PolkadexNativeFromLeft {
+	fn convert(asset: crate::AssetId) -> Either<(), AssetId> {
+		match asset {
+			crate::AssetId::Polkadex => Either::Left(()),
+			crate::AssetId::Asset(id) => Either::Right(crate::AssetId::Asset(id).into()),
+		}
+	}
+}
 
 impl Serialize for AssetId {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

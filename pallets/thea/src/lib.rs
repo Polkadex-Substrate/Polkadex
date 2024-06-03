@@ -104,14 +104,17 @@ pub mod pallet {
 	use frame_system::offchain::SendTransactionTypes;
 	use polkadex_primitives::Balance;
 	use thea_primitives::{
-		types::{IncomingMessage, Message, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON},
+		types::{IncomingMessage, Message, MisbehaviourReport, SignedMessage},
 		TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
+	use frame_support::traits::VariantCount;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		/// Runtime hold reasons type
+		type RuntimeHoldReason: Parameter + Member + MaxEncodedLen + Copy + VariantCount + From<HoldReason>;
 		/// Authority identifier type
 		type TheaId: Member
 			+ Parameter
@@ -137,7 +140,7 @@ pub mod pallet {
 		/// Balances Pallet
 		type NativeCurrency: frame_support::traits::fungible::Mutate<Self::AccountId>
 			+ frame_support::traits::fungible::Inspect<Self::AccountId>
-			+ frame_support::traits::fungible::hold::Mutate<Self::AccountId, Reason = [u8; 8]>;
+			+ frame_support::traits::fungible::hold::Mutate<Self::AccountId, Reason = Self::RuntimeHoldReason>;
 
 		/// Governance Origin
 		type TheaGovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
@@ -147,6 +150,11 @@ pub mod pallet {
 
 		/// Type representing the weight of this pallet
 		type WeightInfo: TheaWeightInfo;
+	}
+
+	#[pallet::composite_enum]
+	pub enum HoldReason {
+		Thea
 	}
 
 	#[pallet::pallet]
@@ -331,7 +339,7 @@ pub mod pallet {
 								msg.message,
 							);
 							if let Err(err) = T::NativeCurrency::release(
-								&THEA_HOLD_REASON,
+								&HoldReason::Thea.into(),
 								&msg.relayer,
 								msg.stake.saturated_into(),
 								Precision::BestEffort,
@@ -398,7 +406,7 @@ pub mod pallet {
 			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
 				None => {
 					// Lock balance
-					T::NativeCurrency::hold(&THEA_HOLD_REASON, &signer, stake.saturated_into())?;
+					T::NativeCurrency::hold(&HoldReason::Thea.into(), &signer, stake.saturated_into())?;
 					// Put it in a queue
 					<IncomingMessagesQueue<T>>::insert(
 						payload.network,
@@ -417,13 +425,13 @@ pub mod pallet {
 					// Update the message only if stake is higher.
 					if existing_payload.stake < stake {
 						T::NativeCurrency::release(
-							&THEA_HOLD_REASON,
+							&HoldReason::Thea.into(),
 							&existing_payload.relayer,
 							existing_payload.stake.saturated_into(),
 							Precision::BestEffort,
 						)?;
 						T::NativeCurrency::hold(
-							&THEA_HOLD_REASON,
+							&HoldReason::Thea.into(),
 							&signer,
 							stake.saturated_into(),
 						)?;
@@ -591,7 +599,7 @@ pub mod pallet {
 				return Err(Error::<T>::NotEnoughStake.into());
 			}
 			T::NativeCurrency::hold(
-				&THEA_HOLD_REASON,
+				&HoldReason::Thea.into(),
 				&fisherman,
 				config.fisherman_stake.saturated_into(),
 			)?;
@@ -632,7 +640,7 @@ pub mod pallet {
 					if acceptance {
 						// Release lock on relayer
 						T::NativeCurrency::release(
-							&THEA_HOLD_REASON,
+							&HoldReason::Thea.into(),
 							&report.reported_msg.relayer,
 							report.reported_msg.stake.saturated_into(),
 							Precision::BestEffort,
@@ -646,7 +654,7 @@ pub mod pallet {
 						)?;
 						// Release fisherman lock
 						T::NativeCurrency::release(
-							&THEA_HOLD_REASON,
+							&HoldReason::Thea.into(),
 							&report.fisherman,
 							report.stake.saturated_into(),
 							Precision::BestEffort,
