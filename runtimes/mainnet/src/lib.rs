@@ -92,6 +92,7 @@ use sp_std::{prelude::*, vec};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
+use frame_support::genesis_builder_helper::{build_state, get_preset};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
@@ -1960,6 +1961,20 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, thea_message_handler, TheaMH);
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
+		}
+	}
+
+	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_state::<RuntimeGenesisConfig>(config)
+		}
+
+		fn get_preset(id: &Option<sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
+			get_preset::<RuntimeGenesisConfig>(id, |_| None)
+		}
+
+		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
+			vec![]
 		}
 	}
 }

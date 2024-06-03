@@ -45,6 +45,7 @@ frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 pallet-im-online = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
+pallet-staking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 sc-client-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 sc-chain-spec = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }

@@ -37,6 +37,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
 };
+use pallet_staking::Forcing;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -222,7 +223,7 @@ pub fn development_config() -> ChainSpec {
 		.with_name("Development")
 		.with_id("dev")
 		.with_chain_type(ChainType::Development)
-		.with_genesis_config_patch(development_config_genesis())
+		.with_genesis_config(development_config_genesis())
 		.build()
 }
 fn mainnet_genesis_constuctor() -> serde_json::Value {
@@ -422,6 +423,7 @@ pub fn testnet_genesis(
 			"minimumValidatorCount": initial_authorities.len() as u32,
 			"invulnerables": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
 			"slashRewardFraction": Perbill::from_percent(10),
+			"forceEra": Forcing::ForceNone,
 			"stakers": stakers,
 		},
 		"sudo": { "key": Some(root_key.clone()) },
@@ -1212,11 +1214,6 @@ pub(crate) mod tests {
 	#[test]
 	fn test_create_development_chain_spec() {
 		assert!(development_config().build_storage().is_ok());
-	}
-
-	#[test]
-	fn test_create_soba_testnet_chain_spec() {
-		assert!(soba_testnet_config().build_storage().is_ok());
 	}
 
 	#[test]

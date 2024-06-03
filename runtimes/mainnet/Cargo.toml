@@ -76,6 +76,7 @@ sp-storage = { workspace = true, default-features = false, optional = true }
 #added
 sp-authority-discovery = { default-features = false, workspace = true }
 sp-block-builder = { default-features = false, workspace = true }
+sp-genesis-builder = { default-features = false, workspace = true }
 sp-consensus-babe = { default-features = false, workspace = true }
 sp-core = { default-features = false, workspace = true}
 primitive-types = { default-features = false, workspace = true, features = ["num-traits"]}

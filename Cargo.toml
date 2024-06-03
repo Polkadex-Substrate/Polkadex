@@ -137,6 +137,7 @@ sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "m
 sp-authorship = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
+sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-consensus-babe = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-npos-elections = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
