@@ -35,7 +35,7 @@ node-polkadex-runtime = { path = "../../runtimes/mainnet" }
 rpc-assets = { path = "../../rpc/assets" }
 pallet-rewards-rpc = { path = "../../pallets/rewards/rpc" }
 pallet-ocex-rpc = { path = "../../pallets/ocex/rpc" }
-polkadex-client = { path = "../../client" }
+bls-primitives = { path = "../../primitives/bls" }
 
 thea = { path = "../../pallets/thea" }
 pallet-ocex-lmp = { path = "../../pallets/ocex" }
@@ -73,6 +73,7 @@ sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master
 sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 grandpa-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", package = "sp-consensus-grandpa" }
 sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 sc-telemetry = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
@@ -95,6 +96,7 @@ sc-service = { git = "https://github.com/paritytech/polkadot-sdk", branch = "mas
 sp-transaction-storage-proof = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master" }
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "master", optional = true }
 substrate-cli-test-utils = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "master", optional = true }
+serde_json = "1.0.117"
 
 [dev-dependencies]
 futures = "0.3.9"

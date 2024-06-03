@@ -22,7 +22,6 @@ panic = "unwind"
 [workspace]
 resolver = "2"
 members = [
-  "client",
   "nodes/mainnet",
   "nodes/parachain",
   "runtimes/mainnet",

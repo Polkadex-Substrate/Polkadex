@@ -21,16 +21,14 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use itertools::Itertools;
 use node_polkadex_runtime::{
-	constants::currency::PDEX, wasm_binary_unwrap, BabeConfig, BalancesConfig, CouncilConfig,
-	IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig, RuntimeGenesisConfig, SessionConfig,
-	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	constants::currency::PDEX, wasm_binary_unwrap, SessionKeys, StakerStatus
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
-use sc_telemetry::TelemetryEndpoints;
+use sc_telemetry::{serde_json, TelemetryEndpoints};
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -56,11 +54,12 @@ pub struct Extensions {
 	pub fork_blocks: sc_client_api::ForkBlocks<Block>,
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
+	/// The light sync state extension used by the sync-state rpc.
 	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
-pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 pub(crate) fn session_keys(
 	grandpa: GrandpaId,
@@ -73,7 +72,7 @@ pub(crate) fn session_keys(
 	SessionKeys { grandpa, babe, im_online, authority_discovery, orderbook, thea }
 }
 
-fn udon_testnet_config_genesis() -> RuntimeGenesisConfig {
+fn udon_testnet_config_genesis() -> serde_json::Value {
 	let seed = "owner word vocal dose decline sunset battle example forget excite gentle waste//";
 	let mut initial_authorities: Vec<(
 		AccountId,
@@ -153,22 +152,14 @@ fn udon_testnet_config_genesis() -> RuntimeGenesisConfig {
 
 /// Staging testnet config.
 pub fn udon_testnet_config() -> ChainSpec {
-	let boot_nodes = vec![];
-	ChainSpec::from_genesis(
-		"Polkadex Test Net",
-		"polkadex_udon_testnet",
-		ChainType::Live,
-		udon_testnet_config_genesis,
-		boot_nodes,
-		Some(
-			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-				.expect("Staging telemetry url is valid; qed"),
-		),
-		None,
-		None,
-		None,
-		Default::default(),
-	)
+	ChainSpec::builder(wasm_binary_unwrap(), Default::default())
+		.with_name("Polkadex Test Net")
+		.with_id("polkadex_udon_testnet")
+		.with_chain_type(ChainType::Local)
+		.with_genesis_config_patch(udon_testnet_config_genesis())
+		.with_telemetry_endpoints(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+									  .expect("Staging telemetry url is valid; qed"))
+		.build()
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -211,7 +202,7 @@ pub fn authority_keys_from_seed(
 	)
 }
 
-fn development_config_genesis() -> RuntimeGenesisConfig {
+fn development_config_genesis() -> serde_json::Value {
 	let enclave_developement_account: AccountId =
 		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
 
@@ -227,50 +218,14 @@ fn development_config_genesis() -> RuntimeGenesisConfig {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
-	ChainSpec::from_genesis(
-		"Development",
-		"dev",
-		ChainType::Development,
-		development_config_genesis,
-		vec![],
-		None,
-		None,
-		None,
-		None,
-		Default::default(),
-	)
+	ChainSpec::builder(wasm_binary_unwrap(), Default::default())
+		.with_name("Development")
+		.with_id("dev")
+		.with_chain_type(ChainType::Development)
+		.with_genesis_config_patch(development_config_genesis())
+		.build()
 }
-
-fn soba_testnet_genesis() -> RuntimeGenesisConfig {
-	let enclave_developement_account: AccountId =
-		hex!["90ea3ff124ecd5732b9e95a85f6bf17258e735be5dd950351f4269956de0b976"].into();
-	let orderbook_test_main_account: AccountId =
-		hex!["6e9fb6f4db2e7efcb189ae75b98705976bf10a419edbce4b9a6a7a065826b82c"].into();
-	testnet_genesis(
-		vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
-		vec![],
-		Some(vec![enclave_developement_account, orderbook_test_main_account]),
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-/// Local testnet config ()
-pub fn soba_testnet_config() -> ChainSpec {
-	ChainSpec::from_genesis(
-		"Local Testnet",
-		"soba_testnet",
-		ChainType::Local,
-		soba_testnet_genesis,
-		vec![],
-		None,
-		None,
-		None,
-		None,
-		Default::default(),
-	)
-}
-
-fn mainnet_genesis_constuctor() -> RuntimeGenesisConfig {
+fn mainnet_genesis_constuctor() -> serde_json::Value {
 	let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
@@ -337,21 +292,16 @@ fn mainnet_genesis_constuctor() -> RuntimeGenesisConfig {
 pub fn mainnet_testnet_config() -> ChainSpec {
 	let bootnodes = vec![String::from("/dns/mainnet-eu-1.polkadex.trade/tcp/30333/ws/p2p/12D3KooWBkf4SQe38JS3RQx9RsDuYfA1PpVMMjjE4d23wPfGGVa1").try_into().unwrap()];
 	const POLKADEX_PROTOCOL_ID: &str = "pdex";
-	ChainSpec::from_genesis(
-		"Polkadex Main Network",
-		"polkadex_main_network",
-		ChainType::Live,
-		mainnet_genesis_constuctor,
-		bootnodes,
-		Some(
-			TelemetryEndpoints::new(vec![(MAINNET_TELEMETRY_URL.to_string(), 0)])
-				.expect("Staging telemetry url is valid; qed"),
-		),
-		Some(POLKADEX_PROTOCOL_ID),
-		None,
-		None,
-		Default::default(),
-	)
+	ChainSpec::builder(wasm_binary_unwrap(), Default::default())
+		.with_name("Polkadex Main Network")
+		.with_id("polkadex_main_network")
+		.with_chain_type(ChainType::Live)
+		.with_genesis_config_patch(mainnet_genesis_constuctor())
+		.with_boot_nodes(bootnodes)
+		.with_telemetry_endpoints(TelemetryEndpoints::new(vec![(MAINNET_TELEMETRY_URL.to_string(), 0)])
+									  .expect("Staging telemetry url is valid; qed"))
+		.with_protocol_id(POLKADEX_PROTOCOL_ID)
+		.build()
 }
 
 fn adjust_treasury_balance_for_initial_validators(
@@ -361,7 +311,7 @@ fn adjust_treasury_balance_for_initial_validators(
 	// The extra one is for root_key
 	(initial_validators + 1) as u128 * endowment
 }
-
+use node_polkadex_runtime::constants::currency::DOLLARS;
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
 	initial_authorities: Vec<(
@@ -377,7 +327,7 @@ pub fn testnet_genesis(
 	_initial_nominators: Vec<AccountId>,
 	development_accounts: Option<Vec<AccountId>>,
 	root_key: AccountId,
-) -> RuntimeGenesisConfig {
+) -> serde_json::Value {
 	const ENDOWMENT: u128 = 100 * PDEX;
 	const STASH: u128 = 2 * PDEX;
 	// Total Supply in ERC20
@@ -439,14 +389,17 @@ pub fn testnet_genesis(
 		);
 	}
 	let vesting = get_vesting_terms();
+	let stakers: Vec<_> = initial_authorities
+		.iter()
+		.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::<AccountId>::Validator)) // stash, controller, balance, status
+		.collect();
 
-	RuntimeGenesisConfig {
-		system: SystemConfig { code: wasm_binary_unwrap().to_vec(), ..Default::default() },
-		balances: BalancesConfig { balances: endowed_accounts },
-
-		indices: IndicesConfig { indices: vec![] },
-		session: SessionConfig {
-			keys: initial_authorities
+	serde_json::json!({
+		"balances": {
+			"balances": endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect::<Vec<_>>(),
+		},
+		"session": {
+			"keys": initial_authorities
 				.iter()
 				.map(|x| {
 					(
@@ -464,41 +417,27 @@ pub fn testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		staking: StakingConfig {
-			minimum_validator_count: 1,
-			validator_count: initial_authorities.len() as u32,
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)) // stash, controller, balance, status
-				.collect(),
-			slash_reward_fraction: Perbill::from_percent(10),
-			..Default::default()
+		"staking": {
+			"validatorCount": initial_authorities.len() as u32,
+			"minimumValidatorCount": initial_authorities.len() as u32,
+			"invulnerables": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			"slashRewardFraction": Perbill::from_percent(10),
+			"stakers": stakers,
 		},
-		elections: Default::default(),
-		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
-			members: vec![],
-			phantom: Default::default(),
+		"sudo": { "key": Some(root_key.clone()) },
+		"babe": {
+			"epochConfig": Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		democracy: Default::default(),
-		sudo: SudoConfig { key: Some(root_key) },
-		babe: BabeConfig {
-			authorities: Default::default(),
-			epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
-			..Default::default()
+		"assets": {
+			// This asset is used by the NIS pallet as counterpart currency.
+			"assets": vec![(9, get_account_id_from_seed::<sr25519::Public>("Alice"), true, 1)],
 		},
-		im_online: Default::default(),
-		authority_discovery: Default::default(),
-		grandpa: Default::default(),
-		technical_membership: Default::default(),
-		treasury: Default::default(),
-		orml_vesting: OrmlVestingConfig { vesting },
-		pdex_migration: PDEXMigrationConfig { max_tokens: ERC20_PDEX_SUPPLY, operational: false },
-		assets: Default::default(),
-		orderbook_committee: Default::default(),
-		transaction_payment: Default::default(),
-	}
+		"nominationPools": {
+			"minCreateBond": 10 * DOLLARS,
+			"minJoinBond": 1 * DOLLARS,
+		},
+		"vesting": vesting
+	})
 }
 
 pub fn get_vesting_terms() -> Vec<(AccountId, u32, u32, u32, Balance)> {

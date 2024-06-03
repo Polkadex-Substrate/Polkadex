@@ -20,19 +20,18 @@
 
 //! Service implementation. Specialized wrapper over substrate service.
 
+use std::path::Path;
 use crate::{cli::Cli, node_rpc};
 use codec::Encode;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use frame_support::__private::log;
 use futures::prelude::*;
 use node_polkadex_runtime::RuntimeApi;
-use polkadex_client::ExecutorDispatch;
 use polkadex_primitives::Block;
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_babe::{self, SlotProportion};
-use sc_executor::NativeElseWasmExecutor;
-use sc_network::{event::Event, NetworkEventStream, NetworkService};
-use sc_network_sync::{warp::WarpSyncParams, SyncingService};
+use sc_network::{event::Event, NetworkBackend, NetworkEventStream};
+use sc_network_sync::{strategy::warp::WarpSyncParams, SyncingService};
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sc_statement_store::Store as StatementStore;
 use sc_telemetry::{Telemetry, TelemetryWorker};
@@ -43,9 +42,29 @@ use sp_runtime::{generic, traits::Block as BlockT, SaturatedConversion};
 use std::sync::Arc;
 use substrate_frame_rpc_system::AccountNonceApi;
 
+/// Host functions required by Polkadex node.
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions =
+(sp_io::SubstrateHostFunctions,
+ // NOTE: BLS host functions is a un-removable relic and should not be used or removed from
+ // here
+ bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
+ sp_statement_store::runtime_api::HostFunctions);
+
+/// Host functions required for kitchensink runtime and Substrate node.
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	sp_statement_store::runtime_api::HostFunctions,
+	// NOTE: BLS host functions is a un-removable relic and should not be used or removed from
+	// here
+	bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
 /// The full client type definition.
 pub type FullClient =
-	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
+	sc_service::TFullClient<Block, RuntimeApi, sc_executor::WasmExecutor<HostFunctions>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
@@ -173,7 +192,7 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_native_or_wasm_executor(config);
+	let executor = sc_service::new_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -318,7 +337,7 @@ pub struct NewFullBase {
 	/// The client instance of the node.
 	pub client: Arc<FullClient>,
 	/// The networking service of the node.
-	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+	pub network: Arc<dyn sc_network::service::traits::NetworkService>,
 	/// The syncing service of the node.
 	pub sync: Arc<SyncingService<Block>>,
 	/// The transaction pool of the node.
@@ -328,11 +347,15 @@ pub struct NewFullBase {
 }
 
 /// Creates a full service from the configuration.
-pub fn new_full_base(
+pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
-		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+		&sc_consensus_babe::BabeBlockImport<
+			Block,
+			FullClient,
+			FullGrandpaBlockImport,
+		>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
@@ -354,23 +377,37 @@ pub fn new_full_base(
 		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, statement_store),
 	} = new_partial(&config)?;
 
+	let metrics = N::register_notification_metrics(
+		config.prometheus_config.as_ref().map(|cfg| &cfg.registry)
+	);
+
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
-	let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
+	let mut net_config =
+		sc_network::config::FullNetworkConfiguration::<_, _, N>::new(&config.network);
+	let peer_store_handle = net_config.peer_store_handle();
 
 	let grandpa_protocol_name = grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
-	net_config.add_notification_protocol(grandpa::grandpa_peers_set_config(
-		grandpa_protocol_name.clone(),
-	));
 
-	let statement_handler_proto = sc_network_statement::StatementHandlerPrototype::new(
-		client.block_hash(0u32).ok().flatten().expect("Genesis block exists; qed"),
-		config.chain_spec.fork_id(),
-	);
-	net_config.add_notification_protocol(statement_handler_proto.set_config());
+	let (grandpa_protocol_config, grandpa_notification_service) =
+		grandpa::grandpa_peers_set_config::<_, N>(
+			grandpa_protocol_name.clone(),
+			metrics.clone(),
+			Arc::clone(&peer_store_handle),
+		);
+	net_config.add_notification_protocol(grandpa_protocol_config);
+	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
+	let (statement_handler_proto, statement_config) =
+		sc_network_statement::StatementHandlerPrototype::new::<_, _, N>(
+			genesis_hash,
+			config.chain_spec.fork_id(),
+			metrics.clone(),
+			Arc::clone(&peer_store_handle),
+		);
+	net_config.add_notification_protocol(statement_config);
 
 	let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
@@ -388,6 +425,8 @@ pub fn new_full_base(
 			import_queue,
 			block_announce_validator_builder: None,
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
+			block_relay: None,
+			metrics,
 		})?;
 
 	let role = config.role.clone();
@@ -415,10 +454,14 @@ pub fn new_full_base(
 
 	if let Some(hwbench) = hwbench {
 		sc_sysinfo::print_hwbench(&hwbench);
-		if !SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) && role.is_authority() {
-			log::warn!(
-				"⚠️  The hardware does not meet the minimal requirements for role 'Authority'."
-			);
+		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) {
+			Err(err) if role.is_authority() => {
+				log::warn!(
+					"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
+					err
+				);
+			},
+			_ => {},
 		}
 
 		if let Some(ref mut telemetry) = telemetry {
@@ -508,7 +551,7 @@ pub fn new_full_base(
 					..Default::default()
 				},
 				client.clone(),
-				network.clone(),
+				Arc::new(network.clone()),
 				Box::pin(dht_event_stream),
 				authority_discovery_role,
 				prometheus_registry.clone(),
@@ -554,6 +597,7 @@ pub fn new_full_base(
 			prometheus_registry: prometheus_registry.clone(),
 			shared_voter_state,
 			offchain_tx_pool_factory: OffchainTransactionPoolFactory::new(transaction_pool.clone()),
+			notification_service: grandpa_notification_service,
 		};
 
 		// the GRANDPA voter task is considered infallible, i.e.
@@ -594,7 +638,7 @@ pub fn new_full_base(
 			keystore: Some(keystore_container.keystore()),
 			offchain_db: backend.offchain_storage(),
 			transaction_pool: Some(OffchainTransactionPoolFactory::new(transaction_pool.clone())),
-			network_provider: network.clone(),
+			network_provider: Arc::new(network.clone()),
 			is_validator: role.is_authority(),
 			enable_http_requests: true,
 			custom_extensions: move |_| {
@@ -618,16 +662,36 @@ pub fn new_full_base(
 
 /// Builds a new service for a full client.
 pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-	let database_source = config.database.clone();
-	let task_manager = new_full_base(config, cli.no_hardware_benchmarks, |_, _| ())
-		.map(|NewFullBase { task_manager, .. }| task_manager)?;
+	let database_path = config.database.path().map(Path::to_path_buf);
+	let task_manager = match config.network.network_backend {
+		sc_network::config::NetworkBackendType::Libp2p => {
+			let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+				config,
+				cli.no_hardware_benchmarks,
+				|_, _| (),
+			)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+			task_manager
+		},
+		sc_network::config::NetworkBackendType::Litep2p => {
+			let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+				config,
+				cli.no_hardware_benchmarks,
+				|_, _| (),
+			)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+			task_manager
+		},
+	};
 
-	sc_storage_monitor::StorageMonitorService::try_spawn(
-		cli.storage_monitor,
-		database_source,
-		&task_manager.spawn_essential_handle(),
-	)
-	.map_err(|e| ServiceError::Application(e.into()))?;
+	if let Some(database_path) = database_path {
+		sc_storage_monitor::StorageMonitorService::try_spawn(
+			cli.storage_monitor,
+			database_path,
+			&task_manager.spawn_essential_handle(),
+		)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+	}
 
 	Ok(task_manager)
 }

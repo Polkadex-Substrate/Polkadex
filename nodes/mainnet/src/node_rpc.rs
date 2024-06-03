@@ -123,7 +123,7 @@ where
 	C::Api: rpc_assets::PolkadexAssetHandlerRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_rewards_rpc::PolkadexRewardsRuntimeApi<Block, AccountId, Hash>,
 	C::Api: pallet_ocex_rpc::PolkadexOcexRuntimeApi<Block, AccountId, Hash>,
-	C::Api: pallet_asset_conversion::AssetConversionApi<Block, Balance, u128, AssetId>,
+	C::Api: pallet_asset_conversion::AssetConversionApi<Block, Balance, AssetId>,
 	C: BlockchainEvents<Block>,
 {
 	use pallet_ocex_rpc::PolkadexOcexRpcApiServer;

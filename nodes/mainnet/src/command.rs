@@ -31,6 +31,7 @@ use polkadex_node::benchmarking::{
 use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
+use sp_runtime::traits::HashingFor;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -67,7 +68,6 @@ impl SubstrateCli for Cli {
 			},
 			"dev" => Box::new(chain_spec::development_config()),
 			"udon" => Box::new(chain_spec::udon_testnet_config()),
-			"soba" => Box::new(chain_spec::soba_testnet_config()),
 			"mainnet" => Box::new(chain_spec::mainnet_testnet_config()),
 			path => {
 				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
@@ -109,7 +109,7 @@ pub fn run() -> Result<()> {
 							);
 						}
 
-						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)
+						cmd.run_with_spec::<HashingFor<Block>, sp_statement_store::runtime_api::HostFunctions>(Some(config.chain_spec))
 					},
 					BenchmarkCmd::Block(cmd) => {
 						let PartialComponents { client, .. } = new_partial(&config)?;

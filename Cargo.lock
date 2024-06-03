@@ -10415,20 +10415,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db23d408679286588f4d4644f965003d056e3dd5abcaaa938116871d7ce2fee7"
 
 [[package]]
-name = "polkadex-client"
-version = "5.4.2"
-dependencies = [
- "bls-primitives",
- "frame-benchmarking",
- "node-polkadex-runtime",
- "sc-executor",
- "sp-statement-store",
-]
-
-[[package]]
 name = "polkadex-node"
 version = "6.0.0"
 dependencies = [
+ "bls-primitives",
  "clap 4.5.4",
  "frame-benchmarking-cli",
  "frame-support",
@@ -10447,7 +10437,6 @@ dependencies = [
  "pallet-rewards-rpc",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "polkadex-client",
  "polkadex-primitives",
  "rpc-assets",
  "sc-authority-discovery",
@@ -10480,6 +10469,7 @@ dependencies = [
  "sc-transaction-pool",
  "sc-transaction-pool-api",
  "serde",
+ "serde_json",
  "sp-api",
  "sp-authority-discovery",
  "sp-block-builder",
@@ -10489,6 +10479,7 @@ dependencies = [
  "sp-consensus-grandpa",
  "sp-core",
  "sp-inherents",
+ "sp-io",
  "sp-keyring",
  "sp-keystore",
  "sp-runtime",
