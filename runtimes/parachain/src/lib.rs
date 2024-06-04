@@ -562,7 +562,109 @@ impl thea_message_handler::Config for Runtime {
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
 }
 
+
+#[frame_support::pallet]
+#[allow(unused_imports)]
+pub mod mock_msg_queue {
+	use cumulus_primitives_core::ParaId;
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use xcm::latest::{ExecuteXcm, Outcome, Xcm};
+	use xcm::prelude::XcmError;
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		type XcmExecutor: ExecuteXcm<Self::RuntimeCall>;
+	}
+
+	// #[pallet::call]
+	impl<T: Config> Pallet<T> {}
+
+	#[pallet::pallet]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
+
+	#[pallet::storage]
+	#[pallet::getter(fn parachain_id)]
+	pub(super) type ParachainId<T: Config> = StorageValue<_, ParaId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn received_dmp)]
+	/// A queue of received DMP messages
+	pub(super) type ReceivedDmp<T: Config> = StorageValue<_, Vec<Xcm<T::RuntimeCall>>, ValueQuery>;
+
+	impl<T: Config> Get<ParaId> for Pallet<T> {
+		fn get() -> ParaId {
+			Self::parachain_id()
+		}
+	}
+
+	pub type MessageId = [u8; 32];
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		// XCMP
+		/// Some XCM was executed OK.
+		Success(Option<T::Hash>),
+		/// Some XCM failed.
+		Fail(Option<T::Hash>, XcmError),
+		/// Bad XCM version used.
+		BadVersion(Option<T::Hash>),
+		/// Bad XCM format used.
+		BadFormat(Option<T::Hash>),
+
+		// DMP
+		/// Downward message is invalid XCM.
+		InvalidFormat(MessageId),
+		/// Downward message is unsupported version of XCM.
+		UnsupportedVersion(MessageId),
+		/// Downward message executed with the given outcome.
+		ExecutedDownward(MessageId, Outcome),
+	}
+}
+
+#[cfg(feature = "test")]
+construct_runtime!(
+	pub struct Runtime {
+		// System support stuff.
+		System: frame_system = 0,
+		ParachainSystem: cumulus_pallet_parachain_system = 1,
+		Timestamp: pallet_timestamp = 2,
+		ParachainInfo: parachain_info = 3,
+
+		// Monetary stuff.
+		Balances: pallet_balances = 10,
+		TransactionPayment: pallet_transaction_payment = 11,
+
+		// Collator support. The order of these 4 are important and shall not change.
+		Authorship: pallet_authorship = 20,
+		CollatorSelection: pallet_collator_selection = 21,
+		Session: pallet_session = 22,
+		Aura: pallet_aura = 23,
+		AuraExt: cumulus_pallet_aura_ext = 24,
+		Assets: pallet_assets = 25,
+
+		// XCM helpers.
+		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
+		PolkadotXcm: pallet_xcm = 31,
+		CumulusXcm: cumulus_pallet_xcm = 32,
+		DmpQueue: cumulus_pallet_dmp_queue = 33,
+		XTokens: orml_xtokens = 34,
+
+		// Custom Pallets
+		XcmHelper: xcm_helper  = 40,
+		TheaCouncil: thea_council = 41,
+		Sudo: pallet_sudo = 45,
+
+		// Thea Pallet
+		TheaMessageHandler: thea_message_handler = 46
+	}
+);
+
 // Create the polkadex-parachain by composing the FRAME pallets that were previously configured.
+#[cfg(not(feature = "test"))]
 construct_runtime!(
 	pub struct Runtime {
 		// System support stuff.

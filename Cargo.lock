@@ -8020,6 +8020,7 @@ dependencies = [
  "pallet-message-queue",
  "pallet-uniques",
  "pallet-xcm",
+ "parachain-polkadex-runtime",
  "parity-scale-codec",
  "polkadex-primitives",
  "polkadot-core-primitives",

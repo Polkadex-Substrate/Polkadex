@@ -40,6 +40,7 @@ polkadex-primitives = { workspace = true }
 xcm-helper = { path = "../pallets/xcm-helper" }
 thea-message-handler = { path = "../pallets/thea-message-handler" }
 thea = { path = "../pallets/thea" }
+parachain-polkadex-runtime = { path = "../runtimes/parachain"}
 smallvec = "1.13.1"
 hex = "0.4.3"
 

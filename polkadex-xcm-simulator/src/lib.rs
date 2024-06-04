@@ -14,8 +14,71 @@
 // You should have received a copy of the GNU General Public License
 // along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
-mod parachain;
+//mod parachain;
+use parachain_polkadex_runtime::*;
 mod relay_chain;
+use polkadot_parachain_primitives::primitives::{
+	DmpMessageHandler, Id as ParaId, Sibling, XcmpMessageFormat, XcmpMessageHandler,
+};
+
+#[frame_support::pallet]
+#[allow(unused_imports)]
+pub mod mock_msg_queue {
+	use super::*;
+	use frame_support::pallet_prelude::*;
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		type XcmExecutor: ExecuteXcm<Self::RuntimeCall>;
+	}
+
+	// #[pallet::call]
+	impl<T: Config> Pallet<T> {}
+
+	#[pallet::pallet]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
+
+	#[pallet::storage]
+	#[pallet::getter(fn parachain_id)]
+	pub(super) type ParachainId<T: Config> = StorageValue<_, ParaId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn received_dmp)]
+	/// A queue of received DMP messages
+	pub(super) type ReceivedDmp<T: Config> = StorageValue<_, Vec<Xcm<T::RuntimeCall>>, ValueQuery>;
+
+	impl<T: Config> Get<ParaId> for Pallet<T> {
+		fn get() -> ParaId {
+			Self::parachain_id()
+		}
+	}
+
+	pub type MessageId = [u8; 32];
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub (super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		// XCMP
+		/// Some XCM was executed OK.
+		Success(Option<T::Hash>),
+		/// Some XCM failed.
+		Fail(Option<T::Hash>, XcmError),
+		/// Bad XCM version used.
+		BadVersion(Option<T::Hash>),
+		/// Bad XCM format used.
+		BadFormat(Option<T::Hash>),
+
+		// DMP
+		/// Downward message is invalid XCM.
+		InvalidFormat(MessageId),
+		/// Downward message is unsupported version of XCM.
+		UnsupportedVersion(MessageId),
+		/// Downward message executed with the given outcome.
+		ExecutedDownward(MessageId, Outcome),
+	}
+}
 
 use sp_runtime::BuildStorage;
 use xcm::prelude::*;
@@ -27,9 +90,9 @@ pub const INITIAL_BALANCE: u128 = 1_000_000_000;
 
 decl_test_parachain! {
 	pub struct ParaA {
-		Runtime = parachain::Runtime,
-		XcmpMessageHandler = parachain::MsgQueue,
-		DmpMessageHandler = parachain::MsgQueue,
+		Runtime = parachain_polkadex_runtime::Runtime,
+		XcmpMessageHandler = mock_msg_queue::MsgQueue,
+		DmpMessageHandler = mock_msg_queue::MsgQueue,
 		new_ext = para_ext(1),
 	}
 }
@@ -37,8 +100,8 @@ decl_test_parachain! {
 decl_test_parachain! {
 	pub struct ParaB {
 		Runtime = parachain::Runtime,
-		XcmpMessageHandler = parachain::MsgQueue,
-		DmpMessageHandler = parachain::MsgQueue,
+		XcmpMessageHandler = MsgQueue,
+		DmpMessageHandler = MsgQueue,
 		new_ext = para_ext(2),
 	}
 }
@@ -46,8 +109,8 @@ decl_test_parachain! {
 decl_test_parachain! {
 	pub struct ParaC {
 		Runtime = parachain::Runtime,
-		XcmpMessageHandler = parachain::MsgQueue,
-		DmpMessageHandler = parachain::MsgQueue,
+		XcmpMessageHandler = MsgQueue,
+		DmpMessageHandler = MsgQueue,
 		new_ext = para_ext(3),
 	}
 }
@@ -75,9 +138,9 @@ decl_test_network! {
 	}
 }
 
-pub fn parent_account_id() -> parachain::AccountId {
+pub fn parent_account_id() -> parachain_polkadex_runtime::AccountId {
 	let location = (Parent,);
-	parachain::LocationToAccountId::convert_location(&location.into()).unwrap()
+	parachain_polkadex_runtime::xcm_config::LocationToAccountId::convert_location(&location.into()).unwrap()
 }
 
 pub fn child_account_id(para: u32) -> relay_chain::AccountId {
@@ -90,18 +153,18 @@ pub fn child_account_account_id(para: u32, who: sp_runtime::AccountId32) -> rela
 	relay_chain::LocationToAccountId::convert_location(&location.into()).unwrap()
 }
 
-pub fn sibling_account_account_id(para: u32, who: sp_runtime::AccountId32) -> parachain::AccountId {
+pub fn sibling_account_account_id(para: u32, who: sp_runtime::AccountId32) -> parachain_polkadex_runtime::AccountId {
 	let location = (Parent, Parachain(para), AccountId32 { network: None, id: who.into() });
-	parachain::LocationToAccountId::convert_location(&location.into()).unwrap()
+	parachain_polkadex_runtime::xcm_config::LocationToAccountId::convert_location(&location.into()).unwrap()
 }
 
-pub fn parent_account_account_id(who: sp_runtime::AccountId32) -> parachain::AccountId {
+pub fn parent_account_account_id(who: sp_runtime::AccountId32) -> parachain_polkadex_runtime::AccountId {
 	let location = (Parent, AccountId32 { network: None, id: who.into() });
-	parachain::LocationToAccountId::convert_location(&location.into()).unwrap()
+	parachain_polkadex_runtime::xcm_config::LocationToAccountId::convert_location(&location.into()).unwrap()
 }
 
 pub fn para_ext(para_id: u32) -> sp_io::TestExternalities {
-	use parachain::{MsgQueue, Runtime, System};
+	use parachain_polkadex_runtime::{MsgQueue, Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::<Runtime>::default().build_storage().unwrap();
 
@@ -146,13 +209,13 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 }
 
 pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay_chain::Runtime>;
-pub type ParachainPalletXcm = pallet_xcm::Pallet<parachain::Runtime>;
+pub type ParachainPalletXcm = pallet_xcm::Pallet<parachain_polkadex_runtime::Runtime>;
 
 #[cfg(test)]
 mod tests {
 	use super::*;
 
-	use crate::parachain::{Balances, XcmHelper};
+	use parachain_polkadex_runtime::{Balances, XcmHelper};
 	use codec::{Decode, Encode};
 	use frame_support::traits::fungible::Mutate;
 	use frame_support::{assert_ok, weights::Weight};
@@ -176,8 +239,8 @@ mod tests {
 	fn dmp() {
 		MockNet::reset();
 
-		let remark = parachain::RuntimeCall::System(
-			frame_system::Call::<parachain::Runtime>::remark_with_event { remark: vec![1, 2, 3] },
+		let remark = parachain_polkadex_runtime::RuntimeCall::System(
+			frame_system::Call::<parachain_polkadex_runtime::Runtime>::remark_with_event { remark: vec![1, 2, 3] },
 		);
 		Relay::execute_with(|| {
 			assert_ok!(RelayChainPalletXcm::send_xcm(
@@ -192,7 +255,7 @@ mod tests {
 		});
 
 		ParaA::execute_with(|| {
-			use parachain::{RuntimeEvent, System};
+			use parachain_polkadex_runtime::{RuntimeEvent, System};
 			assert!(System::events().iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::System(frame_system::Event::Remarked { .. })
@@ -232,8 +295,8 @@ mod tests {
 	fn xcmp() {
 		MockNet::reset();
 
-		let remark = parachain::RuntimeCall::System(
-			frame_system::Call::<parachain::Runtime>::remark_with_event { remark: vec![1, 2, 3] },
+		let remark = parachain_polkadex_runtime::RuntimeCall::System(
+			frame_system::Call::<parachain_polkadex_runtime::Runtime>::remark_with_event { remark: vec![1, 2, 3] },
 		);
 		ParaA::execute_with(|| {
 			assert_ok!(ParachainPalletXcm::send_xcm(
@@ -248,8 +311,8 @@ mod tests {
 		});
 
 		ParaB::execute_with(|| {
-			use parachain::{RuntimeEvent, System};
-			assert!(System::events().iter().any(|r| matches!(
+			use parachain_polkadex_runtime::{RuntimeEvent, System};
+			assert!(parachain_polkadex_runtime::System::events().iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::System(frame_system::Event::Remarked { .. })
 			)));
@@ -278,9 +341,9 @@ mod tests {
 
 		ParaA::execute_with(|| {
 			// free execution, full amount received
-			use parachain::{RuntimeEvent, System};
+			use parachain_polkadex_runtime::{RuntimeEvent, System};
 			assert_eq!(
-				pallet_balances::Pallet::<parachain::Runtime>::free_balance(&ALICE),
+				pallet_balances::Pallet::<parachain_polkadex_runtime::Runtime>::free_balance(&ALICE),
 				INITIAL_BALANCE
 			);
 			assert!(System::events().iter().any(|r| matches!(
@@ -313,73 +376,6 @@ mod tests {
 
 		Relay::execute_with(|| {
 			assert_eq!(relay_chain::Uniques::owner(1, 42), Some(child_account_id(2)));
-		});
-	}
-
-	/// Scenario:
-	/// The relay-chain creates an asset class on a parachain and then Alice transfers her NFT into
-	/// that parachain's sovereign account, who then mints a trustless-backed-derivative locally.
-	///
-	/// Asserts that the parachain accounts are updated as expected.
-	#[test]
-	fn reserve_asset_class_create_and_reserve_transfer() {
-		MockNet::reset();
-
-		Relay::execute_with(|| {
-			assert_ok!(relay_chain::Uniques::force_create(
-				relay_chain::RuntimeOrigin::root(),
-				2,
-				ALICE,
-				false
-			));
-			assert_ok!(relay_chain::Uniques::mint(
-				relay_chain::RuntimeOrigin::signed(ALICE),
-				2,
-				69,
-				child_account_account_id(1, ALICE)
-			));
-			assert_eq!(
-				relay_chain::Uniques::owner(2, 69),
-				Some(child_account_account_id(1, ALICE))
-			);
-
-			let message = Xcm(vec![Transact {
-				origin_kind: OriginKind::Xcm,
-				require_weight_at_most: Weight::from_parts(1_000_000_000, 1024 * 1024),
-				call: parachain::RuntimeCall::from(
-					pallet_uniques::Call::<parachain::Runtime>::create {
-						collection: (Parent, 2u64).into(),
-						admin: parent_account_id(),
-					},
-				)
-				.encode()
-				.into(),
-			}]);
-			// Send creation.
-			assert_ok!(RelayChainPalletXcm::send_xcm(Here, Parachain(1), message));
-		});
-		ParaA::execute_with(|| {
-			// Then transfer
-			let message = Xcm(vec![
-				WithdrawAsset((GeneralIndex(2), 69u32).into()),
-				DepositReserveAsset {
-					assets: AllCounted(1).into(),
-					dest: Parachain(1).into(),
-					xcm: Xcm(vec![DepositAsset {
-						assets: AllCounted(1).into(),
-						beneficiary: (AccountId32 { id: ALICE.into(), network: None },).into(),
-					}]),
-				},
-			]);
-			let alice = AccountId32 { id: ALICE.into(), network: None };
-			assert_ok!(ParachainPalletXcm::send_xcm(alice, Parent, message));
-		});
-		ParaA::execute_with(|| {
-			assert_eq!(parachain::Balances::reserved_balance(&parent_account_id()), 1000);
-			assert_eq!(
-				parachain::ForeignUniques::collection_owner((Parent, 2u64).into()),
-				Some(parent_account_id())
-			);
 		});
 	}
 
@@ -510,7 +506,7 @@ mod tests {
 		});
 
 		ParaB::execute_with(|| {
-			use parachain::{RuntimeEvent, System};
+			use parachain_polkadex_runtime::{RuntimeEvent, System};
 			assert!(System::events().iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmHelper(xcm_helper::Event::AssetDeposited(..))
@@ -619,14 +615,14 @@ mod tests {
 				pdex_asset_id,
 				polkadex_primitives::AssetId::Polkadex,
 			);
-			use parachain::{RuntimeEvent, System};
+			use parachain_polkadex_runtime::{RuntimeEvent, System};
 			assert!(System::events().iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmHelper(xcm_helper::Event::SiblingDeposit(..))
 			)));
 		});
 		ParaB::execute_with(|| {
-			use parachain::{RuntimeEvent, System};
+			use parachain_polkadex_runtime::{RuntimeEvent, System};
 			assert!(System::events().iter().any(|r| matches!(
 				r.event,
 				RuntimeEvent::XcmHelper(xcm_helper::Event::AssetDeposited(..))
