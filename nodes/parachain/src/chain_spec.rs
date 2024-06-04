@@ -19,7 +19,7 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use parachain_polkadex_runtime::{
-	AccountId, AuraId, RuntimeGenesisConfig, Signature, EXISTENTIAL_DEPOSIT,
+	AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -28,7 +28,7 @@ use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -88,53 +88,47 @@ pub fn development_config() -> ChainSpec {
 	properties.insert("tokenDecimals".into(), 12.into());
 	properties.insert("ss58Format".into(), 89.into());
 
-	ChainSpec::from_genesis(
-		// Name
-		"Polkadex Development",
-		// ID
-		"dev",
-		ChainType::Development,
-		move || {
-			create_genesis_config(
-				// initial collators.
-				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						get_collator_keys_from_seed("Alice"),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						get_collator_keys_from_seed("Bob"),
-					),
-				],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					get_account_id_from_seed::<sr25519::Public>("Dave"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-				],
-				2040.into(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			)
-		},
-		Vec::new(),
-		None,
-		None,
-		None,
-		None,
+	ChainSpec::builder(
+		parachain_polkadex_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions {
-			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			relay_chain: "rococo-local".into(),
+			// You MUST set this to the correct network!
 			para_id: 2040,
 		},
 	)
+		.with_name("Polkadex Development")
+		.with_id("dev")
+		.with_chain_type(ChainType::Development)
+		.with_genesis_config_patch(testnet_genesis(
+			// initial collators.
+			vec![
+				(
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_collator_keys_from_seed("Alice"),
+				),
+				(
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_collator_keys_from_seed("Bob"),
+				),
+			],
+			vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+			],
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			2040.into(),
+		))
+		.build()
 }
 
 pub fn local_testnet_config() -> ChainSpec {
@@ -143,94 +137,72 @@ pub fn local_testnet_config() -> ChainSpec {
 	properties.insert("tokenSymbol".into(), "PDEX".into());
 	properties.insert("tokenDecimals".into(), 12.into());
 	properties.insert("ss58Format".into(), 89.into());
-	let root_key: AccountId = get_account_id_from_seed::<sr25519::Public>("Alice");
 
-	ChainSpec::from_genesis(
-		// Name
-		"Polkadex Parachain Testnet",
-		// ID
-		"local_testnet",
-		ChainType::Local,
-		move || {
-			create_genesis_config(
-				// initial collators.
-				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						get_collator_keys_from_seed("Alice"),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						get_collator_keys_from_seed("Bob"),
-					),
-				],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					get_account_id_from_seed::<sr25519::Public>("Dave"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-				],
-				2040.into(),
-				root_key.clone(),
-			)
-		},
-		// Bootnodes
-		Vec::new(),
-		// Telemetry
-		None,
-		// Protocol ID
-		Some("polkadex-parachain"),
-		// Fork ID
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
+	#[allow(deprecated)]
+	ChainSpec::builder(
+		parachain_polkadex_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions {
-			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			relay_chain: "rococo-local".into(),
+			// You MUST set this to the correct network!
 			para_id: 2040,
 		},
 	)
+		.with_name("Polkadex parachain Testnet")
+		.with_id("local_testnet")
+		.with_chain_type(ChainType::Local)
+		.with_genesis_config_patch(testnet_genesis(
+			// initial collators.
+			vec![
+				(
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_collator_keys_from_seed("Alice"),
+				),
+				(
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_collator_keys_from_seed("Bob"),
+				),
+			],
+			vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+			],
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			2040.into(),
+		))
+		.with_protocol_id("template-local")
+		.with_properties(properties)
+		.build()
 }
 
-fn create_genesis_config(
+fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
+	root: AccountId,
 	id: ParaId,
-	root_key: AccountId,
-) -> RuntimeGenesisConfig {
-	RuntimeGenesisConfig {
-		system: parachain_polkadex_runtime::SystemConfig {
-			code: parachain_polkadex_runtime::WASM_BINARY
-				.expect("WASM binary was not build, please build it!")
-				.to_vec(),
-			..Default::default()
+) -> serde_json::Value {
+	serde_json::json!({
+		"balances": {
+			"balances": endowed_accounts.iter().cloned().map(|k| (k, 1u64 << 60)).collect::<Vec<_>>(),
 		},
-		balances: parachain_polkadex_runtime::BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, EXISTENTIAL_DEPOSIT * 16))
-				.collect(),
+		"parachainInfo": {
+			"parachainId": id,
 		},
-		parachain_info: parachain_polkadex_runtime::ParachainInfoConfig {
-			parachain_id: id,
-			..Default::default()
+		"collatorSelection": {
+			"invulnerables": invulnerables.iter().cloned().map(|(acc, _)| acc).collect::<Vec<_>>(),
+			"candidacyBond": EXISTENTIAL_DEPOSIT * 16,
 		},
-		collator_selection: parachain_polkadex_runtime::CollatorSelectionConfig {
-			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
-			..Default::default()
-		},
-		session: parachain_polkadex_runtime::SessionConfig {
-			keys: invulnerables
+		"session": {
+			"keys": invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {
 					(
@@ -239,21 +211,13 @@ fn create_genesis_config(
 						template_session_keys(aura), // session keys
 					)
 				})
-				.collect(),
+			.collect::<Vec<_>>(),
 		},
-		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
-		// of this.
-		aura: Default::default(),
-		aura_ext: Default::default(),
-		parachain_system: Default::default(),
-		polkadot_xcm: parachain_polkadex_runtime::PolkadotXcmConfig {
-			safe_xcm_version: Some(SAFE_XCM_VERSION),
-			..Default::default()
+		"polkadotXcm": {
+			"safeXcmVersion": Some(SAFE_XCM_VERSION),
 		},
-		sudo: parachain_polkadex_runtime::SudoConfig { key: Some(root_key) },
-		assets: Default::default(),
-		transaction_payment: Default::default(),
-	}
+		"sudo": { "key": Some(root) }
+	})
 }
 
 pub fn mainnet_config() -> ChainSpec {
@@ -270,35 +234,28 @@ pub fn mainnet_config() -> ChainSpec {
 	use sp_core::crypto::UncheckedInto;
 	let initial_collator_aura_id: AuraId =
 		hex!["f27b16d1059ea3cf4ed15a5ef18bc8c5c662e1abe82d96cf6f57c50af95e056e"].unchecked_into();
-	ChainSpec::from_genesis(
-		// Name
-		"Polkadex Parachain",
-		// ID
-		"parachain_live",
-		ChainType::Live,
-		move || {
-			create_genesis_config(
-				// initial collators.
-				vec![(initial_collator.clone(), initial_collator_aura_id.clone())],
-				vec![root_key.clone(), initial_collator.clone()],
-				2040.into(),
-				root_key.clone(),
-			)
-		},
-		// Bootnodes
-		Vec::new(),
-		// Telemetry
-		None,
-		// Protocol ID
-		Some("polkadex-parachain"),
-		// Fork ID
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
+
+	ChainSpec::builder(
+		parachain_polkadex_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
 		Extensions {
-			relay_chain: "polkadot".into(), // You MUST set this to the correct network!
+			relay_chain: "polkadot".into(),
+			// You MUST set this to the correct network!
 			para_id: 2040,
 		},
 	)
+		.with_name("Polkadex Parachain")
+		.with_id("parachain_live")
+		.with_chain_type(ChainType::Live)
+		.with_genesis_config_patch(
+			testnet_genesis(
+				// initial collators.
+				vec![(initial_collator.clone(), initial_collator_aura_id.clone())],
+				vec![root_key.clone(), initial_collator.clone()],
+				root_key.clone(),
+				2040.into(),
+			)
+		)
+		.with_protocol_id("polkadex-parachain")
+		.with_properties(properties)
+		.build()
 }
