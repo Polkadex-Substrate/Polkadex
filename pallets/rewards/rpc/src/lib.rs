@@ -20,12 +20,12 @@
 
 use std::sync::Arc;
 
+use jsonrpsee::types::error::ErrorObjectOwned;
 use jsonrpsee::{
 	core::{async_trait, RpcResult},
 	proc_macros::rpc,
-	types::error::{ ErrorObject},
+	types::error::ErrorObject,
 };
-use jsonrpsee::types::error::ErrorObjectOwned;
 pub use pallet_rewards_runtime_api::PolkadexRewardsRuntimeApi;
 use parity_scale_codec::Codec;
 use sp_api::ProvideRuntimeApi;

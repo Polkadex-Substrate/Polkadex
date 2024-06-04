@@ -275,7 +275,9 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
-		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	where
+		<<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind:
+			From<polkadex_primitives::AssetId>,
 	{
 		#[pallet::call_index(0)]
 		#[pallet::weight(< T as Config >::TheaExecWeightInfo::withdraw(1))]
@@ -506,7 +508,9 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T>
-		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	where
+		<<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind:
+			From<polkadex_primitives::AssetId>,
 	{
 		/// Generates a new random id for withdrawals with an optional prefix
 		fn new_random_id(prefix: Option<[u8; 4]>) -> H160 {
@@ -538,9 +542,7 @@ pub mod pallet {
 			network: Network,
 			pay_with_tokens: bool,
 			txid: Option<H160>,
-		) -> Result<(), DispatchError>
-
-		{
+		) -> Result<(), DispatchError> {
 			ensure!(beneficiary.len() <= 1000, Error::<T>::BeneficiaryTooLong);
 			ensure!(network != 0, Error::<T>::WrongNetwork);
 			let mut pending_withdrawals = <PendingWithdrawals<T>>::get(network);
@@ -570,7 +572,8 @@ pub mod pallet {
 
 			if pay_with_tokens && asset_id != AssetId::Polkadex {
 				// User wants to pay with withdrawing tokens.
-				let path = sp_std::vec![asset_id.into(), polkadex_primitives::AssetId::Polkadex.into()];
+				let path =
+					sp_std::vec![asset_id.into(), polkadex_primitives::AssetId::Polkadex.into()];
 				let token_taken = T::Swap::swap_tokens_for_exact_tokens(
 					user.clone(),
 					path,
@@ -679,8 +682,10 @@ pub mod pallet {
 				if !frame_system::Pallet::<T>::account_exists(&deposit.recipient)
 					&& deposit.asset_id != AssetId::Polkadex
 				{
-					let path =
-						sp_std::vec![deposit.asset_id.into(), polkadex_primitives::AssetId::Polkadex.into()];
+					let path = sp_std::vec![
+						deposit.asset_id.into(),
+						polkadex_primitives::AssetId::Polkadex.into()
+					];
 					let amount_out: T::AssetBalanceAdapter = T::ExistentialDeposit::get().into();
 					Self::resolve_mint(
 						&Self::thea_account(),
@@ -740,7 +745,9 @@ pub mod pallet {
 	}
 
 	impl<T: Config> TheaIncomingExecutor for Pallet<T>
-		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	where
+		<<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind:
+			From<polkadex_primitives::AssetId>,
 	{
 		fn execute_deposits(network: Network, deposits: Vec<u8>) {
 			if let Err(error) = Self::do_deposit(network, &deposits) {
@@ -770,7 +777,9 @@ pub mod pallet {
 	}
 
 	impl<T: Config> polkadex_primitives::traits::CrossChainWithdraw<T::AccountId> for Pallet<T>
-		where <<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind: From<polkadex_primitives::AssetId>
+	where
+		<<T as pallet::Config>::Swap as Swap<<T as frame_system::Config>::AccountId>>::AssetKind:
+			From<polkadex_primitives::AssetId>,
 	{
 		fn parachain_withdraw(
 			user: T::AccountId,

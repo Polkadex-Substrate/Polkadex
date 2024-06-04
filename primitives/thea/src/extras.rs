@@ -15,11 +15,10 @@ pub enum ExtraData {
 pub fn extract_data_from_multilocation(
 	multi_location: &xcm::prelude::Location,
 ) -> Option<([u8; 32], ExtraData)> {
-
 	match multi_location {
 		// Normal deposit
 		Location { parents: 0, interior: X1(acc) } => {
-			let acc  = *acc.clone();
+			let acc = *acc.clone();
 			match acc {
 				[AccountId32 { id, network }] => {
 					if network == Some(Polkadot) || network.is_none() {
@@ -28,15 +27,12 @@ pub fn extract_data_from_multilocation(
 						None
 					}
 				},
-				_ => None
+				_ => None,
 			}
 		},
 		// Direct deposit
-		Location {
-			parents: 0,
-			interior: X2(acc),
-		} => {
-			let acc  = *acc.clone();
+		Location { parents: 0, interior: X2(acc) } => {
+			let acc = *acc.clone();
 			match acc {
 				[AccountId32 { id, network }, PalletInstance(_index)] => {
 					if network == Some(Polkadot) || network.is_none() {
@@ -44,8 +40,8 @@ pub fn extract_data_from_multilocation(
 					} else {
 						None
 					}
-				}
-				_ => None
+				},
+				_ => None,
 			}
 		},
 		_ => None,

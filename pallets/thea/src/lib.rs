@@ -94,6 +94,7 @@ pub trait TheaWeightInfo {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::traits::VariantCount;
 	use frame_support::{
 		traits::{
 			fungible::{Inspect, Mutate as OtherMutate},
@@ -107,14 +108,18 @@ pub mod pallet {
 		types::{IncomingMessage, Message, MisbehaviourReport, SignedMessage},
 		TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
-	use frame_support::traits::VariantCount;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + SendTransactionTypes<Call<Self>> {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Runtime hold reasons type
-		type RuntimeHoldReason: Parameter + Member + MaxEncodedLen + Copy + VariantCount + From<HoldReason>;
+		type RuntimeHoldReason: Parameter
+			+ Member
+			+ MaxEncodedLen
+			+ Copy
+			+ VariantCount
+			+ From<HoldReason>;
 		/// Authority identifier type
 		type TheaId: Member
 			+ Parameter
@@ -140,7 +145,10 @@ pub mod pallet {
 		/// Balances Pallet
 		type NativeCurrency: frame_support::traits::fungible::Mutate<Self::AccountId>
 			+ frame_support::traits::fungible::Inspect<Self::AccountId>
-			+ frame_support::traits::fungible::hold::Mutate<Self::AccountId, Reason = Self::RuntimeHoldReason>;
+			+ frame_support::traits::fungible::hold::Mutate<
+				Self::AccountId,
+				Reason = Self::RuntimeHoldReason,
+			>;
 
 		/// Governance Origin
 		type TheaGovernanceOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
@@ -154,7 +162,7 @@ pub mod pallet {
 
 	#[pallet::composite_enum]
 	pub enum HoldReason {
-		Thea
+		Thea,
 	}
 
 	#[pallet::pallet]
@@ -406,7 +414,11 @@ pub mod pallet {
 			match <IncomingMessagesQueue<T>>::get(payload.network, payload.nonce) {
 				None => {
 					// Lock balance
-					T::NativeCurrency::hold(&HoldReason::Thea.into(), &signer, stake.saturated_into())?;
+					T::NativeCurrency::hold(
+						&HoldReason::Thea.into(),
+						&signer,
+						stake.saturated_into(),
+					)?;
 					// Put it in a queue
 					<IncomingMessagesQueue<T>>::insert(
 						payload.network,

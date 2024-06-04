@@ -215,7 +215,9 @@ impl From<AssetId> for u128 {
 }
 
 pub struct PolkadexNativeFromLeft;
-impl<AssetId: Ord + From<crate::AssetId>> Convert<crate::AssetId, Either<(), AssetId>> for PolkadexNativeFromLeft {
+impl<AssetId: Ord + From<crate::AssetId>> Convert<crate::AssetId, Either<(), AssetId>>
+	for PolkadexNativeFromLeft
+{
 	fn convert(asset: crate::AssetId) -> Either<(), AssetId> {
 		match asset {
 			crate::AssetId::Polkadex => Either::Left(()),

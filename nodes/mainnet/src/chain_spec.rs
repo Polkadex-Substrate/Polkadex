@@ -21,9 +21,10 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use hex_literal::hex;
 use itertools::Itertools;
 use node_polkadex_runtime::{
-	constants::currency::PDEX, wasm_binary_unwrap, SessionKeys, StakerStatus
+	constants::currency::PDEX, wasm_binary_unwrap, SessionKeys, StakerStatus,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_staking::Forcing;
 use polkadex_primitives::Block;
 pub use polkadex_primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::ChainSpecExtension;
@@ -37,7 +38,6 @@ use sp_runtime::{
 	traits::{AccountIdConversion, IdentifyAccount, Verify},
 	Perbill,
 };
-use pallet_staking::Forcing;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -158,8 +158,10 @@ pub fn udon_testnet_config() -> ChainSpec {
 		.with_id("polkadex_udon_testnet")
 		.with_chain_type(ChainType::Local)
 		.with_genesis_config_patch(udon_testnet_config_genesis())
-		.with_telemetry_endpoints(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-									  .expect("Staging telemetry url is valid; qed"))
+		.with_telemetry_endpoints(
+			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		)
 		.build()
 }
 
@@ -299,8 +301,10 @@ pub fn mainnet_testnet_config() -> ChainSpec {
 		.with_chain_type(ChainType::Live)
 		.with_genesis_config_patch(mainnet_genesis_constuctor())
 		.with_boot_nodes(bootnodes)
-		.with_telemetry_endpoints(TelemetryEndpoints::new(vec![(MAINNET_TELEMETRY_URL.to_string(), 0)])
-									  .expect("Staging telemetry url is valid; qed"))
+		.with_telemetry_endpoints(
+			TelemetryEndpoints::new(vec![(MAINNET_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		)
 		.with_protocol_id(POLKADEX_PROTOCOL_ID)
 		.build()
 }

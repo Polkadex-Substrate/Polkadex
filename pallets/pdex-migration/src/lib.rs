@@ -23,7 +23,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-
 #[cfg(test)]
 mod mock;
 
@@ -35,6 +34,7 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::traits::tokens::Preservation;
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{
@@ -43,7 +43,6 @@ pub mod pallet {
 			Currency, Get, LockableCurrency, WithdrawReasons,
 		},
 	};
-	use frame_support::traits::tokens::Preservation;
 	use frame_system::pallet_prelude::*;
 	use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 	use scale_info::TypeInfo;
@@ -294,7 +293,13 @@ pub mod pallet {
 
 			pallet_balances::Pallet::<T>::remove_lock(MIGRATION_LOCK, &beneficiary);
 			// Burn the illegally minted tokens
-			pallet_balances::Pallet::<T>::burn_from(&beneficiary, amount_to_burn, Preservation::Expendable, Precision::Exact, Fortitude::Polite)?;
+			pallet_balances::Pallet::<T>::burn_from(
+				&beneficiary,
+				amount_to_burn,
+				Preservation::Expendable,
+				Precision::Exact,
+				Fortitude::Polite,
+			)?;
 			// Increment total mintable tokens
 			let mut mintable_tokens = MintableTokens::<T>::get();
 			mintable_tokens += amount_to_burn;

@@ -19,13 +19,13 @@
 //! This crate provides an RPC methods for OCEX pallet - balances state and onchain/offchain
 //! recovery data.
 
+use jsonrpsee::types::error::ErrorObjectOwned;
 use jsonrpsee::{
 	core::{async_trait, RpcResult},
 	proc_macros::rpc,
 	tracing::log,
-	types::error::{ ErrorObject},
+	types::error::ErrorObject,
 };
-use jsonrpsee::types::error::ErrorObjectOwned;
 pub use pallet_asset_conversion::AssetConversionApi;
 use polkadex_primitives::AssetId;
 use sp_api::ProvideRuntimeApi;

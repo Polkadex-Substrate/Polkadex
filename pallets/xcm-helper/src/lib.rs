@@ -142,8 +142,11 @@ pub mod pallet {
 		types::{Deposit, Withdraw},
 		Network, TheaIncomingExecutor, TheaOutgoingExecutor,
 	};
-	use xcm::prelude::{*};
-	use xcm_executor::{AssetsInHolding, traits::{ConvertLocation as MoreConvert, TransactAsset}};
+	use xcm::prelude::*;
+	use xcm_executor::{
+		traits::{ConvertLocation as MoreConvert, TransactAsset},
+		AssetsInHolding,
+	};
 
 	pub trait XcmHelperWeightInfo {
 		fn whitelist_token(_b: u32) -> Weight;
@@ -153,13 +156,11 @@ pub mod pallet {
 
 	pub trait AssetIdConverter {
 		/// Converts AssetId to MultiLocation
-		fn convert_asset_id_to_location(
-			asset_id: polkadex_primitives::AssetId,
-		) -> Option<Location>;
+		fn convert_asset_id_to_location(asset_id: polkadex_primitives::AssetId)
+			-> Option<Location>;
 		/// Converts Location to AssetId
-		fn convert_location_to_asset_id(
-			location: Location,
-		) -> Option<polkadex_primitives::AssetId>;
+		fn convert_location_to_asset_id(location: Location)
+			-> Option<polkadex_primitives::AssetId>;
 	}
 
 	pub trait WhitelistedTokenHandler {
@@ -262,13 +263,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Asset Deposited from XCM
 		/// parameters. [id, recipient, multi-asset, asset_id, extradata]
-		AssetDeposited(
-			H160,
-			Box<Location>,
-			Box<Asset>,
-			polkadex_primitives::AssetId,
-			ExtraData,
-		),
+		AssetDeposited(H160, Box<Location>, Box<Asset>, polkadex_primitives::AssetId, ExtraData),
 		/// Asset Withdraw using XCM
 		/// parameters. [id, asset_id]
 		AssetWithdrawn(H160, polkadex_primitives::AssetId),
@@ -528,8 +523,8 @@ pub mod pallet {
 								} else {
 									None
 								}
-							}
-							_ => None
+							},
+							_ => None,
 						}
 					} else {
 						None
@@ -565,13 +560,16 @@ pub mod pallet {
 			if asset
 				== AssetId(Location {
 					parents: 1,
-					interior: Junctions::X1(sp_std::sync::Arc::new([Parachain(T::ParachainId::get())])),
+					interior: Junctions::X1(sp_std::sync::Arc::new([Parachain(
+						T::ParachainId::get(),
+					)])),
 				}) {
 				return polkadex_primitives::AssetId::Polkadex;
 			}
 			// If it's not native, then hash and generate the asset id
-			let asset_id =
-				polkadex_primitives::assets::generate_asset_id_for_parachain(Box::new(asset.clone()));
+			let asset_id = polkadex_primitives::assets::generate_asset_id_for_parachain(Box::new(
+				asset.clone(),
+			));
 			if !<ParachainAssets<T>>::contains_key(asset_id) {
 				// Store the mapping
 				<ParachainAssets<T>>::insert(asset_id, asset);
@@ -606,9 +604,7 @@ pub mod pallet {
 		}
 
 		/// Converts Multilocation to u128
-		pub fn convert_location_to_asset_id(
-			location: Location,
-		) -> polkadex_primitives::AssetId {
+		pub fn convert_location_to_asset_id(location: Location) -> polkadex_primitives::AssetId {
 			Self::generate_asset_id_for_parachain(AssetId(location))
 		}
 

@@ -21,11 +21,12 @@
 
 pub mod offchain;
 
+use jsonrpsee::types::ErrorObjectOwned;
 use jsonrpsee::{
-	core::{async_trait,  RpcResult},
+	core::{async_trait, RpcResult},
 	proc_macros::rpc,
 	tracing::log,
-	types::error::{ErrorObject},
+	types::error::ErrorObject,
 };
 use orderbook_primitives::{
 	recovery::{DeviationMap, ObCheckpoint, ObRecoveryState},
@@ -40,7 +41,6 @@ use sp_blockchain::HeaderBackend;
 use sp_core::offchain::{storage::OffchainDb, OffchainDbExt, OffchainStorage};
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
-use jsonrpsee::types::ErrorObjectOwned;
 
 const RUNTIME_ERROR: i32 = 1;
 const RETRIES: u8 = 3;

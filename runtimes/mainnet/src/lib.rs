@@ -51,6 +51,7 @@ use frame_system::{
 	EnsureRoot, EnsureSigned, RawOrigin,
 };
 
+use frame_support::genesis_builder_helper::{build_state, get_preset};
 use orderbook_primitives::types::TradingPair;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
@@ -92,7 +93,6 @@ use sp_std::{prelude::*, vec};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
-use frame_support::genesis_builder_helper::{build_state, get_preset};
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;

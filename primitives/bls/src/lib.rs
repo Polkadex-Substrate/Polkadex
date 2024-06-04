@@ -101,7 +101,6 @@ pub struct Public(pub [u8; 96]);
 pub struct Signature(pub [u8; 48]);
 
 impl Signature {
-
 	pub fn as_mut(&mut self) -> &mut [u8] {
 		&mut self.0
 	}
@@ -266,7 +265,7 @@ impl ByteArray for Signature {
 }
 
 impl AsMut<[u8]> for Signature {
-	fn as_mut(&mut self) -> &mut [u8]{
+	fn as_mut(&mut self) -> &mut [u8] {
 		&mut self.0
 	}
 }
@@ -416,9 +415,7 @@ pub fn hash_to_curve_g1(message: &[u8]) -> Result<G1Projective, HashToCurveError
 }
 
 #[cfg(feature = "std")]
-impl sp_application_crypto::Signature for Signature {
-
-}
+impl sp_application_crypto::Signature for Signature {}
 
 #[cfg(test)]
 mod tests {

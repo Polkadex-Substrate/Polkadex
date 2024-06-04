@@ -123,7 +123,6 @@ impl<Signature> SignedMessage<Signature> {
 	}
 }
 
-
 #[derive(Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum NetworkType {
 	Parachain,

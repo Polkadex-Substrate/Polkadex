@@ -20,7 +20,6 @@
 
 //! Service implementation. Specialized wrapper over substrate service.
 
-use std::path::Path;
 use crate::{cli::Cli, node_rpc};
 use codec::Encode;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
@@ -39,17 +38,19 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_api::ProvideRuntimeApi;
 use sp_core::crypto::Pair;
 use sp_runtime::{generic, traits::Block as BlockT, SaturatedConversion};
+use std::path::Path;
 use std::sync::Arc;
 use substrate_frame_rpc_system::AccountNonceApi;
 
 /// Host functions required by Polkadex node.
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions =
-(sp_io::SubstrateHostFunctions,
- // NOTE: BLS host functions is a un-removable relic and should not be used or removed from
- // here
- bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
- sp_statement_store::runtime_api::HostFunctions);
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	// NOTE: BLS host functions is a un-removable relic and should not be used or removed from
+	// here
+	bls_primitives::host_functions::bls_crypto_ext::HostFunctions,
+	sp_statement_store::runtime_api::HostFunctions,
+);
 
 /// Host functions required for kitchensink runtime and Substrate node.
 #[cfg(feature = "runtime-benchmarks")]
@@ -351,11 +352,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
-		&sc_consensus_babe::BabeBlockImport<
-			Block,
-			FullClient,
-			FullGrandpaBlockImport,
-		>,
+		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
@@ -378,7 +375,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	} = new_partial(&config)?;
 
 	let metrics = N::register_notification_metrics(
-		config.prometheus_config.as_ref().map(|cfg| &cfg.registry)
+		config.prometheus_config.as_ref().map(|cfg| &cfg.registry),
 	);
 
 	let shared_voter_state = rpc_setup;
@@ -670,7 +667,7 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 				cli.no_hardware_benchmarks,
 				|_, _| (),
 			)
-				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+			.map(|NewFullBase { task_manager, .. }| task_manager)?;
 			task_manager
 		},
 		sc_network::config::NetworkBackendType::Litep2p => {
@@ -679,7 +676,7 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 				cli.no_hardware_benchmarks,
 				|_, _| (),
 			)
-				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+			.map(|NewFullBase { task_manager, .. }| task_manager)?;
 			task_manager
 		},
 	};
@@ -690,7 +687,7 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 			database_path,
 			&task_manager.spawn_essential_handle(),
 		)
-			.map_err(|e| ServiceError::Application(e.into()))?;
+		.map_err(|e| ServiceError::Application(e.into()))?;
 	}
 
 	Ok(task_manager)
