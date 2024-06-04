@@ -18,9 +18,7 @@
 
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
-use parachain_polkadex_runtime::{
-	AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT,
-};
+use parachain_polkadex_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -89,46 +87,47 @@ pub fn development_config() -> ChainSpec {
 	properties.insert("ss58Format".into(), 89.into());
 
 	ChainSpec::builder(
-		parachain_polkadex_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		parachain_polkadex_runtime::WASM_BINARY
+			.expect("WASM binary was not built, please build it!"),
 		Extensions {
 			relay_chain: "rococo-local".into(),
 			// You MUST set this to the correct network!
 			para_id: 2040,
 		},
 	)
-		.with_name("Polkadex Development")
-		.with_id("dev")
-		.with_chain_type(ChainType::Development)
-		.with_genesis_config_patch(testnet_genesis(
-			// initial collators.
-			vec![
-				(
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_collator_keys_from_seed("Alice"),
-				),
-				(
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_collator_keys_from_seed("Bob"),
-				),
-			],
-			vec![
+	.with_name("Polkadex Development")
+	.with_id("dev")
+	.with_chain_type(ChainType::Development)
+	.with_genesis_config_patch(testnet_genesis(
+		// initial collators.
+		vec![
+			(
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_collator_keys_from_seed("Alice"),
+			),
+			(
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-			],
+				get_collator_keys_from_seed("Bob"),
+			),
+		],
+		vec![
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			2040.into(),
-		))
-		.build()
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			get_account_id_from_seed::<sr25519::Public>("Dave"),
+			get_account_id_from_seed::<sr25519::Public>("Eve"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+		],
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		2040.into(),
+	))
+	.build()
 }
 
 pub fn local_testnet_config() -> ChainSpec {
@@ -140,48 +139,49 @@ pub fn local_testnet_config() -> ChainSpec {
 
 	#[allow(deprecated)]
 	ChainSpec::builder(
-		parachain_polkadex_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		parachain_polkadex_runtime::WASM_BINARY
+			.expect("WASM binary was not built, please build it!"),
 		Extensions {
 			relay_chain: "rococo-local".into(),
 			// You MUST set this to the correct network!
 			para_id: 2040,
 		},
 	)
-		.with_name("Polkadex parachain Testnet")
-		.with_id("local_testnet")
-		.with_chain_type(ChainType::Local)
-		.with_genesis_config_patch(testnet_genesis(
-			// initial collators.
-			vec![
-				(
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_collator_keys_from_seed("Alice"),
-				),
-				(
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_collator_keys_from_seed("Bob"),
-				),
-			],
-			vec![
+	.with_name("Polkadex parachain Testnet")
+	.with_id("local_testnet")
+	.with_chain_type(ChainType::Local)
+	.with_genesis_config_patch(testnet_genesis(
+		// initial collators.
+		vec![
+			(
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_collator_keys_from_seed("Alice"),
+			),
+			(
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-				get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-			],
+				get_collator_keys_from_seed("Bob"),
+			),
+		],
+		vec![
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			2040.into(),
-		))
-		.with_protocol_id("template-local")
-		.with_properties(properties)
-		.build()
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			get_account_id_from_seed::<sr25519::Public>("Dave"),
+			get_account_id_from_seed::<sr25519::Public>("Eve"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+		],
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		2040.into(),
+	))
+	.with_protocol_id("template-local")
+	.with_properties(properties)
+	.build()
 }
 
 fn testnet_genesis(
@@ -236,26 +236,25 @@ pub fn mainnet_config() -> ChainSpec {
 		hex!["f27b16d1059ea3cf4ed15a5ef18bc8c5c662e1abe82d96cf6f57c50af95e056e"].unchecked_into();
 
 	ChainSpec::builder(
-		parachain_polkadex_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
+		parachain_polkadex_runtime::WASM_BINARY
+			.expect("WASM binary was not built, please build it!"),
 		Extensions {
 			relay_chain: "polkadot".into(),
 			// You MUST set this to the correct network!
 			para_id: 2040,
 		},
 	)
-		.with_name("Polkadex Parachain")
-		.with_id("parachain_live")
-		.with_chain_type(ChainType::Live)
-		.with_genesis_config_patch(
-			testnet_genesis(
-				// initial collators.
-				vec![(initial_collator.clone(), initial_collator_aura_id.clone())],
-				vec![root_key.clone(), initial_collator.clone()],
-				root_key.clone(),
-				2040.into(),
-			)
-		)
-		.with_protocol_id("polkadex-parachain")
-		.with_properties(properties)
-		.build()
+	.with_name("Polkadex Parachain")
+	.with_id("parachain_live")
+	.with_chain_type(ChainType::Live)
+	.with_genesis_config_patch(testnet_genesis(
+		// initial collators.
+		vec![(initial_collator.clone(), initial_collator_aura_id.clone())],
+		vec![root_key.clone(), initial_collator.clone()],
+		root_key.clone(),
+		2040.into(),
+	))
+	.with_protocol_id("polkadex-parachain")
+	.with_properties(properties)
+	.build()
 }
