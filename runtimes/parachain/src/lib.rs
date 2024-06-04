@@ -44,7 +44,7 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use xcm_config::{ XcmOriginToTransactDispatchOrigin};
+use xcm_config::XcmOriginToTransactDispatchOrigin;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -424,7 +424,6 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type WeightInfo = ();
 }
 
-
 parameter_types! {
 	pub const Period: u32 = 6 * HOURS;
 	pub const Offset: u32 = 0;
@@ -511,7 +510,6 @@ impl xcm_helper::Config for Runtime {
 	type WeightInfo = xcm_helper::weights::WeightInfo<Runtime>;
 }
 
-
 parameter_types! {
 	pub const AssetDeposit: Balance = 100 * DOLLARS;
 	pub const ApprovalDeposit: Balance = DOLLARS;
@@ -586,8 +584,8 @@ impl pallet_message_queue::Config for Runtime {
 	>;
 	type Size = u32;
 	// The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
-	type QueueChangeHandler =  parachains_common::message_queue::NarrowOriginToSibling<XcmpQueue>;
-	type QueuePausedQuery =  parachains_common::message_queue::NarrowOriginToSibling<XcmpQueue>;
+	type QueueChangeHandler = parachains_common::message_queue::NarrowOriginToSibling<XcmpQueue>;
+	type QueuePausedQuery = parachains_common::message_queue::NarrowOriginToSibling<XcmpQueue>;
 	type HeapSize = sp_core::ConstU32<{ 103 * 1024 }>;
 	type MaxStale = sp_core::ConstU32<8>;
 	type ServiceWeight = MessageQueueServiceWeight;
@@ -867,7 +865,6 @@ impl_runtime_apis! {
 		}
 	}
 }
-
 
 cumulus_pallet_parachain_system::register_validate_block! {
 	Runtime = Runtime,

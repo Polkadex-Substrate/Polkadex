@@ -19,13 +19,13 @@ use super::{
 };
 use crate::{AllPalletsWithSystem, Balance, XcmHelper};
 use core::marker::PhantomData;
-use sp_std::sync::Arc;
 use frame_support::{
 	parameter_types,
 	traits::{Contains, Everything, Nothing},
 	weights::WeightToFee as WeightToFeeT,
 };
 use frame_system::EnsureRoot;
+use sp_std::sync::Arc;
 
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 use orml_xcm_support::MultiNativeAsset;
@@ -34,10 +34,19 @@ use polkadot_parachain::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use sp_core::{ConstU32, Get};
 use sp_runtime::{traits::Convert, SaturatedConversion};
-use xcm::latest::{prelude::*, Weight as XCMWeight, Weight};
 use xcm::latest::Junctions::{X1, X2};
-use xcm_builder::{AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, FungibleAdapter, IsConcrete, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit, UsingComponents};
-use xcm_executor::{AssetsInHolding, traits::{WeightTrader, WithOriginFilter}, XcmExecutor};
+use xcm::latest::{prelude::*, Weight as XCMWeight, Weight};
+use xcm_builder::{
+	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, FungibleAdapter,
+	IsConcrete, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit, UsingComponents,
+};
+use xcm_executor::{
+	traits::{WeightTrader, WithOriginFilter},
+	AssetsInHolding, XcmExecutor,
+};
 use xcm_helper::{AssetIdConverter, WhitelistedTokenHandler};
 
 parameter_types! {
@@ -328,7 +337,12 @@ where
 		_context: &XcmContext,
 	) -> sp_std::result::Result<AssetsInHolding, XcmError> {
 		let _fee_in_native_token = T::weight_to_fee(&weight);
-		let payment_asset = payment.clone().fungible_assets_iter().next().ok_or(XcmError::Trap(1000))?.clone();
+		let payment_asset = payment
+			.clone()
+			.fungible_assets_iter()
+			.next()
+			.ok_or(XcmError::Trap(1000))?
+			.clone();
 		let AssetId(location) = payment_asset.clone().id;
 		// let foreign_currency_asset_id =
 		// AC::convert_location_to_asset_id(location).ok_or(XcmError::Trap(1001))?;
