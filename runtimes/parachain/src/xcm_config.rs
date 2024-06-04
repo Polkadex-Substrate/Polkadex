@@ -19,8 +19,9 @@ use super::{
 };
 use crate::{AllPalletsWithSystem, Balance, XcmHelper};
 use core::marker::PhantomData;
+use sp_std::sync::Arc;
 use frame_support::{
-	match_types, parameter_types,
+	parameter_types,
 	traits::{Contains, Everything, Nothing},
 	weights::WeightToFee as WeightToFeeT,
 };
@@ -34,27 +35,18 @@ use polkadot_runtime_common::impls::ToAuthor;
 use sp_core::{ConstU32, Get};
 use sp_runtime::{traits::Convert, SaturatedConversion};
 use xcm::latest::{prelude::*, Weight as XCMWeight, Weight};
-use xcm::latest::Junctions::X1;
-use xcm_builder::{
-	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds,
-	IsConcrete, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit, UsingComponents,
-};
-use xcm_executor::{
-	traits::{WeightTrader, WithOriginFilter},
-	Assets, XcmExecutor,
-};
+use xcm::latest::Junctions::{X1, X2};
+use xcm_builder::{AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, FungibleAdapter, IsConcrete, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit, UsingComponents};
+use xcm_executor::{AssetsInHolding, traits::{WeightTrader, WithOriginFilter}, XcmExecutor};
 use xcm_helper::{AssetIdConverter, WhitelistedTokenHandler};
 
 parameter_types! {
-	pub const RelayLocation: MultiLocation = MultiLocation::parent();
+	pub const RelayLocation: Location = Location::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
-	pub PdexLocation: MultiLocation = Here.into();
-	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+	pub Ancestry: Location = Parachain(ParachainInfo::parachain_id().into()).into();
+	pub PdexLocation: Location = Here.into();
+	pub UniversalLocation: InteriorLocation = X2(Arc::new([GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())]));
 
 
 }
@@ -72,7 +64,7 @@ pub type LocationToAccountId = (
 );
 
 /// Means for transacting assets on this chain.
-pub type LocalAssetTransactor = CurrencyAdapter<
+pub type LocalAssetTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
@@ -145,11 +137,11 @@ parameter_types! {
 	pub const MaxInstructions: u32 = 100;
 }
 
-match_types! {
-	pub type ParentOrParentsExecutivePlurality: impl Contains<MultiLocation> = {
-		MultiLocation { parents: 1, interior: Here } |
-		MultiLocation { parents: 1, interior: X1(Plurality { id: BodyId::Executive, .. }) }
-	};
+pub struct ParentOrParentsExecutivePlurality;
+impl Contains<Location> for ParentOrParentsExecutivePlurality {
+	fn contains(location: &Location) -> bool {
+		matches!(location.unpack(), (1, []) | (1, [Plurality { id: BodyId::Executive, .. }]))
+	}
 }
 
 pub type Barrier = (
@@ -199,7 +191,12 @@ impl xcm_executor::Config for XcmConfig {
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = WithOriginFilter<SafeCallFilter>;
-	type SafeCallFilter = Everything; //Note: All kind of ext can be accessed through XCM
+	type SafeCallFilter = Everything;
+	type TransactionalProcessor = ();
+	type HrmpNewChannelOpenRequestHandler = ();
+	type HrmpChannelAcceptedHandler = ();
+	type HrmpChannelClosingHandler = ();
+	type XcmRecorder = (); //Note: All kind of ext can be accessed through XCM
 }
 
 /// No local origins on this chain are allowed to dispatch XCM sends/executions.
@@ -301,7 +298,7 @@ where
 	/// Total consumed assets
 	consumed: u128,
 	/// Asset Id (as MultiLocation) and units per second for payment
-	asset_location_and_units_per_second: Option<(MultiLocation, u128)>,
+	asset_location_and_units_per_second: Option<(Location, u128)>,
 	_pd: PhantomData<(T, R, AC, WH)>,
 }
 
@@ -327,40 +324,37 @@ where
 	fn buy_weight(
 		&mut self,
 		weight: Weight,
-		payment: Assets,
+		payment: AssetsInHolding,
 		_context: &XcmContext,
-	) -> sp_std::result::Result<Assets, XcmError> {
+	) -> sp_std::result::Result<AssetsInHolding, XcmError> {
 		let _fee_in_native_token = T::weight_to_fee(&weight);
-		let payment_asset = payment.clone().into_inner().get(0).ok_or(XcmError::Trap(1000))?;
-		if let AssetId(location) = payment_asset.clone().id {
-			// let foreign_currency_asset_id =
-			// AC::convert_location_to_asset_id(location).ok_or(XcmError::Trap(1001))?;
-			// let _path = [PolkadexAssetid::get(), foreign_currency_asset_id.into()];
-			//WILL BE RESTORED LATER
-			// let (unused, expected_fee_in_foreign_currency) =
-			// 	if WH::check_whitelisted_token(foreign_currency_asset_id) {
-			// 		(payment, 0u128)
-			// 	} else {
-			// 		return Err(XcmError::Trap(1004));
-			// 	};
-			let (unused, expected_fee_in_foreign_currency) = (payment, 0u128);
-			self.weight = self.weight.saturating_add(weight);
-			if let Some((old_asset_location, _)) = self.asset_location_and_units_per_second {
-				if old_asset_location == location {
-					self.consumed = self
-						.consumed
-						.saturating_add((expected_fee_in_foreign_currency).saturated_into());
-				}
-			} else {
+		let payment_asset = payment.clone().fungible_assets_iter().next().ok_or(XcmError::Trap(1000))?.clone();
+		let AssetId(location) = payment_asset.clone().id;
+		// let foreign_currency_asset_id =
+		// AC::convert_location_to_asset_id(location).ok_or(XcmError::Trap(1001))?;
+		// let _path = [PolkadexAssetid::get(), foreign_currency_asset_id.into()];
+		//WILL BE RESTORED LATER
+		// let (unused, expected_fee_in_foreign_currency) =
+		// 	if WH::check_whitelisted_token(foreign_currency_asset_id) {
+		// 		(payment, 0u128)
+		// 	} else {
+		// 		return Err(XcmError::Trap(1004));
+		// 	};
+		let (unused, expected_fee_in_foreign_currency) = (payment, 0u128);
+		self.weight = self.weight.saturating_add(weight);
+		if let Some((old_asset_location, _)) = &self.asset_location_and_units_per_second {
+			if *old_asset_location == location {
 				self.consumed = self
 					.consumed
 					.saturating_add((expected_fee_in_foreign_currency).saturated_into());
-				self.asset_location_and_units_per_second = Some((location, 0));
 			}
-			Ok(unused)
 		} else {
-			Err(XcmError::Trap(1005))
+			self.consumed = self
+				.consumed
+				.saturating_add((expected_fee_in_foreign_currency).saturated_into());
+			self.asset_location_and_units_per_second = Some((location, 0));
 		}
+		Ok(unused)
 	}
 }
 
@@ -372,9 +366,9 @@ where
 	WH: WhitelistedTokenHandler,
 {
 	fn drop(&mut self) {
-		if let Some((asset_location, _)) = self.asset_location_and_units_per_second {
+		if let Some((asset_location, _)) = &self.asset_location_and_units_per_second {
 			if self.consumed > 0 {
-				R::take_revenue((asset_location, self.consumed).into());
+				R::take_revenue((asset_location.clone(), self.consumed).into());
 			}
 		}
 	}
@@ -392,5 +386,5 @@ where
 pub struct RevenueCollector;
 
 impl TakeRevenue for RevenueCollector {
-	fn take_revenue(_revenue: MultiAsset) {}
+	fn take_revenue(_revenue: Asset) {}
 }

@@ -117,6 +117,8 @@ pallet-statement = { git = "https://github.com/paritytech/polkadot-sdk", branch 
 sp-statement-store = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 pallet-asset-conversion = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 pallet-asset-conversion-tx-payment = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
+pallet-message-queue = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
+parachains-common = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "master", default-features = false }
