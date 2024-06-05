@@ -33,13 +33,8 @@ use polkadot_runtime_parachains::{
 	origin, shared,
 };
 use xcm::latest::prelude::*;
-use xcm_builder::{
-	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex,
-	ChildParachainAsNative, ChildParachainConvertsVia, ChildSystemParachainAsSuperuser,
-	ConvertedConcreteId, CurrencyAdapter as XcmCurrencyAdapter, FixedRateOfFungible,
-	FixedWeightBounds, IsConcrete, NoChecking, NonFungiblesAdapter, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation,
-};
+use xcm::v3::MultiLocation;
+use xcm_builder::{Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex, ChildParachainAsNative, ChildParachainConvertsVia, ChildSystemParachainAsSuperuser, ConvertedConcreteId, FungibleAdapter as XcmCurrencyAdapter, FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, IsConcrete, NoChecking, NonFungiblesAdapter, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation};
 use xcm_executor::{traits::JustTry, Config, XcmExecutor};
 
 pub type AccountId = AccountId32;
@@ -48,7 +43,8 @@ pub type Balance = u128;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 }
-
+use frame_support::derive_impl;
+#[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
 impl frame_system::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
@@ -82,18 +78,18 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = MaxLocks;
-	type Balance = Balance;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type WeightInfo = ();
+	type Balance = Balance;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type RuntimeHoldReason = RuntimeHoldReason;
 	type FreezeIdentifier = ();
-	type MaxHolds = ConstU32<0>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
 	type MaxFreezes = ConstU32<0>;
 }
 
@@ -102,8 +98,9 @@ impl pallet_uniques::Config for Runtime {
 	type CollectionId = u32;
 	type ItemId = u32;
 	type Currency = Balances;
-	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
+	type Locker = ();
 	type CollectionDeposit = frame_support::traits::ConstU128<1_000>;
 	type ItemDeposit = frame_support::traits::ConstU128<1_000>;
 	type MetadataDepositBase = frame_support::traits::ConstU128<1_000>;
@@ -112,23 +109,22 @@ impl pallet_uniques::Config for Runtime {
 	type StringLimit = ConstU32<64>;
 	type KeyLimit = ConstU32<64>;
 	type ValueLimit = ConstU32<128>;
-	type Locker = ();
-	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type Helper = ();
+	type WeightInfo = ();
 }
 
-impl shared::Config for Runtime {}
+impl shared::Config for Runtime { type DisabledValidators = (); }
 
 impl configuration::Config for Runtime {
 	type WeightInfo = configuration::TestWeightInfo;
 }
 
 parameter_types! {
-	pub const TokenLocation: MultiLocation = Here.into_location();
+	pub const TokenLocation: Location = Here.into_location();
 	pub RelayNetwork: NetworkId = ByGenesis([0; 32]);
 	pub const AnyNetwork: Option<NetworkId> = None;
-	pub UniversalLocation: InteriorMultiLocation = Here;
+	pub UniversalLocation: InteriorLocation = Here;
 	pub UnitWeightCost: u64 = 1_000;
 }
 
@@ -160,7 +156,7 @@ type LocalOriginConverter = (
 parameter_types! {
 	pub const BaseXcmWeight: Weight = Weight::from_parts(1_000, 1_000);
 	pub TokensPerSecondPerByte: (AssetId, u128, u128) =
-		(Concrete(TokenLocation::get()), 1_000_000_000_000, 1024 * 1024);
+		(AssetId::try_from(xcm::opaque::v3::AssetId::Concrete(MultiLocation::try_from(TokenLocation::get()).unwrap())).unwrap(), 1_000_000_000_000, 1024 * 1024);
 	pub const MaxInstructions: u32 = 100;
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
@@ -176,6 +172,7 @@ impl Config for XcmConfig {
 	type OriginConverter = LocalOriginConverter;
 	type IsReserve = ();
 	type IsTeleporter = ();
+	type Aliasers = Nothing;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
@@ -187,20 +184,24 @@ impl Config for XcmConfig {
 	type AssetClaims = ();
 	type SubscriptionService = ();
 	type PalletInstancesInfo = ();
-	type FeeManager = ();
 	type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
+	type FeeManager = ();
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;
 	type SafeCallFilter = Everything;
-	type Aliasers = Nothing;
+	type TransactionalProcessor = FrameTransactionalProcessor;
+	type HrmpNewChannelOpenRequestHandler = ();
+	type HrmpChannelAcceptedHandler = ();
+	type HrmpChannelClosingHandler = ();
+	type XcmRecorder = XcmPallet;
 }
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub ReachableDest: Option<MultiLocation> = Some(Parachain(1).into());
+	pub ReachableDest: Option<Location> = Some(Parachain(1).into());
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -279,6 +280,7 @@ impl pallet_message_queue::Config for Runtime {
 	type QueueChangeHandler = ();
 	type QueuePausedQuery = ();
 	type WeightInfo = ();
+	type IdleMaxServiceWeight = ();
 }
 
 construct_runtime!(

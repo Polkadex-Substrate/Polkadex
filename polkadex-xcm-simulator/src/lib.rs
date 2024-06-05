@@ -147,7 +147,7 @@ mod tests {
 	use xcm_simulator::TestExt;
 
 	// Helper function for forming buy execution message
-	fn buy_execution<C>(fees: impl Into<MultiAsset>) -> Instruction<C> {
+	fn buy_execution<C>(fees: impl Into<Asset>) -> Instruction<C> {
 		BuyExecution { fees: fees.into(), weight_limit: Unlimited }
 	}
 
@@ -641,7 +641,7 @@ mod tests {
 				parachain::MsgQueue::received_dmp(),
 				vec![Xcm(vec![QueryResponse {
 					query_id: query_id_set,
-					response: Response::Assets(MultiAssets::new()),
+					response: Response::Assets(Assets::new()),
 					max_weight: Weight::from_parts(1_000_000_000, 1024 * 1024),
 					querier: Some(Here.into()),
 				}])],
