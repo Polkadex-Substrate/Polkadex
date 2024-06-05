@@ -34,7 +34,13 @@ use polkadot_runtime_parachains::{
 };
 use xcm::latest::prelude::*;
 use xcm::v3::MultiLocation;
-use xcm_builder::{Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex, ChildParachainAsNative, ChildParachainConvertsVia, ChildSystemParachainAsSuperuser, ConvertedConcreteId, FungibleAdapter as XcmCurrencyAdapter, FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, IsConcrete, NoChecking, NonFungiblesAdapter, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation};
+use xcm_builder::{
+	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex,
+	ChildParachainAsNative, ChildParachainConvertsVia, ChildSystemParachainAsSuperuser,
+	ConvertedConcreteId, FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor,
+	FungibleAdapter as XcmCurrencyAdapter, IsConcrete, NoChecking, NonFungiblesAdapter,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+};
 use xcm_executor::{traits::JustTry, Config, XcmExecutor};
 
 pub type AccountId = AccountId32;
@@ -114,7 +120,9 @@ impl pallet_uniques::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl shared::Config for Runtime { type DisabledValidators = (); }
+impl shared::Config for Runtime {
+	type DisabledValidators = ();
+}
 
 impl configuration::Config for Runtime {
 	type WeightInfo = configuration::TestWeightInfo;

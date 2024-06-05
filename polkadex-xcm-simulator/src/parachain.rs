@@ -37,13 +37,19 @@ use polkadot_core_primitives::BlockNumber as RelayBlockNumber;
 use polkadot_parachain_primitives::primitives::{
 	DmpMessageHandler, Id as ParaId, Sibling, XcmpMessageFormat, XcmpMessageHandler,
 };
-use xcm_simulator::Location;
 use xcm::{latest::prelude::*, VersionedXcm};
-use xcm_builder::{Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, ConvertedConcreteId, FungibleAdapter as XcmCurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor, IsConcrete, NativeAsset, NoChecking, NonFungiblesAdapter, ParentIsPreset, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation};
+use xcm_builder::{
+	Account32Hash, AccountId32Aliases, AllowUnpaidExecutionFrom, ConvertedConcreteId,
+	EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FrameTransactionalProcessor,
+	FungibleAdapter as XcmCurrencyAdapter, IsConcrete, NativeAsset, NoChecking,
+	NonFungiblesAdapter, ParentIsPreset, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation,
+};
 use xcm_executor::{
 	traits::{ConvertLocation, JustTry},
 	Config, XcmExecutor,
 };
+use xcm_simulator::Location;
 
 pub type SovereignAccountOf = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
@@ -331,13 +337,21 @@ pub mod mock_msg_queue {
 			let (result, event) = match Xcm::<T::RuntimeCall>::try_from(xcm) {
 				Ok(xcm) => {
 					let location = (Parent, Parachain(sender.into()));
-					match T::XcmExecutor::prepare_and_execute(location, xcm, &mut message_hash, max_weight, Weight::zero()) {
+					match T::XcmExecutor::prepare_and_execute(
+						location,
+						xcm,
+						&mut message_hash,
+						max_weight,
+						Weight::zero(),
+					) {
 						Outcome::Complete { used } => (Ok(used), Event::Success(Some(hash))),
 
 						// As far as the caller is concerned, this was dispatched without error, so
 						// we just report the weight used.
-						Outcome::Incomplete { used, error } => (Ok(used), Event::Fail(Some(hash), error)),
-						Outcome::Error { error } => (Err(error), Event::Fail(Some(hash), error))
+						Outcome::Incomplete { used, error } => {
+							(Ok(used), Event::Fail(Some(hash), error))
+						},
+						Outcome::Error { error } => (Err(error), Event::Fail(Some(hash), error)),
 					}
 				},
 				Err(()) => (Err(XcmError::UnhandledXcmVersion), Event::BadVersion(Some(hash))),
@@ -387,7 +401,13 @@ pub mod mock_msg_queue {
 					Ok(versioned) => match Xcm::try_from(versioned) {
 						Err(()) => Self::deposit_event(Event::UnsupportedVersion(id)),
 						Ok(x) => {
-							let outcome = T::XcmExecutor::prepare_and_execute(Parent, x.clone(), &mut id, limit, Weight::zero());
+							let outcome = T::XcmExecutor::prepare_and_execute(
+								Parent,
+								x.clone(),
+								&mut id,
+								limit,
+								Weight::zero(),
+							);
 							<ReceivedDmp<T>>::append(x);
 							Self::deposit_event(Event::ExecutedDownward(id, outcome));
 						},
@@ -412,9 +432,7 @@ parameter_types! {
 }
 
 pub struct TrustedLockerCase<T>(PhantomData<T>);
-impl<T: Get<(Location, AssetFilter)>> ContainsPair<Location, Asset>
-	for TrustedLockerCase<T>
-{
+impl<T: Get<(Location, AssetFilter)>> ContainsPair<Location, Asset> for TrustedLockerCase<T> {
 	fn contains(origin: &Location, asset: &Asset) -> bool {
 		let (o, a) = T::get();
 		a.matches(asset) && &o == origin
