@@ -26,16 +26,16 @@ use frame_system::RawOrigin;
 
 use sp_core::Get;
 use sp_runtime::traits::AccountIdConversion;
-use xcm::latest::{AssetId, Junction, Junctions, MultiLocation};
+use xcm::latest::{AssetId, Junction, Junctions, Location};
 const SEED: u32 = 0;
 
 benchmarks! {
 	whitelist_token {
 		let b in 1 .. 1000;
 		let token = b as u128;
-		let asset_location = MultiLocation::new(1, Junctions::X1(Junction::Parachain(b)));
-		let token: AssetId = AssetId::Concrete(asset_location);
-	}: _(RawOrigin::Root, token)
+		let asset_location = Location::new(1, Junctions::X1([Junction::Parachain(b)].into()));
+		let token: AssetId = AssetId(asset_location);
+	}: _(RawOrigin::Root, token.clone())
 	verify {
 		let token = XcmHelper::<T>::generate_asset_id_for_parachain(token);
 		let whitelisted_tokens = <WhitelistedTokens<T>>::get();
@@ -45,13 +45,13 @@ benchmarks! {
 	remove_whitelisted_token {
 		let b in 1 .. 1000;
 		let token = b as u128;
-		let asset_location = MultiLocation::new(1, Junctions::X1(Junction::Parachain(b)));
-		let token: AssetId = AssetId::Concrete(asset_location);
-		let token_id = XcmHelper::<T>::generate_asset_id_for_parachain(token);
+		let asset_location = Location::new(1, Junctions::X1([Junction::Parachain(b)].into()));
+		let token: AssetId = AssetId(asset_location);
+		let token_id = XcmHelper::<T>::generate_asset_id_for_parachain(token.clone());
 		let mut whitelisted_tokens = <WhitelistedTokens<T>>::get();
 		whitelisted_tokens.push(token_id);
 		<WhitelistedTokens<T>>::put(whitelisted_tokens);
-	}: _(RawOrigin::Root, token)
+	}: _(RawOrigin::Root, token.clone())
 	verify {
 		let whitelisted_tokens = <WhitelistedTokens<T>>::get();
 		assert!(!whitelisted_tokens.contains(&token_id));

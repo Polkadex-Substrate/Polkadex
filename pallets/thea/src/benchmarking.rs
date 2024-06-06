@@ -30,7 +30,7 @@ use polkadex_primitives::UNIT_BALANCE;
 use sp_core::H160;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 use thea_primitives::types::{
-	IncomingMessage, MisbehaviourReport, SignedMessage, THEA_HOLD_REASON,
+	IncomingMessage, MisbehaviourReport, SignedMessage,
 };
 use thea_primitives::TheaBenchmarkHelper;
 
@@ -175,12 +175,12 @@ benchmarks! {
 		let relayer_stake_amount = 1 * UNIT_BALANCE;
 		let fisherman_stake_amount = 1 * UNIT_BALANCE;
 		T::NativeCurrency::hold(
-				&THEA_HOLD_REASON,
+				&HoldReason::Thea.into(),
 				&relayer,
 				relayer_stake_amount.saturated_into(),
 			)?;
 		T::NativeCurrency::hold(
-				&THEA_HOLD_REASON,
+				&HoldReason::Thea.into(),
 				&fisherman,
 				fisherman_stake_amount.saturated_into(),
 			)?;
