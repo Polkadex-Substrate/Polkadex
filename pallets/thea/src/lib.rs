@@ -758,7 +758,7 @@ impl<T: Config> Pallet<T> {
 
 	fn change_authorities(
 		incoming: BoundedVec<T::TheaId, T::MaxAuthorities>, // n+1th set
-		_queued: BoundedVec<T::TheaId, T::MaxAuthorities>,   // n+ 2th set
+		_queued: BoundedVec<T::TheaId, T::MaxAuthorities>,  // n+ 2th set
 	) {
 		//	( outgoing) -> (validators/incoming) -> (queued)
 		// nth epoch -> n+1th epoch -> n+2nd epoch
@@ -861,7 +861,6 @@ impl<T: Config> Pallet<T> {
 					Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(network));
 					continue;
 				}
-
 			}
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
