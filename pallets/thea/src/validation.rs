@@ -28,6 +28,7 @@ use parity_scale_codec::Encode;
 use sp_application_crypto::RuntimeAppPublic;
 use sp_std::vec::Vec;
 use thea_primitives::Network;
+use thea_primitives::types::PayloadType;
 
 impl<T: Config> Pallet<T> {
 	/// Starts the offchain worker instance that checks for finalized next incoming messages
@@ -37,8 +38,11 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 
-		let id = <ValidatorSetId<T>>::get();
+		let mut id = <ValidatorSetId<T>>::get();
+		let id_prev = id.saturating_sub(1);
+
 		let authorities = <Authorities<T>>::get(id).to_vec();
+		let prev_authorities =  <Authorities<T>>::get(id_prev).to_vec();
 
 		let local_keys = T::TheaId::all();
 
@@ -54,8 +58,23 @@ impl<T: Config> Pallet<T> {
 			.collect::<Vec<(usize, T::TheaId)>>();
 		available_keys.sort();
 
-		let (auth_index, signer) = available_keys.first().ok_or("No active keys available")?;
+
+		let (mut auth_index, signer) = available_keys.first().ok_or("No active keys available")?;
 		log::info!(target: "thea", "Auth Index {:?} signer {:?}", auth_index, signer.clone());
+
+		let local_keys = T::TheaId::all();
+		// Fetching the available keys from previous set
+		let mut prev_available_keys = prev_authorities
+			.iter()
+			.enumerate()
+			.filter_map(move |(auth_index, authority)| {
+				local_keys
+					.binary_search(authority)
+					.ok()
+					.map(|location| (auth_index, local_keys[location].clone()))
+			})
+			.collect::<Vec<(usize, T::TheaId)>>();
+		prev_available_keys.sort();
 
 		let active_networks = <ActiveNetworks<T>>::get();
 		log::info!(target:"thea","List of active networks: {:?}",active_networks);
@@ -71,7 +90,7 @@ impl<T: Config> Pallet<T> {
 				None => {},
 				Some(signed_msg) => {
 					// Don't sign again if we already signed it
-					if signed_msg.contains_signature(&(*auth_index as u32)) {
+					if signed_msg.contains_signature(&(auth_index as u32)) {
 						log::warn!(target:"thea","Next outgoing nonce for network {:?} is: {:?} is already signed ",network, next_outgoing_nonce);
 						continue;
 					}
@@ -82,19 +101,42 @@ impl<T: Config> Pallet<T> {
 				Some(msg) => msg,
 			};
 
-			let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
-			// Note: this is a double hash signing
-			let signature =
-				sp_io::crypto::ecdsa_sign_prehashed(THEA, &signer.clone().into(), &msg_hash)
-					.ok_or("Expected signature to be returned")?;
-			signed_messages.push((network, next_outgoing_nonce, signature.into()));
+			match message.payload_type {
+				PayloadType::ScheduledRotateValidators => {
+					log::warn!(target: "thea", "Ignoring ScheduledRotateValidators message for thea");
+				}
+				PayloadType::ValidatorsRotated => {
+					// if its validator rotated, then only the previous set should sign it.
+					let (prev_auth_index, prev_signer) = prev_available_keys.first()
+						.ok_or("No active keys available from previous set to sign rotation message")?;
+					log::info!(target: "thea", "Previous Auth Index {:?} previous signer {:?}", prev_auth_index, prev_signer.clone());
+
+					let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+					// Note: this is a double hash signing
+					let signature =
+						sp_io::crypto::ecdsa_sign_prehashed(THEA, &prev_signer.clone().into(), &msg_hash)
+							.ok_or("Expected signature to be returned")?;
+					signed_messages.push((network, next_outgoing_nonce, signature.into()));
+					id = id_prev; // We need to set the id to prev for unsigned validation to pass
+					auth_index = *prev_auth_index; // We need to set the id to prev for unsigned validation to pass
+				}
+				PayloadType::L1Deposit => {
+					let msg_hash = sp_io::hashing::sha2_256(message.encode().as_slice());
+					// Note: this is a double hash signing
+					let signature =
+						sp_io::crypto::ecdsa_sign_prehashed(THEA, &signer.clone().into(), &msg_hash)
+							.ok_or("Expected signature to be returned")?;
+					signed_messages.push((network, next_outgoing_nonce, signature.into()));
+				}
+			}
+
 		}
 
 		if !signed_messages.is_empty() {
 			//	we batch these signatures into a single extrinsic and submit on-chain
 			if let Err(()) = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(
 				Call::<T>::submit_signed_outgoing_messages {
-					auth_index: *auth_index as u32,
+					auth_index: auth_index as u32,
 					id,
 					signatures: signed_messages,
 				}
