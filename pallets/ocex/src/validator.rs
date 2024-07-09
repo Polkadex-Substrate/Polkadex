@@ -658,7 +658,9 @@ impl<T: Config> Pallet<T> {
 						return Err("Invalid egress message for withdraw trading fees");
 					}
 				},
-				IngressMessages::NewLMPEpoch(epoch) => Self::start_new_lmp_epoch(state, epoch)?,
+				IngressMessages::NewLMPEpoch(_epoch) => {
+					// Self::start_new_lmp_epoch(state, epoch)?
+				},
 				_ => {},
 			}
 		}
