@@ -83,8 +83,13 @@ fn test_session_change() {
 		// Simulating the on_new_session to last epoch of an era.
 		Thea::on_new_session(false, authorities.into_iter(), queued.clone().into_iter());
 		assert!(Thea::validator_set_id() == 0);
-		assert!(Thea::outgoing_nonce(1) == 1); // Thea validator session change message is generated here
+		assert!(Thea::outgoing_nonce(1) == 0); // Thea validator session change message is not generated here on new change only when session actually changes
 
+
+		// Simulating the on_new_session to the first epoch of the next era.
+		Thea::on_new_session(false, queued.clone().into_iter(), queued.clone().into_iter());
+		assert!(Thea::validator_set_id() == 1);
+		assert!(Thea::outgoing_nonce(1) == 1);
 		let message = Thea::get_outgoing_messages(1, 1).unwrap();
 		assert_eq!(message.nonce, 1);
 		let validator_set: ValidatorSet<<Test as Config>::TheaId> =
@@ -93,14 +98,6 @@ fn test_session_change() {
 			queued.iter().map(|(_, public)| public.clone()).collect();
 		assert_eq!(validator_set.set_id, 1);
 		assert_eq!(validator_set.validators, queued_validators);
-
-		// Simulating the on_new_session to the first epoch of the next era.
-		Thea::on_new_session(false, queued.clone().into_iter(), queued.clone().into_iter());
-		assert!(Thea::validator_set_id() == 1);
-		assert!(Thea::outgoing_nonce(1) == 2);
-		let message = Thea::get_outgoing_messages(1, 2).unwrap();
-		assert_eq!(message.nonce, 2);
-		assert!(message.data.is_empty());
 	})
 }
 
@@ -320,7 +317,7 @@ fn test_report_misbehaviour_happy_path() {
 		assert_ok!(Thea::report_misbehaviour(RuntimeOrigin::signed(fisherman), network, 1));
 	})
 }
-
+use thea_primitives::types::NetworkType;
 use frame_support::{
 	assert_noop,
 	traits::{fungible::MutateHold, tokens::Precision},
