@@ -85,7 +85,6 @@ fn test_session_change() {
 		assert!(Thea::validator_set_id() == 0);
 		assert!(Thea::outgoing_nonce(1) == 0); // Thea validator session change message is not generated here on new change only when session actually changes
 
-
 		// Simulating the on_new_session to the first epoch of the next era.
 		Thea::on_new_session(false, queued.clone().into_iter(), queued.clone().into_iter());
 		assert!(Thea::validator_set_id() == 1);
@@ -317,11 +316,11 @@ fn test_report_misbehaviour_happy_path() {
 		assert_ok!(Thea::report_misbehaviour(RuntimeOrigin::signed(fisherman), network, 1));
 	})
 }
-use thea_primitives::types::NetworkType;
 use frame_support::{
 	assert_noop,
 	traits::{fungible::MutateHold, tokens::Precision},
 };
+use thea_primitives::types::NetworkType;
 use thea_primitives::types::{AssetMetadata, IncomingMessage, SignedMessage, THEA_HOLD_REASON};
 
 #[test]

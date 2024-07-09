@@ -221,8 +221,7 @@ fn test_incoming_message_validator_change_payload() {
 		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message.clone()));
 		assert_eq!(<ValidatorSetId<Test>>::get(), 1);
 		// Doesn't do any thing
-		assert_ok!(
-			TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message_sv.clone()),);
+		assert_ok!(TheaHandler::incoming_message(RuntimeOrigin::none(), signed_message_sv.clone()),);
 	})
 }
 
