@@ -40,7 +40,7 @@ use sp_runtime::{
 use sp_std::collections::btree_set::BTreeSet;
 use sp_std::prelude::*;
 use thea_primitives::{
-	types::{Message, NetworkType, PayloadType},
+	types::{Message, PayloadType},
 	Network, ValidatorSet, GENESIS_AUTHORITY_SET_ID,
 };
 
@@ -758,7 +758,7 @@ impl<T: Config> Pallet<T> {
 
 	fn change_authorities(
 		incoming: BoundedVec<T::TheaId, T::MaxAuthorities>, // n+1th set
-		queued: BoundedVec<T::TheaId, T::MaxAuthorities>,   // n+ 2th set
+		_queued: BoundedVec<T::TheaId, T::MaxAuthorities>,  // n+ 2th set
 	) {
 		//	( outgoing) -> (validators/incoming) -> (queued)
 		// nth epoch -> n+1th epoch -> n+2nd epoch
@@ -766,95 +766,104 @@ impl<T: Config> Pallet<T> {
 		let outgoing = <Authorities<T>>::get(id); // nth set  ( active ,current )
 		let new_id = id + 1u64;
 		let active_networks = <ActiveNetworks<T>>::get();
-		// We need to issue a new message if the validator set is changing,
-		// that is, the incoming set is has different session keys from outgoing set.
-		// This last message should be signed by the outgoing set
-		// Similar to how Grandpa's session change works.
+		// // We need to issue a new message if the validator set is changing,
+		// // that is, the incoming set is has different session keys from outgoing set.
+		// // This last message should be signed by the outgoing set
+		// // Similar to how Grandpa's session change works.
 		let incoming_set = BTreeSet::from_iter(incoming.to_vec());
-		if incoming_set != BTreeSet::from_iter(queued.to_vec()) {
-			let uncompressed_keys: Vec<[u8; 20]> = vec![];
-			// TODO: Uncomment the following when parsing is fixed for ethereum keys.
-			// for public_key in queued.clone().into_iter() {
-			// 	let public_key: sp_core::ecdsa::Public = public_key.into();
-			// 	if public_key.0 == [0u8; 33] {
-			// 		uncompressed_keys.push([0u8; 20]);
-			// 		continue;
-			// 	}
-			// 	if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0)
-			// 	{
-			// 		let uncompressed_key = compressed_key.serialize();
-			// 		let uncompressed_key: [u8; 64] =
-			// 			if let Ok(uncompressed_key) = uncompressed_key[1..65].try_into() {
-			// 				uncompressed_key
-			// 			} else {
-			// 				log::error!(target: "thea", "Unable to slice last 64 bytes of uncompressed_key for Evm");
-			// 				Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
-			// 					public_key.into(),
-			// 				));
-			// 				return;
-			// 			};
-			// 		let hash: [u8; 32] = sp_io::hashing::keccak_256(&uncompressed_key);
-			// 		if let Ok(address) = hash[12..32].try_into() {
-			// 			uncompressed_keys.push(address);
-			// 		} else {
-			// 			log::error!(target: "thea", "Unable to slice last 20 bytes of hash for Evm");
-			// 			Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
-			// 				public_key.into(),
-			// 			));
-			// 			return;
-			// 		}
-			// 	} else {
-			// 		log::error!(target: "thea", "Unable to parse compressed key");
-			// 		Self::deposit_event(Event::<T>::UnableToParsePublicKey(public_key.into()));
-			// 		return;
-			// 	}
-			// }
-			for network in &active_networks {
-				let network_config = <NetworkConfig<T>>::get(*network);
-				let message = match network_config.network_type {
-					NetworkType::Evm => {
-						if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id)
-						{
-							Self::generate_payload(
-								PayloadType::ScheduledRotateValidators,
-								*network,
-								payload.encode(),
-							)
-						} else {
-							log::error!(target: "thea", "Unable to generate rotate validators payload");
-							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
-							continue;
-						}
-					},
-					NetworkType::Parachain => {
-						if let Some(payload) = ValidatorSet::new(queued.clone(), new_id) {
-							Self::generate_payload(
-								PayloadType::ScheduledRotateValidators,
-								*network,
-								payload.encode(),
-							)
-						} else {
-							log::error!(target: "thea", "Unable to generate rotate validators payload");
-							Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
-							continue;
-						}
-					},
-				};
-				<OutgoingNonce<T>>::insert(message.network, message.nonce);
-				<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
-			}
-			<NextAuthorities<T>>::put(queued);
-		}
+		// if incoming_set != BTreeSet::from_iter(queued.to_vec()) {
+		// 	let uncompressed_keys: Vec<[u8; 20]> = vec![];
+		// 	// TODO: Uncomment the following when parsing is fixed for ethereum keys.
+		// 	// for public_key in queued.clone().into_iter() {
+		// 	// 	let public_key: sp_core::ecdsa::Public = public_key.into();
+		// 	// 	if public_key.0 == [0u8; 33] {
+		// 	// 		uncompressed_keys.push([0u8; 20]);
+		// 	// 		continue;
+		// 	// 	}
+		// 	// 	if let Ok(compressed_key) = libsecp256k1::PublicKey::parse_compressed(&public_key.0)
+		// 	// 	{
+		// 	// 		let uncompressed_key = compressed_key.serialize();
+		// 	// 		let uncompressed_key: [u8; 64] =
+		// 	// 			if let Ok(uncompressed_key) = uncompressed_key[1..65].try_into() {
+		// 	// 				uncompressed_key
+		// 	// 			} else {
+		// 	// 				log::error!(target: "thea", "Unable to slice last 64 bytes of uncompressed_key for Evm");
+		// 	// 				Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
+		// 	// 					public_key.into(),
+		// 	// 				));
+		// 	// 				return;
+		// 	// 			};
+		// 	// 		let hash: [u8; 32] = sp_io::hashing::keccak_256(&uncompressed_key);
+		// 	// 		if let Ok(address) = hash[12..32].try_into() {
+		// 	// 			uncompressed_keys.push(address);
+		// 	// 		} else {
+		// 	// 			log::error!(target: "thea", "Unable to slice last 20 bytes of hash for Evm");
+		// 	// 			Self::deposit_event(Event::<T>::UnableToSlicePublicKeyHash(
+		// 	// 				public_key.into(),
+		// 	// 			));
+		// 	// 			return;
+		// 	// 		}
+		// 	// 	} else {
+		// 	// 		log::error!(target: "thea", "Unable to parse compressed key");
+		// 	// 		Self::deposit_event(Event::<T>::UnableToParsePublicKey(public_key.into()));
+		// 	// 		return;
+		// 	// 	}
+		// 	// }
+		// 	for network in &active_networks {
+		// 		let network_config = <NetworkConfig<T>>::get(*network);
+		// 		let message = match network_config.network_type {
+		// 			NetworkType::Evm => {
+		// 				if let Some(payload) = ValidatorSet::new(uncompressed_keys.clone(), new_id)
+		// 				{
+		// 					Self::generate_payload(
+		// 						PayloadType::ScheduledRotateValidators,
+		// 						*network,
+		// 						payload.encode(),
+		// 					)
+		// 				} else {
+		// 					log::error!(target: "thea", "Unable to generate rotate validators payload");
+		// 					Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
+		// 					continue;
+		// 				}
+		// 			},
+		// 			NetworkType::Parachain => {
+		// 				if let Some(payload) = ValidatorSet::new(queued.clone(), new_id) {
+		// 					Self::generate_payload(
+		// 						PayloadType::ScheduledRotateValidators,
+		// 						*network,
+		// 						payload.encode(),
+		// 					)
+		// 				} else {
+		// 					log::error!(target: "thea", "Unable to generate rotate validators payload");
+		// 					Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(*network));
+		// 					continue;
+		// 				}
+		// 			},
+		// 		};
+		// 		<OutgoingNonce<T>>::insert(message.network, message.nonce);
+		// 		<OutgoingMessages<T>>::insert(message.network, message.nonce, message);
+		// 	}
+		// 	<NextAuthorities<T>>::put(queued);
+		// }
 		if incoming_set != BTreeSet::from_iter(outgoing.to_vec()) {
 			// This will happen when new era starts, or end of the last epoch
+			for network in active_networks {
+				if let Some(payload) = ValidatorSet::new(incoming.clone(), new_id) {
+					let message = Self::generate_payload(
+						PayloadType::ValidatorsRotated,
+						network,
+						payload.encode(),
+					);
+					<OutgoingNonce<T>>::insert(network, message.nonce);
+					<OutgoingMessages<T>>::insert(network, message.nonce, message);
+				} else {
+					log::error!(target: "thea", "Unable to generate rotate validators payload");
+					Self::deposit_event(Event::<T>::UnableToGenerateValidatorSet(network));
+					continue;
+				}
+			}
 			<Authorities<T>>::insert(new_id, incoming);
 			<ValidatorSetId<T>>::put(new_id);
-			for network in active_networks {
-				let message =
-					Self::generate_payload(PayloadType::ValidatorsRotated, network, Vec::new()); //Empty data means activate the next set_id
-				<OutgoingNonce<T>>::insert(network, message.nonce);
-				<OutgoingMessages<T>>::insert(network, message.nonce, message);
-			}
 		}
 	}
 
