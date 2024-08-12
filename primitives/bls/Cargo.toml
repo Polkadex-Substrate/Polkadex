@@ -52,3 +52,4 @@ std = [
   "tiny-bip39",
   "blst",
 ]
+parachain = []

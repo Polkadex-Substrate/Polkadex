@@ -382,6 +382,7 @@ pub mod pallet {
 			stake: Balance,
 		) -> DispatchResult {
 			let signer = ensure_signed(origin)?;
+			// Testing relayer must be removed after final audit
 			let expected_signer = <AllowListTestingRelayers<T>>::get(payload.network)
 				.ok_or(Error::<T>::NoRelayersFound)?;
 			ensure!(signer == expected_signer, Error::<T>::NotAnAllowlistedRelayer);

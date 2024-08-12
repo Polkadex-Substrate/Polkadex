@@ -20,6 +20,7 @@ hex-literal = { workspace = true, optional = true }
 log = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 smallvec = { workspace = true }
+static_assertions = {workspace = true}
 
 # Substrate
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
@@ -36,7 +37,12 @@ pallet-balances = { workspace = true, default-features = false }
 pallet-bags-list = { workspace = true, default-features = false, optional = true }
 pallet-session = { workspace = true, default-features = false }
 pallet-sudo = { workspace = true, default-features = false }
+pallet-democracy = { workspace = true, default-features = false }
+pallet-collective = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
+pallet-elections-phragmen = { workspace = true, default-features = false }
+pallet-scheduler = { workspace = true, default-features = false }
+pallet-preimage = { workspace = true, default-features = false }
 pallet-transaction-payment = { workspace = true, default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
 sp-api = { workspace = true, default-features = false }
@@ -113,6 +119,11 @@ std = [
   "pallet-collator-selection/std",
   "pallet-session/std",
   "pallet-sudo/std",
+  "pallet-democracy/std",
+  "pallet-collective/std",
+  "pallet-elections-phragmen/std",
+  "pallet-scheduler/std",
+  "pallet-preimage/std",
   "pallet-timestamp/std",
   "pallet-transaction-payment-rpc-runtime-api/std",
   "pallet-transaction-payment/std",
@@ -163,6 +174,13 @@ runtime-benchmarks = [
   "thea-council/runtime-benchmarks",
   "pallet-assets/runtime-benchmarks",
   "cumulus-pallet-parachain-system/runtime-benchmarks",
+
+
+  "pallet-collective/runtime-benchmarks",
+  "pallet-democracy/runtime-benchmarks",
+  "pallet-preimage/runtime-benchmarks",
+  "pallet-scheduler/runtime-benchmarks",
+  "pallet-elections-phragmen/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -183,6 +201,14 @@ try-runtime = [
   "pallet-collator-selection/try-runtime",
   "pallet-session/try-runtime",
   "pallet-sudo/try-runtime",
+
+  "pallet-collective/try-runtime",
+  "pallet-democracy/try-runtime",
+  "pallet-preimage/try-runtime",
+  "pallet-scheduler/try-runtime",
+  "pallet-elections-phragmen/try-runtime",
+
+
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
   "pallet-xcm/try-runtime",
