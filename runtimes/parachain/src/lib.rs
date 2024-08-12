@@ -10,7 +10,7 @@ mod constants;
 mod weights;
 pub mod xcm_config;
 
-use crate::constants::currency::{CENTS, deposit, DOLLARS};
+use crate::constants::currency::{deposit, CENTS, DOLLARS};
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime,
@@ -563,7 +563,6 @@ impl thea_message_handler::Config for Runtime {
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
 }
 
-
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = DOLLARS;
@@ -737,7 +736,6 @@ parameter_types! {
 	pub const CouncilMaxMembers: u32 = 100;
 }
 
-
 type CouncilCollective = pallet_collective::Instance1;
 impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
@@ -751,7 +749,6 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type SetMembersOrigin = EnsureRoot<AccountId>;
 	type MaxProposalWeight = MaxCollectivesProposalWeight;
 }
-
 
 parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
@@ -777,7 +774,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type SetMembersOrigin = EnsureRootOrHalfCouncil;
 	type MaxProposalWeight = MaxCollectivesProposalWeight;
 }
-
 
 // Create the polkadex-parachain by composing the FRAME pallets that were previously configured.
 construct_runtime!(
