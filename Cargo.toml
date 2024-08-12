@@ -123,7 +123,7 @@ orml-vesting = { git = "https://github.com/Polkadex-Substrate/orml-1.1.0.git", b
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
-sp-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false}
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sp-version = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sp-staking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
@@ -172,7 +172,7 @@ sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk", bran
 sc-consensus-babe-rpc = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sc-authority-discovery = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
-substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"}
+substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 pallet-nomination-pools = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 grandpa-primitives = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false, package = "sp-finality-grandpa" }
@@ -212,7 +212,7 @@ polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", 
 sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 [patch.'https://github.com/w3f/ring-vrf']
-bandersnatch_vrfs = { git = "https://github.com/w3f//ring-vrf.git", rev = "3ebdd261873da05124f4499c85a8e62d40411620"}
+bandersnatch_vrfs = { git = "https://github.com/w3f//ring-vrf.git", rev = "3ebdd261873da05124f4499c85a8e62d40411620" }
 
 [patch.'https://github.com/paritytech/polkadot-sdk']
-substrate-wasm-builder = { git = "https://github.com/Polkadex-Substrate/polkadot-sdk", branch = "release-polkadot-v1.1.0"}
+substrate-wasm-builder = { git = "https://github.com/Polkadex-Substrate/polkadot-sdk", branch = "release-polkadot-v1.1.0" }

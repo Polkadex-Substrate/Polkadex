@@ -44,30 +44,28 @@ smallvec = "1.13.1"
 hex = "0.4.3"
 
 
-
-
 [features]
 default = []
 runtime-benchmarks = [
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
-	"pallet-message-queue/runtime-benchmarks",
-	"pallet-uniques/runtime-benchmarks",
-	"pallet-xcm/runtime-benchmarks",
-	"polkadot-parachain-primitives/runtime-benchmarks",
-	"polkadot-runtime-parachains/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"xcm-builder/runtime-benchmarks",
-	"xcm-executor/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "pallet-balances/runtime-benchmarks",
+  "pallet-message-queue/runtime-benchmarks",
+  "pallet-uniques/runtime-benchmarks",
+  "pallet-xcm/runtime-benchmarks",
+  "polkadot-parachain-primitives/runtime-benchmarks",
+  "polkadot-runtime-parachains/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "xcm-builder/runtime-benchmarks",
+  "xcm-executor/runtime-benchmarks",
 ]
 try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"pallet-balances/try-runtime",
-	"pallet-message-queue/try-runtime",
-	"pallet-uniques/try-runtime",
-	"pallet-xcm/try-runtime",
-	"polkadot-runtime-parachains/try-runtime",
-	"sp-runtime/try-runtime",
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "pallet-balances/try-runtime",
+  "pallet-message-queue/try-runtime",
+  "pallet-uniques/try-runtime",
+  "pallet-xcm/try-runtime",
+  "polkadot-runtime-parachains/try-runtime",
+  "sp-runtime/try-runtime",
 ]

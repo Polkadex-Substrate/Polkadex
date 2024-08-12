@@ -119,7 +119,7 @@ pallet-ocex-runtime-api = { path = "../../pallets/ocex/rpc/runtime-api", default
 frame-metadata-hash-extension = { workspace = true, default-features = false }
 
 [build-dependencies]
-substrate-wasm-builder = { workspace = true ,  optional = true}
+substrate-wasm-builder = { workspace = true, optional = true }
 docify = "0.2.8"
 
 [features]
@@ -131,9 +131,7 @@ default = ["std"]
 # generate the metadata hash and then a second time with the
 # `RUNTIME_METADATA_HASH` environment variable set for the `CheckMetadataHash`
 # extension.
-metadata-hash = [
-  "substrate-wasm-builder/metadata-hash"
-]
+metadata-hash = ["substrate-wasm-builder/metadata-hash"]
 
 # A convenience feature for enabling things when doing a build
 # for an on-chain release.
@@ -218,7 +216,7 @@ std = [
   "sp-storage?/std",
 ]
 runtime-benchmarks = [
-#  theirs
+  #  theirs
   "sp-storage",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",

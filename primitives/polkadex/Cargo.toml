@@ -46,6 +46,6 @@ std = [
   "sp-runtime/std",
   "rust_decimal/std",
   "rust_decimal/serde",
-  "xcm/std"
+  "xcm/std",
 ]
 full_crypto = ['sp-core/full_crypto']
