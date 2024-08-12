@@ -107,6 +107,7 @@ pub fn create_extrinsic(
 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<
 				node_polkadex_runtime::Runtime,
 			>::from(tip, None),
+			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		);
 
 	let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
@@ -121,6 +122,7 @@ pub fn create_extrinsic(
 			(),
 			(),
 			(),
+			None,
 		),
 	);
 	let signature = raw_payload.using_encoded(|e| sender.sign(e));
@@ -312,6 +314,7 @@ pub fn new_partial(
 }
 
 /// Result of [`new_full_base`].
+#[allow(dead_code)]
 pub struct NewFullBase {
 	/// The task manager of the node.
 	pub task_manager: TaskManager,
@@ -848,6 +851,7 @@ mod tests {
 					check_nonce,
 					check_weight,
 					tx_payment,
+					frame_metadata_hash_extension::CheckMetadataHash::new(false),
 				);
 				let raw_payload = node_polkadex_runtime::SignedPayload::from_raw(
 					function.clone(),
@@ -861,6 +865,7 @@ mod tests {
 						(),
 						(),
 						(),
+						None,
 					),
 				);
 				let signature = raw_payload.using_encoded(|payload| signer.sign(payload));

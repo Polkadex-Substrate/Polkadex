@@ -46,7 +46,12 @@ impl<T: Config> AggregatorClient<T> {
 	/// Load signed summary and send it to the aggregator
 	/// # Parameters
 	/// * `snapshot_id`: Snapshot id for which signed summary should be loaded and sent
-	pub fn load_signed_summary_and_send(snapshot_id: u64) {
+	pub fn load_signed_summary_and_send(
+		current_set_id: u64,
+		snapshot_id: u64,
+		signer: &T::AuthorityId,
+		auth_index: u16,
+	) -> Result<(), &'static str> {
 		let mut key = LAST_PROCESSED_SNAPSHOT.to_vec();
 		key.append(&mut snapshot_id.encode());
 
@@ -56,7 +61,14 @@ impl<T: Config> AggregatorClient<T> {
 			<<T as Config>::AuthorityId as RuntimeAppPublic>::Signature,
 			u16,
 		)>() {
-			Ok(Some((summary, signature, index))) => {
+			Ok(Some((mut summary, mut signature, mut index))) => {
+				// Check if the validator set id is same as the current active, if not, update it and sign again
+				if summary.validator_set_id != current_set_id {
+					log::info!(target:"ocex","Signing with new validator set id's keys");
+					summary.validator_set_id = current_set_id;
+					signature = signer.sign(&summary.encode()).ok_or("Private key not found")?;
+					index = auth_index;
+				}
 				match serde_json::to_string(&ApprovedSnapshot {
 					summary: summary.encode(),
 					index: index.saturated_into(),
@@ -83,6 +95,7 @@ impl<T: Config> AggregatorClient<T> {
 				log::error!(target:"ocex","Error loading signed summary for:  nonce {:?}, {:?}",snapshot_id,err);
 			},
 		}
+		Ok(())
 	}
 
 	/// Load user action batch from aggregator

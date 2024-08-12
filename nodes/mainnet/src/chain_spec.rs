@@ -1224,6 +1224,7 @@ pub fn get_stakeholder_tokens() -> Vec<(AccountId, Balance)> {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub(crate) mod tests {
 	use sp_runtime::BuildStorage;
 

@@ -5799,11 +5799,13 @@ checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "node-polkadex-runtime"
-version = "6.0.0"
+version = "6.2.0"
 dependencies = [
+ "docify",
  "frame-benchmarking",
  "frame-election-provider-support",
  "frame-executive",
+ "frame-metadata-hash-extension",
  "frame-support",
  "frame-system",
  "frame-system-benchmarking",
@@ -7534,7 +7536,7 @@ dependencies = [
  "sp-timestamp",
  "sp-transaction-pool",
  "staging-xcm",
- "substrate-build-script-utils 3.0.0",
+ "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
  "try-runtime-cli",
@@ -7919,12 +7921,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 
 [[package]]
-name = "platforms"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8d0eef3571242013a0d5dc84861c3ae4a652e56e12adf8bdc26ff5f8cb34c94"
-
-[[package]]
 name = "polkadex-client"
 version = "5.4.2"
 dependencies = [
@@ -7937,10 +7933,11 @@ dependencies = [
 
 [[package]]
 name = "polkadex-node"
-version = "6.0.0"
+version = "6.2.0"
 dependencies = [
  "clap 4.5.8",
  "frame-benchmarking-cli",
+ "frame-metadata-hash-extension",
  "frame-support",
  "frame-system",
  "frame-try-runtime",
@@ -8007,7 +8004,7 @@ dependencies = [
  "sp-tracing 10.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-transaction-storage-proof",
  "structopt",
- "substrate-build-script-utils 5.0.0",
+ "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "swap-rpc",
  "tempfile",
@@ -8176,7 +8173,7 @@ dependencies = [
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-keyring",
  "sp-maybe-compressed-blob 4.1.0-dev (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "substrate-build-script-utils 3.0.0",
+ "substrate-build-script-utils",
  "thiserror",
  "try-runtime-cli",
 ]
@@ -8546,7 +8543,7 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-maybe-compressed-blob 4.1.0-dev (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-wasm-interface 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "substrate-build-script-utils 3.0.0",
+ "substrate-build-script-utils",
  "tempfile",
  "tokio",
  "tracing-gum",
@@ -13764,15 +13761,6 @@ dependencies = [
 name = "substrate-build-script-utils"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#39482e78cc1580c9f16a8f8d8261baf914ab5559"
-
-[[package]]
-name = "substrate-build-script-utils"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cbc6b6e856dfd283e5116c3cc40c9f2efec2f0be49d9aaa27231a2b24bd454d"
-dependencies = [
- "platforms",
-]
 
 [[package]]
 name = "substrate-frame-rpc-system"

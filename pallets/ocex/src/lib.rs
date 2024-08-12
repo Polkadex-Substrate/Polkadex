@@ -974,11 +974,7 @@ pub mod pallet {
 			claim_safety_period: Option<u32>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			let mut config = if let Some(config) = <ExpectedLMPConfig<T>>::get() {
-				config
-			} else {
-				LMPEpochConfig::default()
-			};
+			let mut config = <ExpectedLMPConfig<T>>::get().unwrap_or_default();
 			let unit: Decimal = Decimal::from(UNIT_BALANCE);
 			if let Some(total_liquidity_mining_rewards) = total_liquidity_mining_rewards {
 				config.total_liquidity_mining_rewards =
@@ -2281,8 +2277,8 @@ impl<T: Config + frame_system::offchain::SendTransactionTypes<Call<T>>> Pallet<T
 
 		//Check threshold
 
-		const MAJORITY: u8 = 67;
-		let p = Percent::from_percent(MAJORITY);
+		const THRESHOLD: u8 = 51;
+		let p = Percent::from_percent(THRESHOLD);
 		let threshold = p * authorities.len();
 
 		if threshold > signatures.len() {

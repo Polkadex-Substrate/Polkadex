@@ -1,6 +1,6 @@
 [package]
 name = "node-polkadex-runtime"
-version = "6.0.0"
+version = "6.2.0"
 authors = ["Polkadex OÜ  <https://polkadex.trade>"]
 edition = "2021"
 license = "GNU GPL v3"
@@ -18,7 +18,6 @@ static_assertions = { workspace = true }
 log = { workspace = true, default-features = false }
 rust_decimal = { workspace = true, features = ["scale-codec"], default-features = false }
 #pallets
-#added
 pallet-authorship = { default-features = false, workspace = true }
 pallet-babe = { default-features = false, workspace = true }
 pallet-balances = { default-features = false, workspace = true }
@@ -82,7 +81,6 @@ sp-inherents = { default-features = false, workspace = true }
 sp-staking = { default-features = false, workspace = true }
 sp-npos-elections = { default-features = false, workspace = true }
 frame-election-provider-support = { default-features = false, workspace = true }
-#pallet-randomness-collective-flip = { default-features = false, workspace = true }
 pallet-assets = { default-features = false, workspace = true }
 #end added
 
@@ -101,7 +99,7 @@ polkadex-primitives = { workspace = true, default-features = false }
 orderbook-primitives = { path = "../../primitives/orderbook", default-features = false }
 pdex-migration = { path = "../../pallets/pdex-migration", default-features = false }
 
-# Orderbook 
+# Orderbook
 pallet-ocex-lmp = { path = "../../pallets/ocex", default-features = false }
 pallet-lmp = { path = "../../pallets/liquidity-mining", default-features = false }
 
@@ -118,14 +116,33 @@ frame-try-runtime = { workspace = true, optional = true, default-features = fals
 rpc-assets-runtime-api = { path = "../../rpc/assets/runtime-api", default-features = false }
 pallet-rewards-runtime-api = { path = "../../pallets/rewards/rpc/runtime-api", default-features = false }
 pallet-ocex-runtime-api = { path = "../../pallets/ocex/rpc/runtime-api", default-features = false }
+frame-metadata-hash-extension = { workspace = true, default-features = false }
 
 [build-dependencies]
-substrate-wasm-builder = { workspace = true }
+substrate-wasm-builder = { workspace = true ,  optional = true}
+docify = "0.2.8"
 
 [features]
 default = ["std"]
+# Enable the metadata hash generation.
+#
+# This is hidden behind a feature because it increases the compile time.
+# The wasm binary needs to be compiled twice, once to fetch the metadata,
+# generate the metadata hash and then a second time with the
+# `RUNTIME_METADATA_HASH` environment variable set for the `CheckMetadataHash`
+# extension.
+metadata-hash = [
+  "substrate-wasm-builder/metadata-hash"
+]
+
+# A convenience feature for enabling things when doing a build
+# for an on-chain release.
+on-chain-release-build = ["metadata-hash"]
+
 std = [
+  "substrate-wasm-builder",
   "rust_decimal/std",
+  "frame-metadata-hash-extension/std",
   "parity-scale-codec/std",
   "scale-info/std",
   "log/std",
@@ -177,7 +194,6 @@ std = [
   "sp-staking/std",
   "sp-npos-elections/std",
   "frame-election-provider-support/std",
-  #"pallet-randomness-collective-flip/std",
   "pallet-assets/std",
   "frame-system-rpc-runtime-api/std",
   "orml-vesting/std",
@@ -202,7 +218,7 @@ std = [
   "sp-storage?/std",
 ]
 runtime-benchmarks = [
-  #theirs
+#  theirs
   "sp-storage",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
@@ -258,7 +274,6 @@ try-runtime = [
   "pdex-migration/try-runtime",
   "pallet-democracy/try-runtime",
   "pallet-preimage/try-runtime",
-  #"pallet-randomness-collective-flip/try-runtime",
   "pallet-child-bounties/try-runtime",
   "pallet-assets/try-runtime",
   "pallet-ocex-lmp/try-runtime",

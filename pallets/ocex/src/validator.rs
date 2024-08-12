@@ -82,8 +82,7 @@ impl<T: Config> Pallet<T> {
 		let authorities = Self::validator_set().validators;
 		let mut available_keys = authorities
 			.iter()
-			.enumerate()
-			.filter_map(move |(_index, authority)| {
+			.filter_map(move |authority| {
 				local_keys
 					.binary_search(authority)
 					.ok()
@@ -120,9 +119,8 @@ impl<T: Config> Pallet<T> {
 						return Err("Last processed snapshot root is not same as on-chain root");
 					}
 					info
-				} else if info.snapshot_id != 0 {
+				} else if info.snapshot_id != 0 && info.snapshot_id != next_nonce {
 					log::error!(target:"ocex","Unable to load last processed snapshot summary from on-chain: {:?}",info.snapshot_id);
-					store_trie_root(H256::zero());
 					return Err("Unable to load last processed snapshot summary from on-chain");
 				} else {
 					info
@@ -139,8 +137,22 @@ impl<T: Config> Pallet<T> {
 		// Check if we already processed this snapshot and updated our offchain state.
 		if last_processed_nonce == next_nonce {
 			log::debug!(target:"ocex","Submitting last processed snapshot: {:?}",next_nonce);
+			if !sp_io::offchain::is_validator() {
+				log::error!(target: "ocex","We have stale signed summary for {:?} but not a validator anymore", last_processed_nonce);
+				return Ok(true);
+			}
+			let current_set_id = Self::validator_set().set_id;
+			let key = available_keys.first().ok_or("No active keys found")?;
+			let auth_index = Self::calculate_signer_index(&authorities, key)
+				.ok_or("Unable to calculate signer index")?;
+
 			// resubmit the summary to aggregator
-			AggregatorClient::<T>::load_signed_summary_and_send(next_nonce);
+			AggregatorClient::<T>::load_signed_summary_and_send(
+				current_set_id,
+				next_nonce,
+				key,
+				auth_index as u16,
+			)?;
 			return Ok(true);
 		}
 		log::info!(target:"ocex","last_processed_nonce: {:?}, next_nonce: {:?}",last_processed_nonce, next_nonce);
@@ -646,7 +658,9 @@ impl<T: Config> Pallet<T> {
 						return Err("Invalid egress message for withdraw trading fees");
 					}
 				},
-				IngressMessages::NewLMPEpoch(epoch) => Self::start_new_lmp_epoch(state, epoch)?,
+				IngressMessages::NewLMPEpoch(_epoch) => {
+					// Self::start_new_lmp_epoch(state, epoch)?
+				},
 				_ => {},
 			}
 		}
@@ -654,10 +668,12 @@ impl<T: Config> Pallet<T> {
 		Ok(verified_egress_messages)
 	}
 
+	#[allow(dead_code)]
 	/// Reset the offchain state's LMP index and set the epoch
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
 		let mut config = if epoch > 1 {
-			get_lmp_config(state, epoch)?
+			get_lmp_config(state, epoch)
+				.unwrap_or(orderbook_primitives::lmp::LMPConfig { epoch, index: 0 })
 		} else {
 			// To Handle the corner case of zero
 			orderbook_primitives::lmp::LMPConfig { epoch, index: 0 }
