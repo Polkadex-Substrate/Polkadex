@@ -205,7 +205,8 @@ pub mod pallet {
 			let current_set_id = <ValidatorSetId<T>>::get();
 
 			match payload.message.payload_type {
-				PayloadType::ScheduledRotateValidators => {
+				PayloadType::ScheduledRotateValidators => {}, // Deprecated
+				PayloadType::ValidatorsRotated => {
 					// Thea message related to key change
 					match ValidatorSet::decode(&mut payload.message.data.as_ref()) {
 						Err(_err) => return Err(Error::<T>::ErrorDecodingValidatorSet.into()),
@@ -218,12 +219,10 @@ pub mod pallet {
 								validator_set.set_id,
 								BoundedVec::truncate_from(validator_set.validators),
 							);
+							// We are checking if the validator set is changed, then we update it here too
+							<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
 						},
 					}
-				},
-				PayloadType::ValidatorsRotated => {
-					// We are checking if the validator set is changed, then we update it here too
-					<ValidatorSetId<T>>::put(current_set_id.saturating_add(1));
 				},
 				PayloadType::L1Deposit => {
 					// Normal Thea message
