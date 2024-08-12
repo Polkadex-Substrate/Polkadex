@@ -20,7 +20,7 @@ hex-literal = { workspace = true, optional = true }
 log = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 smallvec = { workspace = true }
-static_assertions = {workspace = true}
+static_assertions = { workspace = true }
 
 # Substrate
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
