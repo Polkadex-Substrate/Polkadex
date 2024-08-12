@@ -251,8 +251,12 @@ fn create_genesis_config(
 			..Default::default()
 		},
 		sudo: parachain_polkadex_runtime::SudoConfig { key: Some(root_key) },
+		elections: Default::default(),
+		council: Default::default(),
+		technical_committee: Default::default(),
 		assets: Default::default(),
 		transaction_payment: Default::default(),
+		democracy: Default::default(),
 	}
 }
 

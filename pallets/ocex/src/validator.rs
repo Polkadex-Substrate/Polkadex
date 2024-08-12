@@ -658,7 +658,9 @@ impl<T: Config> Pallet<T> {
 						return Err("Invalid egress message for withdraw trading fees");
 					}
 				},
-				IngressMessages::NewLMPEpoch(epoch) => Self::start_new_lmp_epoch(state, epoch)?,
+				IngressMessages::NewLMPEpoch(_epoch) => {
+					// Self::start_new_lmp_epoch(state, epoch)?
+				},
 				_ => {},
 			}
 		}
@@ -666,6 +668,7 @@ impl<T: Config> Pallet<T> {
 		Ok(verified_egress_messages)
 	}
 
+	#[allow(dead_code)]
 	/// Reset the offchain state's LMP index and set the epoch
 	fn start_new_lmp_epoch(state: &mut OffchainState, epoch: u16) -> Result<(), &'static str> {
 		let mut config = if epoch > 1 {
