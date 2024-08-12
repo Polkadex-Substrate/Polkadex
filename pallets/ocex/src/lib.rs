@@ -62,6 +62,7 @@ use orderbook_primitives::{
 };
 use sp_core::H160;
 use sp_std::vec::Vec;
+use polkadex_primitives::rewards::RewardProposal;
 
 #[cfg(test)]
 mod mock;
@@ -180,6 +181,7 @@ pub mod pallet {
 		SaturatedConversion,
 	};
 	use sp_std::vec::Vec;
+	use polkadex_primitives::rewards::Reward;
 
 	type WithdrawalsMap<T> = BTreeMap<
 		<T as frame_system::Config>::AccountId,
@@ -403,6 +405,8 @@ pub mod pallet {
 		WithdrawalFeeBurnFailed,
 		/// Trading fees burn failed
 		TradingFeesBurnFailed,
+		/// Reward Proposal Not Found
+		RewardProposalNotFound
 	}
 
 	#[pallet::hooks]
@@ -1077,6 +1081,30 @@ pub mod pallet {
 			Self::deposit_event(crate::pallet::Event::<T>::SnapshotProcessed(id));
 			Ok(())
 		}
+
+		#[pallet::call_index(25)]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
+		pub fn submit_reward_proposal(origin: OriginFor<T>, reward_proposal: BTreeMap<T::AccountId, Reward<BalanceOf<T>>>) -> DispatchResult {
+			let account = ensure_signed(origin)?;
+			let reward_proposal = RewardProposal::new(reward_proposal);
+			let current_blk = frame_system::Pallet::<T>::current_block_number();
+			<RewardInfo<T>>::insert((account, current_blk), reward_proposal);
+			Ok(())
+		}
+
+		#[pallet::call_index(26)]
+		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
+		pub fn approve_reward_proposal(origin: OriginFor<T>, proposer: T::AccountId, block_no: BlockNumberFor<T>) -> DispatchResult {
+			T::GovernanceOrigin::ensure_origin(origin)?;
+			if let Some(mut reward_proposal) = <RewardInfo<T>>::get((proposer.clone(), block_no)) {
+				reward_proposal.approve_proposal();
+				<RewardInfo<T>>::insert((proposer, block_no), reward_proposal);
+			} else {
+				return Err(Error::<T>::RewardProposalNotFound.into());
+			}
+			Ok(())
+		}
+
 	}
 
 	/// Events are a simple means of reporting specific conditions and
@@ -1334,6 +1362,9 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type Auction<T: Config> =
 		StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type RewardInfo<T: Config> = StorageMap<_, Identity, (T::AccountId, BlockNumberFor<T>), RewardProposal<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
 		pub fn new_random_id(prefix: Option<[u8; 4]>) -> H160 {
