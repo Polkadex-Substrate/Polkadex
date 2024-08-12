@@ -1080,7 +1080,7 @@ pub mod pallet {
 
 		#[pallet::call_index(25)]
 		#[pallet::weight(< T as Config >::WeightInfo::submit_snapshot())]
-		pub fn submit_reward_proposal(origin: OriginFor<T>, reward_proposal: BTreeMap<T::AccountId, Reward<BalanceOf<T>>>) -> DispatchResult {
+		pub fn submit_reward_proposal(origin: OriginFor<T>, reward_proposal: BTreeMap<T::AccountId, Reward>) -> DispatchResult {
 			let account = ensure_signed(origin)?;
 			let reward_proposal = RewardProposal::new(reward_proposal);
 			let current_blk = frame_system::Pallet::<T>::current_block_number();
@@ -1360,7 +1360,7 @@ pub mod pallet {
 		StorageValue<_, AuctionInfo<T::AccountId, BalanceOf<T>>, OptionQuery>;
 
 	#[pallet::storage]
-	pub type RewardInfo<T: Config> = StorageMap<_, Identity, (T::AccountId, BlockNumberFor<T>), RewardProposal<T::AccountId, BalanceOf<T>>, OptionQuery>;
+	pub type RewardInfo<T: Config> = StorageMap<_, Identity, (T::AccountId, BlockNumberFor<T>), RewardProposal<T::AccountId>, OptionQuery>;
 
 	impl<T: crate::pallet::Config> crate::pallet::Pallet<T> {
 		pub fn new_random_id(prefix: Option<[u8; 4]>) -> H160 {

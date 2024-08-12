@@ -19,6 +19,7 @@
 use sp_std::collections::btree_map::BTreeMap;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_system::Account;
+use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 
@@ -69,13 +70,13 @@ pub struct ExchangePayload<AccountId> {
 #[derive(
 	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq
 )]
-pub struct RewardProposal<AccountId, Balance> {
-	pub user_reward: BTreeMap<AccountId, Reward<Balance>>,
+pub struct RewardProposal<AccountId> {
+	pub user_reward: BTreeMap<AccountId, Reward>,
 	pub is_passed: bool
 }
 
-impl<AccountId, Balance> RewardProposal<AccountId, Balance> {
-	pub fn new(reward_map: BTreeMap<AccountId, Reward<Balance>>) -> Self {
+impl<AccountId> RewardProposal<AccountId> {
+	pub fn new(reward_map: BTreeMap<AccountId, Reward>) -> Self {
 		Self {
 			user_reward: reward_map,
 			is_passed: false,
@@ -90,7 +91,7 @@ impl<AccountId, Balance> RewardProposal<AccountId, Balance> {
 #[derive(
 	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
 )]
-pub struct Reward<Balance> {
-	pub amount: Balance,
+pub struct Reward {
+	pub amount: Decimal,
 	pub is_claimed: bool
 }
