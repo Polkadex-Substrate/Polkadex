@@ -26,7 +26,7 @@ clap = { version = "4.0.9", features = ["derive"] }
 itertools = "0.10.1"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 # local dependencies
-node-polkadex-runtime = { path = "../../runtimes/mainnet"}
+node-polkadex-runtime = { path = "../../runtimes/mainnet" }
 rpc-assets = { path = "../../rpc/assets" }
 pallet-rewards-rpc = { path = "../../pallets/rewards/rpc" }
 pallet-ocex-rpc = { path = "../../pallets/ocex/rpc" }
@@ -100,7 +100,7 @@ sc-consensus-babe = { git = "https://github.com/paritytech/polkadot-sdk", branch
 sc-consensus-epochs = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 sp-tracing = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 sc-keystore = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
-sc-service-test = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"}
+sc-service-test = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 
 [features]
 default = []

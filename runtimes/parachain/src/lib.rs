@@ -10,7 +10,7 @@ mod constants;
 mod weights;
 pub mod xcm_config;
 
-use crate::constants::currency::{CENTS, DOLLARS};
+use crate::constants::currency::{deposit, CENTS, DOLLARS};
 use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 use frame_support::{
 	construct_runtime,
@@ -179,7 +179,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("polkadex-parachain"),
 	impl_name: create_runtime_str!("polkadex-parachain"),
 	authoring_version: 1,
-	spec_version: 16,
+	spec_version: 18,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -258,6 +258,7 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 	pub const SS58Prefix: u16 = 89;
+	pub MaxCollectivesProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 // Configure FRAME pallets to include in polkadex-parachain.
@@ -436,7 +437,7 @@ impl pallet_aura::Config for Runtime {
 
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
-	pub const MaxCandidates: u32 = 1000;
+	pub const MaxCandidates: u32 = 100;
 	pub const MinCandidates: u32 = 5;
 	pub const SessionLength: BlockNumber = 6 * HOURS;
 	pub const MaxInvulnerables: u32 = 100;
@@ -562,6 +563,218 @@ impl thea_message_handler::Config for Runtime {
 	type WeightInfo = thea_message_handler::weights::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const PreimageMaxSize: u32 = 4096 * 1024;
+	pub const PreimageBaseDeposit: Balance = DOLLARS;
+	// One cent: PDEX 10,000 / MB
+	pub const PreimageByteDeposit: Balance = CENTS;
+}
+
+impl pallet_preimage::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
+}
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+		RuntimeBlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+	// Retry a scheduled item every 10 blocks (1 minute) until the preimage exists.
+	pub const NoPreimagePostponement: Option<u32> = Some(10);
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
+	type PalletsOrigin = OriginCaller;
+	type RuntimeCall = RuntimeCall;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type OriginPrivilegeCmp = frame_support::traits::EqualPrivilegeOnly;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+	type Preimages = Preimage;
+}
+use crate::constants::currency::PDEX;
+parameter_types! {
+	// When proposals are moved to public voting
+	pub const LaunchPeriod: BlockNumber = 15 * DAYS;
+	// How long voting should last
+	pub const VotingPeriod: BlockNumber = 15 * DAYS;
+	// Fast track voting for techincal council
+	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+	// Minimum deposit for creating a proposal
+	pub MinimumDeposit: Balance = 100 * PDEX;
+	// Time between approved proposals are executed on-chain
+	// EnactmentPeriod > unbonding period of staking
+	pub const EnactmentPeriod: BlockNumber = 30 * DAYS;
+	// Minimum period of vote locking
+	// Note: VoteLockingPeriod >= EnactmentPeriod
+	pub const VoteLockingPeriod: BlockNumber = 30 * DAYS;
+	// Cool-off period before a vetoed proposal can be submitted back again
+	pub const CooloffPeriod: BlockNumber = 28 * DAYS;
+	pub const InstantAllowed: bool = true;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
+
+}
+use frame_support::traits::EitherOfDiverse;
+use frame_support::traits::LockIdentifier;
+use sp_staking::currency_to_vote::U128CurrencyToVote;
+impl pallet_democracy::Config for Runtime {
+	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type Scheduler = Scheduler;
+	type Preimages = Preimage;
+	type Currency = Balances;
+	type EnactmentPeriod = EnactmentPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
+	type VoteLockingPeriod = VoteLockingPeriod;
+	type MinimumDeposit = MinimumDeposit;
+	type InstantAllowed = InstantAllowed;
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	type CooloffPeriod = CooloffPeriod;
+	type MaxVotes = MaxVotes;
+	type MaxProposals = MaxProposals;
+	type MaxDeposits = ConstU32<100>;
+	type MaxBlacklisted = ConstU32<100>;
+	/// A straight majority of the council can decide what their next motion is.
+	type ExternalOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
+	/// A majority can have the next scheduled referendum be a straight majority-carries vote.
+	type ExternalMajorityOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+	>;
+	/// A unanimous council can have the next scheduled referendum be a straight default-carries
+	/// (NTB) vote.
+	type ExternalDefaultOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
+	>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
+	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
+	/// be tabled immediately and with a shorter voting/enactment period.
+	type FastTrackOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>,
+	>;
+	type InstantOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
+	>;
+	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
+	type CancellationOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+	>;
+	type BlacklistOrigin = EnsureRoot<AccountId>;
+	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
+	// Root must agree.
+	type CancelProposalOrigin = EitherOfDiverse<
+		EnsureRoot<AccountId>,
+		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
+	>;
+	// Any single technical committee member or root origin may veto a coming council proposal,
+	// however they can only do it once and it lasts only for the cooloff period.
+	// NOTE: Technical Council cannot be greater than MAX_VETOERS
+	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+	type PalletsOrigin = OriginCaller;
+	type Slash = ();
+}
+
+parameter_types! {
+	pub const CandidacyBond: Balance = 100 * PDEX;
+	// 1 storage item created, key size is 32 bytes, value size is 16+16.
+	pub const VotingBondBase: Balance = deposit(1, 64);
+	// additional data per vote is 32 bytes (account id).
+	pub const VotingBondFactor: Balance = deposit(0, 32);
+	pub const TermDuration: BlockNumber = 7 * DAYS;
+	pub const DesiredMembers: u32 = 5;
+	pub const DesiredRunnersUp: u32 = 5;
+	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
+	pub const MaxVoters: u32 = 10*100;
+	pub const MaxVotesPerVoter: u32 = 16;
+}
+
+// Make sure that there are no more than `MaxMembers` members elected via elections-phragmen.
+static_assertions::const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
+
+impl pallet_elections_phragmen::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type PalletId = ElectionsPhragmenPalletId;
+	type Currency = Balances;
+	type ChangeMembers = Council;
+	// NOTE: this implies that council's genesis members cannot be set directly and must come from
+	// this module.
+	type InitializeMembers = Council;
+	type CurrencyToVote = U128CurrencyToVote;
+	type CandidacyBond = CandidacyBond;
+	type VotingBondBase = VotingBondBase;
+	type VotingBondFactor = VotingBondFactor;
+	type LoserCandidate = ();
+	type KickedMember = ();
+	type DesiredMembers = DesiredMembers;
+	type DesiredRunnersUp = DesiredRunnersUp;
+	type TermDuration = TermDuration;
+	type MaxCandidates = MaxCandidates;
+	type MaxVoters = MaxVoters;
+	type MaxVotesPerVoter = MaxVotesPerVoter;
+	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
+	pub const CouncilMaxProposals: u32 = 100;
+	pub const CouncilMaxMembers: u32 = 100;
+}
+
+type CouncilCollective = pallet_collective::Instance1;
+impl pallet_collective::Config<CouncilCollective> for Runtime {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type MotionDuration = CouncilMotionDuration;
+	type MaxProposals = CouncilMaxProposals;
+	type MaxMembers = CouncilMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<AccountId>;
+	type MaxProposalWeight = MaxCollectivesProposalWeight;
+}
+
+parameter_types! {
+	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
+	pub const TechnicalMaxProposals: u32 = 100;
+	pub const TechnicalMaxMembers: u32 = 100;
+}
+
+type EnsureRootOrHalfCouncil = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
+>;
+
+type TechnicalCollective = pallet_collective::Instance2;
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type MotionDuration = TechnicalMotionDuration;
+	type MaxProposals = TechnicalMaxProposals;
+	type MaxMembers = TechnicalMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRootOrHalfCouncil;
+	type MaxProposalWeight = MaxCollectivesProposalWeight;
+}
+
 // Create the polkadex-parachain by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub struct Runtime {
@@ -596,7 +809,14 @@ construct_runtime!(
 		Sudo: pallet_sudo = 45,
 
 		// Thea Pallet
-		TheaMessageHandler: thea_message_handler = 46
+		TheaMessageHandler: thea_message_handler = 46,
+
+		Elections: pallet_elections_phragmen = 47,
+		Council: pallet_collective::<Instance1> = 48,
+		TechnicalCommittee: pallet_collective::<Instance2> = 49,
+		Preimage: pallet_preimage = 50,
+		Scheduler: pallet_scheduler = 51,
+		Democracy: pallet_democracy = 52,
 	}
 );
 
@@ -755,7 +975,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	#[cfg(feature = "try-polkadex-parachain")]
+	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
 			log::info!("try-polkadex-parachain::on_runtime_upgrade parachain-polkadex.");

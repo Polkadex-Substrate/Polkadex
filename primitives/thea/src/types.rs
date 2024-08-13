@@ -181,7 +181,7 @@ pub struct IncomingMessage<AccountId, Balance> {
 	Clone, Encode, Decode, TypeInfo, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize,
 )]
 pub enum PayloadType {
-	ScheduledRotateValidators,
+	ScheduledRotateValidators, // Deprecated
 	ValidatorsRotated,
 	L1Deposit,
 }
