@@ -50,6 +50,7 @@ members = [
   "misc/load-testing",
   "misc/crowdloan-verifier",
   "polkadex-xcm-simulator",
+  "lmp-bin"
 ]
 exclude = ["scripts/check-off-on-deviation"]
 
