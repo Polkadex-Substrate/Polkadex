@@ -26,14 +26,7 @@ sp-io = { workspace = true }
 
 [features]
 default = ["std"]
-std = [
-  "parity-scale-codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "pallet-balances/std",
-  "sp-runtime/std",
-]
+std = ["parity-scale-codec/std", "scale-info/std", "frame-support/std", "frame-system/std", "pallet-balances/std", "sp-runtime/std"]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
