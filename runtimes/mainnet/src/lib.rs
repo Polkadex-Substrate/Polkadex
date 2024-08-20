@@ -122,7 +122,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 372,
+	spec_version: 373,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -359,7 +359,7 @@ parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = DOLLARS;
 	// One cent: PDEX 10,000 / MB
-	pub const PreimageByteDeposit: Balance = CENTS;
+	pub const PreimageByteDeposit: Balance = MILLICENTS;
 }
 
 impl pallet_preimage::Config for Runtime {
