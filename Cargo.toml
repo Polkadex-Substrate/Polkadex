@@ -50,6 +50,7 @@ members = [
   "misc/load-testing",
   "misc/crowdloan-verifier",
   "polkadex-xcm-simulator",
+  "lmp-bin"
 ]
 exclude = ["scripts/check-off-on-deviation"]
 
@@ -215,4 +216,5 @@ sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", defaul
 bandersnatch_vrfs = { git = "https://github.com/w3f//ring-vrf.git", rev = "3ebdd261873da05124f4499c85a8e62d40411620" }
 
 [patch.'https://github.com/paritytech/polkadot-sdk']
-substrate-wasm-builder = { git = "https://github.com/Polkadex-Substrate/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
+substrate-wasm-builder = { git = "https://github.com/Polkadex-Substrate/polkadot-sdk", branch = "release-polkadot-v1.1.0"}
+

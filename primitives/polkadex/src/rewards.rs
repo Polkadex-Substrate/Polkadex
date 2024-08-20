@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use sp_std::collections::btree_map::BTreeMap;
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_system::Account;
+use rust_decimal::Decimal;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 
@@ -62,4 +65,33 @@ pub struct ExchangePayload<AccountId> {
 	pub reward_id: u32,
 	pub action: ExchangePayloadAction,
 	pub user: AccountId,
+}
+
+#[derive(
+	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq
+)]
+pub struct RewardProposal<AccountId> {
+	pub user_reward: BTreeMap<AccountId, Reward>,
+	pub is_passed: bool
+}
+
+impl<AccountId> RewardProposal<AccountId> {
+	pub fn new(reward_map: BTreeMap<AccountId, Reward>) -> Self {
+		Self {
+			user_reward: reward_map,
+			is_passed: false,
+		}
+	}
+
+	pub fn approve_proposal(&mut self) {
+		self.is_passed = true;
+	}
+}
+
+#[derive(
+	Clone, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Serialize, Deserialize,
+)]
+pub struct Reward {
+	pub amount: Decimal,
+	pub is_claimed: bool
 }
