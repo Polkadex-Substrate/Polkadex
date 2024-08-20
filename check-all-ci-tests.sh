@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-cargo fmt --check --features on-chain-release-build || exit
+cargo fmt --check || exit
 RUSTFLAGS="-D warnings" cargo build --features on-chain-release-build || exit
 RUSTFLAGS="-D warnings" cargo build --features try-runtime  || exit
 cargo build --features runtime-benchmarks || exit
@@ -30,5 +30,8 @@ RUSTFLAGS="-D warnings" cargo test --workspace || exit
 # https://forum.polkadot.network/t/polkadot-generic-ledger-app/4295/26
 # https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/enable_metadata_hash/index.html
 # https://hackmd.io/@ePxWAFa1TbKm0U5Ym3IqgQ/rJdgmf6b0?utm_source=preview-mode&utm_medium=rec
-# 0x0e63268eeeddda8e033ade1cc670411d3215fd81be44bdec564932d599d5aee8
+# 0xe7770f52f5d0ee108ded585ebe7c0d0b6ec65ea22739d7608d6c75c271dbdc3a - runtime upgrade preimage
 # https://www.notion.so/polkadex/Listing-on-Polkadex-Orderbook-3e49fcf22d52474da86dfa65135615e9#b225838c59fa4820a61365e276fd4684
+# https://wiki.polkadot.network/docs/learn/learn-governance
+# https://substrate.stackexchange.com/questions/6423/fasttrack-proposal-execution-fails-with-proposalmissing-but-is-stored-in-democ
+

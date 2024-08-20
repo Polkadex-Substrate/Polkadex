@@ -1012,12 +1012,6 @@ impl pallet_democracy::Config for Runtime {
 	type Slash = Treasury;
 }
 
-impl pallet_sudo::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::MAX;
 	/// We prioritize im-online heartbeats over election solution submission.
@@ -1481,7 +1475,6 @@ construct_runtime!(
 		TechnicalMembership: pallet_membership::<Instance1> = 14,
 		Grandpa: pallet_grandpa = 15,
 		Treasury: pallet_treasury = 16,
-		Sudo: pallet_sudo = 17,
 		ImOnline: pallet_im_online = 18,
 		AuthorityDiscovery: pallet_authority_discovery = 19,
 		Offences: pallet_offences = 20,
@@ -1533,7 +1526,6 @@ construct_runtime!(
 		TechnicalMembership: pallet_membership::<Instance1> = 14,
 		Grandpa: pallet_grandpa = 15,
 		Treasury: pallet_treasury = 16,
-		Sudo: pallet_sudo = 17,
 		ImOnline: pallet_im_online = 18,
 		AuthorityDiscovery: pallet_authority_discovery = 19,
 		Offences: pallet_offences = 20,

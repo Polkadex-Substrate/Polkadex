@@ -23,7 +23,7 @@ use itertools::Itertools;
 use node_polkadex_runtime::{
 	constants::currency::PDEX, wasm_binary_unwrap, BabeConfig, BalancesConfig, CouncilConfig,
 	IndicesConfig, OrmlVestingConfig, PDEXMigrationConfig, RuntimeGenesisConfig, SessionConfig,
-	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	SessionKeys, StakerStatus, StakingConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadex_primitives::Block;
@@ -482,7 +482,6 @@ pub fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		democracy: Default::default(),
-		sudo: SudoConfig { key: Some(root_key) },
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(node_polkadex_runtime::BABE_GENESIS_EPOCH_CONFIG),
