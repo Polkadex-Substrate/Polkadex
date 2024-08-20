@@ -28,7 +28,6 @@ pallet-session = { default-features = false, workspace = true }
 pallet-staking = { default-features = false, workspace = true }
 pallet-multisig = { default-features = false, workspace = true }
 pallet-staking-reward-curve = { workspace = true }
-pallet-sudo = { default-features = false, workspace = true }
 pallet-utility = { default-features = false, workspace = true }
 pallet-timestamp = { default-features = false, workspace = true }
 pallet-transaction-payment = { default-features = false, workspace = true }
@@ -153,7 +152,6 @@ std = [
   "pallet-session/std",
   "pallet-staking/std",
   "pallet-multisig/std",
-  "pallet-sudo/std",
   "pallet-utility/std",
   "pallet-timestamp/std",
   "pallet-transaction-payment/std",
@@ -257,7 +255,6 @@ try-runtime = [
   "pallet-membership/try-runtime",
   "pallet-grandpa/try-runtime",
   "pallet-treasury/try-runtime",
-  "pallet-sudo/try-runtime",
   "pallet-im-online/try-runtime",
   "pallet-authority-discovery/try-runtime",
   "pallet-offences/try-runtime",

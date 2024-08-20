@@ -18,7 +18,6 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 frame-system = { workspace = true, default-features = false }
 
 pallet-balances = { workspace = true, default-features = false }
-pallet-sudo = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 
 [dev-dependencies]
@@ -27,15 +26,7 @@ sp-io = { workspace = true }
 
 [features]
 default = ["std"]
-std = [
-  "parity-scale-codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "pallet-balances/std",
-  "pallet-sudo/std",
-  "sp-runtime/std",
-]
+std = ["parity-scale-codec/std", "scale-info/std", "frame-support/std", "frame-system/std", "pallet-balances/std", "sp-runtime/std"]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
