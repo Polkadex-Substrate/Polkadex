@@ -30,7 +30,6 @@ type Balance = u128;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Sudo: pallet_sudo,
 		Balances: pallet_balances,
 		PDEXMigration: pdex_migration,
 	}
@@ -96,20 +95,11 @@ impl pdex_migration::Config for Test {
 	type MaxRelayers = MaxRelayers;
 	type LockPeriod = LockPeriod;
 }
-impl pallet_sudo::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type WeightInfo = ();
-}
 
 // Build genesis storage according to the mock Runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let alice = 1u64;
 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	pallet_balances::GenesisConfig::<Test>::default()
-		.assimilate_storage(&mut t)
-		.unwrap();
-	pallet_sudo::GenesisConfig::<Test> { key: Some(alice) }
 		.assimilate_storage(&mut t)
 		.unwrap();
 	pdex_migration::GenesisConfig::<Test>::default()

@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-cargo fmt --check --features on-chain-release-build || exit
+cargo fmt --check || exit
 RUSTFLAGS="-D warnings" cargo build --features on-chain-release-build || exit
 RUSTFLAGS="-D warnings" cargo build --features try-runtime  || exit
 cargo build --features runtime-benchmarks || exit
