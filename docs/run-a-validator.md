@@ -4,7 +4,7 @@ This guide will instruct you how to set up a validator node on the Polkadex usin
 
 
 - **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/latest
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/latest/customSpecRaw.json
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v6.2.0/customSpecRaw.json
 
 ## Initial Set-up
 
