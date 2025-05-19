@@ -24,7 +24,7 @@ For the full details of the standard hardware please see [here](https://github.c
 
 The specs posted above are by no means the minimum specs that you could use when running a validator, however you should be aware that if you are using less you may need to toggle some extra optimizations in order to match up to other validators that are running the standard.
 
-### Download Parachain Binary and Spec file
+### Download Parachain Binary and Spec file(This is not mandatory)
 For the Polkadex decentralized bridging solution Thea to transfer tokens from Polkadot ecosystem to the Polkadex network, the validators have to run a parachain full node along with the solochain node. Please follow the below steps to run the parachain binary.
 
 Download Parachain Binary
