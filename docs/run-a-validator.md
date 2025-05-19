@@ -3,8 +3,8 @@
 This guide will instruct you how to set up a validator node on the Polkadex using the released binary.
 
 
-- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/tag/latest
-- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/download/v6.2.0/customSpecRaw.json
+- **Github**: https://github.com/Polkadex-Substrate/Polkadex/releases/latest/download/PolkadexNodeUbuntu.zip
+- **customSpecRaw.json** https://github.com/Polkadex-Substrate/Polkadex/releases/latest/download/customSpecRaw.json
 
 ## Initial Set-up
 
@@ -56,7 +56,7 @@ Wants=network-online.target
 [Service]
 User=ubuntu
 Group=ubuntu
-ExecStart=$HOME/parachain-polkadex-node --chain=$HOME/polkadot-parachain-raw.json --port 40333 --rpc-port 8844 --bootnodes /ip4/3.108.191.170/tcp/40333/p2p/12D3KooWKi39o5WvzPTFz8W2KMqjP5c9HWoY2naYGPVF1YANCFnC -- --execution wasm --chain $HOME/polkadot.json --port 30343 --ws-port 9977 --state-pruning 256
+ExecStart=$HOME/parachain-polkadex-node --chain=$HOME/polkadot-parachain-raw.json --port 40333 --rpc-port 8844 --bootnodes /dns/boot.pdexmon.com/tcp/40333/ws/p2p/12D3KooWDG1dWUq2z3moX7yXqo5hKPSwcpyoK55NRrwZG8g5VtRu -- --execution wasm --chain $HOME/polkadot.json --port 30343 --ws-port 9977 --state-pruning 256
 Restart=on-failure
 
 [Install]
@@ -112,7 +112,7 @@ This is an example output from the testnet:
 Example of node sync:
 
 ```
-2021-08-17 12:46:40 🔍 Discovered new external address for our node: /ip4/13.235.190.203/tcp/30333/p2p/12D3KooWMJ4AMmzpRbv914ZGZR6ehBhcZvGtqYid5jxSx8vXiSr7
+2021-08-17 12:46:40 🔍 Discovered new external address for our node: /dns/boot.pdexmon.com/tcp/30333/ws/p2p/12D3KooWDG1dWUq2z3moX7yXqo5hKPSwcpyoK55NRrwZG8g5VtRu
 2021-08-17 12:46:40 [#796] 🗳  Starting signed phase round 2.    
 2021-08-17 12:46:40 [#838] 🗳  Starting unsigned phase(true).    
 2021-08-17 12:46:40 [#882] 🗳  Finalized election round with compute ElectionCompute::OnChain.    
